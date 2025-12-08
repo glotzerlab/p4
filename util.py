@@ -333,27 +333,27 @@ def add_interaction(
 
     # set params for all pairs of non-interacting types
     no_types = [t for t in all_types if t not in interaction.yes_types]
-    for no_t in no_types:
-        for all_t in all_types:
-            force.r_cut[(no_t, all_t)] = 0.0
+    for n_t in no_types:
+        for a_t in all_types:
+            force.r_cut[(n_t, a_t)] = 0.0
             if "params" in interaction.default_params.keys():
-                force.params[(no_t, all_t)] = interaction.default_params["params"]
+                force.params[(n_t, a_t)] = interaction.default_params["params"]
                 for k, v in interaction.default_params.items():
                     if k != "params":
-                        getattr(force, k)[(no_t, all_t)] = v    # does this work??
+                        getattr(force, k)[(n_t, a_t)] = v    # does this work??
             else:
-                force.params[(no_t, all_t)] = interaction.default_params
+                force.params[(n_t, a_t)] = interaction.default_params
 
     # set params for all pairs of interacting types
-    for i, yes_t in enumerate(interaction.yes_types):
-        for all_t in all_types[i:]:
+    for i, y_t in enumerate(interaction.yes_types):
+        for a_t in all_types[i:]:
             if "params" in interaction.yes_params.keys():
-                force.params[(yes_t, all_t)] = interaction.yes_params["params"]
+                force.params[(y_t, a_t)] = interaction.yes_params["params"]
                 for k, v in interaction.yes_params.items():
                     if k != "params":
-                        getattr(force, k)[(yes_t, all_t)] = v    # does this work??
+                        getattr(force, k)[(y_t, a_t)] = v    # does this work??
             else:
-                force.params[(yes_t, all_t)] = interaction.yes_params
+                force.params[(y_t, a_t)] = interaction.yes_params
 
     simulation.operations.integrator.forces.append(force)
 

@@ -92,8 +92,8 @@ class ParticleModel:
 class System:
     """A System is defined by its particle models and an interaction model.
     
-    Once instantiated, the potential energy landscape can be measured using the
-    `probe()` method.
+    Once the system is instantiated, its potential energy landscape can be
+    measured using the `probe()` method.
 
     Parameters
     ----------
@@ -102,8 +102,8 @@ class System:
     analyte : ParticleModel
         The particle model for the analyte.
     interaction_model : dict[str, Interaction]
-        A collection of named interactions. All keys should have the type string
-        and all values should have the type Interaction.
+        A collection of named interactions. All keys should have the `str` type
+        and all values should have the `Interaction` type.
     """
     def __init__(
         self,

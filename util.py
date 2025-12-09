@@ -2,11 +2,14 @@ from copy import deepcopy
 from io import TextIOWrapper
 import itertools
 from typing import Tuple
-import gsd
+import gsd.hoomd
 import hoomd
 import numpy as np
 import rowan
-from probe import Interaction, ParticleModel
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from probe_potential import Interaction, ParticleModel
 
 def maximal_outer_interaction_cutoffs(interactions: list[Interaction]):
     """The maximal useful distance for probing a set of interactions."""

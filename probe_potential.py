@@ -127,7 +127,7 @@ class System:
         for interaction in self.interaction_model.values():
             assert all([t in valid_types for t in interaction.yes_types])
 
-    def interactions(self, names: list[str] | None = None) -> list[Interaction]:
+    def interactions(self, names: list[str] = []) -> list[Interaction]:
         """A list of interactions, all of them or just those named.
 
         Parameters
@@ -140,7 +140,7 @@ class System:
         -------
         interactions
         """
-        if names is not None:
+        if names != []:
             return [self.interaction_model[name] for name in names]
         else:
             return list(self.interaction_model.values())

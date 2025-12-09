@@ -23,7 +23,7 @@ def particle_must_be_rigid_body(
     particle_model: ParticleModel,
     interactions: list[Interaction]
 ) -> bool:
-    """Whether the particle must be rigid for the interactions."""
+    """Whether the particle must be rigid for any of the given interactions."""
     return any([
         particle_model.must_be_rigid_body(interaction)
         for interaction in interactions
@@ -60,6 +60,7 @@ def get_probe_positions(
     return positions
 
 def exclude_positions_by_shape():
+    # TODO
     pass
 
 def get_probe_orientations(
@@ -100,9 +101,9 @@ def get_initial_frame(
     """Return a simulation frame with analyte at center and probe at edge.
 
     All provided types are included in the particle type data, but only primary
-    types specified omthe provided particle models are actually placed. In other
-    words, secondary types **are not** placed in the frame and must be added
-    separately using `create_rigid_bodies()`.
+    types specified on the provided particle models are actually placed. In
+    other words, secondary types **are not** placed in the frame and must be
+    added separately using `create_rigid_bodies()`.
 
     Parameters
     ----------
@@ -110,8 +111,8 @@ def get_initial_frame(
         The particle model for the probe.
     analyte_model : ParticleModel
         The particle model for the analyte.
-    included_types : list[str]
-        The types to include in the particle data, accessible via
+    included_secondary_types : list[str]
+        The secondary types to include in the particle data, accessible via
         frame.particles.types.
     probe_box : list[float]
         The side lengths of the box that will be probed. [Lx, Ly, Lz]
@@ -170,6 +171,10 @@ def add_rigid_constraint(
         The particle model containing the rigid body information. The model's
         `primary_type` corresponds to the rigid body's central particle, while
         the `secondary_types` correspond to the constituent particles.
+    create_bodies : bool
+        Whether to modify the simulation state by calling
+        `rigid.create_bodies(<simulation.state>)`. Only set the value to True
+        when no more constraints will be added.
     included_secondary_types : list[str], optional
         The names of the secondary types to include in the rigid body. If not
         provided, all secondary types are included.

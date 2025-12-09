@@ -91,8 +91,8 @@ def get_probe_orientations(
     return rowan.from_euler(angles[:,0], angles[:,1], angles[:,2])
 
 def get_initial_frame(
-    probe: ParticleModel,
-    analyte: ParticleModel,
+    probe_model: ParticleModel,
+    analyte_model: ParticleModel,
     included_types: list[str],
     probe_box: list[float],
     simulation_box: list[float],
@@ -106,9 +106,9 @@ def get_initial_frame(
 
     Parameters
     ----------
-    probe : ParticleModel
+    probe_model : ParticleModel
         The particle model for the probe.
-    analyte : ParticleModel
+    analyte_model : ParticleModel
         The particle model for the analyte.
     included_types : list[str]
         The types to include in the particle data, accessible via

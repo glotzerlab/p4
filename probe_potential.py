@@ -165,7 +165,7 @@ class System:
         ])
         return interacting_types
 
-    def probe(
+    def probe_potential(
         self,
         position_resolutions: list[list[float]],
         orientation_resolutions: list[list[float]],

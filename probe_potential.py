@@ -107,12 +107,12 @@ class System:
     """
     def __init__(
         self,
-        probe: ParticleModel,
-        analyte: ParticleModel,
+        probe_model: ParticleModel,
+        analyte_model: ParticleModel,
         interaction_model: dict[str, Interaction],
     ):
-        self.probe = probe
-        self.analyte = analyte
+        self.probe_model = probe_model
+        self.analyte_model = analyte_model
         self.interaction_model = interaction_model
 
         self.validate()
@@ -120,11 +120,11 @@ class System:
     def validate(self):
         """Ensure all possible interacting types appear in particle models."""
         valid_types = []
-        for model in [self.probe, self.analyte]:
+        for model in [self.probe_model, self.analyte_model]:
             valid_types.append(model.primary_type)
             valid_types.extend(model.secondary_types)
 
-        for interaction in self.interaction_model.items():
+        for interaction in self.interaction_model.values():
             assert all([t in valid_types for t in interaction.yes_types])
 
     def interactions(self, names: list[str] | None = None) -> list[Interaction]:

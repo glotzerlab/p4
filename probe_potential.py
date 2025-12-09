@@ -145,7 +145,7 @@ class System:
         else:
             return list(self.interaction_model.values())
 
-    def interacting_types(self, names: list[str] | None = None) -> list[str]:
+    def interacting_types(self, names: list[str] | None = None) -> set[str]:
         """The interacting types, for all interactions or just those named.
         
         Parameters
@@ -158,11 +158,11 @@ class System:
         -------
         types
         """
-        interacting_types = []
-        for interaction in self.interactions(names):
-            for t in interaction.yes_types:
-                if t not in interacting_types:
-                    interacting_types.append(t)
+        interacting_types = set([
+            t
+            for interaction in self.interactions(names)
+            for t in interaction.yes_types
+        ])
         return interacting_types
 
     def probe(

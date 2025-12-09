@@ -2,7 +2,7 @@ from copy import deepcopy
 from typing import Callable
 import hoomd
 import numpy as np
-import tqdm
+from tqdm import tqdm
 import util
 
 class Interaction:

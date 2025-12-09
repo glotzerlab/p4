@@ -20,21 +20,33 @@ class Interaction:
     #       should we provide an additional dictionary parameter or similar?
     def __init__(
         self,
-        hoomd_class,    # ???
-        inputs,
-        default_params,  # if this is a dictionary with a 'params' key, then class must have more than just params, but if not then class just has params
-        yes_types,  # if this is a dictionary with a 'params' key, then class must have more than just params, but if not then class just has params
-        yes_params,
-        probe_outside_cutoff_callable,  # needs to be a callable if the user can change params after instantiation
-        probe_inside_cutoff_callable
+        hoomd_class,
+        initial_inputs,
+        default_single_typed_attributes: dict,
+        default_pair_typed_attributes: dict,
+        yes_types,
+        yes_single_typed_attributes,
+        yes_pair_typed_attributes,
+        probe_cutoff_shape,
+        probe_cutoff_outside_callable,  # needs to be a callable if the user can change params after instantiation
+        probe_cutoff_inside_callable
     ):
         self.hoomd_class = hoomd_class
-        self.inputs = inputs
-        self.default_params = default_params
+        self.inputs = initial_inputs
+        self.default_single_typed_attributes = default_single_typed_attributes
+        self.default_pair_typed_attributes = default_pair_typed_attributes
         self.yes_types = yes_types
-        self.yes_params = yes_params
-        self.probe_outside_cutoff_callable = probe_outside_cutoff_callable
-        self.probe_inside_cutoff_callable = probe_inside_cutoff_callable
+        self.yes_single_typed_attributes = yes_single_typed_attributes
+        self.yes_pair_typed_attributes = yes_pair_typed_attributes
+        self.probe_cutoff_shape = probe_cutoff_shape
+        self.probe_cutoff_outside_callable = probe_cutoff_outside_callable
+        self.probe_cutoff_inside_callable = probe_cutoff_inside_callable
+
+    def validate_inputs():
+        pass
+
+    def validate_typed_attributes():
+        pass
 
 
 class ParticleModel:
@@ -210,8 +222,8 @@ class System:
             to 10.
         """
         # determine needed interactions and particle types
-        types = self.interacting_types(interactions_to_include)
         interactions = self.interactions(interactions_to_include)
+        types = self.interacting_types(interactions_to_include)
 
         # calculate probe box based on distance cutoff callables for included interactions
         if probe_box is None:
@@ -220,11 +232,12 @@ class System:
 
         # determine the frame's box from the probe box
         simulation_box = [d * box_safety_factor for d in probe_box]
+        simulation_box.extend([0, 0, 0])
         
         # create initial frame
         frame = util.get_initial_frame(
-            self.probe,
-            self.analyte,
+            self.probe_model,
+            self.analyte_model,
             types,
             probe_box,
             simulation_box
@@ -234,26 +247,31 @@ class System:
         simulation = hoomd.Simulation(device=hoomd.device.CPU(), seed=1)
         simulation.create_state_from_snapshot(frame)
 
+        # add integrator
+        simulation = util.add_integrator(simulation)
+
         # add rigid bodies if necessary
         probe_is_rigid = util.particle_must_be_rigid_body(
-            self.probe,
+            self.probe_model,
             interactions
         )
         analyte_is_rigid = util.particle_must_be_rigid_body(
-            self.analyte,
+            self.analyte_model,
             interactions
         )
         if probe_is_rigid:
-            simulation, rigid = util.add_rigid_bodies(
+            simulation, rigid = util.add_rigid_constraint(
                 simulation,
-                self.probe,
-                [t for t in self.probe.secondary_types if t in types]
+                self.probe_model,
+                False if analyte_is_rigid else True,
+                [t for t in self.probe_model.secondary_types if t in types]
             )
         if analyte_is_rigid:
-            simulation, _ = util.add_rigid_bodies(
+            simulation, _ = util.add_rigid_constraint(
                 simulation,
-                self.probe,
-                [t for t in self.analyte.secondary_types if t in types],
+                self.analyte_model,
+                True,
+                [t for t in self.analyte_model.secondary_types if t in types],
                 rigid if probe_is_rigid else None
             )
 
@@ -264,16 +282,17 @@ class System:
         if csv_filename:
             csv_file = open(csv_filename, "w")
             if gsd_filename:
-                simulation, _ = util.add_csv_writer(simulation, csv_file, compute)
+                simulation, _ = util.add_table_writer(
+                    simulation, csv_file, self.probe_model, compute
+                )
             else:
-                simulation, _ = util.add_csv_writer(simulation, csv_file)
+                simulation, _ = util.add_table_writer(
+                    simulation, csv_file, self.probe_model
+                )
 
         # add required interactions
         for interaction in interactions:
-            simulation = util.add_interaction(simulation, interaction)
-
-        # add integrator
-        simulation = util.add_integrator(simulation)
+            simulation = util.add_interaction(simulation, nlist, interaction)
 
         # calculate the probe positions and orientations
         probe_positions = util.get_probe_positions(
@@ -296,10 +315,10 @@ class System:
         state = simulation.state.get_snapshot()
         all_types = state.particles.types
         probe_index = deepcopy(np.where(
-            state.particles.typeid == all_types.index(self.probe.primary_type)
+            state.particles.typeid == all_types.index(self.probe_model.primary_type)
         ))
         analyte_index = deepcopy(np.where(
-            state.particles.typeid == all_types.index(self.analyte.primary_type)
+            state.particles.typeid == all_types.index(self.analyte_model.primary_type)
         ))
         analyte_orientation = deepcopy(
             state.particles.orientation[analyte_index,:]

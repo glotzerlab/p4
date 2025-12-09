@@ -15,8 +15,8 @@ def maximal_outer_interaction_cutoffs(interactions: list[Interaction]):
     """The maximal useful distance for probing a set of interactions."""
     cutoffs = []
     for interaction in interactions:
-        cutoffs.append(interaction.probe_outside_cutoff_callable())
-    
+        cutoffs.append(interaction.probe_cutoff_outside_callable())
+    cutoffs = np.array(cutoffs)
     return [cutoffs[:,0].max(), cutoffs[:,1].max(), cutoffs[:,2].max()]
 
 def particle_must_be_rigid_body(
@@ -84,9 +84,9 @@ def get_probe_orientations(
     if symmetries is None:
         symmetries = [1, 1, 1]
     angles = np.array(list(itertools.product(
-        np.linspace(0, 2*np.pi/symmetries[0], resolutions[2], endpoint=False),
+        np.linspace(0, 2*np.pi/symmetries[2], resolutions[2], endpoint=False),
         np.linspace(0, 2*np.pi/symmetries[1], resolutions[1], endpoint=False),
-        np.linspace(0, 2*np.pi/symmetries[2], resolutions[0], endpoint=False),
+        np.linspace(0, 2*np.pi/symmetries[0], resolutions[0], endpoint=False),
     )))
     return rowan.from_euler(angles[:,0], angles[:,1], angles[:,2])
 
@@ -125,7 +125,13 @@ def get_initial_frame(
     """
     frame = gsd.hoomd.Frame()
 
-    frame.particles.types = included_types
+    all_types = list(
+        set(
+            [analyte_model.primary_type, probe_model.primary_type]
+        ).union(included_types)
+    )
+    all_types.sort()
+    frame.particles.types = all_types
 
     positions = np.array([
         [0.0, 0.0, 0.0],
@@ -134,8 +140,8 @@ def get_initial_frame(
     frame.particles.N = 2
     frame.particles.position = positions
     frame.particles.typeid = [
-        included_types.index(analyte.primary_type),
-        included_types.index(probe.primary_type)
+        frame.particles.types.index(analyte_model.primary_type),
+        frame.particles.types.index(probe_model.primary_type)
     ]
     frame.configuration.box = simulation_box
     frame.particles.mass = [1] * frame.particles.N
@@ -144,11 +150,12 @@ def get_initial_frame(
 
     return frame
 
-def add_rigid_bodies(
+def add_rigid_constraint(
     simulation: hoomd.Simulation,
     particle_model: ParticleModel,
+    create_bodies: bool,
     included_secondary_types: list[str] | None = None,
-    rigid: hoomd.md.constrain.Rigid | None = None
+    rigid: hoomd.md.constrain.Rigid | None = None,
 ) -> Tuple[hoomd.Simulation, hoomd.md.constrain.Rigid]:
     """Add rigid body constraints for a single particle model to the simulation.
 
@@ -184,7 +191,7 @@ def add_rigid_bodies(
     types_and_positions = [
         [t, position]
         for t in included_secondary_types
-        for position in particle_model.get_secondary_positions_by_type(t)      
+        for position in particle_model.get_secondary_positions_by_type(t)
     ]
 
     rigid.body[particle_model.primary_type] = {
@@ -193,7 +200,9 @@ def add_rigid_bodies(
         "orientations": [(1.0, 0.0, 0.0, 0.0) for _ in types_and_positions]
     }
 
-    rigid.create_bodies(simulation.state)
+    if create_bodies:
+        rigid.create_bodies(simulation.state)
+        simulation.operations.integrator.rigid = rigid
 
     return simulation, rigid
 
@@ -241,7 +250,7 @@ def add_gsd_writer(
 def add_table_writer(
     simulation: hoomd.Simulation,
     csv_file: TextIOWrapper,
-    probe: ParticleModel,
+    probe_model: ParticleModel,
     compute: hoomd.md.compute.ThermodynamicQuantities | None = None
 ) -> Tuple[hoomd.Simulation, hoomd.logging.Logger]:
     """Add a table writer that logs potential energy to the simulation.
@@ -265,10 +274,7 @@ def add_table_writer(
     logger.add(simulation, quantities=["timestep"])
 
     snapshot = simulation.state.get_snapshot()
-    all_types = snapshot.particles.types
-    probe_index = deepcopy(np.where(
-        snapshot.particles.typeid == all_types.index(probe.primary_type)
-    ))
+    probe_index = get_primary_particle_index(snapshot, probe_model)
 
     def probe_position():
         with simulation.state.cpu_local_snapshot as snapshot:
@@ -333,30 +339,71 @@ def add_interaction(
     """
     force = interaction.hoomd_class(nlist, **interaction.inputs)
     all_types = simulation.state.particle_types
+    all_type_pairs = list(itertools.combinations(all_types, 2))
+    all_type_pairs.extend([(t, t) for t in all_types])
+    yes_type_pairs = []
+    for p in all_type_pairs:
+        if (
+            p[0] in interaction.yes_types
+            and p[1] in interaction.yes_types
+            and p[0] != p[1]
+        ):
+            yes_type_pairs.append(p)
+    
+    def wrong_type_msg(att, default_or_yes, single_or_double, hoomd_class):
+        return (
+            f"'{att}' was provided as a {default_or_yes} {single_or_double}-"
+            f"typed-attribute, but no such attribute was found in hoomd class "
+            f"'{hoomd_class}'."
+        )
 
-    # set params for all pairs of non-interacting types
-    no_types = [t for t in all_types if t not in interaction.yes_types]
-    for n_t in no_types:
-        for a_t in all_types:
-            force.r_cut[(n_t, a_t)] = 0.0
-            if "params" in interaction.default_params.keys():
-                force.params[(n_t, a_t)] = interaction.default_params["params"]
-                for k, v in interaction.default_params.items():
-                    if k != "params":
-                        getattr(force, k)[(n_t, a_t)] = v    # does this work??
-            else:
-                force.params[(n_t, a_t)] = interaction.default_params
+    # Set default single attributes
+    for a_t in all_types:
+        for k, v in interaction.default_single_typed_attributes.items():
+            try:
+                getattr(force, k)[a_t] = v
+            except AttributeError:
+                raise AttributeError(
+                    wrong_type_msg(
+                        k, "default", "single", interaction.hoomd_class
+                    )
+                )
 
-    # set params for all pairs of interacting types
-    for i, y_t in enumerate(interaction.yes_types):
-        for a_t in all_types[i:]:
-            if "params" in interaction.yes_params.keys():
-                force.params[(y_t, a_t)] = interaction.yes_params["params"]
-                for k, v in interaction.yes_params.items():
-                    if k != "params":
-                        getattr(force, k)[(y_t, a_t)] = v    # does this work??
-            else:
-                force.params[(y_t, a_t)] = interaction.yes_params
+    # Set default pair attributes
+    for a_p in all_type_pairs:
+        for k, v in interaction.default_pair_typed_attributes.items():
+            try:
+                getattr(force, k)[a_p] = v
+            except AttributeError:
+                raise AttributeError(
+                    wrong_type_msg(
+                        k, "default", "pair", interaction.hoomd_class
+                    )
+                )
+
+    # Modify single attributes for interacting types
+    for y_t in interaction.yes_types:
+        for k, v in interaction.yes_single_typed_attributes.items():
+            try:
+                getattr(force, k)[y_t] = v
+            except AttributeError:
+                raise AttributeError(
+                    wrong_type_msg(
+                        k, "yes", "single", interaction.hoomd_class
+                    )
+                )
+
+    # Modify pair attributes for interacting types
+    for y_p in yes_type_pairs:
+        for k, v in interaction.yes_pair_typed_attributes.items():
+            try:
+                getattr(force, k)[y_p] = v
+            except AttributeError:
+                raise AttributeError(
+                    wrong_type_msg(
+                        k, "yes", "pair", interaction.hoomd_class
+                    )
+                )
 
     simulation.operations.integrator.forces.append(force)
 
@@ -392,3 +439,11 @@ def add_integrator(
     # NOTE: no method is needed because no particle movement is wanted.
     
     return simulation
+
+def get_primary_particle_index(snapshot, particle_model):
+    """TODO"""
+    all_types = snapshot.particles.types
+    particle_index = deepcopy(np.where(
+        snapshot.particles.typeid == all_types.index(particle_model.primary_type)
+    ))
+    return particle_index

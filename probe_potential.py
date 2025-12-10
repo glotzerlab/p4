@@ -174,9 +174,20 @@ class System:
         for model in [self.probe_model, self.analyte_model]:
             valid_types.append(model.primary_type)
             valid_types.extend(model.secondary_types)
+        
+        invalid_types = {}
+        for name, interaction in self.interaction_model.items():
+            invalid_types[name] = [
+                t
+                for t in interaction.yes_types if t not in valid_types
+            ]
 
-        for interaction in self.interaction_model.values():
-            assert all([t in valid_types for t in interaction.yes_types])
+        if len(invalid_types.keys()) > 0:
+            raise ValueError(
+                f"The provided interaction model contains types that are "
+                f"not in any of the provided interaction models: "
+                f"{invalid_types}."
+            )
 
     def interactions(self, names: list[str] = []) -> list[Interaction]:
         """A list of interactions, all of them or just those named.

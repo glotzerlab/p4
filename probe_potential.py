@@ -7,18 +7,41 @@ from tqdm import tqdm
 import util
 
 class Interaction:
-    # An interaction contains the info needed to initialize an interaction instance
-    # with the correct parameters for every pair of types. It also knows how to
-    # calculate inside and outside cutoff distances.
+    """A container for the data to  create and parametrize an MD pair potential.
 
-    # Initialize an interaction instance with types and other params
+    Parameters
+    ----------
+    hoomd_class : hoomd.md.pair.Pair
+        The constructor for the HOOMD class. Must be in `hoomd.md.pair`.
+    initial_inputs : dict[str, float | str]
+        All parameters (that aren't `nlist`) that are needed for instantiating
+        the class from its constructor.
+    default_single_typed_attributes : dict
+        The names and default values of attributes that must be set for
+        individual particle types. This is usually an empty dict for isotropic
+        interactions.
+    default_pair_typed_attributes : dict[str, float]
+        The names and default values of attributes that must be set for
+        pairs of particle types. This is usually an empty dict for isotropic
+        interactions.
+    yes_types : list[str]
+        The particle types that can interact with each other under this
+        potential. All interacting type pairs are assumed to use the same
+        interaction attributes.
+    yes_single_typed_attributes : dict[str, float]
+        The names and values of the attributes for interacting particle types
+        that must be set for individual types. This is usually an empty dict for
+        isotropic interactions.
+    yes_pair_typed_attributes : dict[str, float]
+        The names and values values of attributes for interacting particle types
+        that must be set for pairs of types. All interacting type pairs are
+        assumed to use the same interaction attributes.
 
-    # Do we want this to be static, or should user be able to change params of
-    # an interaction after they've registered it? I think we do want this, since
-    # the interactions are attached to the simulation object every time run is called.
-
-    # Note: some interactions require things besides params to be set (e.g., ALJ requires 'shape')...
-    #       should we provide an additional dictionary parameter or similar?
+    Raises
+    ------
+    ValueError
+        If the provided initial_inputs or typed attributes are not correct.        
+    """
     def __init__(
         self,
         hoomd_class: hoomd.md.pair.Pair,

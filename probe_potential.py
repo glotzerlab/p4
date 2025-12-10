@@ -1,5 +1,6 @@
 from copy import deepcopy
 from typing import Callable
+import coxeter
 import hoomd
 import numpy as np
 from tqdm import tqdm
@@ -20,16 +21,13 @@ class Interaction:
     #       should we provide an additional dictionary parameter or similar?
     def __init__(
         self,
-        hoomd_class,
-        initial_inputs,
+        hoomd_class: hoomd.md.pair.Pair,
+        initial_inputs: dict[str, float | str],
         default_single_typed_attributes: dict,
-        default_pair_typed_attributes: dict,
-        yes_types,
-        yes_single_typed_attributes,
-        yes_pair_typed_attributes,
-        probe_cutoff_shape,
-        probe_cutoff_outside_callable,  # needs to be a callable if the user can change params after instantiation
-        probe_cutoff_inside_callable
+        default_pair_typed_attributes: dict[tuple[str], float],
+        yes_types: list[str],
+        yes_single_typed_attributes: dict[str, float],
+        yes_pair_typed_attributes: dict[tuple[str], float],
     ):
         self.hoomd_class = hoomd_class
         self.inputs = initial_inputs
@@ -38,14 +36,13 @@ class Interaction:
         self.yes_types = yes_types
         self.yes_single_typed_attributes = yes_single_typed_attributes
         self.yes_pair_typed_attributes = yes_pair_typed_attributes
-        self.probe_cutoff_shape = probe_cutoff_shape
-        self.probe_cutoff_outside_callable = probe_cutoff_outside_callable
-        self.probe_cutoff_inside_callable = probe_cutoff_inside_callable
 
     def validate_inputs():
+        # TODO
         pass
 
     def validate_typed_attributes():
+        # TODO
         pass
 
 
@@ -100,6 +97,9 @@ class ParticleModel:
         """Whether the particle must be a rigid body for some interaction."""
         return any([t in self.secondary_types for t in interaction.yes_types])
 
+    def validate_get_secondary_positions_by_type(self):
+        # TODO
+        pass
 
 class System:
     """A System is defined by its particle models and an interaction model.
@@ -183,8 +183,10 @@ class System:
         orientation_resolutions: list[list[float]],
         orientation_symmetries: list[int],
         nlist: hoomd.md.nlist.NeighborList,
-        interactions_to_include: list[str] = [],
-        probe_box: list[float] | None = None,
+        interactions_to_include: list[str],
+        probe_cutoff_outside_distance: Callable,  # needs to be a callable if the user can change params after instantiation
+        probe_cutoff_inside_distance: Callable | None = None,
+        probe_cutoff_shape: coxeter.shapes.ConvexPolyhedron | None = None,
         gsd_filename: str | None = None,
         csv_filename: str | None = None,
         box_safety_factor: float = 10
@@ -204,12 +206,27 @@ class System:
         is assumed for every axis. [X, Y, Z]
         nlist : hoomd.md.nlist.NeighborList
             The neighborlist to use for the interactions.
-        interactions_to_include : list[str], optional
-            The names of the interactions to include. If not provided, all
-            interactions in the model are included.
-        probe_box : list[float], optional
-            The side lengths of the probe box. If provided, overrides the
-            distances provided by the interactions' cutoff callables.
+        interactions_to_include : list[str]
+            The names of the interactions to include.
+        probe_cutoff_outside_distance : Callable
+            A callable that takes `self` as its only argument and returns a
+            float representing the cutoff distance outside which no positions
+            will be probed. If`probe_cutoff_shape` is provided, this distance
+            represents a buffer distance around the shape, otherwise it
+            distance represents the side lengths of a cube centered on the
+            origin.
+        probe_cutoff_inside_distance : Callable, optional
+            A callable that takes `self` as its only argument and returns a
+            float representing the cutoff distance inside which no positions
+            will be probed. If`probe_cutoff_shape` is provided, this distance
+            represents a buffer distance inside the shape, otherwise it
+            distance represents the side lengths of a cube centered on the
+            origin. If not provided, all positions inside the outer cutoff
+            distance will be probed.
+        probe_cutoff_shape : coxeter.shapes.ConvexPolyhedron, optional
+            A convex polyhedron representing a shape to which cutoff distances
+            are relative, enabling the user to probe non-cubic boxes. If not
+            provided, cutoff distances describe the side lengths of a cube.
         gsd_filename : str, optional
             The name of the GSD file to save. If not provided, no GSD file is
             saved.
@@ -226,9 +243,12 @@ class System:
         types = self.interacting_types(interactions_to_include)
 
         # calculate probe box based on distance cutoff callables for included interactions
-        if probe_box is None:
-            cutoffs = util.maximal_outer_interaction_cutoffs(interactions)
-            probe_box = [2 * c for c in cutoffs]
+        outside_cutoff = probe_cutoff_outside_distance(self)
+        if probe_cutoff_shape is None:
+            probe_box = [2*outside_cutoff, 2*outside_cutoff, 2*outside_cutoff]
+        else:
+            shape_maxes = probe_cutoff_shape.vertices.max(axis=0)
+            probe_box = [m + outside_cutoff for m in shape_maxes]
 
         # determine the frame's box from the probe box
         simulation_box = [d * box_safety_factor for d in probe_box]
@@ -304,12 +324,40 @@ class System:
             orientation_symmetries
         )
 
-        # TODO: remove positions that are too close or too far away?
-        # I'm not sure how to do this currently because the particle model
-        # has no notion of shape. We could allow user to pass a flag and if true
-        # then attempt to construct shapes for each of the types of secondary
-        # particles for the analyte. The smallest shape would be used for r_in
-        # and the largest shape would be used for r_out
+        # remove positions that are too far away
+        probe_positions = util.exclude_positions_by_shape(
+            positions=probe_positions,
+            exclude_inside=False,
+            shape=(
+                probe_cutoff_shape
+                if probe_cutoff_shape is not None
+                else util.get_cube(outside_cutoff)
+            ),
+            buffer=outside_cutoff if probe_cutoff_shape is not None else 0.0
+        )
+
+        # remove positions that are too close
+        if probe_cutoff_inside_distance is not None:
+            inside_cutoff = probe_cutoff_inside_distance(self)
+            if inside_cutoff <= 0:
+                raise ValueError(
+                    "'probe_cutoff_inside_distance' must return a value "
+                    f"greater than 0."
+                ) 
+            probe_positions = util.exclude_positions_by_shape(
+                positions=probe_positions,
+                exclude_inside=True,
+                shape=(
+                    probe_cutoff_shape
+                    if probe_cutoff_shape is not None
+                    else util.get_cube(probe_cutoff_inside_distance(self))
+                ),
+                buffer=(
+                    probe_cutoff_inside_distance(self)
+                    if probe_cutoff_shape is not None
+                    else 0.0
+                )
+            )
 
         # run the probe simulation
         state = simulation.state.get_snapshot()
@@ -353,4 +401,5 @@ class System:
 class ProbeResults:     # or maybe "Field"
     # Handle mean/min, plotting
     def __init__(self, csv_filename):
+        # process_in_place flag
         pass

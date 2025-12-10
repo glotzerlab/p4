@@ -2,6 +2,7 @@ from copy import deepcopy
 from io import TextIOWrapper
 import itertools
 from typing import Tuple
+import coxeter
 import gsd.hoomd
 import hoomd
 import numpy as np
@@ -11,13 +12,20 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from probe_potential import Interaction, ParticleModel
 
-def maximal_outer_interaction_cutoffs(interactions: list[Interaction]):
-    """The maximal useful distance for probing a set of interactions."""
-    cutoffs = []
-    for interaction in interactions:
-        cutoffs.append(interaction.probe_cutoff_outside_callable())
-    cutoffs = np.array(cutoffs)
-    return [cutoffs[:,0].max(), cutoffs[:,1].max(), cutoffs[:,2].max()]
+def get_cube(side_length):
+    """Return a coxeter cube with a given side length."""
+    s = side_length/2
+    vertices = [
+        [-s, -s, -s],
+        [-s, -s,  s],
+        [-s,  s, -s],
+        [-s,  s,  s],
+        [ s, -s, -s],
+        [ s, -s,  s],
+        [ s,  s, -s],
+        [ s,  s,  s]
+    ]
+    return coxeter.shapes.ConvexPolyhedron(vertices)
 
 def particle_must_be_rigid_body(
     particle_model: ParticleModel,
@@ -59,9 +67,46 @@ def get_probe_positions(
 
     return positions
 
-def exclude_positions_by_shape():
-    # TODO
-    pass
+def exclude_positions_by_shape(
+    positions: list[list[float]],
+    shape: coxeter.shapes.ConvexPolyhedron,
+    exclude_inside: bool,
+    buffer: float=0.0,
+):
+    """Remove positions inside or outside a shape with an optional buffer.
+
+    Parameters
+    ----------
+    positions : list[list[float]]
+        Array of positions. (..., 3)
+    shape : coxeter.shapes.ConvexPolyhedron
+        The shape to check against positions.
+    exclude_inside : bool
+        Whether to exclude positions that are inside the shape (True) or
+        outside (False).
+    buffer : float, optional
+        An buffer distance for the shape. If greater than zero, the provided
+        `shape` is converted into a ConvexSpheroPolyhedron and exclusion checks
+        are performed on that instead. If smaller than zero, the provided shape
+        is shrunk by the factor ((r-b)/r), where b is the absolute value of the
+        buffer distance and r is the radius of the maximal centered bounded
+        sphere. [TODO: check that this is ok]
+
+    Returns
+    -------
+    np.ndarray
+        The positions that are not excluded.
+    """
+    if buffer > 0:
+        shape = coxeter.shapes.ConvexSpheropolyhedron(shape.vertices, buffer)
+    if buffer < 0:
+        r = shape.maximal_centered_bounded_sphere_radius
+        shape.vertices *= (r - buffer) / r
+    
+    if exclude_inside:
+        return np.array(positions)[~shape.is_inside(positions)]
+    else:
+        return np.array(positions)[shape.is_inside(positions)]
 
 def get_probe_orientations(
     resolutions: list[int],
@@ -445,8 +490,25 @@ def add_integrator(
     
     return simulation
 
-def get_primary_particle_index(snapshot, particle_model):
-    """TODO"""
+def get_primary_particle_index(
+    snapshot: hoomd.Snapshot,
+    particle_model: ParticleModel
+):
+    """Return the snapshot's particle index for the model's primary type.
+
+    The returned index corresponds to the **first** occurance of the given type.
+    
+    Parameters
+    ----------
+    snapshot : Snapshot
+        The snapshot containing the particle of interest.
+    particle_model : ParticleModel
+        The model whose primary type is of interest.
+    
+    Returns
+    -------
+    index
+    """
     all_types = snapshot.particles.types
     particle_index = deepcopy(np.where(
         snapshot.particles.typeid == all_types.index(particle_model.primary_type)

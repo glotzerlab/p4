@@ -387,7 +387,7 @@ def add_interaction(
     simulation
         The modified simulation.
     """
-    force = interaction.hoomd_class(nlist, **interaction.inputs)
+    force = interaction.hoomd_class(nlist, **interaction.initial_inputs)
     all_types = simulation.state.particle_types
     all_type_pairs = list(itertools.combinations(all_types, 2))
     all_type_pairs.extend([(t, t) for t in all_types])

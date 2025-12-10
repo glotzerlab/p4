@@ -47,13 +47,13 @@ class Interaction:
         hoomd_class: hoomd.md.pair.Pair,
         initial_inputs: dict[str, float | str],
         default_single_typed_attributes: dict,
-        default_pair_typed_attributes: dict[tuple[str], float],
+        default_pair_typed_attributes: dict[str, float],
         yes_types: list[str],
         yes_single_typed_attributes: dict[str, float],
-        yes_pair_typed_attributes: dict[tuple[str], float],
+        yes_pair_typed_attributes: dict[str, float],
     ):
         self.hoomd_class = hoomd_class
-        self.inputs = initial_inputs
+        self.initial_inputs = initial_inputs
         self.default_single_typed_attributes = default_single_typed_attributes
         self.default_pair_typed_attributes = default_pair_typed_attributes
         self.yes_types = yes_types

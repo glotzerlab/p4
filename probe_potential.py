@@ -60,14 +60,30 @@ class Interaction:
         self.yes_single_typed_attributes = yes_single_typed_attributes
         self.yes_pair_typed_attributes = yes_pair_typed_attributes
 
-    def validate_inputs():
-        # TODO
-        pass
+        self.validate()
 
-    def validate_typed_attributes():
-        # TODO
-        pass
+    def validate(self):
+        """Instantiate the HOOMD class and attempt to run a simulation."""
+        nlist = hoomd.md.nlist.Cell(2)
+        try:
+            test_instance = self.hoomd_class(nlist, **self.initial_inputs)
+        except TypeError, hoomd.error.TypeConversionError:
+            raise ValueError(
+                "The 'initial_inputs' are wrong. See traceback for details."
+            )
+        
+        simulation = hoomd.util.make_example_simulation(
+            particle_types=self.yes_types
+        )
+        simulation = util.add_integrator(simulation)
+        simulation = util.add_interaction(simulation, nlist, self)
 
+        try:
+           simulation.run(0)
+        except:
+            raise ValueError(
+                "The typed attributes are wrong. See traceback for details."
+            )
 
 class ParticleModel:
     """The names and positions of a particle's primary and secondary types.

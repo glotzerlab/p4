@@ -627,8 +627,11 @@ class Field:
         df = df.reset_index(level=[0,1,2])
         df = df.drop(labels=["q0", "q1", "q2", "q3"], axis=1)
 
-        # Replace NaN with Inf
+        # Reshape DataFrame into a numpy grid
+        # TODO: this doesn't work for 3D...
         df = df.pivot(columns="x", index="y", values="PE")
+
+        # Replace NaN with Inf
         df = df.replace(to_replace=np.nan, value=np.inf)
 
         # If Convert pandas dataframe to PIL image

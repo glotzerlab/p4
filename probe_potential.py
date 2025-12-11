@@ -733,7 +733,7 @@ class Field:
                 raise ValueError(
                     "To save a 3D array, `filename` must end in '.vti'."
                 )
-            self._save_3d_array_to_vti()
+            self._save_3d_array_to_vti(self.array, self.extents, filename)
         
     def plot(
         self,

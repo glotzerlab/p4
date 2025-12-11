@@ -628,7 +628,7 @@ class Field:
         # image_array = np.nan_to_num(
         #     df.array, nan=np.inf, posing=np.inf, neginf=-np.inf
         # )
-        return df.array
+        return np.array(df)
 
     @staticmethod
     def _save_2d_array_to_tiff(

@@ -589,8 +589,8 @@ class Field:
     def n_dimensions(self):
         """The number of dimensions of the array. Should be 2 or 3."""
         return len(self.array.shape)
-    @staticmethod
 
+    @staticmethod
     def _df_to_array(df, orientation: Literal["mean", "min"]):
         """Convert a raw field dataframe into a 2D or 3D numpy array.
 

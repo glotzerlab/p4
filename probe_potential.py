@@ -3,6 +3,7 @@ import json
 from typing import Callable, Literal
 import warnings
 import PIL
+import PIL.TiffImagePlugin
 import coxeter
 import hoomd
 import numpy as np
@@ -497,17 +498,43 @@ class Field:
         self.array = array
         self.extents = extents
 
+    @classmethod
     def from_csv(cls, filename, orientation: Literal["mean", "min"]):
+        """Construct a Field from a CSV file.
+        
+        This constructor is intended for use only with CSV files created with
+        `System.probe_potential()`.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the CSV file.
+        orientation : 'mean' or 'min'
+            Whether to average potential values over all orientations ('mean')
+            or take the minimum potential for each orientation ('min').
+        """
         df = pd.read_csv(filename)
         array = cls._df_to_array(df, orientation)
         extents = [
-            [df["       x        "].min(), df["       x        "].max()],
-            [df["       y        "].min(), df["       y        "].max()],
-            [df["       z        "].min(), df["       z        "].max()],
+            [df["x"].min(), df["x"].max()],
+            [df["y"].min(), df["y"].max()],
+            [df["z"].min(), df["z"].max()],
         ]
         return cls(array, extents)
     
+    @classmethod
     def from_tiff(cls, filename):
+        """Construct a Field from a TIFF file.
+
+        This constructor is intended for use with TIFF files created with
+        `Field.save_image()`, since they have the extents encoded, but it will
+        still work with other TIFF files.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the TIFF file.
+        """
         image = PIL.Image.open(filename)
         
         extents_str = image.tag.get(270, None)
@@ -522,8 +549,20 @@ class Field:
         else:
             warnings.warn("Could not read extents from TIFF.")
             return cls(np.array(image))
-        
+
+    @classmethod
     def from_vti(cls, filename):
+        """Construct a Field from a VTI file.
+
+        This constructor is intended for use with VTI files created with
+        `Field.save_image()`, since they have the extents encoded, but it will
+        still work with other VTI files.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the VTI file.
+        """
         reader = vtk.vtkXMLImageDataReader()
         reader.SetFileName(filename)
         reader.Update()

@@ -1,16 +1,13 @@
 from copy import deepcopy
 from io import TextIOWrapper
 import itertools
-import json
 from typing import Tuple
-import PIL
 import coxeter
 import gsd.hoomd
 import hoomd
 import numpy as np
 import pandas as pd
 import rowan
-import vtk
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:

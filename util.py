@@ -1,12 +1,16 @@
 from copy import deepcopy
 from io import TextIOWrapper
 import itertools
+import json
 from typing import Tuple
+import PIL
 import coxeter
 import gsd.hoomd
 import hoomd
 import numpy as np
+import pandas as pd
 import rowan
+import vtk
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -514,3 +518,33 @@ def get_primary_particle_index(
         snapshot.particles.typeid == all_types.index(particle_model.primary_type)
     ))
     return particle_index
+
+def simplify_probe_csv_columns(filename: str):
+    """Simplify column names in a CSV file created by System.potential_probe().
+
+    Parameters
+    ----------
+    filename : str
+        The name of the CSV file.
+    """
+    df = pd.read_csv(filename)
+    new_names = {
+        "       x        ": "x",
+        "       y        ": "y",
+        "       z        ": "z",
+        "       q0       ": "q0",
+        "       q1       ": "q1",
+        "       q2       ": "q2",
+        "       q3       ": "q3",
+        "Simulation.timestep": "t",
+        "md.compute.ThermodynamicQuantities.potential_energy": "PE"
+    }
+    df.rename(columns=new_names, inplace=True)
+    df.to_csv(filename)
+
+def find_nearest(array, value):
+    """TODO"""
+    # Ref: https://stackoverflow.com/a/2566508/15426433
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return array[idx]

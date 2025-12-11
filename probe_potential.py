@@ -450,9 +450,10 @@ class System:
 
                 simulation.run(1)
 
-        # close the csv file if necessary
+        # close the csv file if necessary and clean its columns
         if csv_filename:
             csv_file.close()
+            util.simplify_probe_csv_columns(csv_filename)
 
 class Field:
     """A Field is defined by an array of values and an array of extents.
@@ -592,10 +593,8 @@ class Field:
         """Convert a raw field dataframe into a 2D or 3D numpy array.
 
         This processing has the following steps:
-        1. Rename columns
-        2. Average over orientations and then drop orientation columns.
-        3. Add rows and columns to ensure a completely uniform X/Y/Z grid.
-        4. Change all NaN values to Inf
+        1. Average over orientations and then drop orientation columns.
+        2. Change all NaN values to Inf
 
         Parameters
         ----------
@@ -606,23 +605,8 @@ class Field:
         Raises
         ------
         ValueError
-            If this Field was not instantiated from a raw CSV file, or if
-            orientation is not 'mean' or 'min'.
+            If `orientation` is not 'mean' or 'min'.
         """
-        # Rename columns
-        new_names = {
-            "       x        ": "x",
-            "       y        ": "y",
-            "       z        ": "z",
-            "       q0       ": "q0",
-            "       q1       ": "q1",
-            "       q2       ": "q2",
-            "       q3       ": "q3",
-            "Simulation.timestep": "t",
-            "md.compute.ThermodynamicQuantities.potential_energy": "PE"
-        }
-        df.rename(columns=new_names, inplace=True)
-
         # Average over orientation, then drop orientation columns
         if orientation == "mean":
             df = df.groupby(["x", "y", "z"]).mean()

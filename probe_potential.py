@@ -189,7 +189,7 @@ class System:
                 for t in interaction.yes_types if t not in valid_types
             ]
 
-        if len(invalid_types.keys()) > 0:
+        if any([len(v) > 0 for v in invalid_types.values()]):
             raise ValueError(
                 f"The provided interaction model contains types that are "
                 f"not in any of the provided interaction models: "

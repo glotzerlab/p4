@@ -1,11 +1,18 @@
 from copy import deepcopy
 import json
+import math
 from typing import Callable, Literal
 import warnings
 import PIL
 import PIL.TiffImagePlugin
 import coxeter
 import hoomd
+from matplotlib import pyplot as plt
+from matplotlib import colormaps
+from matplotlib.patches import Rectangle, PathPatch, Polygon
+from matplotlib.path import Path
+from matplotlib.colors import TwoSlopeNorm
+from matplotlib.transforms import Affine2D
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -737,15 +744,113 @@ class Field:
         
     def plot(
         self,
-        core_shape,
-        rotate_core_deg,
-        vmin,
-        vmax,
-        slice_x,
-        slice_y,
-        slice_lim,
-        show_cbar,
-        core_scale_factor
+        core_shape: coxeter.shapes.ConvexPolygon | coxeter.shapes.ConvexPolyhedron | None = None,
+        rotate_core_deg: float = 90.0,
+        vmin: float = -1.0,
+        vmax: float = 10.0,
+        # slice_x: float | None = None,         # TODO: decide whether to allow slice
+        # slice_y: float | None = None,
+        # slice_lim: list[float] | None = None,
+        show_cbar: bool = True,
+        core_scale_factor: float = 1.0,
+        cmap_name: str = "RdYlBu_r",
+        core_color: str = "#FFCF00",
     ):
-        # TODO
-        pass
+        # In 2D, use matplotlib
+        if self.n_dimensions == 2:
+            mpl_extents = [
+                self.extents[0][0],
+                self.extents[0][1],
+                self.extents[1][0],
+                self.extents[1][1]
+            ]
+            
+            # Initialize empty axes
+            # if slice_x is not None or slice_y is not None:
+            #     if show_cbar:
+            #         fig, ax = plt.subplots(1, 3, width_ratios=[1.0, 1.0, 0.1])
+            #         sl_ax = ax[0]
+            #         im_ax = ax[1]
+            #         cbar_ax = ax[2]
+            #     else:
+            #         fig, ax = plt.subplots(1, 3, width_ratios=[1.0, 1.0, 0.1])
+            #         sl_ax = ax[0]
+            #         im_ax = ax[1]
+            # else:
+            if show_cbar:
+                fig, ax = plt.subplots(1, 2, width_ratios=[1.0, 0.05])
+                im_ax = ax[0]
+                cbar_ax = ax[1]
+            else:
+                fig, ax = plt.subplots(1)
+                im_ax = ax
+
+            # Configure figure
+            fig.set_size_inches(14, 6)
+            fig.set_dpi(300)
+
+            # Plot image and outline
+            im = im_ax.imshow(
+                self.array,
+                extent=mpl_extents,
+                cmap=colormaps[cmap_name],
+                norm=TwoSlopeNorm(vcenter=0.0, vmin=vmin, vmax=vmax)
+            )
+
+            # Plot core if necessary
+            if core_shape is not None:
+                # Construct particle outline polygon
+                if core_scale_factor != 1.0:
+                    core_shape = coxeter.shapes.ConvexPolygon(
+                        core_shape.vertices * core_scale_factor
+                    )
+                particle_outline = Polygon(
+                    xy=core_shape.vertices[:,:2],
+                    fill=True,
+                    facecolor=core_color,
+                    edgecolor="black",
+                    linestyle="-",
+                    linewidth=2.0
+                )
+
+                # Rotate if necessary
+                if rotate_core_deg is not None:
+                    particle_outline.set_transform(
+                        Affine2D().rotate(math.radians(rotate_core_deg))
+                        + im_ax.transData
+                    )
+                im_ax.add_patch(particle_outline)
+
+            # # If necessary, plot slice
+            # if slice_x is not None:
+            #     nearest_x = util.find_nearest(np.array(df.index), slice_x)
+            #     slice_path = Path([[nearest_x, mpl_extents[2]], [nearest_x, mpl_extents[3]]])
+            #     slice_domain = df.columns
+            #     slice_range = np.array(df.loc[nearest_x])
+            #     # if slice_zmax is not None:
+            #     #     slice_range[slice_range > slice_zmax] = slice_zmax
+            
+            # elif slice_y is not None:
+            #     nearest_y = util.find_nearest(df.columns, slice_y)
+            #     slice_path = Path([[mpl_extents[0], nearest_y], [mpl_extents[1], nearest_y]])
+            #     slice_domain = np.array(df.index)
+            #     slice_range = df[nearest_y]
+            #     # if slice_zmax is not None:
+            #     #     slice_range[slice_range > slice_zmax] = slice_zmax
+            
+            # if slice_x is not None or slice_y is not None:
+            #     im_ax.add_patch(PathPatch(path=slice_path, linestyle="-.", edgecolor="black", linewidth=2.0))
+            #     sl_ax.plot(slice_domain, slice_range, c="red")
+            #     sl_ax.scatter(slice_domain, slice_range, c="red", )
+            #     if slice_lim is not None:
+            #         sl_ax.set_ylim(slice_lim)
+            
+            if show_cbar:
+                cbar = fig.colorbar(im, cax=cbar_ax)
+                cbar.set_ticks([vmin, 0, vmax])
+
+            return fig, ax
+
+        # In 3D, use plotly
+        elif self.n_dimensions == 3:
+            raise NotImplementedError("3D plotting is currently not supported.")

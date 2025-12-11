@@ -585,9 +585,11 @@ class Field:
         else:
             return cls(array)
 
+    @property
     def n_dimensions(self):
         """The number of dimensions of the array. Should be 2 or 3."""
         return len(self.array.shape)
+    @staticmethod
 
     def _df_to_array(df, orientation: Literal["mean", "min"]):
         """Convert a raw field dataframe into a 2D or 3D numpy array.
@@ -628,6 +630,7 @@ class Field:
         # )
         return df.array
 
+    @staticmethod
     def _save_2d_array_to_tiff(
         array: np.ndarray,
         extents: list[list[float]],
@@ -658,6 +661,7 @@ class Field:
 
         PIL.Image.fromarray(array).save(filename, tiffinfo=tiffinfo)
 
+    @staticmethod
     def _save_3d_array_to_vti(
         array: np.ndarray,
         filename: str,

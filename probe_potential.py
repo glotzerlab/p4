@@ -1,10 +1,16 @@
 from copy import deepcopy
-from typing import Callable
+import json
+from typing import Callable, Literal
+import warnings
+import PIL
 import coxeter
 import hoomd
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 import util
+import vtk
+
 
 class Interaction:
     """A container for the data to  create and parametrize an MD pair potential.
@@ -447,9 +453,272 @@ class System:
         if csv_filename:
             csv_file.close()
 
+class Field:
+    """A Field is defined by an array of values and an array of extents.
+    
+    This class can be instantiated directly from a numpy array and an optional
+    array of extents, but most users will want to construct it from a CSV, TIFF,
+    or VTI file. To do so, use the corresponding class methods `from_csv()`,
+    `from_tiff()`, and `from_vti()`.
 
-class ProbeResults:     # or maybe "Field"
-    # Handle mean/min, plotting
-    def __init__(self, csv_filename):
-        # process_in_place flag
+    While the array can be 2D or 3D, the extents array is **always** 3D and has
+    the following form:
+    ```
+    [
+        [xmin, xmax],
+        [ymin, ymax],
+        [zmin, zmax],
+    ]
+    ```
+    
+    If the array is 2D, zmin = zmax and the array therefore represents a 2D
+    slice through a 3D field at the position z = zmin = zmax.
+
+    Parameters
+    ----------
+    array : np.ndarray
+        The 2D or 3D numpy array of values.
+    extents : list[list[float]]
+        The minimum and maximum values along the X, Y, and Z axes.
+
+    Raises
+    ------
+    ValueError
+        If the provided array is not 2D or 3D.
+    """
+    def __init__(
+        self,
+        array: np.ndarray,
+        extents: list[list[float]] | None = None
+    ):
+        if (n := len(array.shape)) not in [2, 3]:
+            raise ValueError(f"`array` should be 2D or 3D but it is {n}D")
+
+        self.array = array
+        self.extents = extents
+
+    def from_csv(cls, filename, orientation: Literal["mean", "min"]):
+        df = pd.read_csv(filename)
+        array = cls._df_to_array(df, orientation)
+        extents = [
+            [df["       x        "].min(), df["       x        "].max()],
+            [df["       y        "].min(), df["       y        "].max()],
+            [df["       z        "].min(), df["       z        "].max()],
+        ]
+        return cls(array, extents)
+    
+    def from_tiff(cls, filename):
+        image = PIL.Image.open(filename)
+        
+        extents_str = image.tag.get(270, None)
+        if extents_str:
+            extents = json.loads(extents_str[0])
+            extents = [
+                [extents["xmin"], extents["xmax"]],
+                [extents["ymin"], extents["ymax"]],
+                [extents["zmin"], extents["zmax"]],
+            ]
+            return cls(np.array(image), extents)
+        else:
+            warnings.warn("Could not read extents from TIFF.")
+            return cls(np.array(image))
+        
+    def from_vti(cls, filename):
+        reader = vtk.vtkXMLImageDataReader()
+        reader.SetFileName(filename)
+        reader.Update()
+        vtk_image = reader.GetOutput()
+        
+        scalars = vtk_image.GetPointData().GetScalars()
+
+        array = vtk.util.numpy_support.vtk_to_numpy(scalars)
+        array = array.reshape(*vtk_image.GetDimensions())
+
+        spacing = vtk_image.GetSpacing()
+        if spacing:
+            extents = [
+                [-(spacing[2] * array.shape[2])/2, (spacing[2] * array.shape[2])/2],
+                [-(spacing[1] * array.shape[1])/2, (spacing[1] * array.shape[1])/2],
+                [-(spacing[0] * array.shape[0])/2, (spacing[0] * array.shape[0])/2],
+            ]
+            return cls(array, extents)
+        else:
+            return cls(array)
+
+    def n_dimensions(self):
+        """The number of dimensions of the array. Should be 2 or 3."""
+        return len(self.array.shape)
+
+    def _df_to_array(df, orientation: Literal["mean", "min"]):
+        """Convert a raw field dataframe into a 2D or 3D numpy array.
+
+        This processing has the following steps:
+        1. Rename columns
+        2. Average over orientations and then drop orientation columns.
+        3. Add rows and columns to ensure a completely uniform X/Y/Z grid.
+        4. Change all NaN values to Inf
+
+        Parameters
+        ----------
+        orientation : 'mean' or 'min'
+            Whether to average potential values over all orientations ('mean')
+            or take the minimum potential for each orientation ('min').
+
+        Raises
+        ------
+        ValueError
+            If this Field was not instantiated from a raw CSV file, or if
+            orientation is not 'mean' or 'min'.
+        """
+        # Rename columns
+        new_names = {
+            "       x        ": "x",
+            "       y        ": "y",
+            "       z        ": "z",
+            "       q0       ": "q0",
+            "       q1       ": "q1",
+            "       q2       ": "q2",
+            "       q3       ": "q3",
+            "Simulation.timestep": "t",
+            "md.compute.ThermodynamicQuantities.potential_energy": "PE"
+        }
+        df.rename(columns=new_names, inplace=True)
+
+        # Average over orientation, then drop orientation columns
+        if orientation == "mean":
+            df = df.groupby(["x", "y", "z"]).mean()
+        elif orientation == "min":
+            df = df.groupby(["x", "y", "z"]).min()
+        else:
+            raise ValueError("`orientation` must be 'mean' or 'min'.")
+        
+        df = df.reset_index(level=[0,1,2])
+        df = df.drop(labels=["q0", "q1", "q2", "q3"], axis=1)
+
+        # Replace NaN with Inf
+        df = df.pivot(columns="x", index="y", values="PE")
+        df = df.replace(to_replace=np.nan, value=np.inf)
+
+        # If Convert pandas dataframe to PIL image
+        # image_array = np.nan_to_num(
+        #     df.array, nan=np.inf, posing=np.inf, neginf=-np.inf
+        # )
+        return df.array
+
+    def _save_2d_array_to_tiff(
+        array: np.ndarray,
+        extents: list[list[float]],
+        filename: str
+    ):
+        """Write a 2D numpy array to a TIFF file.
+
+        Parameters
+        ----------
+        array : np.ndarray
+            The 2D numpy array.
+        extents : list[list[float]]
+            The X, Y, and Z extents of the array.
+        filename : str
+            The name of the TIFF file.
+        """
+        extents_info_str = json.dumps(dict(
+            xmin=extents[0][0],
+            xmax=extents[0][1],
+            ymin=extents[1][0],
+            ymax=extents[1][1],
+            zmin=extents[2][0],
+            zmax=extents[2][1],
+        ))
+
+        tiffinfo = PIL.TiffImagePlugin.ImageFileDirectory_v2()
+        tiffinfo[270] = extents_info_str
+
+        PIL.Image.fromarray(array).save(filename, tiffinfo=tiffinfo)
+
+    def _save_3d_array_to_vti(
+        array: np.ndarray,
+        filename: str,
+        extents: list[list[float]] | None = None
+    ):
+        """Write a 3D numpy array to a VTI file.
+        
+        Adapted from https://discourse.paraview.org/t/help-needed-with-vtk-and
+        -paraview-converting-saving-and-rendering-3d-numpy-array/13526
+
+        Parameters
+        ----------
+        array : np.ndarray
+            The 3D numpy array.
+        extents : list[list[float]]
+            The X, Y, and Z extents of the array.
+        filename : str
+            The name of the VTI file.
+        """
+        vtk_data = vtk.util.numpy_support.numpy_to_vtk(
+            num_array=array.flatten(),
+            deep=True,
+            array_type=vtk.VTK_FLOAT
+        )
+
+        img = vtk.vtkImageData()
+        img.GetPointData().SetScalars(vtk_data)
+        img.SetDimensions(*array.shape)
+        if extents:
+            spacing = [
+                (extents[0][1] - extents[0][1])/array.shape[2], # TODO: check the indexing
+                (extents[1][1] - extents[1][1])/array.shape[2],
+                (extents[2][1] - extents[2][1])/array.shape[2],
+            ]
+            img.SetSpacing(*spacing)
+
+        writer = vtk.vtkXMLImageDataWriter()
+        writer.SetFileName(filename)
+        writer.SetInputData(img)
+        writer.Write()
+
+    def save_image(self, filename):
+        """Save the array of values to an image file.
+        
+        If the array is 2D, it will be saved to TIFF. If the array is 3D, it
+        will be saved to VTI.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the output file.
+        
+        Raises
+        ------
+        ValueError
+            If the filename extension does not match the number of dimensions of
+            the array (2D -> tiff, 3D -> vti).
+        """
+        if self.n_dimensions == 2:
+            # TODO: consider allowing saving to VTI in 2D (coerce to 3D)
+            if filename.split(".")[-1] != "tiff":
+                raise ValueError(
+                    "To save a 2D array, `filename` must end in '.tiff'."
+                )
+            self._save_2d_array_to_tiff(self.array, self.extents, filename)
+             
+        elif self.n_dimensions == 3:
+            if filename.split(".")[-1] != "vti":
+                raise ValueError(
+                    "To save a 3D array, `filename` must end in '.vti'."
+                )
+            self._save_3d_array_to_vti()
+        
+    def plot(
+        self,
+        core_shape,
+        rotate_core_deg,
+        vmin,
+        vmax,
+        slice_x,
+        slice_y,
+        slice_lim,
+        show_cbar,
+        core_scale_factor
+    ):
+        # TODO
         pass

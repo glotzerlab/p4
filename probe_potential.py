@@ -160,6 +160,9 @@ class System:
     Once the system is instantiated, its potential energy landscape can be
     measured using the `probe()` method.
 
+    TODO: allow the interaction model to specify different parameters for
+        different interacting type pairs
+
     Parameters
     ----------
     probe : ParticleModel
@@ -423,7 +426,6 @@ class System:
                 )
             )
 
-        # run the probe simulation
         state = simulation.state.get_snapshot()
         all_types = state.particles.types
         probe_index = deepcopy(np.where(

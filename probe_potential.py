@@ -694,8 +694,8 @@ class Field:
     @staticmethod
     def _save_3d_array_to_vti(
         array: np.ndarray,
+        extents: list[list[float]],
         filename: str,
-        extents: list[list[float]] | None = None
     ):
         """Write a 3D numpy array to a VTI file.
         
@@ -720,13 +720,13 @@ class Field:
         img = vtk.vtkImageData()
         img.GetPointData().SetScalars(vtk_data)
         img.SetDimensions(*array.shape)
-        if extents:
-            spacing = [
-                (extents[0][1] - extents[0][1])/array.shape[2], # TODO: check the indexing
-                (extents[1][1] - extents[1][1])/array.shape[2],
-                (extents[2][1] - extents[2][1])/array.shape[2],
-            ]
-            img.SetSpacing(*spacing)
+
+        spacing = [
+            (extents[0][1] - extents[0][1])/array.shape[2], # TODO: check the indexing
+            (extents[1][1] - extents[1][1])/array.shape[2],
+            (extents[2][1] - extents[2][1])/array.shape[2],
+        ]
+        img.SetSpacing(*spacing)
 
         writer = vtk.vtkXMLImageDataWriter()
         writer.SetFileName(filename)

@@ -632,17 +632,33 @@ class Field:
         df = df.drop(labels=["q0", "q1", "q2", "q3"], axis=1)
 
         # Reshape DataFrame into a numpy grid
-        # TODO: this doesn't work for 3D...
-        df = df.pivot(columns="x", index="y", values="PE")
+        # TODO: replace NaN with Inf?
+        return Field._tall_df_to_3d_array(df)
 
-        # Replace NaN with Inf
-        df = df.replace(to_replace=np.nan, value=np.inf)
+    @staticmethod
+    def _tall_df_to_3d_array(df: pd.DataFrame) -> np.ndarray:
+        """Convert a tall DataFrame into a 3D numpy array.
 
-        # If Convert pandas dataframe to PIL image
-        # image_array = np.nan_to_num(
-        #     df.array, nan=np.inf, posing=np.inf, neginf=-np.inf
-        # )
-        return np.array(df)
+        Adapted from https://stackoverflow.com/a/35049899/15426433.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            The tall dataframe.
+
+        Returns
+        -------
+        array
+            The 3D numpy array.
+        """
+        df = df.set_index(["z", "y", "x"])
+
+        shape = tuple(map(len, df.index.levels))
+        
+        array = np.full(shape, np.nan)
+        array[tuple(df.index.codes)] = df["PE"].values
+
+        return array
 
     @staticmethod
     def _save_2d_array_to_tiff(

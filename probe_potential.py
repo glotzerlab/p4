@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import util
-import vtk
+import vtk.util.numpy_support
 
 
 class Interaction:

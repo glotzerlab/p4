@@ -470,8 +470,10 @@ class Field:
     or VTI file. To do so, use the corresponding class methods `from_csv()`,
     `from_tiff()`, and `from_vti()`.
 
-    While the array can be 2D or 3D, the extents array is **always** 3D and has
-    the following form:
+    Both the array and the extents are **always** 3D. If a Field is constructed
+    with a 2D array, the array is coerced to 3D and represents a 2D slice
+    embedded within a 3D grid. The extents thus has the form
+    
     ```
     [
         [xmin, xmax],
@@ -480,8 +482,7 @@ class Field:
     ]
     ```
     
-    If the array is 2D, zmin = zmax and the array therefore represents a 2D
-    slice through a 3D field at the position z = zmin = zmax.
+    where a 2D array represents a slice at the position z =  zmin = zmax.
 
     Parameters
     ----------
@@ -503,7 +504,7 @@ class Field:
         if (n := len(array.shape)) not in [2, 3]:
             raise ValueError(f"`array` should be 2D or 3D but it is {n}D")
 
-        self.array = array
+        self.array = np.atleast_3d(array)
         self.extents = extents
 
     @classmethod
@@ -594,8 +595,11 @@ class Field:
 
     @property
     def n_dimensions(self):
-        """The number of dimensions of the array. Should be 2 or 3."""
-        return len(self.array.shape)
+        """The number of dimensions represented by the array (2 or 3)."""
+        if self.array.shape[2] > 1:
+            return 3
+        else:
+            return 2
 
     @staticmethod
     def _df_to_array(df, orientation: Literal["mean", "min"]):

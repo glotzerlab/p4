@@ -1,12 +1,14 @@
 from typing import Literal
+
+import coxeter
 import probe_potential as pp
 import hoomd
+import pandas as pd
+import numpy as np
 
 import util
 
 
-# TODO: add pixel exclusion
-# TODO: add results processing
 # TODO: add parallelization for a single statepoint
 
 def cube_verts():
@@ -45,64 +47,6 @@ def square_verts():
     return verts
 
 
-
-def process_csv(
-    csv_filename: str,
-    handle_orientation: Literal["mean", "min"]
-):
-    """Revise CSV file, preparing it for plotting.
-    
-    This processing has the following steps:
-    1. Rename columns
-    2. Average over orientations and then drop orientation columns.
-    3. Add rows and columns to ensure a completely uniform X/Y/Z grid.
-    4. Change all NaN values to Inf
-
-    Parameters
-    ----------
-    csv_filename : str
-        The path to the CSV file to process.
-    handle_orientation : 'mean' or 'min'
-        Whether to average over all orientations or take the minimum potential.
-    """
-    df = pd.read_csv(csv_filename)
-
-    # Rename columns
-    new_names = {
-        "       x        ": "x",
-        "       y        ": "y",
-        "       z        ": "z",
-        "       q0       ": "q0",
-        "       q1       ": "q1",
-        "       q2       ": "q2",
-        "       q3       ": "q3",
-        "Simulation.timestep": "t",
-        "md.compute.ThermodynamicQuantities.potential_energy": "PE"
-    }
-    df.rename(columns=new_names, inplace=True)
-
-    # Average over orientation, then drop orientation columns
-    if handle_orientation == "mean":
-        df = df.groupby(["x", "y", "z"]).mean()
-    elif handle_orientation == "min":
-        df = df.groupby(["x", "y", "z"]).min()
-    else:
-        raise ValueError("handle_orientation must be 'mean' or 'min'.")
-    
-    df = df.reset_index(level=[0,1,2])
-    df = df.drop(labels=["q0", "q1", "q2", "q3"], axis=1)
-
-    # Ensure a completely uniform grid
-    # df = enforce_uniform_grid(df)   # TODO: fix 2 so that I can use it here
-
-    # Replace NaN with Inf
-    df = df.replace(to_replace=np.nan, value=np.inf)
-
-    # Re-save processed log table
-    df.to_csv(csv_filename.split(".")[-2] + "_processed.csv", mode="w")
-
-
-
 def test_lj_sphere():
     probe_model = pp.ParticleModel("P")
     analyte_model = pp.ParticleModel("A")
@@ -127,9 +71,7 @@ def test_lj_sphere():
                     sigma=0.5
                 ),
                 r_cut=2.0
-            ),
-            probe_cutoff_outside_callable=lambda: [2,2,2],
-            probe_cutoff_inside_callable=lambda: [0,0,0]
+            )
         )
     }
 
@@ -140,12 +82,58 @@ def test_lj_sphere():
     system.probe_potential(
         position_resolutions=[30, 30, 1],
         orientation_resolutions=[1, 1, 1],
-        orientation_symmetries= [1, 1, 1],
+        orientation_symmetries=[1, 1, 1],
+        interactions_to_include=["LJ"],
         nlist=nlist,
-        csv_filename="test-lj-sphere.csv"
+        csv_filename="test-lj-sphere.csv",
+        probe_cutoff_shape=None,
+        probe_cutoff_outside_distance=lambda _: 2.0,
+        probe_cutoff_inside_distance=lambda _: 0.2
     )
 
-    process_csv("test-lj-sphere.csv", "mean")
+def test_lj_sphere_3d():
+    probe_model = pp.ParticleModel("P")
+    analyte_model = pp.ParticleModel("A")
+
+    interaction_model = {
+        "LJ": pp.Interaction(
+            hoomd_class=hoomd.md.pair.LJ,
+            initial_inputs=dict(),
+            default_single_typed_attributes=dict(),
+            default_pair_typed_attributes=dict(
+                params=dict(
+                    epsilon=0.0,
+                    sigma=1.0
+                ),
+                r_cut=0.0
+            ),
+            yes_types=["A", "P"],
+            yes_single_typed_attributes=dict(),
+            yes_pair_typed_attributes=dict(
+                params=dict(
+                    epsilon=1.0,
+                    sigma=0.5
+                ),
+                r_cut=2.0
+            )
+        )
+    }
+
+    system = pp.System(probe_model, analyte_model, interaction_model)
+
+    nlist = hoomd.md.nlist.Cell(10)
+
+    system.probe_potential(
+        position_resolutions=[30, 30, 30],
+        orientation_resolutions=[1, 1, 1],
+        orientation_symmetries=[1, 1, 1],
+        interactions_to_include=["LJ"],
+        nlist=nlist,
+        csv_filename="test-lj-sphere-3d.csv",
+        probe_cutoff_shape=None,
+        probe_cutoff_outside_distance=lambda _: 2.0,
+        probe_cutoff_inside_distance=lambda _: 0.2
+    )
 
 def test_lj_sites():
     probe_model = pp.ParticleModel("P")
@@ -175,9 +163,7 @@ def test_lj_sites():
                     sigma=0.2
                 ),
                 r_cut=2.0
-            ),
-            probe_cutoff_outside_callable=lambda: [2,2,2],
-            probe_cutoff_inside_callable=lambda: [0,0,0]
+            )
         )
     }
 
@@ -189,12 +175,14 @@ def test_lj_sites():
         position_resolutions=[30, 30, 1],
         orientation_resolutions=[1, 1, 1],
         orientation_symmetries= [1, 1, 1],
+        interactions_to_include=["LJ"],
         nlist=nlist,
         csv_filename="test-lj-sites.csv",
         gsd_filename="test-lj-sites.gsd",
+        probe_cutoff_shape=None,
+        probe_cutoff_outside_distance=lambda _: 2.0,
+        # probe_cutoff_inside_distance=lambda _: 0.0
     )
-
-    process_csv("test-lj-sites.csv", "mean")
 
 def test_alj_cube():
     probe_model = pp.ParticleModel("P")
@@ -234,9 +222,7 @@ def test_alj_cube():
                     alpha=0,
                 ),
                 r_cut=2.0
-            ),
-            probe_cutoff_outside_callable=lambda: [2,2,2],
-            probe_cutoff_inside_callable=lambda: [0,0,0]
+            )
         )
     }
 
@@ -248,12 +234,14 @@ def test_alj_cube():
         position_resolutions=[30, 30, 1],
         orientation_resolutions=[1, 1, 10],
         orientation_symmetries= [1, 1, 4],
+        interactions_to_include=["ALJ"],
         nlist=nlist,
         csv_filename="test-alj-cube.csv",
-        gsd_filename="test-alj-cube.gsd"
+        gsd_filename="test-alj-cube.gsd",
+        probe_cutoff_shape=None,
+        probe_cutoff_outside_distance=lambda _: 2.0,
+        # probe_cutoff_inside_distance=lambda _: 0.0
     )
-
-    process_csv("test-alj-cube.csv", "mean")
 
 def test_alj_cube_with_eg_sites():
     probe_model = pp.ParticleModel(
@@ -301,9 +289,7 @@ def test_alj_cube_with_eg_sites():
                     alpha=0,
                 ),
                 r_cut=2.0
-            ),
-            probe_cutoff_outside_callable=lambda: [2,2,2],
-            probe_cutoff_inside_callable=lambda: [0,0,0]
+            )
         ),
         "EG": pp.Interaction(
             hoomd_class=hoomd.md.pair.ExpandedGaussian,
@@ -329,9 +315,7 @@ def test_alj_cube_with_eg_sites():
                     delta=0.2
                 ),
                 r_cut=2.0
-            ),
-            probe_cutoff_outside_callable=lambda: [2,2,2],
-            probe_cutoff_inside_callable=lambda: [0,0,0]
+            )
         )
     }
 
@@ -343,15 +327,21 @@ def test_alj_cube_with_eg_sites():
         position_resolutions=[30, 30, 1],
         orientation_resolutions=[1, 1, 4],
         orientation_symmetries= [1, 1, 4],
+        interactions_to_include=["ALJ", "EG"],
         nlist=nlist,
         csv_filename="test-alj-cube-with-eg-sites.csv",
         gsd_filename="test-alj-cube-with-eg-sites.gsd",
+        probe_cutoff_shape=None,
+        probe_cutoff_outside_distance=lambda _: 2.0,
+        # probe_cutoff_inside_distance=lambda _: 0.0
     )
-
-    process_csv("test-alj-cube-with-eg-sites.csv", "mean")
 
 if __name__ == "__main__":
     # test_lj_sphere()              # looks good
     # test_lj_sites()               # looks good
     # test_alj_cube()               # looks good
-    test_alj_cube_with_eg_sites()   # looks good
+    # test_alj_cube_with_eg_sites()   # looks good
+    test_lj_sphere_3d()
+
+    f = pp.Field.from_csv("test-lj-sphere-3d.csv", "mean")
+    f.save_image("test-lj-sphere-3d.vti")

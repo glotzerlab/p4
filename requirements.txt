@@ -1,0 +1,16 @@
+# Glotzer Group
+gsd
+hoomd
+coxeter
+rowan
+
+# Data
+numpy
+PIL
+
+# Export
+vtk
+pandas
+
+# Plotting
+matplotlib

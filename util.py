@@ -206,9 +206,6 @@ def add_rigid_constraint(
 ) -> Tuple[hoomd.Simulation, hoomd.md.constrain.Rigid]:
     """Add rigid body constraints for a single particle model to the simulation.
 
-    TODO: consider allowing the particle model to provide orientations like
-    it already does for positions.
-
     Parameters
     ----------
     simulation : hoomd.Simulation

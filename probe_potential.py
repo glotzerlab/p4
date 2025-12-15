@@ -160,9 +160,6 @@ class System:
     Once the system is instantiated, its potential energy landscape can be
     measured using the `probe()` method.
 
-    TODO: allow the interaction model to specify different parameters for
-        different interacting type pairs
-
     Parameters
     ----------
     probe : ParticleModel

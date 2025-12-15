@@ -18,8 +18,10 @@ import pandas as pd
 from tqdm import tqdm
 import util
 import vtk.util.numpy_support
-import multiprocessing
+# import multiprocessing
+import pathos
 import os
+
 
 
 class Interaction:
@@ -371,7 +373,9 @@ class System:
             )
 
         # Run the probe simulation copies across a collection of processes
-        with multiprocessing.Pool(n_processes) as pool:
+        # with multiprocessing.Pool(n_processes) as pool:
+        mp = pathos.helpers.mp
+        with mp.Pool() as pool:
             if gsd_filename is None:
                 gsd_filenames = [None for _ in range(n_processes)]
             else:

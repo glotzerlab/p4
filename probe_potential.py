@@ -302,11 +302,11 @@ class System:
             than the probe box to prevent the minimum image problem. Defaults
             to 10.
         """
-        # determine needed interactions and particle types
+        # Determine needed interactions and particle types
         interactions = self.interactions(interactions_to_include)
         types = self.interacting_types(interactions_to_include)
 
-        # calculate probe box based on distance cutoff callables for included interactions
+        # Calculate probe box based on distance cutoff callables for included interactions
         outside_cutoff = probe_cutoff_outside_distance(self)
         if probe_cutoff_shape is None:
             probe_box = [2*outside_cutoff, 2*outside_cutoff, 2*outside_cutoff]
@@ -314,11 +314,11 @@ class System:
             shape_maxes = probe_cutoff_shape.vertices.max(axis=0)
             probe_box = [m + outside_cutoff for m in shape_maxes]
 
-        # determine the frame's box from the probe box
+        # Determine the frame's box from the probe box
         simulation_box = [d * box_safety_factor for d in probe_box]
         simulation_box.extend([0, 0, 0])
         
-        # create initial frame
+        # Create initial frame
         frame = util.get_initial_frame(
             self.probe_model,
             self.analyte_model,
@@ -327,14 +327,14 @@ class System:
             simulation_box
         )
 
-        # initialize Simulation
+        # Initialize Simulation
         simulation = hoomd.Simulation(device=hoomd.device.CPU(), seed=1)
         simulation.create_state_from_snapshot(frame)
 
-        # add integrator
+        # Add integrator
         simulation = util.add_integrator(simulation)
 
-        # add rigid bodies if necessary
+        # Add rigid bodies if necessary
         probe_is_rigid = util.particle_must_be_rigid_body(
             self.probe_model,
             interactions
@@ -359,7 +359,7 @@ class System:
                 rigid if probe_is_rigid else None
             )
 
-        # add gsd/table writers if file names are provided
+        # Add gsd/table writers if file names are provided
         if gsd_filename:
             simulation, compute = util.add_gsd_writer(simulation, gsd_filename)
 
@@ -374,11 +374,11 @@ class System:
                     simulation, csv_file, self.probe_model
                 )
 
-        # add required interactions
+        # Add required interactions
         for interaction in interactions:
             simulation = util.add_interaction(simulation, nlist, interaction)
 
-        # calculate the probe positions and orientations
+        # Calculate the probe positions and orientations
         probe_positions = util.get_probe_positions(
             probe_box,
             position_resolutions
@@ -388,7 +388,7 @@ class System:
             orientation_symmetries
         )
 
-        # remove positions that are too far away
+        # Remove positions that are too far away
         probe_positions = util.exclude_positions_by_shape(
             positions=probe_positions,
             exclude_inside=False,
@@ -400,7 +400,7 @@ class System:
             buffer=outside_cutoff if probe_cutoff_shape is not None else 0.0
         )
 
-        # remove positions that are too close
+        # Remove positions that are too close
         if probe_cutoff_inside_distance is not None:
             inside_cutoff = probe_cutoff_inside_distance(self)
             if inside_cutoff <= 0:
@@ -446,7 +446,7 @@ class System:
 
                 simulation.run(1)
 
-        # close the csv file if necessary and clean its columns
+        # Close the csv file if necessary and clean its columns
         if csv_filename:
             csv_file.close()
             util.simplify_probe_csv_columns(csv_filename)

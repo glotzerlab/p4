@@ -721,9 +721,9 @@ class Field:
         img.SetDimensions(*array.shape)
 
         spacing = [
-            (extents[0][1] - extents[0][1])/array.shape[2], # TODO: check the indexing
-            (extents[1][1] - extents[1][1])/array.shape[2],
-            (extents[2][1] - extents[2][1])/array.shape[2],
+            (extents[0][1] - extents[0][0])/array.shape[0], # TODO: check the indexing
+            (extents[1][1] - extents[1][0])/array.shape[1],
+            (extents[2][1] - extents[2][0])/array.shape[2],
         ]
         img.SetSpacing(*spacing)
 

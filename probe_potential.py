@@ -18,6 +18,8 @@ import pandas as pd
 from tqdm import tqdm
 import util
 import vtk.util.numpy_support
+import multiprocessing
+import os
 
 
 class Interaction:
@@ -253,7 +255,8 @@ class System:
         probe_cutoff_shape: coxeter.shapes.ConvexPolyhedron | None = None,
         gsd_filename: str | None = None,
         csv_filename: str | None = None,
-        box_safety_factor: float = 10
+        box_safety_factor: float = 10,
+        n_processes: int = 1,
     ):
         """Probe the potential energy landscape of the system.
 
@@ -302,10 +305,6 @@ class System:
             than the probe box to prevent the minimum image problem. Defaults
             to 10.
         """
-        # Determine needed interactions and particle types
-        interactions = self.interactions(interactions_to_include)
-        types = self.interacting_types(interactions_to_include)
-
         # Calculate probe box based on distance cutoff callables for included interactions
         outside_cutoff = probe_cutoff_outside_distance(self)
         if probe_cutoff_shape is None:
@@ -317,66 +316,48 @@ class System:
         # Determine the frame's box from the probe box
         simulation_box = [d * box_safety_factor for d in probe_box]
         simulation_box.extend([0, 0, 0])
+
+        # Figure out number of processes that will be used formultiprocessing.
+        # Each process will ultimately receive its own simulation.
+        if n_processes < -1 or n_processes == 0:
+            raise ValueError("`n_processes` must be -1 or a positive integer.")
+        breakpoint()
+        if n_processes == -1:
+            n_processes = os.process_cpu_count()
+
+        # Prepare simulation copies
+        simulations = [
+            self.get_simulation(interactions_to_include, deepcopy(nlist), probe_box, simulation_box)
+            for _ in range(n_processes)
+        ]
         
-        # Create initial frame
-        frame = util.get_initial_frame(
-            self.probe_model,
-            self.analyte_model,
-            types,
-            probe_box,
-            simulation_box
-        )
-
-        # Initialize Simulation
-        simulation = hoomd.Simulation(device=hoomd.device.CPU(), seed=1)
-        simulation.create_state_from_snapshot(frame)
-
-        # Add integrator
-        simulation = util.add_integrator(simulation)
-
-        # Add rigid bodies if necessary
-        probe_is_rigid = util.particle_must_be_rigid_body(
-            self.probe_model,
-            interactions
-        )
-        analyte_is_rigid = util.particle_must_be_rigid_body(
-            self.analyte_model,
-            interactions
-        )
-        if probe_is_rigid:
-            simulation, rigid = util.add_rigid_constraint(
-                simulation,
-                self.probe_model,
-                False if analyte_is_rigid else True,
-                [t for t in self.probe_model.secondary_types if t in types]
-            )
-        if analyte_is_rigid:
-            simulation, _ = util.add_rigid_constraint(
-                simulation,
-                self.analyte_model,
-                True,
-                [t for t in self.analyte_model.secondary_types if t in types],
-                rigid if probe_is_rigid else None
-            )
-
         # Add gsd/table writers if file names are provided
+        computes = [None for _ in range(n_processes)]
+
         if gsd_filename:
-            simulation, compute = util.add_gsd_writer(simulation, gsd_filename)
+            gsd_root = gsd_filename[0:gsd_filename.rfind(".")]
+            gsd_filenames = [gsd_root + f"_{i}.csv" for i in range(n_processes)]
+            
+            results = [
+                util.add_gsd_writer(s, f)
+                for (s, f) in zip(simulations, gsd_filenames)
+            ]
+            
+            simulations = [r[0] for r in results]
+            computes = [r[1] for r in results]
 
         if csv_filename:
-            csv_file = open(csv_filename, "w")
-            if gsd_filename:
-                simulation, _ = util.add_table_writer(
-                    simulation, csv_file, self.probe_model, compute
-                )
-            else:
-                simulation, _ = util.add_table_writer(
-                    simulation, csv_file, self.probe_model
-                )
+            csv_root = csv_filename[0:csv_filename.rfind(".")]
+            csv_filenames = [csv_root + f"_{i}.csv" for i in range(n_processes)]
+            csv_files = [open(f, "w") for f in csv_filenames]
+            
+            results = [
+                util.add_table_writer(s, f, self.probe_model, c)
+                for (s, f, c) in zip(simulations, csv_files, computes)
+            ]
+            
+            simulations = [r[0] for r in results]
 
-        # Add required interactions
-        for interaction in interactions:
-            simulation = util.add_interaction(simulation, nlist, interaction)
 
         # Calculate the probe positions and orientations
         probe_positions = util.get_probe_positions(
@@ -423,33 +404,79 @@ class System:
                 )
             )
 
-        state = simulation.state.get_snapshot()
-        all_types = state.particles.types
-        probe_index = deepcopy(np.where(
-            state.particles.typeid == all_types.index(self.probe_model.primary_type)
-        ))
+        # Run the probe simulation copies across a collection of processes
+        with multiprocessing.Pool(n_processes) as pool:
+            probe_models = [self.probe_model for _ in range(n_processes)]
+            orientations = [probe_orientations for _ in range(n_processes)]
+            position_chunks = util.subdivide(probe_positions, n_processes)
+            
+            args = zip(simulations, probe_models, position_chunks, orientations)
+            breakpoint()
+            pool.starmap(util.run_probe, args)
 
-        for p in tqdm(probe_positions):
-            for o in probe_orientations:
-                with simulation.state.cpu_local_snapshot as state:
-
-                    # Note: only probe position and orientation need to be
-                    # reset. No forces can change the probe particle's velocity
-                    # or angular momentum, nor can anything change the analyte's
-                    # properties because there is no integration method.
-                    state.particles.position[
-                        state.particles.rtag[probe_index]
-                    ] = p
-                    state.particles.orientation[
-                        state.particles.rtag[probe_index]
-                    ] = o
-
-                simulation.run(1)
-
-        # Close the csv file if necessary and clean its columns
+        # Close all of the opened csv files if necessary, then merge them and
+        # clean the final CSV file's columns
         if csv_filename:
-            csv_file.close()
+            for csv_file in csv_files:
+                csv_file.close()
+            
+            util.combine_csvs(csv_filenames, csv_filename)
+            
             util.simplify_probe_csv_columns(csv_filename)
+
+    def get_simulation(self, interactions_to_include, nlist, probe_box, simulation_box):
+        """TODO"""
+        # Determine needed interactions and particle types
+        interactions = self.interactions(interactions_to_include)
+        types = self.interacting_types(interactions_to_include)
+
+        # Create initial frame
+        frame = util.get_initial_frame(
+            self.probe_model,
+            self.analyte_model,
+            types,
+            probe_box,
+            simulation_box
+        )
+
+        # Initialize Simulation
+        simulation = hoomd.Simulation(device=hoomd.device.CPU(), seed=1)
+        simulation.create_state_from_snapshot(frame)
+
+        # Add integrator
+        simulation = util.add_integrator(simulation)
+
+        # Add rigid bodies if necessary
+        probe_is_rigid = util.particle_must_be_rigid_body(
+            self.probe_model,
+            interactions
+        )
+        analyte_is_rigid = util.particle_must_be_rigid_body(
+            self.analyte_model,
+            interactions
+        )
+        if probe_is_rigid:
+            simulation, rigid = util.add_rigid_constraint(
+                simulation,
+                self.probe_model,
+                False if analyte_is_rigid else True,
+                [t for t in self.probe_model.secondary_types if t in types]
+            )
+        if analyte_is_rigid:
+            simulation, _ = util.add_rigid_constraint(
+                simulation,
+                self.analyte_model,
+                True,
+                [t for t in self.analyte_model.secondary_types if t in types],
+                rigid if probe_is_rigid else None
+            )
+
+        # Add required interactions
+        for interaction in interactions:
+            simulation = util.add_interaction(simulation, nlist, interaction)
+        
+        return simulation
+
 
 class Field:
     """A Field is defined by an array of values and an array of extents.

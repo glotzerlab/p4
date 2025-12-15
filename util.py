@@ -542,3 +542,86 @@ def find_nearest(array, value):
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
     return array[idx]
+
+def run_probe(
+    simulation,
+    probe_model,
+    probe_positions,
+    probe_orientations
+):
+    """TODO"""
+    probe_index = get_primary_particle_index(
+        simulation.state.get_snapshot(),
+        probe_model
+    )
+
+    for p in probe_positions:
+        for o in probe_orientations:
+            with simulation.state.cpu_local_snapshot as state:
+
+                # Note: only probe position and orientation need to be
+                # reset. No forces can change the probe particle's velocity
+                # or angular momentum, nor can anything change the analyte's
+                # properties because there is no integration method.
+                state.particles.position[
+                    state.particles.rtag[probe_index]
+                ] = p
+                state.particles.orientation[
+                    state.particles.rtag[probe_index]
+                ] = o
+
+            simulation.run(1)
+
+def subdivide(array: list, n: int):
+    """Subdivide an array into some number of chunks of consecutive items.
+
+    Disclaimer: the body of this function was written by ChatGPT.
+
+    Parameters
+    ----------
+    array : list
+        The array to subdivide
+    n : int
+        The number of chunks to subdivide the array into.
+
+    Returns
+    -------
+    subarrays
+        An array of sections of the input array.
+    """
+    k, m = divmod(len(array), n)
+    return [array[i*k + min(i, m):(i+1)*k + min(i+1, m)] for i in range(n)]
+
+def combine_csvs(filenames: list[str], final_filename: str):
+    """Combine the contents of multiple CSV files into a single file.
+
+    Parameters
+    ----------
+    filenames : list[str]
+        The names of the CSV files to combine.
+    final_filename : str
+        The name  of the final output file.
+    """
+    with open(final_filename, "w") as final_file:
+        # First file must include header
+        with open(filenames.pop(0), "rb") as file:
+            final_file.writelines(file)
+        
+        # Remaining files don't need header.
+        for fn in filenames:
+            with open(fn, "rb") as file:
+                next(file)
+                final_file.writelines(file)
+
+
+def combine_gsds(filenames: list[str], final_filename: str):
+    """Combine the contents of multiple GSD files into a single file.
+
+    Parameters
+    ----------
+    filenames : list[str]
+        The names of the CSV files to combine.
+    final_filename : str
+        The name  of the final output file.
+    """
+    pass

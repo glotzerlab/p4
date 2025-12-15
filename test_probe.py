@@ -246,7 +246,7 @@ def test_alj_cube():
         # probe_cutoff_inside_distance=lambda _: 0.0
     )
 
-def test_alj_cube_with_eg_sites():
+def test_alj_cube_with_eg_sites(n_processes=-1):
     probe_model = pp.ParticleModel(
         primary_type="P",
         secondary_types=["P2"],
@@ -336,14 +336,15 @@ def test_alj_cube_with_eg_sites():
         gsd_filename="test-alj-cube-with-eg-sites.gsd",
         probe_cutoff_shape=None,
         probe_cutoff_outside_distance=lambda _: 2.0,
-        # probe_cutoff_inside_distance=lambda _: 0.0
+        probe_cutoff_inside_distance=lambda _: 0.2,
+        n_processes=n_processes
     )
 
 if __name__ == "__main__":
-    for n_processes in range(1, os.process_cpu_count()):    # TODO: note that GSD throws a weird error...
+    for n_processes in range(1, os.process_cpu_count(),3):    # TODO: note that GSD throws a weird error...
         start_time = time.perf_counter()
-        test_lj_sphere(n_processes)
-        print(f"Test completed in {round(time.perf_counter() - start_time, 2)} s.")
+        test_alj_cube_with_eg_sites(n_processes)
+        print(f"{n_processes} processes completed in {round(time.perf_counter() - start_time, 2)} s.")
     # test_lj_sites()               # looks good
     # test_alj_cube()               # looks good
     # test_alj_cube_with_eg_sites()   # looks good

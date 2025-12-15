@@ -1,6 +1,8 @@
 from copy import deepcopy
 from io import TextIOWrapper
 import itertools
+import os
+import time
 from typing import Tuple
 import coxeter
 import gsd.hoomd
@@ -543,18 +545,92 @@ def find_nearest(array, value):
     idx = (np.abs(array - value)).argmin()
     return array[idx]
 
-def run_probe(
-    simulation,
-    probe_model,
-    probe_positions,
-    probe_orientations
-):
+def get_simulation(system, interactions_to_include, nlist, probe_box, simulation_box):
     """TODO"""
-    probe_index = get_primary_particle_index(
-        simulation.state.get_snapshot(),
-        probe_model
+    # Determine needed interactions and particle types
+    interactions = system.interactions(interactions_to_include)
+    types = system.interacting_types(interactions_to_include)
+
+    # Create initial frame
+    frame = get_initial_frame(
+        system.probe_model,
+        system.analyte_model,
+        types,
+        probe_box,
+        simulation_box
     )
 
+    # Initialize Simulation
+    simulation = hoomd.Simulation(device=hoomd.device.CPU(), seed=1)
+    simulation.create_state_from_snapshot(frame)
+
+    # Add integrator
+    simulation = add_integrator(simulation)
+
+    # Add rigid bodies if necessary
+    probe_is_rigid = particle_must_be_rigid_body(
+        system.probe_model,
+        interactions
+    )
+    analyte_is_rigid = particle_must_be_rigid_body(
+        system.analyte_model,
+        interactions
+    )
+    if probe_is_rigid:
+        simulation, rigid = add_rigid_constraint(
+            simulation,
+            system.probe_model,
+            False if analyte_is_rigid else True,
+            [t for t in system.probe_model.secondary_types if t in types]
+        )
+    if analyte_is_rigid:
+        simulation, _ = add_rigid_constraint(
+            simulation,
+            system.analyte_model,
+            True,
+            [t for t in system.analyte_model.secondary_types if t in types],
+            rigid if probe_is_rigid else None
+        )
+
+    # Add required interactions
+    for interaction in interactions:
+        simulation = add_interaction(simulation, nlist, interaction)
+    
+    return simulation
+
+def run_probe(
+    process_num,
+    system,
+    interactions_to_include,
+    nlist,
+    probe_box,
+    simulation_box,
+    probe_positions,
+    probe_orientations,
+    gsd_filename=None,
+    csv_filename=None,
+):
+    """TODO"""
+
+    # Create simulation
+    simulation = get_simulation(system, interactions_to_include, nlist, probe_box, simulation_box)
+
+    # Add file writers
+    if gsd_filename is not None:
+        simulation, compute = add_gsd_writer(simulation, gsd_filename)
+    
+    if csv_filename is not None:
+        csv_file = open(csv_filename, "w")
+        if gsd_filename is None:
+            compute = None
+        simulation, _ = add_table_writer(simulation, csv_file, system.probe_model, compute)
+    
+    probe_index = get_primary_particle_index(
+        simulation.state.get_snapshot(),
+        system.probe_model
+    )
+
+    # Iterate over positions
     for p in probe_positions:
         for o in probe_orientations:
             with simulation.state.cpu_local_snapshot as state:
@@ -571,7 +647,11 @@ def run_probe(
                 ] = o
 
             simulation.run(1)
-
+    
+    # Close CSV file if necessary
+    if csv_filename is not None:
+        csv_file.close()
+    
 def subdivide(array: list, n: int):
     """Subdivide an array into some number of chunks of consecutive items.
 
@@ -595,6 +675,8 @@ def subdivide(array: list, n: int):
 def combine_csvs(filenames: list[str], final_filename: str):
     """Combine the contents of multiple CSV files into a single file.
 
+    The original CSVs are deleted afterward.
+    
     Parameters
     ----------
     filenames : list[str]
@@ -604,14 +686,18 @@ def combine_csvs(filenames: list[str], final_filename: str):
     """
     with open(final_filename, "w") as final_file:
         # First file must include header
-        with open(filenames.pop(0), "rb") as file:
+        with open(filenames[0], "r") as file:
             final_file.writelines(file)
         
         # Remaining files don't need header.
-        for fn in filenames:
-            with open(fn, "rb") as file:
-                next(file)
-                final_file.writelines(file)
+        if len(filenames) > 1:
+            for fn in filenames[1:]:
+                with open(fn, "r") as file:
+                    next(file)
+                    final_file.writelines(file)
+
+    for fn in filenames:
+        os.remove(fn)
 
 
 def combine_gsds(filenames: list[str], final_filename: str):

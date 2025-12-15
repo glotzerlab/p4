@@ -256,7 +256,7 @@ class System:
         gsd_filename: str | None = None,
         csv_filename: str | None = None,
         box_safety_factor: float = 10,
-        n_processes: int = 1,
+        n_processes: int = -1,
     ):
         """Probe the potential energy landscape of the system.
 
@@ -321,44 +321,10 @@ class System:
         # Each process will ultimately receive its own simulation.
         if n_processes < -1 or n_processes == 0:
             raise ValueError("`n_processes` must be -1 or a positive integer.")
-        breakpoint()
+
         if n_processes == -1:
             n_processes = os.process_cpu_count()
-
-        # Prepare simulation copies
-        simulations = [
-            self.get_simulation(interactions_to_include, deepcopy(nlist), probe_box, simulation_box)
-            for _ in range(n_processes)
-        ]
         
-        # Add gsd/table writers if file names are provided
-        computes = [None for _ in range(n_processes)]
-
-        if gsd_filename:
-            gsd_root = gsd_filename[0:gsd_filename.rfind(".")]
-            gsd_filenames = [gsd_root + f"_{i}.csv" for i in range(n_processes)]
-            
-            results = [
-                util.add_gsd_writer(s, f)
-                for (s, f) in zip(simulations, gsd_filenames)
-            ]
-            
-            simulations = [r[0] for r in results]
-            computes = [r[1] for r in results]
-
-        if csv_filename:
-            csv_root = csv_filename[0:csv_filename.rfind(".")]
-            csv_filenames = [csv_root + f"_{i}.csv" for i in range(n_processes)]
-            csv_files = [open(f, "w") for f in csv_filenames]
-            
-            results = [
-                util.add_table_writer(s, f, self.probe_model, c)
-                for (s, f, c) in zip(simulations, csv_files, computes)
-            ]
-            
-            simulations = [r[0] for r in results]
-
-
         # Calculate the probe positions and orientations
         probe_positions = util.get_probe_positions(
             probe_box,
@@ -406,76 +372,37 @@ class System:
 
         # Run the probe simulation copies across a collection of processes
         with multiprocessing.Pool(n_processes) as pool:
-            probe_models = [self.probe_model for _ in range(n_processes)]
-            orientations = [probe_orientations for _ in range(n_processes)]
-            position_chunks = util.subdivide(probe_positions, n_processes)
+            if gsd_filename is None:
+                gsd_filenames = [None for _ in range(n_processes)]
+            else:
+                gsd_root = gsd_filename[0:gsd_filename.rfind(".")]
+                gsd_filenames = [gsd_root + f"_{i}.gsd" for i in range(n_processes)]
             
-            args = zip(simulations, probe_models, position_chunks, orientations)
-            breakpoint()
+            if csv_filename is None:
+                csv_filenames = [None for _ in range(n_processes)]
+            else:
+                csv_root = csv_filename[0:csv_filename.rfind(".")]
+                csv_filenames = [csv_root + f"_{i}.csv" for i in range(n_processes)]
+
+            args = zip(
+                [i for i in range(n_processes)],
+                [deepcopy(self) for _ in range(n_processes)],
+                [interactions_to_include for _ in range(n_processes)],
+                [nlist for _ in range(n_processes)],
+                [probe_box for _ in range(n_processes)],
+                [simulation_box for _ in range(n_processes)],
+                util.subdivide(probe_positions, n_processes),
+                [probe_orientations for _ in range(n_processes)],
+                gsd_filenames,
+                csv_filenames,
+            )
+        # util.run_probe(*list(args)[0])
             pool.starmap(util.run_probe, args)
 
-        # Close all of the opened csv files if necessary, then merge them and
-        # clean the final CSV file's columns
+        # Merge CSV files and clean their columns
         if csv_filename:
-            for csv_file in csv_files:
-                csv_file.close()
-            
             util.combine_csvs(csv_filenames, csv_filename)
-            
             util.simplify_probe_csv_columns(csv_filename)
-
-    def get_simulation(self, interactions_to_include, nlist, probe_box, simulation_box):
-        """TODO"""
-        # Determine needed interactions and particle types
-        interactions = self.interactions(interactions_to_include)
-        types = self.interacting_types(interactions_to_include)
-
-        # Create initial frame
-        frame = util.get_initial_frame(
-            self.probe_model,
-            self.analyte_model,
-            types,
-            probe_box,
-            simulation_box
-        )
-
-        # Initialize Simulation
-        simulation = hoomd.Simulation(device=hoomd.device.CPU(), seed=1)
-        simulation.create_state_from_snapshot(frame)
-
-        # Add integrator
-        simulation = util.add_integrator(simulation)
-
-        # Add rigid bodies if necessary
-        probe_is_rigid = util.particle_must_be_rigid_body(
-            self.probe_model,
-            interactions
-        )
-        analyte_is_rigid = util.particle_must_be_rigid_body(
-            self.analyte_model,
-            interactions
-        )
-        if probe_is_rigid:
-            simulation, rigid = util.add_rigid_constraint(
-                simulation,
-                self.probe_model,
-                False if analyte_is_rigid else True,
-                [t for t in self.probe_model.secondary_types if t in types]
-            )
-        if analyte_is_rigid:
-            simulation, _ = util.add_rigid_constraint(
-                simulation,
-                self.analyte_model,
-                True,
-                [t for t in self.analyte_model.secondary_types if t in types],
-                rigid if probe_is_rigid else None
-            )
-
-        # Add required interactions
-        for interaction in interactions:
-            simulation = util.add_interaction(simulation, nlist, interaction)
-        
-        return simulation
 
 
 class Field:
@@ -645,7 +572,7 @@ class Field:
             raise ValueError("`orientation` must be 'mean' or 'min'.")
         
         df = df.reset_index(level=[0,1,2])
-        df = df.drop(labels=["q0", "q1", "q2", "q3"], axis=1)
+        df = df.drop(labels=["t", "q0", "q1", "q2", "q3"], axis=1)
 
         # Reshape DataFrame into a numpy grid
         # TODO: replace NaN with Inf?

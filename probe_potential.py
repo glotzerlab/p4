@@ -428,31 +428,21 @@ class System:
         probe_index = deepcopy(np.where(
             state.particles.typeid == all_types.index(self.probe_model.primary_type)
         ))
-        analyte_index = deepcopy(np.where(
-            state.particles.typeid == all_types.index(self.analyte_model.primary_type)
-        ))
-        analyte_orientation = deepcopy(
-            state.particles.orientation[analyte_index,:]
-        )
-        integrate_rotational_dof = deepcopy(    # currently always True
-            simulation.operations.integrator.integrate_rotational_dof
-        )
 
         for p in tqdm(probe_positions):
             for o in probe_orientations:
                 with simulation.state.cpu_local_snapshot as state:
 
-                    state.particles.position[state.particles.rtag[analyte_index]] = np.array([0.0, 0.0, 0.0])
-                    state.particles.velocity[state.particles.rtag[analyte_index]] = np.array([0.0, 0.0, 0.0])
-                    if integrate_rotational_dof:
-                        state.particles.angmom[state.particles.rtag[analyte_index]] = np.array([0.0, 0.0, 0.0, 0.0])
-                        state.particles.orientation[state.particles.rtag[analyte_index]] = analyte_orientation
-
-                    state.particles.position[state.particles.rtag[probe_index]] = p
-                    state.particles.velocity[state.particles.rtag[probe_index]] = np.array([0.0, 0.0, 0.0])
-                    if integrate_rotational_dof:
-                        state.particles.angmom[state.particles.rtag[probe_index]] = np.array([0.0, 0.0, 0.0, 0.0])
-                        state.particles.orientation[state.particles.rtag[probe_index]] = o
+                    # Note: only probe position and orientation need to be
+                    # reset. No forces can change the probe particle's velocity
+                    # or angular momentum, nor can anything change the analyte's
+                    # properties because there is no integration method.
+                    state.particles.position[
+                        state.particles.rtag[probe_index]
+                    ] = p
+                    state.particles.orientation[
+                        state.particles.rtag[probe_index]
+                    ] = o
 
                 simulation.run(1)
 

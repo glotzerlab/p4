@@ -11,8 +11,6 @@ import numpy as np
 import util
 
 
-# TODO: add parallelization for a single statepoint
-
 def cube_verts():
     verts = [(-0.5, -0.5, -0.5),
              (-0.5, -0.5,  0.5),

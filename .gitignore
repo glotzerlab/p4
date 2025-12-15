@@ -1,0 +1,9 @@
+*.ipynb
+*.xlsx
+*.csv
+*.gsd
+*.tiff
+*.vti
+
+__pycache__/*
+.vscode/*

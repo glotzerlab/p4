@@ -1,3 +1,5 @@
+import os
+import time
 from typing import Literal
 
 import coxeter
@@ -47,7 +49,7 @@ def square_verts():
     return verts
 
 
-def test_lj_sphere():
+def test_lj_sphere(n_processes=-1):
     probe_model = pp.ParticleModel("P")
     analyte_model = pp.ParticleModel("A")
 
@@ -88,7 +90,8 @@ def test_lj_sphere():
         csv_filename="test-lj-sphere.csv",
         probe_cutoff_shape=None,
         probe_cutoff_outside_distance=lambda _: 2.0,
-        probe_cutoff_inside_distance=lambda _: 0.2
+        probe_cutoff_inside_distance=lambda _: 0.2,
+        n_processes=n_processes,
     )
 
 def test_lj_sphere_3d():
@@ -132,7 +135,7 @@ def test_lj_sphere_3d():
         csv_filename="test-lj-sphere-3d.csv",
         probe_cutoff_shape=None,
         probe_cutoff_outside_distance=lambda _: 2.0,
-        probe_cutoff_inside_distance=lambda _: 0.2
+        probe_cutoff_inside_distance=lambda _: 0.2,
     )
 
 def test_lj_sites():
@@ -337,11 +340,14 @@ def test_alj_cube_with_eg_sites():
     )
 
 if __name__ == "__main__":
-    # test_lj_sphere()              # looks good
+    for n_processes in range(1, os.process_cpu_count()):    # TODO: note that GSD throws a weird error...
+        start_time = time.perf_counter()
+        test_lj_sphere(n_processes)
+        print(f"Test completed in {round(time.perf_counter() - start_time, 2)} s.")
     # test_lj_sites()               # looks good
     # test_alj_cube()               # looks good
     # test_alj_cube_with_eg_sites()   # looks good
-    test_lj_sphere_3d()
+    # test_lj_sphere_3d()
 
-    f = pp.Field.from_csv("test-lj-sphere-3d.csv", "mean")
-    f.save_image("test-lj-sphere-3d.vti")
+    # f = pp.Field.from_csv("test-lj-sphere-3d.csv", "mean")
+    # f.save_image("test-lj-sphere-3d.vti")

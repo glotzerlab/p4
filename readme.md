@@ -2,7 +2,7 @@
 
 Probe the effective potential energy around a central particle using HOOMD-blue.
 
-# Example
+## Example usage
 ```python
 # Probe the potential around a LJ sphere
 probe_model = pp.ParticleModel("P")
@@ -49,7 +49,7 @@ system.probe_potential(
 )
 ```
 
-# To-Do
+## To-Do
 
 - Allow the particle model to provide secondary orientations just like it does now for positions. These orientations would get used in `util.add_rigid_constraint()`.
 - Allow the interaction model to specify different parameters for different interacting type pairs

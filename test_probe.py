@@ -3,7 +3,7 @@ import time
 from typing import Literal
 
 import coxeter
-import probe_potential as pp
+import p4 as pp
 import hoomd
 import pandas as pd
 import numpy as np

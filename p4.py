@@ -23,7 +23,7 @@ import os
 
 
 class Interaction:
-    """A container for the data to  create and parametrize an MD pair potential.
+    """A container for the data to create and parametrize an MD pair potential.
 
     Parameters
     ----------

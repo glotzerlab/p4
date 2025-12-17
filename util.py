@@ -1,5 +1,7 @@
 from copy import deepcopy
-from io import TextIOWrapper
+import csv
+from io import StringIO, TextIOWrapper
+import io
 import itertools
 import os
 import time
@@ -13,7 +15,7 @@ import rowan
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from probe_potential import Interaction, ParticleModel
+    from p4 import Interaction, ParticleModel, System
 
 def get_cube(side_length):
     """Return a coxeter cube with a given side length."""
@@ -515,29 +517,6 @@ def get_primary_particle_index(
     ))
     return particle_index
 
-def simplify_probe_csv_columns(filename: str):
-    """Simplify column names in a CSV file created by System.potential_probe().
-
-    Parameters
-    ----------
-    filename : str
-        The name of the CSV file.
-    """
-    df = pd.read_csv(filename)
-    new_names = {
-        "       x        ": "x",
-        "       y        ": "y",
-        "       z        ": "z",
-        "       q0       ": "q0",
-        "       q1       ": "q1",
-        "       q2       ": "q2",
-        "       q3       ": "q3",
-        "Simulation.timestep": "t",
-        "md.compute.ThermodynamicQuantities.potential_energy": "PE"
-    }
-    df.rename(columns=new_names, inplace=True)
-    df.to_csv(filename)
-
 def find_nearest(array, value):
     """TODO"""
     # Ref: https://stackoverflow.com/a/2566508/15426433
@@ -545,8 +524,36 @@ def find_nearest(array, value):
     idx = (np.abs(array - value)).argmin()
     return array[idx]
 
-def get_simulation(system, interactions_to_include, nlist, probe_box, simulation_box):
-    """TODO"""
+def get_simulation(
+    system: System,
+    interactions_to_include: list[str],
+    nlist: hoomd.md.nlist.NeighborList,
+    probe_box: list[float],
+    simulation_box: list[float]
+) -> hoomd.Simulation:
+    """Return a simulation for a System with specified boxes and interactions.
+
+    Parameters
+    ----------
+    system : System
+        The system containing the probe and analyte particle models, as well as
+        the interaction model for the simulation.
+    interactions_to_include : list[str]
+        The names of the interactions from the system's interaction model to
+        include in the simulation.
+    nlist : hoomd.md.nlist.NeighborList
+        The neighbor list to use for the interactions in the simulation.
+    probe_box : list[float]
+        The side lengths $[Lx, Ly, Lz]$ of the box containing the positions to
+        be probed.
+    simulation_box : list[float]
+        The simulation's box in HOOMD notation. $[Lx, Ly, Lz, xy, xz, yz]$
+
+    Returns
+    -------
+    hoomd.Simulation
+        The simulation object, fully prepared and ready to be run.
+    """
     # Determine needed interactions and particle types
     interactions = system.interactions(interactions_to_include)
     types = system.interacting_types(interactions_to_include)
@@ -599,31 +606,68 @@ def get_simulation(system, interactions_to_include, nlist, probe_box, simulation
     return simulation
 
 def run_probe(
-    process_num,
-    system,
-    interactions_to_include,
-    nlist,
-    probe_box,
-    simulation_box,
-    probe_positions,
-    probe_orientations,
-    gsd_filename=None,
-    csv_filename=None,
-):
-    """TODO"""
+    system: System,
+    probe_positions: list[list[float]],
+    probe_orientations: list[list[float]],
+    interactions_to_include: list[str],
+    nlist: hoomd.md.nlist.NeighborList,
+    probe_box: list[float],
+    simulation_box: list[float],
+    gsd_filename: str | None = None,
+) -> StringIO:
+    """Return the probe data table for a system.
 
+    Parameters
+    ----------
+    system : System
+        The System to probe.
+    probe_positions : list[list[float]]
+        The positions to probe at.
+    probe_orientations : list[list[float]]
+        The orientations to probe at each position (in quaternion form).
+    interactions_to_include : list[str]
+        The names of the interactions from the system's interaction model to
+        include in the simulation.
+    gsd_filename : str
+        The name of the final output CSV file. This is not used to actually
+        write 
+    nlist : hoomd.md.nlist.NeighborList
+        The neighbor list to use for the interactions.
+    probe_box : list[float]
+        The side lengths $[Lx, Ly, Lz]$ of the box containing the positions to
+        be probed.
+    simulation_box : list[float]
+        The simulation's box in HOOMD notation. $[Lx, Ly, Lz, xy, xz, yz]$
+    gsd_filename : str, optional
+        The name of the GSD file to save. If not provided, no GSD file will be
+        saved.
+
+    Returns
+    -------
+    table
+        The tabular results of the probe simulation, formatted as a CSV and
+        stored in a string buffer.
+    """
     # Create simulation
-    simulation = get_simulation(system, interactions_to_include, nlist, probe_box, simulation_box)
+    simulation = get_simulation(
+        system,
+        interactions_to_include,
+        nlist,
+        probe_box,
+        simulation_box
+    )
 
     # Add file writers
     if gsd_filename is not None:
         simulation, compute = add_gsd_writer(simulation, gsd_filename)
     
-    if csv_filename is not None:
-        csv_file = open(csv_filename, "w")
-        if gsd_filename is None:
-            compute = None
-        simulation, _ = add_table_writer(simulation, csv_file, system.probe_model, compute)
+    table = io.StringIO()
+    simulation, _ = add_table_writer(
+        simulation=simulation,
+        csv_file=table,
+        probe_model=system.probe_model,
+        compute=None if gsd_filename is None else compute
+    )
     
     probe_index = get_primary_particle_index(
         simulation.state.get_snapshot(),
@@ -647,11 +691,14 @@ def run_probe(
                 ] = o
 
             simulation.run(1)
-    
-    # Close CSV file if necessary
-    if csv_filename is not None:
-        csv_file.close()
-    
+
+    # Flush all writers, just to make sure
+    for writer in simulation.operations.writers:
+        if hasattr(writer, "flush"):
+            writer.flush()
+
+    return table
+
 def subdivide(array: list, n: int):
     """Subdivide an array into some number of chunks of consecutive items.
 
@@ -672,33 +719,38 @@ def subdivide(array: list, n: int):
     k, m = divmod(len(array), n)
     return [array[i*k + min(i, m):(i+1)*k + min(i+1, m)] for i in range(n)]
 
-def combine_csvs(filenames: list[str], final_filename: str):
-    """Combine the contents of multiple CSV files into a single file.
+def merge_tables(table_csvs: list[StringIO]):
+    """Combine an array of tables stored in string buffers.
 
-    The original CSVs are deleted afterward.
-    
+    Additionally, the header is modified to have shorter column names.
+
     Parameters
     ----------
-    filenames : list[str]
-        The names of the CSV files to combine.
-    final_filename : str
-        The name  of the final output file.
+    table_csvs : list[StringIO]
+        The tables to merge. The tables should be in CSV format and stored
+        in string buffers.
+
+    Returns
+    -------
+    table
+        The merged table.
     """
-    with open(final_filename, "w") as final_file:
-        # First file must include header
-        with open(filenames[0], "r") as file:
-            final_file.writelines(file)
+    merged_csv = StringIO()
+    writer = csv.writer(merged_csv)
+
+    # Write simpler header
+    writer.writerow(["t","x","y","z","q0","q1","q2","q3","PE"])
+
+    for i, table in enumerate(table_csvs):
+        table.seek(0)
+        reader = csv.reader(table)
         
-        # Remaining files don't need header.
-        if len(filenames) > 1:
-            for fn in filenames[1:]:
-                with open(fn, "r") as file:
-                    next(file)
-                    final_file.writelines(file)
+        next(reader)    # skip the header
 
-    for fn in filenames:
-        os.remove(fn)
-
+        for row in reader:
+            writer.writerow(row)
+        
+    return merged_csv
 
 def combine_gsds(filenames: list[str], final_filename: str):
     """Combine the contents of multiple GSD files into a single file.

@@ -250,15 +250,15 @@ class System:
         position_resolutions: list[list[float]],
         orientation_resolutions: list[list[float]],
         orientation_symmetries: list[int],
-        nlist: hoomd.md.nlist.NeighborList,
         interactions_to_include: list[str],
+        csv_filename: str,
+        nlist: hoomd.md.nlist.NeighborList,
         probe_cutoff_outside_distance: Callable,  # needs to be a callable if the user can change params after instantiation
         probe_cutoff_inside_distance: Callable | None = None,
         probe_cutoff_shape: coxeter.shapes.ConvexPolyhedron | None = None,
-        gsd_filename: str | None = None,
-        csv_filename: str | None = None,
         box_safety_factor: float = 10,
-        n_processes: int = -1,
+        n_processes: int = 1,
+        save_gsd: bool = False,
     ):
         """Probe the potential energy landscape of the system.
 
@@ -266,17 +266,19 @@ class System:
         ----------
         position_resolutions : list[list[float]]
             The number of samples along each dimension of the position grid.
-            [X, Y, Z]
+            $[X, Y, Z]$
         orientation_resolutions : list[list[float]]
             The number of samples along each dimension of the orientation grid.
-            [X, Y, Z]
+            $[X, Y, Z]$
         orientation_symmetries : list[int]
             The rotational symmetry for each axis. If not provided, C1 symmetry
-        is assumed for every axis. [X, Y, Z]
-        nlist : hoomd.md.nlist.NeighborList
-            The neighborlist to use for the interactions.
+            is assumed for every axis. $[X, Y, Z]$
         interactions_to_include : list[str]
             The names of the interactions to include.
+        csv_filename : str
+            The name of the CSV file to save.
+        nlist : hoomd.md.nlist.NeighborList
+            The neighbor list to use for the interactions.
         probe_cutoff_outside_distance : Callable
             A callable that takes `self` as its only argument and returns a
             float representing the cutoff distance outside which no positions
@@ -296,18 +298,27 @@ class System:
             A convex polyhedron representing a shape to which cutoff distances
             are relative, enabling the user to probe non-cubic boxes. If not
             provided, cutoff distances describe the side lengths of a cube.
-        gsd_filename : str, optional
-            The name of the GSD file to save. If not provided, no GSD file is
-            saved.
-        csv_filename : str, optional
-            The name of the CSV file to save. If not provided, no CSV file is
-            saved.
         box_safety_factor : float, optional
             The scale factor for the simulation box, since it must be bigger
             than the probe box to prevent the minimum image problem. Defaults
             to 10.
+        n_processes : int, default=1
+            The number of processes to distribute the probe operation between.
+            Parallelization is implemented at the Python level, so each process
+            creates and runs its own simulation and then the table results are
+            combined in the output CSV. Note that if save_gsd is set to True,
+            each simulation will produce a separate GSD file. Set this parameter
+            to -1 to use the maximum allowed number of processes for your
+            machine.
+        save_gsd : bool, default=False
+            Whether to save a GSD file alongside the output CSV file. If True,
+            the GSD has the same name as the CSV. The name of the GSD file will
+            be almost identical to that of the CSV file, with a suffix
+            the process whose simulation wrote the GSD file. This option is
+            available for debugging, but is not necessary for most users.
         """
-        # Calculate probe box based on distance cutoff callables for included interactions
+        # Calculate probe box based on distance cutoff callables for included
+        # interactions
         outside_cutoff = probe_cutoff_outside_distance(self)
         if probe_cutoff_shape is None:
             probe_box = [2*outside_cutoff, 2*outside_cutoff, 2*outside_cutoff]
@@ -373,41 +384,34 @@ class System:
             )
 
         # Run the probe simulation copies across a collection of processes
-        # with multiprocessing.Pool(n_processes) as pool:
         mp = pathos.helpers.mp
         with mp.Pool() as pool:
-            if gsd_filename is None:
+            if save_gsd:
+                gsd_filenames = [
+                    csv_filename.split(".")[-1] + f"_{i}.gsd"
+                    for i in range(n_processes)
+                ]
+            else:
                 gsd_filenames = [None for _ in range(n_processes)]
-            else:
-                gsd_root = gsd_filename[0:gsd_filename.rfind(".")]
-                gsd_filenames = [gsd_root + f"_{i}.gsd" for i in range(n_processes)]
-            
-            if csv_filename is None:
-                csv_filenames = [None for _ in range(n_processes)]
-            else:
-                csv_root = csv_filename[0:csv_filename.rfind(".")]
-                csv_filenames = [csv_root + f"_{i}.csv" for i in range(n_processes)]
 
             args = zip(
-                [i for i in range(n_processes)],
                 [deepcopy(self) for _ in range(n_processes)],
+                util.subdivide(probe_positions, n_processes),
+                [probe_orientations for _ in range(n_processes)],
                 [interactions_to_include for _ in range(n_processes)],
                 [nlist for _ in range(n_processes)],
                 [probe_box for _ in range(n_processes)],
                 [simulation_box for _ in range(n_processes)],
-                util.subdivide(probe_positions, n_processes),
-                [probe_orientations for _ in range(n_processes)],
                 gsd_filenames,
-                csv_filenames,
             )
-        # util.run_probe(*list(args)[0])
-            pool.starmap(util.run_probe, args)
+            tables = pool.starmap(util.run_probe, args)
+        
+        # Merge tables and clean their columns, then save
+        table = util.merge_tables(tables)
 
-        # Merge CSV files and clean their columns
-        if csv_filename:
-            util.combine_csvs(csv_filenames, csv_filename)
-            util.simplify_probe_csv_columns(csv_filename)
-
+        with open(csv_filename, "w") as file:
+            table.seek(0)
+            file.write(table.read())
 
 class Field:
     """A Field is defined by an array of values and an array of extents.

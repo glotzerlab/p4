@@ -2,6 +2,11 @@
 
 Probe the effective potential energy around a central particle using HOOMD-blue.
 
+
+Potential paper titles:
+    - Toward the rational design of pairwise particle interaction models: current trends and ...
+
+
 ## Example usage
 ```python
 # Probe the potential around a LJ sphere
@@ -62,3 +67,7 @@ system.probe_potential(
         - same as now
     - Interaction model is same as now (just a dict of strings and Interactions)
 - Allow user to save interaction models to json
+- double-check all indexing/array orientation logic
+- allow user to save Field to npz
+- allow user to merge fields by addition or overlay
+- write tests

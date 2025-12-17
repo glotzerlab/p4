@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from p4 import Interaction, ParticleModel, System
 
-def get_cube(side_length):
+def get_cube(side_length: float):
     """Return a coxeter cube with a given side length."""
     s = side_length/2
     vertices = [

@@ -79,14 +79,13 @@ class Interaction:
         self.validate()
 
     def validate(self):
-        """Instantiate the HOOMD class and attempt to run a simulation."""
+        """Ensure the HOOMD class can be created and used successfully."""
         nlist = hoomd.md.nlist.Cell(2)
         try:
-            test_instance = self.hoomd_class(nlist, **self.initial_inputs)
-        except TypeError, hoomd.error.TypeConversionError:
-            raise ValueError(
-                "The 'initial_inputs' are wrong. See traceback for details."
-            )
+            _ = self.hoomd_class(nlist, **self.initial_inputs)
+        except (TypeError, hoomd.error.TypeConversionError) as e:
+            msg = "The 'initial_inputs' are wrong. See traceback for details."
+            raise ValueError(msg) from e
         
         simulation = hoomd.util.make_example_simulation(
             particle_types=self.yes_types
@@ -96,10 +95,9 @@ class Interaction:
 
         try:
            simulation.run(0)
-        except:
-            raise ValueError(
-                "The typed attributes are wrong. See traceback for details."
-            )
+        except Exception as e:
+            msg = "The typed attributes are wrong. See traceback for details."
+            raise ValueError(msg) from e
 
 class ParticleModel:
     """The names and positions of a particle's primary and secondary types.
@@ -135,7 +133,7 @@ class ParticleModel:
         get_secondary_positions_by_type: Callable | None = None,
         get_secondary_orientations_by_type: Callable | None = None
     ):
-        if secondary_types and get_secondary_positions_by_type is None:
+        if secondary_types != [] and get_secondary_positions_by_type is None:
             raise ValueError(
                 "'get_secondary_positions_by_type' is required if "
                 + "'secondary_types' is provided"

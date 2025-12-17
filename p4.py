@@ -465,7 +465,8 @@ class Field:
     or VTI file. To do so, use the corresponding class methods `from_csv()`,
     `from_tiff()`, and `from_vti()`.
 
-    [TODO: revise next paragraph]
+    [TODO: revise next paragraph - the central question is how we should
+    handle fields with different dimensionalities.]
 
     Both the array and the extents are **always** 3D. If a Field is constructed
     with a 2D array, the array is coerced to 3D and represents a 2D slice
@@ -779,6 +780,7 @@ class Field:
         cmap_name: str = "RdYlBu_r",
         core_color: str = "#FFCF00",
     ):
+        """TODO"""
         # In 2D, use matplotlib
         if self.n_dimensions == 2:
             mpl_extents = [

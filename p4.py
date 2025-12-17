@@ -134,7 +134,8 @@ class ParticleModel:
         self,
         primary_type: str,
         secondary_types: list[str] = [],
-        get_secondary_positions_by_type: Callable | None = None
+        get_secondary_positions_by_type: Callable | None = None,
+        get_secondary_orientations_by_type: Callable | None = None
     ):
         if secondary_types and get_secondary_positions_by_type is None:
             raise ValueError(
@@ -145,6 +146,17 @@ class ParticleModel:
         self.primary_type = primary_type
         self.secondary_types = secondary_types
         self.get_secondary_positions_by_type = get_secondary_positions_by_type
+        self.get_secondary_orientations_by_type = get_secondary_orientations_by_type
+
+        if self.get_secondary_positions_by_type is not None:
+            self.validate_secondary_positions_getter()
+        if self.get_secondary_orientations_by_type is not None:
+            self.validate_secondary_orientations_getter()
+        if (
+            (self.get_secondary_positions_by_type is not None)
+            and (self.get_secondary_orientations_by_type is not None)
+        ):
+            self.validate_secondary_orientations_and_positions_match()
     
     def can_be_rigid_body(self) -> bool:
         """Whether the particle can be a rigid body."""
@@ -154,9 +166,41 @@ class ParticleModel:
         """Whether the particle must be a rigid body for some interaction."""
         return any([t in self.secondary_types for t in interaction.yes_types])
 
-    def validate_get_secondary_positions_by_type(self):
-        # TODO
-        pass
+    def validate_secondary_positions_getter(self):
+        """Ensure that the provided callable works for all secondary types."""
+        for t in self.secondary_types:
+            try:
+                _ = self.get_secondary_positions_by_type(t)
+            except:
+                raise ValueError(
+                    "`get_secondary_positions_by_type` does not support "
+                    + f"secondary type '{t}'."
+                )
+
+    def validate_secondary_orientations_getter(self):
+        """Ensure that the provided callable works for all secondary types."""
+        for t in self.secondary_types:
+            try:
+                _ = self.get_secondary_orientations_by_type(t)
+            except:
+                raise ValueError(
+                    "`get_secondary_orientations_by_type` does not support "
+                    + f"secondary type '{t}'."
+                )
+
+    def validate_secondary_orientations_and_positions_match(self):
+        """Ensure secondary types' numbers of positions and orientations match."""
+        for t in self.secondary_types:
+            n_positions = len(self.get_secondary_positions_by_type(t))
+            n_orientations = len(self.get_secondary_orientations_by_type(t))
+            
+            try:
+                assert n_positions == n_orientations
+            except AssertionError:
+                raise ValueError(
+                    "The provided callables return different numbers of "
+                    + f"positions and orientations for secondary type {t}"
+                )
 
 class System:
     """A System is defined by its particle models and an interaction model.

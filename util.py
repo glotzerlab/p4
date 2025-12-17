@@ -1,16 +1,12 @@
 from copy import deepcopy
 import csv
 from io import StringIO, TextIOWrapper
-import io
 import itertools
-import os
-import time
 from typing import Tuple
 import coxeter
 import gsd.hoomd
 import hoomd
 import numpy as np
-import pandas as pd
 import rowan
 
 from typing import TYPE_CHECKING
@@ -670,7 +666,7 @@ def run_probe(
     if gsd_filename is not None:
         simulation, compute = add_gsd_writer(simulation, gsd_filename)
     
-    table = io.StringIO()
+    table = StringIO()
     simulation, _ = add_table_writer(
         simulation=simulation,
         csv_file=table,

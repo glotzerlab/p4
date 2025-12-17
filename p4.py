@@ -9,13 +9,11 @@ import coxeter
 import hoomd
 from matplotlib import pyplot as plt
 from matplotlib import colormaps
-from matplotlib.patches import Rectangle, PathPatch, Polygon
-from matplotlib.path import Path
+from matplotlib.patches import Polygon
 from matplotlib.colors import TwoSlopeNorm
 from matplotlib.transforms import Affine2D
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 import util
 import vtk.util.numpy_support
 # import multiprocessing

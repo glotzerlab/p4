@@ -428,7 +428,7 @@ class System:
         with mp.Pool() as pool:
             if save_gsd:
                 gsd_filenames = [
-                    csv_filename.split(".")[-1] + f"_{i}.gsd"
+                    csv_filename.split(".")[-2] + f"_{i}.gsd"
                     for i in range(n_processes)
                 ]
             else:

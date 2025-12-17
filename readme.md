@@ -67,6 +67,7 @@ system.probe_potential(
     - Interaction model is same as now (just a dict of strings and Interactions)
 - Allow user to save interaction models to json
 - double-check all indexing/array orientation logic
+- refine Field dimensionality handling
 - allow user to save Field to npz
 - allow user to merge fields by addition or overlay
 - write tests

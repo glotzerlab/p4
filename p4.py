@@ -296,7 +296,7 @@ class System:
         probe_cutoff_outside_distance: Callable,  # needs to be a callable if the user can change params after instantiation
         probe_cutoff_inside_distance: Callable | None = None,
         probe_cutoff_shape: coxeter.shapes.ConvexPolyhedron | None = None,
-        box_safety_factor: float = 10,
+        box_safety_factor: float = 100,
         n_processes: int = 1,
         save_gsd: bool = False,
     ):
@@ -338,10 +338,10 @@ class System:
             A convex polyhedron representing a shape to which cutoff distances
             are relative, enabling the user to probe non-cubic boxes. If not
             provided, cutoff distances describe the side lengths of a cube.
-        box_safety_factor : float, optional
+        box_safety_factor : float, default=100
             The scale factor for the simulation box, since it must be bigger
             than the probe box to prevent the minimum image problem. Defaults
-            to 10.
+            to 100.
         n_processes : int, default=1
             The number of processes to distribute the probe operation between.
             Parallelization is implemented at the Python level, so each process
@@ -361,7 +361,7 @@ class System:
         # interactions
         outside_cutoff = probe_cutoff_outside_distance(self)
         if probe_cutoff_shape is None:
-            probe_box = [2*outside_cutoff, 2*outside_cutoff, 2*outside_cutoff]
+            probe_box = [outside_cutoff, outside_cutoff, outside_cutoff]
         else:
             shape_maxes = probe_cutoff_shape.vertices.max(axis=0)
             probe_box = [m + outside_cutoff for m in shape_maxes]

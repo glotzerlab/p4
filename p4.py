@@ -421,6 +421,8 @@ class Field:
     or VTI file. To do so, use the corresponding class methods `from_csv()`,
     `from_tiff()`, and `from_vti()`.
 
+    [TODO: revise next paragraph]
+
     Both the array and the extents are **always** 3D. If a Field is constructed
     with a 2D array, the array is coerced to 3D and represents a 2D slice
     embedded within a 3D grid. The extents thus has the form
@@ -455,7 +457,7 @@ class Field:
         if (n := len(array.shape)) not in [2, 3]:
             raise ValueError(f"`array` should be 2D or 3D but it is {n}D")
 
-        self.array = np.atleast_3d(array)
+        self.array = array
         self.extents = extents
 
     @classmethod
@@ -547,10 +549,7 @@ class Field:
     @property
     def n_dimensions(self):
         """The number of dimensions represented by the array (2 or 3)."""
-        if self.array.shape[2] > 1:
-            return 3
-        else:
-            return 2
+        return len(self.array.shape)
 
     @staticmethod
     def _df_to_array(df, orientation: Literal["mean", "min"]):
@@ -584,10 +583,11 @@ class Field:
 
         # Reshape DataFrame into a numpy grid
         # TODO: replace NaN with Inf?
-        return Field._tall_df_to_3d_array(df)
+        ndim = 2 if df["z"].max() == df["z"].min() else 3
+        return Field._tall_df_to_array(df, ndim)
 
     @staticmethod
-    def _tall_df_to_3d_array(df: pd.DataFrame) -> np.ndarray:
+    def _tall_df_to_array(df: pd.DataFrame, ndim: Literal[2, 3]) -> np.ndarray:
         """Convert a tall DataFrame into a 3D numpy array.
 
         Adapted from https://stackoverflow.com/a/35049899/15426433.
@@ -596,6 +596,8 @@ class Field:
         ----------
         df : pd.DataFrame
             The tall dataframe.
+        ndim : 2 or 3
+            The number of dimensions of the field represented by the dataframe.
 
         Returns
         -------
@@ -609,7 +611,10 @@ class Field:
         array = np.full(shape, np.nan)
         array[tuple(df.index.codes)] = df["PE"].values
 
-        return array
+        if ndim == 3:
+            return array
+        else:
+            return array[0,:,:]     # TODO: check indexing
 
     @staticmethod
     def _save_2d_array_to_tiff(

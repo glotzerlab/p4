@@ -61,3 +61,4 @@ system.probe_potential(
     - Interaction class
         - same as now
     - Interaction model is same as now (just a dict of strings and Interactions)
+- Allow user to save interaction models to json

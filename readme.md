@@ -56,7 +56,6 @@ system.probe_potential(
 
 ## To-Do
 
-- Allow the particle model to provide secondary orientations just like it does now for positions. These orientations would get used in `util.add_rigid_constraint()`.
 - Allow the interaction model to specify different parameters for different interacting type pairs
 -  Allow user to probe systems with an analyte frame (with multiple particles), rather than just a single analyte particle. This could involve re-structuring the API to something like
     - Probe class

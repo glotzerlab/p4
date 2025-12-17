@@ -1,3 +1,9 @@
+"""Utiliity functions for p4.
+
+In general, these functions have no defaults and do not protect themselves
+from wrong/fallible inputs.
+"""
+
 from copy import deepcopy
 import csv
 from io import StringIO, TextIOWrapper
@@ -756,16 +762,3 @@ def merge_tables(table_csvs: list[StringIO]):
             writer.writerow(row)
         
     return merged_csv
-
-def combine_gsds(filenames: list[str], final_filename: str):
-    """Combine the contents of multiple GSD files into a single file.
-
-    Parameters
-    ----------
-    filenames : list[str]
-        The names of the CSV files to combine.
-    final_filename : str
-        The name  of the final output file.
-    """
-    # TODO
-    pass

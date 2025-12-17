@@ -256,8 +256,8 @@ def add_rigid_constraint(
         orientations = [(1.0, 0.0, 0.0, 0.0) for _ in types_and_positions]
 
     rigid.body[particle_model.primary_type] = {
-        "constituent_types": [i[0] for i in types_and_positions],
-        "positions": [i[1] for i in types_and_positions],
+        "constituent_types": [t for (t, p) in types_and_positions],
+        "positions": [p for (t, p) in types_and_positions],
         "orientations": [o for o in orientations]
     }
 

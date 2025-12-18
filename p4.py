@@ -17,7 +17,6 @@ import pandas as pd
 import util
 import vtk.util.numpy_support
 # import multiprocessing
-import pathos
 import os
 
 
@@ -423,31 +422,42 @@ class System:
                 )
             )
 
-        # Run the probe simulation copies across a collection of processes
-        mp = pathos.helpers.mp
-        with mp.Pool() as pool:
-            if save_gsd:
-                gsd_filenames = [
-                    csv_filename.split(".")[-2] + f"_{i}.gsd"
-                    for i in range(n_processes)
-                ]
-            else:
-                gsd_filenames = [None for _ in range(n_processes)]
+        # If multiprocessing, run copies of the probe simulation with chunks
+        # of the set of positions across a collection of processes
+        if n_processes != 1:
+            import pathos           # TODO: should this be here or somewhere else?
+            mp = pathos.helpers.mp
+            with mp.Pool() as pool:
+                if save_gsd:
+                    gsd_filenames = [
+                        csv_filename.split(".")[-2] + f"_{i}.gsd"
+                        for i in range(n_processes)
+                    ]
+                else:
+                    gsd_filenames = [None for _ in range(n_processes)]
 
-            args = zip(
-                [deepcopy(self) for _ in range(n_processes)],
-                util.subdivide(probe_positions, n_processes),
-                [probe_orientations for _ in range(n_processes)],
-                [interactions_to_include for _ in range(n_processes)],
-                [nlist for _ in range(n_processes)],
-                [probe_box for _ in range(n_processes)],
-                [simulation_box for _ in range(n_processes)],
-                gsd_filenames,
-            )
-            tables = pool.starmap(util.run_probe, args)
+                args = zip(
+                    [deepcopy(self) for _ in range(n_processes)],
+                    util.subdivide(probe_positions, n_processes),
+                    [probe_orientations for _ in range(n_processes)],
+                    [interactions_to_include for _ in range(n_processes)],
+                    [nlist for _ in range(n_processes)],
+                    [probe_box for _ in range(n_processes)],
+                    [simulation_box for _ in range(n_processes)],
+                    gsd_filenames,
+                )
+                tables = pool.starmap(util.run_probe, args)
+            
+            table = util.clean_header(util.merge_tables(tables))
         
-        # Merge tables and clean their columns, then save
-        table = util.merge_tables(tables)
+        # If not multiprocessing, don't initialize a pool (easier for debugging)
+        else:   # TODO: move header cleaning to its own function
+            table = util.run_probe(
+                self, probe_positions, probe_orientations,
+                interactions_to_include, nlist, probe_box, simulation_box
+            )
+
+            table = util.clean_header(table)
 
         with open(csv_filename, "w") as file:
             table.seek(0)

@@ -746,19 +746,70 @@ def merge_tables(table_csvs: list[StringIO]):
     table
         The merged table.
     """
-    merged_csv = StringIO()
-    writer = csv.writer(merged_csv)
-
-    # Write simpler header
-    writer.writerow(["t","x","y","z","q0","q1","q2","q3","PE"])
+    merged_table = StringIO()
+    writer = csv.writer(merged_table)
 
     for i, table in enumerate(table_csvs):
         table.seek(0)
-        reader = csv.reader(table)
         
-        next(reader)    # skip the header
+        # skip header for all tables after the first
+        if i != 0:
+            next(table)
+
+        reader = csv.reader(table)
 
         for row in reader:
             writer.writerow(row)
         
-    return merged_csv
+    return merged_table
+
+def clean_header(table: StringIO):
+    """Simplify the header of a table string buffer.
+
+    This function is not robust. It does not search for expected column
+    names and modify them in place. It requires a CSV-formatted string buffer
+    with the following columns (in order):
+    
+    1. 'Simulation.timestep'
+    2. '       x        '
+    3. '       y        '
+    4. '       z        '
+    5. '       q0       '
+    6. '       q1       '
+    7. '       q2       '
+    8. '       q3       '
+    9. 'md.compute.ThermodynamicQuantities.potential_energy'
+    
+    This function replaces the header row with a new row with these columns:
+
+    1. 't'
+    2. 'x'
+    3. 'y'
+    4. 'z'
+    5. 'q0'
+    6. 'q1'
+    7. 'q2'
+    8. 'q3'
+    9. 'PE'
+
+    Parameters
+    ----------
+    table : StringIO
+        The CSV-formatted string buffer.
+
+    Returns
+    -------
+    cleaned_table
+    """
+    cleaned_table = StringIO()
+    writer = csv.writer(cleaned_table)
+
+    writer.writerow(["t","x","y","z","q0","q1","q2","q3","PE"])
+
+    table.seek(0)
+    next(table)
+
+    for row in csv.reader(table):
+        writer.writerow(row)
+    
+    return cleaned_table

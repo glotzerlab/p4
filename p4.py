@@ -1,4 +1,5 @@
 from copy import deepcopy
+import itertools
 import json
 import math
 from typing import Callable, Literal
@@ -22,7 +23,10 @@ import os
 
 
 class Interaction:
-    """A container for the data to create and parametrize an MD pair potential.
+    """A container for the data to create and parameterize an MD pair potential.
+
+    `Interaction` is self-validating, i.e., every instance is guaranteed to
+    successfully create and parameterize its provided HOOMD pair potential.
 
     Parameters
     ----------
@@ -78,16 +82,25 @@ class Interaction:
         self.validate()
 
     def validate(self):
-        """Ensure the HOOMD class can be created and used successfully."""
+        """Ensure the HOOMD class can be created, parameterized, and used."""
         # Creation
         nlist = hoomd.md.nlist.Cell(2)
         try:
-            _ = self.hoomd_class(nlist, **self.initial_inputs)
-        except (TypeError, hoomd.error.TypeConversionError) as e:
-            msg = "The 'initial_inputs' are wrong. See traceback for details."
+            _ = self.to_hoomd_instance(nlist)
+        except ValueError as e:
+            msg = "Validation failed: the HOOMD class cannot be instantiated."
+            raise ValueError(msg) from e
+        
+        # Parameterization
+        nlist = hoomd.md.nlist.Cell(2)
+        try:
+            _ = self.to_parameterized_hoomd_instance(nlist, self.yes_types)
+        except AttributeError as e:
+            msg = "Validation failed: the HOOMD instance cannot be parameterized."
             raise ValueError(msg) from e
         
         # Usage
+        nlist = hoomd.md.nlist.Cell(2)
         simulation = hoomd.util.make_example_simulation(
             particle_types=self.yes_types
         )
@@ -102,8 +115,135 @@ class Interaction:
         try:
            simulation.run(0)
         except Exception as e:
-            msg = "The typed attributes are wrong. See traceback for details."
+            msg = (
+                "Validation failed: the parameterized HOOMD instance cannot be "
+                + "used in a running simulation. See traceback for details."
+            )
             raise ValueError(msg) from e
+
+    def to_hoomd_instance(
+        self,
+        nlist: hoomd.md.nlist.NeighborList
+    ) -> hoomd.md.pair.Pair:
+        """Return an unparameterized instance of the HOOMD class.
+
+        Parameters
+        ----------
+        nlist : hoomd.md.nlist.NeighborList
+            The neighbor list to use.
+
+        Returns
+        -------
+        instance
+
+        Raises
+        ------
+        ValueError
+            If the initial inputs are wrong.
+        """
+        try:
+            return self.hoomd_class(nlist, **self.initial_inputs)
+        except (TypeError, hoomd.error.TypeConversionError) as e:
+            msg = "'initial_inputs' are wrong. See traceback for details."
+            raise ValueError(msg) from e
+
+    def to_parameterized_hoomd_instance(
+        self,
+        nlist: hoomd.md.nlist.NeighborList,
+        all_types: list[str]
+    ) -> hoomd.md.pair.Pair:
+        """Return a parameterized instance of the HOOMD class.
+        
+        Parameters
+        ----------
+        nlist : hoomd.md.nlist.NeighborList
+            The neighbor list to use.
+        all_types : list[str]
+            The names of all the particle types for which the instance should be
+            parameterized.
+
+        Returns
+        -------
+        parameterized_instance
+
+        Raises
+        ------
+        AttributeError
+            If the typed attributes are wrong.
+        """
+        def wrong_type_msg(att, default_or_yes, single_or_double, hoomd_class):
+            return (
+                f"'{att}' was provided as a {default_or_yes} {single_or_double}"
+                f"-typed-attribute, but no such attribute was found in hoomd "
+                f"class '{hoomd_class}'."
+            )
+
+        instance = self.to_hoomd_instance(nlist)
+        
+        all_type_pairs = list(itertools.combinations(all_types, 2))
+        all_type_pairs.extend([(t, t) for t in all_types])
+        yes_type_pairs = []
+        for p in all_type_pairs:
+            if (
+                p[0] in self.yes_types
+                and p[1] in self.yes_types
+                and p[0] != p[1]
+            ):
+                yes_type_pairs.append(p)
+
+        # Set default single attributes
+        for a_t in all_types:
+            for k, v in self.default_single_typed_attributes.items():
+                try:
+                    getattr(instance, k)[a_t] = v
+                except AttributeError:
+                    raise AttributeError(
+                        wrong_type_msg(
+                            k, "default", "single", self.hoomd_class
+                        )
+                    )
+
+        # Set default pair attributes
+        for a_p in all_type_pairs:
+            for k, v in self.default_pair_typed_attributes.items():
+                try:
+                    getattr(instance, k)[a_p] = v
+                except AttributeError:
+                    raise AttributeError(
+                        wrong_type_msg(
+                            k, "default", "pair", self.hoomd_class
+                        )
+                    )
+
+        # Modify single attributes for interacting types
+        for y_t in self.yes_types:
+            for k, v in self.yes_single_typed_attributes.items():
+                try:
+                    getattr(instance, k)[y_t] = v
+                except AttributeError:
+                    raise AttributeError(
+                        wrong_type_msg(
+                            k, "yes", "single", self.hoomd_class
+                        )
+                    )
+
+        # Modify pair attributes for interacting types
+        for y_p in yes_type_pairs:
+            for k, v in self.yes_pair_typed_attributes.items():
+                try:
+                    getattr(instance, k)[y_p] = v
+                except AttributeError:
+                    raise AttributeError(
+                        wrong_type_msg(
+                            k, "yes", "pair", self.hoomd_class
+                        )
+                    )
+        
+        return instance
+
+    @classmethod
+    def from_hoomd_md_pair(cls, pair):
+        pass
 
 class ParticleModel:
     """The names and positions of a particle's primary and secondary types.

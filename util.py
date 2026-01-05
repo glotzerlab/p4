@@ -400,73 +400,10 @@ def add_interaction(
     simulation
         The modified simulation.
     """
-    force = interaction.hoomd_class(nlist, **interaction.initial_inputs)
-    all_types = simulation.state.particle_types
-    all_type_pairs = list(itertools.combinations(all_types, 2))
-    all_type_pairs.extend([(t, t) for t in all_types])
-    yes_type_pairs = []
-    for p in all_type_pairs:
-        if (
-            p[0] in interaction.yes_types
-            and p[1] in interaction.yes_types
-            and p[0] != p[1]
-        ):
-            yes_type_pairs.append(p)
-    
-    def wrong_type_msg(att, default_or_yes, single_or_double, hoomd_class):
-        return (
-            f"'{att}' was provided as a {default_or_yes} {single_or_double}-"
-            f"typed-attribute, but no such attribute was found in hoomd class "
-            f"'{hoomd_class}'."
-        )
-
-    # Set default single attributes
-    for a_t in all_types:
-        for k, v in interaction.default_single_typed_attributes.items():
-            try:
-                getattr(force, k)[a_t] = v
-            except AttributeError:
-                raise AttributeError(
-                    wrong_type_msg(
-                        k, "default", "single", interaction.hoomd_class
-                    )
-                )
-
-    # Set default pair attributes
-    for a_p in all_type_pairs:
-        for k, v in interaction.default_pair_typed_attributes.items():
-            try:
-                getattr(force, k)[a_p] = v
-            except AttributeError:
-                raise AttributeError(
-                    wrong_type_msg(
-                        k, "default", "pair", interaction.hoomd_class
-                    )
-                )
-
-    # Modify single attributes for interacting types
-    for y_t in interaction.yes_types:
-        for k, v in interaction.yes_single_typed_attributes.items():
-            try:
-                getattr(force, k)[y_t] = v
-            except AttributeError:
-                raise AttributeError(
-                    wrong_type_msg(
-                        k, "yes", "single", interaction.hoomd_class
-                    )
-                )
-
-    # Modify pair attributes for interacting types
-    for y_p in yes_type_pairs:
-        for k, v in interaction.yes_pair_typed_attributes.items():
-            try:
-                getattr(force, k)[y_p] = v
-            except AttributeError:
-                raise AttributeError(
-                    wrong_type_msg(
-                        k, "yes", "pair", interaction.hoomd_class
-                    )
-                )
+    force = interaction.to_parameterized_hoomd_instance(
+        nlist=nlist,
+        all_types=simulation.state.particle_types
+    )
 
     simulation.operations.integrator.forces.append(force)
 

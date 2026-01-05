@@ -58,8 +58,8 @@ system.probe_potential(
 
 `Interaction`
   - [ ] Allow the interaction model to specify different parameters for different interacting type pairs
-  - [ ] Add support for HPMC potentials (contributes to goal of writing a simulation parser)
-    - to accomplish this, I think  `InteractionModel` would need to be its own class that checks to make sure every constituent `Interaction` has the same  simulation type (MD or HPMC). Ideally, it wouldn't matter (see HOOMD-rs), but for HOOMD-blue it certainly does.
+  ~~- [ ] Add support for HPMC potentials (contributes to goal of writing a simulation parser)~~
+    ~~- to accomplish this, I think  `InteractionModel` would need to be its own class that checks to make sure every constituent `Interaction` has the same  simulation type (MD or HPMC). Ideally, it wouldn't matter (see HOOMD-rs), but for HOOMD-blue it certainly does.~~
 
 `System`
   - [ ] remove need for a separate probe `ParticleModel`, generating a probe particle on-the-fly to investigate the provided interactions (contributes to goal of writing a simulation parser)

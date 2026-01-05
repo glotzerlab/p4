@@ -1,6 +1,6 @@
 # Pairwise Potential Particle Probe
 
-Probe the effective potential energy around a central particle using HOOMD-blue.
+Probe the effective potential landscape around an analyte using HOOMD-blue.
 
 
 Potential paper titles:

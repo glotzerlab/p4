@@ -1,0 +1,31 @@
+[project]
+name = "p4"
+version = "0.0.1"
+requires-python = ">=3.12"
+description = "Probe the effective potential landscape around an analyte using HOOMD-blue."
+readme = "readme.md"
+license = { file = "LICENSE" }
+authors = [
+    {name = "Joseph Burkhart", email = "joaburkh@umich.edu"},
+]
+dependencies = [
+    # Glotzer Group
+    "gsd>=4.2.0",
+    "hoomd>=5.4.0",
+    "coxeter>=0.10.0",
+    "rowan>=1.3.2",
+
+    # Data
+    "numpy>=2.3.5",
+    "pillow>=12.0.0",
+
+    # Export
+    "vtk>=9.5.2",
+    "pandas>=2.3.3",
+
+    # Plotting
+    "matplotlib>=3.10.8",
+
+    # Parallelization
+    "pathos>=0.3.4",
+]

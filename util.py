@@ -95,7 +95,7 @@ def exclude_positions_by_shape(
         An buffer distance for the shape. If greater than zero, the provided
         `shape` is converted into a ConvexSpheroPolyhedron and exclusion checks
         are performed on that instead. If smaller than zero, the provided shape
-        is shrunk by the factor ((r-b)/r), where b is the absolute value of the
+        is shrunk by the factor ((r+b)/r), where b is the absolute value of the
         buffer distance and r is the radius of the maximal centered bounded
         sphere. [TODO: check that this is ok]
 
@@ -108,7 +108,7 @@ def exclude_positions_by_shape(
         shape = coxeter.shapes.ConvexSpheropolyhedron(shape.vertices, buffer)
     if buffer < 0:
         r = shape.maximal_centered_bounded_sphere_radius
-        shape.vertices *= (r - buffer) / r
+        shape._vertices *= (r + buffer) / r
     
     if exclude_inside:
         return np.array(positions)[~shape.is_inside(positions)]

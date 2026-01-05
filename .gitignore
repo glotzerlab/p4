@@ -7,3 +7,7 @@
 
 __pycache__/*
 .vscode/*
+p4.egg-info/*
+
+build/*
+p4/__pycache__/*

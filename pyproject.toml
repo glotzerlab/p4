@@ -1,17 +1,20 @@
+[build-system]
+requires = ["setuptools>=77.0.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "p4"
 version = "0.0.1"
 requires-python = ">=3.12"
 description = "Probe the effective potential landscape around an analyte using HOOMD-blue."
 readme = "readme.md"
-license = { file = "LICENSE" }
+license-files = ["LICENSE"]
 authors = [
     {name = "Joseph Burkhart", email = "joaburkh@umich.edu"},
 ]
 dependencies = [
     # Glotzer Group
     "gsd>=4.2.0",
-    "hoomd>=5.4.0",
     "coxeter>=0.10.0",
     "rowan>=1.3.2",
 
@@ -29,3 +32,10 @@ dependencies = [
     # Parallelization
     "pathos>=0.3.4",
 ]
+
+[tool.conda-lock]
+channels=["conda-forge"]
+platforms=["osx-arm64", "linux-64"]
+
+[tool.conda-lock.dependencies]
+hoomd = ">=5.4.0"

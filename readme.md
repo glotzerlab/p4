@@ -64,6 +64,7 @@ system.probe_potential(
 `System`
   - [ ] remove need for a separate probe `ParticleModel`, generating a probe particle on-the-fly to investigate the provided interactions (contributes to goal of writing a simulation parser)
     - to accomplish this, need to change how index of probe particle is calculated. Does that index ever change?
+    - PROBLEM: what if you aren't interested in body A - body A interactions, but rather in body A - body B? How do you investigate those with no notion of a probe particle? The notion of a System would have to change - it would be a collection of named particle models and a single interaction model (Or maybe a combination of a Particle Model and an Interaction Model - a ParticleModel being a named collection of BodyModels...)
   - [ ] add method for calculating an array of positions and orientations that do not produce effective overlaps (this would prevent the averaging problem that Josh pointed out). This could look like:
     - have high orientation resolution (e.g. 10)
     - at each position and orientation
@@ -90,16 +91,24 @@ Other
           - contains analyte particle models (can be more than one now) as well as a reference frame of positions and orientations to reset to after every "time step"
 
 
-## Planned features
+## Roadmap
 
 ### Open to group members
-- parse hoomd objects to create Interaction, ParticleModel, System
-- Testing coverage 100%
-- basic plotting in 2D
+functionality
+  - [ ] parse hoomd objects to create Interaction, ParticleModel, System
+  - [ ] plot 1D and 2D slices of Fields
+
+tests
+  - [ ] non-validation coverage 100%
+
+documentation
+  - [ ] API + 1 example
 
 ### Open to public
+TBD
 
 ### Publication
+TBD
 
 ### 'Completion'
-
+TBD

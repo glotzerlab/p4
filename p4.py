@@ -47,19 +47,19 @@ class Interaction:
         The particle types that can interact with each other under this
         potential. All interacting type pairs are assumed to use the same
         interaction attributes.
-    yes_single_typed_attributes : dict[str, float]
-        The names and values of the attributes for interacting particle types
-        that must be set for individual types. This is usually an empty dict for
-        isotropic interactions.
-    yes_pair_typed_attributes : dict[str, float]
-        The names and values values of attributes for interacting particle types
-        that must be set for pairs of types. All interacting type pairs are
-        assumed to use the same interaction attributes.
-
-    Raises
-    ------
-    ValueError
-        If the provided initial_inputs or typed attributes are not correct.        
+    yes_single_typed_attributes : dict[str, float] or dict[str, dict[str, float]]
+        Either the names and values of the attributes for interacting particle
+        types that must be set for individual types, or the names of the
+        interacting particle types and dictionaries of their corresponding
+        attributes. If the former, the same attributes are used for every
+        interacting type. This is usually an empty dict for isotropic
+        interactions.
+    yes_pair_typed_attributes : dict[str, float] or dict[tuple, dict[str, float]]
+        Either the names and values of the attributes for interacting particle
+        types that must be set for pairs of types, or the pairs of the
+        interacting types and dictionaries of their corresponding attributes. If
+        the former, the same attributes are used for every pair of interacting
+        types.
     """
     def __init__(
         self,
@@ -180,6 +180,7 @@ class Interaction:
 
         instance = self.to_hoomd_instance(nlist)
         
+        # Calculate the pairwise combinations of all types and interacting types
         all_type_pairs = list(itertools.combinations(all_types, 2))
         all_type_pairs.extend([(t, t) for t in all_types])
         yes_type_pairs = []
@@ -216,20 +217,29 @@ class Interaction:
                     )
 
         # Modify single attributes for interacting types
-        for y_t in self.yes_types:
-            for k, v in self.yes_single_typed_attributes.items():
-                try:
-                    getattr(instance, k)[y_t] = v
-                except AttributeError:
-                    raise AttributeError(
-                        wrong_type_msg(
-                            k, "yes", "single", self.hoomd_class
+        if self.yes_single_typed_attributes != {}:
+            for y_t in self.yes_types:
+                if "params" in self.yes_single_typed_attributes.keys():
+                    atts_for_this_type = self.yes_single_typed_attributes
+                else:
+                    atts_for_this_type = self.yes_single_typed_attributes[y_t]
+                for k, v in atts_for_this_type.items():
+                    try:
+                        getattr(instance, k)[y_t] = v
+                    except AttributeError:
+                        raise AttributeError(
+                            wrong_type_msg(
+                                k, "yes", "single", self.hoomd_class
+                            )
                         )
-                    )
 
         # Modify pair attributes for interacting types
         for y_p in yes_type_pairs:
-            for k, v in self.yes_pair_typed_attributes.items():
+            if "params" in self.yes_pair_typed_attributes.keys():
+                atts_for_this_pair = self.yes_pair_typed_attributes
+            else:
+                atts_for_this_pair = self.yes_pair_typed_attributes[y_p]
+            for k, v in atts_for_this_pair.items():
                 try:
                     getattr(instance, k)[y_p] = v
                 except AttributeError:

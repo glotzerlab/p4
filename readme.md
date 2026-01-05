@@ -4,7 +4,7 @@ Probe the effective potential energy around a central particle using HOOMD-blue.
 
 
 Potential paper titles:
-    - Toward the rational design of pairwise particle interaction models: current trends and ...
+    - Toward the rational design of pairwise particle interaction models
 
 
 ## Example usage
@@ -71,3 +71,12 @@ system.probe_potential(
 - allow user to save Field to npz
 - allow user to merge fields by addition or overlay
 - write tests
+- allow user to specify a way to skip orientations that correspond to overlaps (this would prevent the averaging problem that Josh pointed out). This could look like:
+    - have high orientation resolution (e.g. 10)
+    - at each position and orientation
+        - check if the probe and analyte would overlap
+        - if yes, remove the orientation
+        - tally the number of rejected orientations - if the number of accepted ones falls below some threshold (e.g. 2), then remove that position
+    - this filtering would happen **before** the parallelization/run_probe step
+- make it so user doesn't have to define a separate probe particle - this would mean having to change the way we get the probe particle index, but it would make it easier to write a user-facing simulation parser
+- allow user to use mc potentials - this would support writing a user-facing simulation parser

@@ -15,7 +15,7 @@ from matplotlib.colors import TwoSlopeNorm
 from matplotlib.transforms import Affine2D
 import numpy as np
 import pandas as pd
-import util
+import p4.util as util
 import vtk.util.numpy_support
 # import multiprocessing
 import os
@@ -251,9 +251,33 @@ class Interaction:
         
         return instance
 
-    @classmethod
-    def from_hoomd_md_pair(cls, pair):
-        pass
+    # @classmethod
+    # def from_hoomd_md_pair(cls, pair: hoomd.md.pair.Pair) -> Interaction:
+    #     """Create an Interaction from a HOOMD pair instance.
+
+    #     Parameters
+    #     ----------
+    #     pair : hoomd.md.pair.Pair
+    #         The HOOMD pair instance.
+    #     """
+    #     hoomd_class = pair.__class__
+    #     initial_inputs = None
+    #     default_single_typed_attributes = None
+    #     default_pair_typed_attributes = None
+    #     yes_types = None
+    #     yes_single_typed_attributes = None
+    #     yes_pair_typed_attributes = None
+
+    #     return cls(
+    #         hoomd_class=hoomd_class
+    #         initial_inputs=initial_inputs
+    #         default_single_typed_attributes=default_single_typed_attributes
+    #         default_pair_typed_attributes=default_pair_typed_attributes
+    #         yes_types=yes_types
+    #         yes_single_typed_attributes=yes_single_typed_attributes
+    #         yes_pair_typed_attributes=yes_pair_typed_attributes
+    #     )
+
 
 class ParticleModel:
     """The names and positions of a particle's primary and secondary types.
@@ -353,6 +377,15 @@ class ParticleModel:
                     "The provided callables return different numbers of "
                     + f"positions and orientations for secondary type {t}"
                 )
+
+    @classmethod
+    def from_hoomd_simulation(cls, simulation, primary_type):
+        pass
+
+    @classmethod
+    def from_hoomd_rigid(cls, rigid, primary_type):
+        pass
+    
 
 class System:
     """A System is defined by its particle models and an interaction model.
@@ -557,23 +590,26 @@ class System:
         )
 
         # Remove positions that are too close
+        # TODO: allow distance to be negative?
         if probe_cutoff_inside_distance is not None:
             inside_cutoff = probe_cutoff_inside_distance(self)
-            if inside_cutoff <= 0:
-                raise ValueError(
-                    "'probe_cutoff_inside_distance' must return a value "
-                    f"greater than 0."
-                ) 
+            # if inside_cutoff <= 0:
+            #     raise ValueError(
+            #         "'probe_cutoff_inside_distance' must return a value "
+            #         f"greater than 0."
+            #     ) 
+            if inside_cutoff > outside_cutoff:
+                raise ValueError("inside cutoff must be smaller than outside cutoff.")
             probe_positions = util.exclude_positions_by_shape(
                 positions=probe_positions,
                 exclude_inside=True,
                 shape=(
                     probe_cutoff_shape
                     if probe_cutoff_shape is not None
-                    else util.get_cube(probe_cutoff_inside_distance(self))
+                    else util.get_cube(inside_cutoff)
                 ),
                 buffer=(
-                    probe_cutoff_inside_distance(self)
+                    inside_cutoff
                     if probe_cutoff_shape is not None
                     else 0.0
                 )
@@ -582,7 +618,7 @@ class System:
         # If multiprocessing, run copies of the probe simulation with chunks
         # of the set of positions across a collection of processes
         if n_processes != 1:
-            import pathos           # TODO: should this be here or somewhere else?
+            import pathos
             mp = pathos.helpers.mp
             with mp.Pool() as pool:
                 if save_gsd:
@@ -619,6 +655,10 @@ class System:
         with open(csv_filename, "w") as file:
             table.seek(0)
             file.write(table.read())
+
+    @classmethod
+    def from_hoomd_simulation(cls, simulation, probe_primary_type, analyte_primary_type):
+        pass
 
 class Field:
     """A Field is defined by an array of values and an array of extents.
@@ -955,6 +995,7 @@ class Field:
         # slice_y: float | None = None,
         # slice_lim: list[float] | None = None,
         show_cbar: bool = True,
+        show_axes: bool = True, # TODO
         core_scale_factor: float = 1.0,
         cmap_name: str = "RdYlBu_r",
         core_color: str = "#FFCF00",
@@ -999,7 +1040,8 @@ class Field:
 
             # Plot image and outline
             im = im_ax.imshow(
-                np.nan_to_num(self.array),
+                # np.nan_to_num(self.array),
+                self.array,
                 extent=mpl_extents,
                 cmap=cmap,
                 norm=TwoSlopeNorm(vcenter=0.0, vmin=vmin, vmax=vmax)
@@ -1062,3 +1104,57 @@ class Field:
         # In 3D, use plotly
         elif self.n_dimensions == 3:
             raise NotImplementedError("3D plotting is currently not supported.")
+
+    def plot_on_provided_axes(
+        self,
+        ax: matplotlib.axes.Axes,
+        core_shape: coxeter.shapes.ConvexPolygon | coxeter.shapes.ConvexPolyhedron | None = None,
+        rotate_core_deg: float = 90.0,
+        vmin: float = -1.0,
+        vmax: float = 10.0,
+        core_scale_factor: float = 1.0,
+        cmap_name: str = "RdYlBu_r",
+        core_color: str = "#FFCF00",
+    ):
+        if not self.n_dimensions == 2:
+            raise ValueError("This method only works for 2D fields.")
+        
+        mpl_extents = [
+            self.extents[0][0],
+            self.extents[0][1],
+            self.extents[1][0],
+            self.extents[1][1]
+        ]
+
+        # Plot image and outline
+        im = ax.imshow(
+            # np.nan_to_num(self.array),
+            self.array,
+            extent=mpl_extents,
+            cmap=colormaps[cmap_name],
+            norm=TwoSlopeNorm(vcenter=0.0, vmin=vmin, vmax=vmax)
+        )
+
+        # Plot core if necessary
+        if core_shape is not None:
+            # Construct particle outline polygon
+            if core_scale_factor != 1.0:
+                core_shape = coxeter.shapes.ConvexPolygon(
+                    core_shape.vertices * core_scale_factor
+                )
+            particle_outline = Polygon(
+                xy=core_shape.vertices[:,:2],
+                fill=True,
+                facecolor=core_color,
+                edgecolor="black",
+                linestyle="-",
+                linewidth=2.0
+            )
+
+            # Rotate if necessary
+            if rotate_core_deg is not None:
+                particle_outline.set_transform(
+                    Affine2D().rotate(math.radians(rotate_core_deg))
+                    + ax.transData
+                )
+            ax.add_patch(particle_outline)

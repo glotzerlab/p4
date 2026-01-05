@@ -79,6 +79,7 @@ class Interaction:
 
     def validate(self):
         """Ensure the HOOMD class can be created and used successfully."""
+        # Creation
         nlist = hoomd.md.nlist.Cell(2)
         try:
             _ = self.hoomd_class(nlist, **self.initial_inputs)
@@ -86,12 +87,15 @@ class Interaction:
             msg = "The 'initial_inputs' are wrong. See traceback for details."
             raise ValueError(msg) from e
         
-        # TODO: note that this can cause problems if the simulation box
-        # is too small. My fix for this needs refining.
+        # Usage
         simulation = hoomd.util.make_example_simulation(
             particle_types=self.yes_types
         )
-        simulation.state.set_box([1e4, 1e4, 1e4, 0, 0, 0])
+        box_length = 10 * max([
+            self.default_pair_typed_attributes.get("r_cut", 0.0),
+            self.yes_pair_typed_attributes.get("r_cut", 1.0)
+        ])
+        simulation.state.set_box([box_length, box_length, box_length, 0, 0, 0])
         simulation = util.add_integrator(simulation)
         simulation = util.add_interaction(simulation, nlist, self)
 

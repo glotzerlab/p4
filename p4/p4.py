@@ -104,9 +104,15 @@ class Interaction:
         simulation = hoomd.util.make_example_simulation(
             particle_types=self.yes_types
         )
+        if "params" in self.yes_pair_typed_attributes.keys():
+                yes_r_cut = self.yes_pair_typed_attributes["r_cut"]
+        else:
+            yes_r_cut = max([
+                v["r_cut"] for v in self.yes_pair_typed_attributes.values()
+            ])
         box_length = 10 * max([
             self.default_pair_typed_attributes.get("r_cut", 0.0),
-            self.yes_pair_typed_attributes.get("r_cut", 1.0)
+            yes_r_cut
         ])
         simulation.state.set_box([box_length, box_length, box_length, 0, 0, 0])
         simulation = util.add_integrator(simulation)

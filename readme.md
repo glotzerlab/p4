@@ -56,27 +56,50 @@ system.probe_potential(
 
 ## To-Do
 
-- Allow the interaction model to specify different parameters for different interacting type pairs
--  Allow user to probe systems with an analyte frame (with multiple particles), rather than just a single analyte particle. This could involve re-structuring the API to something like
-    - Probe class
-        - contains probe particle model and probing simulation logic
-    - System class
-        - contains analyte particle models (can be more than one now) as well as a reference frame of positions and orientations to reset to after every "time step"
-    - Interaction class
-        - same as now
-    - Interaction model is same as now (just a dict of strings and Interactions)
-- Allow user to save interaction models to json
-- double-check all indexing/array orientation logic
-- refine Field dimensionality handling
-- allow user to save Field to npz
-- allow user to merge fields by addition or overlay
-- write tests
-- allow user to specify a way to skip orientations that correspond to overlaps (this would prevent the averaging problem that Josh pointed out). This could look like:
+`Interaction`
+  - [ ] Allow the interaction model to specify different parameters for different interacting type pairs
+  - [ ] Add support for HPMC potentials (contributes to goal of writing a simulation parser)
+    - to accomplish this, I think  `InteractionModel` would need to be its own class that checks to make sure every constituent `Interaction` has the same  simulation type (MD or HPMC). Ideally, it wouldn't matter (see HOOMD-rs), but for HOOMD-blue it certainly does.
+
+`System`
+  - [ ] remove need for a separate probe `ParticleModel`, generating a probe particle on-the-fly to investigate the provided interactions (contributes to goal of writing a simulation parser)
+    - to accomplish this, need to change how index of probe particle is calculated. Does that index ever change?
+  - [ ] add method for calculating an array of positions and orientations that do not produce effective overlaps (this would prevent the averaging problem that Josh pointed out). This could look like:
     - have high orientation resolution (e.g. 10)
     - at each position and orientation
         - check if the probe and analyte would overlap
         - if yes, remove the orientation
         - tally the number of rejected orientations - if the number of accepted ones falls below some threshold (e.g. 2), then remove that position
     - this filtering would happen **before** the parallelization/run_probe step
-- make it so user doesn't have to define a separate probe particle - this would mean having to change the way we get the probe particle index, but it would make it easier to write a user-facing simulation parser
-- allow user to use mc potentials - this would support writing a user-facing simulation parser
+
+`Field`
+  - [ ] refine dimensionality handling (always 3D? if not, need checks when calling various methods)
+  - [ ] method for saving to npz
+  - [ ] methods or overloads for adding/overlaying multiple fields to create a new one
+
+`util`
+  - [ ] functions for saving/creating interaction models to/from json
+
+
+Other
+  - [ ] double-check all indexing/array orientation logic
+  - [ ] Allow user to probe systems with an analyte frame (with multiple particles), rather than just a single analyte particle. This could involve re-structuring the API to something like
+      - Probe class
+          - contains probe particle model and probing simulation logic
+      - System class
+          - contains analyte particle models (can be more than one now) as well as a reference frame of positions and orientations to reset to after every "time step"
+
+
+## Planned features
+
+### Open to group members
+- parse hoomd objects to create Interaction, ParticleModel, System
+- Testing coverage 100%
+- basic plotting in 2D
+
+### Open to public
+
+### Publication
+
+### 'Completion'
+

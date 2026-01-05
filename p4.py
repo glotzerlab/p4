@@ -91,7 +91,7 @@ class Interaction:
         simulation = hoomd.util.make_example_simulation(
             particle_types=self.yes_types
         )
-        simulation.state.set_box([1e3, 1e3, 1e3, 0, 0, 0])
+        simulation.state.set_box([1e4, 1e4, 1e4, 0, 0, 0])
         simulation = util.add_integrator(simulation)
         simulation = util.add_interaction(simulation, nlist, self)
 

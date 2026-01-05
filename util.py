@@ -1,4 +1,4 @@
-"""Utiliity functions for p4.
+"""Utility functions for p4.
 
 In general, these functions have no defaults and do not protect themselves
 from wrong/fallible inputs.

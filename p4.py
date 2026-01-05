@@ -515,7 +515,7 @@ class Field:
         self.extents = extents
 
     @classmethod
-    def from_csv(cls, filename, orientation: Literal["mean", "min"]):
+    def from_csv(cls, filename, orientation: Literal["mean", "min", "boltzmann"]):
         """Construct a Field from a CSV file.
         
         This constructor is intended for use only with CSV files created with
@@ -525,9 +525,10 @@ class Field:
         ----------
         filename : str
             The name of the CSV file.
-        orientation : 'mean' or 'min'
+        orientation : 'mean' or 'min' or 'boltzmann'
             Whether to average potential values over all orientations ('mean')
-            or take the minimum potential for each orientation ('min').
+            or take the minimum potential for each orientation ('min'), or the
+            boltzmann average over all orientations ('boltzmann').
         """
         df = pd.read_csv(filename)
         array = cls._df_to_array(df, orientation)
@@ -606,7 +607,7 @@ class Field:
         return len(self.array.shape)
 
     @staticmethod
-    def _df_to_array(df, orientation: Literal["mean", "min"]):
+    def _df_to_array(df, orientation: Literal["mean", "min", "boltzmann"]):
         """Convert a raw field dataframe into a 2D or 3D numpy array.
 
         This processing has the following steps:
@@ -617,7 +618,8 @@ class Field:
         ----------
         orientation : 'mean' or 'min'
             Whether to average potential values over all orientations ('mean')
-            or take the minimum potential for each orientation ('min').
+            or take the minimum potential for each orientation ('min'), or the
+            boltzmann average over all orientations ('boltzmann')..
 
         Raises
         ------
@@ -627,10 +629,22 @@ class Field:
         # Average over orientation, then drop orientation columns
         if orientation == "mean":
             df = df.groupby(["x", "y", "z"]).mean()
+            df = df.reset_index(level=[0,1,2])
+            df = df.drop(labels=["t", "q0", "q1", "q2", "q3"], axis=1)
+        
         elif orientation == "min":
             df = df.groupby(["x", "y", "z"]).min()
+            df = df.reset_index(level=[0,1,2])
+            df = df.drop(labels=["t", "q0", "q1", "q2", "q3"], axis=1)
+        
+        elif orientation == "boltzmann":
+            def boltzmann(x):
+                return np.sum(x * np.exp(-x)) / np.sum(np.exp(-x))
+            df = df.groupby(["x", "y", "z"])[["PE"]].agg(boltzmann)
+            df = df.reset_index(level=[0,1,2])
+
         else:
-            raise ValueError("`orientation` must be 'mean' or 'min'.")
+            raise ValueError("`orientation` must be 'mean' or 'min' or 'boltzmann'.")
         
         df = df.reset_index(level=[0,1,2])
         df = df.drop(labels=["t", "q0", "q1", "q2", "q3"], axis=1)

@@ -225,10 +225,14 @@ class Interaction:
         # Modify single attributes for interacting types
         if self.yes_single_typed_attributes != {}:
             for y_t in self.yes_types:
-                if "params" in self.yes_single_typed_attributes.keys():
-                    atts_for_this_type = self.yes_single_typed_attributes
-                else:
+                # Specific attributes for the current interacting type
+                if y_t in self.yes_single_typed_attributes.keys():
                     atts_for_this_type = self.yes_single_typed_attributes[y_t]
+
+                # Attributes for all interacting types
+                else:
+                    atts_for_this_type = self.yes_single_typed_attributes
+
                 for k, v in atts_for_this_type.items():
                     try:
                         getattr(instance, k)[y_t] = v
@@ -241,10 +245,14 @@ class Interaction:
 
         # Modify pair attributes for interacting types
         for y_p in yes_type_pairs:
-            if "params" in self.yes_pair_typed_attributes.keys():
-                atts_for_this_pair = self.yes_pair_typed_attributes
-            else:
+            # Specific attributes for the current interacting pair
+            if type(list(self.yes_pair_typed_attributes.keys())[0]) is tuple:
                 atts_for_this_pair = self.yes_pair_typed_attributes[y_p]
+
+            # Attributes for all interacting pairs
+            else:
+                atts_for_this_pair = self.yes_pair_typed_attributes
+
             for k, v in atts_for_this_pair.items():
                 try:
                     getattr(instance, k)[y_p] = v

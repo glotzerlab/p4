@@ -97,7 +97,6 @@ CLASSES_TO_TEST = get_all_classes_to_test()
 
 NLIST = hoomd.md.nlist.Cell(2)
 INITIAL_ARGS_REQUIRED = dict(
-    nlist=NLIST,
     kT=1
 )
 INITIAL_ARGS_OPTIONAL = dict(   # Different from default values
@@ -121,7 +120,7 @@ def parse_initial_arg_names(hoomd_class, required_or_optional):
 
     class_params = inspect.signature(hoomd_class.__init__).parameters
     for k, v in class_params.items():
-        if k == "self":
+        if k in ["self", "nlist"]:
             continue
         if v.default is inspect._empty:
             if required_or_optional in ["required", "all"]:
@@ -253,7 +252,7 @@ def parse_attributes(hoomd_class, single_or_pair, required_or_optional):
     attributes = {}
     required_args = parse_initial_arg_names(hoomd_class, "required")
     initial_args = {arg: INITIAL_ARGS_REQUIRED[arg] for arg in required_args}
-    tpd = hoomd_class(**initial_args)._typeparam_dict
+    tpd = hoomd_class(nlist=NLIST, **initial_args)._typeparam_dict
 
     for name, typeparam in tpd.items():
         something_to_add = False    # TODO: this flag indicates refactoring needed
@@ -576,7 +575,7 @@ def test_no_unexpected_attribute_types():
     for cls in CLASSES_TO_TEST:
         required_args = parse_initial_arg_names(cls, "required")
         initial_args = {arg: INITIAL_ARGS_REQUIRED[arg] for arg in required_args}
-        tpd = cls(**initial_args)._typeparam_dict
+        tpd = cls(nlist=NLIST, **initial_args)._typeparam_dict
 
         for typeparam in tpd.values():
             reason = "All typed attributes must be assignable to single types or pairs of types."

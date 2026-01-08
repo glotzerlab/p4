@@ -200,7 +200,7 @@ def flatten(array):
             yield item
 
 def is_required(tp_default_item):
-    """Return True if input is a required arg or 1+ nested arrays thereof."""
+    """Return True if input is a required arg or 1+ arbitrarily nested arrays thereof."""
     return (
         (tp_default_item is hoomd.data.typeconverter.RequiredArg)
         or (

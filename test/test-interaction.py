@@ -12,12 +12,17 @@ import pytest
 # 1. Get hoomd classes for testing
 
 
-REQUIRED_PARENT_CLASS = hoomd.md.pair.Pair
-EXCLUDED_TYPES = [      # TODO: make it so these can be strings
-    hoomd.md.pair.Pair,
-    hoomd.md.pair.aniso.AnisotropicPair,
-    hoomd.md.pair.aniso.Patchy
+REQUIRED_PARENT_CLASS = hoomd.md.pair.pair.Pair
+EXCLUDED_TYPE_STRINGS = [
+    "hoomd.md.pair.pair.Pair",
+    "hoomd.md.pair.aniso.AnisotropicPair",
+    "hoomd.md.pair.aniso.Patchy",
+    "hoomd.md.pair.friction.FrictionalPair"
 ]
+
+def cls_to_str(cls):
+    """Return a string representation of the class' path, including its name."""
+    return cls.__module__ + "." + cls.__name__
 
 def get_all_local_classes(module):
     """Return a list of all classes in the current module."""
@@ -71,11 +76,11 @@ def get_all_classes_to_test():
     Note: this list changes depending on what version of hoomd is used.
     """
     all_classes = get_all_classes_recursively(hoomd.md.pair)    #1
-    
+
     filtered_classes = []
     for cls in all_classes:
         if issubclass(cls, REQUIRED_PARENT_CLASS):              #2
-            if not any([cls is e for e in EXCLUDED_TYPES]):     #3
+            if cls_to_str(cls) not in EXCLUDED_TYPE_STRINGS:    #3
                 filtered_classes.append(cls)
 
     # Ensure there are no duplicates

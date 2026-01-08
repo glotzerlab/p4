@@ -537,7 +537,7 @@ APPROVED_ATTRIBUTE_CLASHES = dict(
     )
 )
 
-def test_no_unexpected_attributes():
+def test_no_unexpected_attribute_paths():
     """Ensure all attributes parsed from classes are provided in constants.
     
     Only 'no' constants are tested (not the 'yes' constants), because if

@@ -32,15 +32,15 @@ class Interaction:
     ----------
     hoomd_class : hoomd.md.pair.Pair
         The constructor for the HOOMD class. Must be in `hoomd.md.pair`.
-    initial_inputs : dict[str, float | str]
+    initial_args : dict[str, float | str]
         All parameters (that aren't `nlist`) that are needed for instantiating
         the class from its constructor.
-    default_single_typed_attributes : dict
-        The names and default values of attributes that must be set for
+    no_single_typed_attributes : dict
+        The names and non-interacting values of attributes that must be set for
         individual particle types. This is usually an empty dict for isotropic
         interactions.
-    default_pair_typed_attributes : dict[str, float]
-        The names and default values of attributes that must be set for
+    no_pair_typed_attributes : dict[str, float]
+        The names and non-interacting values of attributes that must be set for
         pairs of particle types. This is usually an empty dict for isotropic
         interactions.
     yes_types : list[str]
@@ -64,17 +64,17 @@ class Interaction:
     def __init__(
         self,
         hoomd_class: hoomd.md.pair.Pair,
-        initial_inputs: dict[str, float | str],
-        default_single_typed_attributes: dict,
-        default_pair_typed_attributes: dict[str, float],
+        initial_args: dict[str, float | str],
+        no_single_typed_attributes: dict,
+        no_pair_typed_attributes: dict[str, float],
         yes_types: list[str],
         yes_single_typed_attributes: dict[str, float],
         yes_pair_typed_attributes: dict[str, float],
     ):
         self.hoomd_class = hoomd_class
-        self.initial_inputs = initial_inputs
-        self.default_single_typed_attributes = default_single_typed_attributes
-        self.default_pair_typed_attributes = default_pair_typed_attributes
+        self.initial_args = initial_args
+        self.no_single_typed_attributes = no_single_typed_attributes
+        self.no_pair_typed_attributes = no_pair_typed_attributes
         self.yes_types = yes_types
         self.yes_single_typed_attributes = yes_single_typed_attributes
         self.yes_pair_typed_attributes = yes_pair_typed_attributes
@@ -111,7 +111,7 @@ class Interaction:
                 v["r_cut"] for v in self.yes_pair_typed_attributes.values()
             ])
         box_length = 10 * max([
-            self.default_pair_typed_attributes.get("r_cut", 0.0),
+            self.no_pair_typed_attributes.get("r_cut", 0.0),
             yes_r_cut
         ])
         simulation.state.set_box([box_length, box_length, box_length, 0, 0, 0])
@@ -148,9 +148,9 @@ class Interaction:
             If the initial inputs are wrong.
         """
         try:
-            return self.hoomd_class(nlist, **self.initial_inputs)
+            return self.hoomd_class(nlist, **self.initial_args)
         except (TypeError, hoomd.error.TypeConversionError) as e:
-            msg = "'initial_inputs' are wrong. See traceback for details."
+            msg = "'initial_args' are wrong. See traceback for details."
             raise ValueError(msg) from e
 
     def to_parameterized_hoomd_instance(
@@ -177,9 +177,9 @@ class Interaction:
         AttributeError
             If the typed attributes are wrong.
         """
-        def wrong_type_msg(att, default_or_yes, single_or_double, hoomd_class):
+        def wrong_type_msg(att, no_or_yes, single_or_double, hoomd_class):
             return (
-                f"'{att}' was provided as a {default_or_yes} {single_or_double}"
+                f"'{att}' was provided as a {no_or_yes} {single_or_double}"
                 f"-typed-attribute, but no such attribute was found in hoomd "
                 f"class '{hoomd_class}'."
             )
@@ -198,27 +198,27 @@ class Interaction:
             ):
                 yes_type_pairs.append(p)
 
-        # Set default single attributes
+        # Set no single attributes
         for a_t in all_types:
-            for k, v in self.default_single_typed_attributes.items():
+            for k, v in self.no_single_typed_attributes.items():
                 try:
                     getattr(instance, k)[a_t] = v
                 except AttributeError:
                     raise AttributeError(
                         wrong_type_msg(
-                            k, "default", "single", self.hoomd_class
+                            k, "no", "single", self.hoomd_class
                         )
                     )
 
-        # Set default pair attributes
+        # Set no pair attributes
         for a_p in all_type_pairs:
-            for k, v in self.default_pair_typed_attributes.items():
+            for k, v in self.no_pair_typed_attributes.items():
                 try:
                     getattr(instance, k)[a_p] = v
                 except AttributeError:
                     raise AttributeError(
                         wrong_type_msg(
-                            k, "default", "pair", self.hoomd_class
+                            k, "no", "pair", self.hoomd_class
                         )
                     )
 
@@ -275,18 +275,18 @@ class Interaction:
     #         The HOOMD pair instance.
     #     """
     #     hoomd_class = pair.__class__
-    #     initial_inputs = None
-    #     default_single_typed_attributes = None
-    #     default_pair_typed_attributes = None
+    #     initial_args = None
+    #     no_single_typed_attributes = None
+    #     no_pair_typed_attributes = None
     #     yes_types = None
     #     yes_single_typed_attributes = None
     #     yes_pair_typed_attributes = None
 
     #     return cls(
     #         hoomd_class=hoomd_class
-    #         initial_inputs=initial_inputs
-    #         default_single_typed_attributes=default_single_typed_attributes
-    #         default_pair_typed_attributes=default_pair_typed_attributes
+    #         initial_args=initial_args
+    #         no_single_typed_attributes=no_single_typed_attributes
+    #         no_pair_typed_attributes=no_pair_typed_attributes
     #         yes_types=yes_types
     #         yes_single_typed_attributes=yes_single_typed_attributes
     #         yes_pair_typed_attributes=yes_pair_typed_attributes

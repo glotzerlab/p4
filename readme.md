@@ -1,4 +1,4 @@
-# Pairwise Potential Particle Probe
+# p4 - Pairwise Potential Particle Probe
 
 Probe the effective potential landscape around an analyte using HOOMD-blue.
 

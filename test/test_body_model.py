@@ -1,9 +1,12 @@
+import hoomd
 import pytest
-from p4 import BodyModel
+from p4 import BodyModel, Interaction
+from copy import deepcopy
 
 # Verify that
 #   1. instantiation works given valid args
 #   2. instantiation fails expectedly given various kinds of invalid args
+#   3. methods produce the expected output
 
 VALID_KWARGS = [
     # Required kawrgs only
@@ -197,3 +200,42 @@ def test_invalid_instantiation(kwargs):
     """Ensure instantiation fails predictably with invalid arguments."""
     with pytest.raises(ValueError):
         _ = BodyModel(**kwargs)
+
+VALID_INTERACTION_KWARGS = dict(
+    hoomd_class=hoomd.md.pair.LJ,
+    initial_args=dict(),
+    no_single_typed_attributes=dict(),
+    no_pair_typed_attributes=dict(
+        params=dict(epsilon=0, sigma=1),
+        r_cut=0
+    ),
+    yes_types=["A", "B"],
+    yes_single_typed_attributes=dict(),
+    yes_pair_typed_attributes=dict(
+        params=dict(epsilon=1, sigma=1),
+        r_cut=5
+    )
+)
+
+@pytest.mark.parametrize("kwargs", VALID_KWARGS)
+@pytest.mark.parametrize("variant", ["none", "some", "all"])
+def test_must_be_rigid_body(kwargs, variant):
+    """Ensure method returns True if the body model has any secondary types in common with an interction."""
+    b = BodyModel(**kwargs)
+    interaction_kwargs = deepcopy(VALID_INTERACTION_KWARGS)
+
+    if variant == "none":
+        interaction_kwargs["yes_types"] = ["Z"]
+    elif variant in ["some", "all"]:
+        if "secondary_types" in kwargs.keys():
+            if variant == "some":
+                interaction_kwargs["yes_types"] = [kwargs["secondary_types"][0]]
+            elif variant == "all":
+                interaction_kwargs["yes_types"] = kwargs["secondary_types"]
+
+    i = Interaction(**interaction_kwargs)
+
+    if variant == "none" or "secondary_types" not in kwargs.keys() or len(kwargs["secondary_types"]) == 0:
+        assert b.must_be_rigid_body(i) == False
+    elif variant in ["some", "all"]:
+        assert b.must_be_rigid_body(i) == True

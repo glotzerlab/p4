@@ -7,7 +7,7 @@ Potential paper titles:
     - Toward the rational design of pairwise particle interaction models
 
 ## Installation
-Clone the repository, navigate to the package's root directory, and run `pip install .`.
+Clone the repository, navigate to the package's root directory, and run `pip install .`
 
 ## Example usage
 ```python

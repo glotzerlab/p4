@@ -5,7 +5,7 @@
 *.tiff
 *.vti
 
-__pycache__/*
+*.pyc
 .vscode/*
 p4.egg-info/*
 

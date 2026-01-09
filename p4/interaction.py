@@ -5,7 +5,7 @@ import p4.util
 
 
 class Interaction:
-    """A container for the data to create and parameterize an MD pair potential.
+    """The data for instantiating and parameterizing a hoomd.md.pair potential.
 
     `Interaction` is self-validating, i.e., every instance is guaranteed to
     successfully create and parameterize its provided HOOMD pair potential.

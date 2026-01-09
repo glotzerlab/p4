@@ -43,8 +43,8 @@ class BodyModel:
                 + "'secondary_types' is provided"
             )
 
-        self.primary_type = primary_type
-        self.secondary_types = secondary_types
+        self.primary_type = str(primary_type)
+        self.secondary_types = [str(t) for t in secondary_types]
         self.secondary_positions_by_type = secondary_positions_by_type
         self.secondary_orientations_by_type = secondary_orientations_by_type
 

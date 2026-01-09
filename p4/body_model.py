@@ -58,10 +58,6 @@ class BodyModel:
         ):
             self.validate_secondary_orientations_and_positions_match()
     
-    def can_be_rigid_body(self) -> bool:
-        """Whether the particle can be a rigid body."""
-        return len(self.secondary_types) == 0
-    
     def must_be_rigid_body(self, interaction: Interaction) -> bool:
         """Whether the model must represent a rigid body for some interaction."""
         return any([t in self.secondary_types for t in interaction.yes_types])

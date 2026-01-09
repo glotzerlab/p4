@@ -245,14 +245,14 @@ def add_rigid_constraint(
     types_and_positions = [
         [t, position]
         for t in included_secondary_types
-        for position in particle_model.get_secondary_positions_by_type(t)
+        for position in particle_model.secondary_positions_by_type[t]
     ]
 
-    if particle_model.get_secondary_orientations_by_type is not None:
+    if particle_model.secondary_orientations_by_type is not None:
         orientations = [
             orientation
             for t in included_secondary_types
-            for orientation in particle_model.get_secondary_orientations_by_type(t)
+            for orientation in particle_model.secondary_orientations_by_type[t]
         ]
     else:
         orientations = [(1.0, 0.0, 0.0, 0.0) for _ in types_and_positions]

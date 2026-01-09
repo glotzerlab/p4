@@ -324,10 +324,10 @@ class BodyModel:
         self,
         primary_type: str,
         secondary_types: list[str] = [],
-        get_secondary_positions_by_type: Callable | None = None,
-        get_secondary_orientations_by_type: Callable | None = None
+        secondary_positions_by_type: dict[str, list[list[float]]] | None = None,
+        secondary_orientations_by_type: dict[str, list[list[float]]] | None = None
     ):
-        if secondary_types != [] and get_secondary_positions_by_type is None:
+        if secondary_types != [] and secondary_positions_by_type is None:
             raise ValueError(
                 "'get_secondary_positions_by_type' is required if "
                 + "'secondary_types' is provided"
@@ -335,16 +335,16 @@ class BodyModel:
 
         self.primary_type = primary_type
         self.secondary_types = secondary_types
-        self.get_secondary_positions_by_type = get_secondary_positions_by_type
-        self.get_secondary_orientations_by_type = get_secondary_orientations_by_type
+        self.secondary_positions_by_type = secondary_positions_by_type
+        self.secondary_orientations_by_type = secondary_orientations_by_type
 
-        if self.get_secondary_positions_by_type is not None:
-            self.validate_secondary_positions_getter()
-        if self.get_secondary_orientations_by_type is not None:
-            self.validate_secondary_orientations_getter()
+        if self.secondary_positions_by_type is not None:
+            self.validate_secondary_positions()
+        if self.secondary_orientations_by_type is not None:
+            self.validate_secondary_orientations()
         if (
-            (self.get_secondary_positions_by_type is not None)
-            and (self.get_secondary_orientations_by_type is not None)
+            (self.secondary_positions_by_type is not None)
+            and (self.secondary_orientations_by_type is not None)
         ):
             self.validate_secondary_orientations_and_positions_match()
     
@@ -356,41 +356,35 @@ class BodyModel:
         """Whether the model must represent a rigid body for some interaction."""
         return any([t in self.secondary_types for t in interaction.yes_types])
 
-    def validate_secondary_positions_getter(self):
+    def validate_secondary_positions(self):
         """Ensure that the provided callable works for all secondary types."""
         for t in self.secondary_types:
-            try:
-                _ = self.get_secondary_positions_by_type(t)
-            except:
+            if t not in self.secondary_positions_by_type.keys():
                 raise ValueError(
-                    "`get_secondary_positions_by_type` does not support "
-                    + f"secondary type '{t}'."
+                    "`secondary_positions_by_type` does not specify positions "
+                    + f"for secondary type '{t}'."
                 )
 
-    def validate_secondary_orientations_getter(self):
+    def validate_secondary_orientations(self):
         """Ensure that the provided callable works for all secondary types."""
         for t in self.secondary_types:
-            try:
-                _ = self.get_secondary_orientations_by_type(t)
-            except:
+            if t not in self.secondary_orientations_by_type.keys():
                 raise ValueError(
-                    "`get_secondary_orientations_by_type` does not support "
-                    + f"secondary type '{t}'."
+                    "`secondary_orientations_by_type` does not specify "
+                    + f"orientations for secondary type '{t}'."
                 )
 
     def validate_secondary_orientations_and_positions_match(self):
         """Ensure secondary types' numbers of positions and orientations match."""
         for t in self.secondary_types:
-            n_positions = len(self.get_secondary_positions_by_type(t))
-            n_orientations = len(self.get_secondary_orientations_by_type(t))
+            n_positions = len(self.secondary_positions_by_type[t])
+            n_orientations = len(self.secondary_orientations_by_type[t])
             
-            try:
-                assert n_positions == n_orientations
-            except AssertionError:
-                raise ValueError(
-                    "The provided callables return different numbers of "
-                    + f"positions and orientations for secondary type {t}"
-                )
+            reason = (
+                "The number of positions and orientations for secondary type "
+                + f"{t} do not match."
+            )
+            assert n_positions == n_orientations, reason
 
     @classmethod
     def from_hoomd_simulation(cls, simulation, primary_type):

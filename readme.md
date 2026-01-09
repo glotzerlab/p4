@@ -10,15 +10,15 @@ Potential paper titles:
 ## Example usage
 ```python
 # Probe the potential around a LJ sphere
-probe_model = pp.ParticleModel("P")
-analyte_model = pp.ParticleModel("A")
+probe_model = p4.BodyModel("P")
+analyte_model = p4.BodyModel("A")
 
 interaction_model = {
-    "LJ": pp.Interaction(
+    "LJ": p4.Interaction(
         hoomd_class=hoomd.md.pair.LJ,
-        initial_inputs=dict(),
-        default_single_typed_attributes=dict(),
-        default_pair_typed_attributes=dict(
+        initial_args=dict(),
+        no_single_typed_attributes=dict(),
+        no_pair_typed_attributes=dict(
             params=dict(
                 epsilon=0.0,
                 sigma=1.0
@@ -37,7 +37,7 @@ interaction_model = {
     )
 }
 
-system = pp.System(probe_model, analyte_model, interaction_model)
+system = p4.System(probe_model, analyte_model, interaction_model)
 
 nlist = hoomd.md.nlist.Cell(10)
 

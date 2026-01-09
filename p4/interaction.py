@@ -57,7 +57,7 @@ class Interaction:
         self.initial_args = initial_args
         self.no_single_typed_attributes = no_single_typed_attributes
         self.no_pair_typed_attributes = no_pair_typed_attributes
-        self.yes_types = yes_types
+        self.yes_types = [str(t) for t in yes_types]
         self.yes_single_typed_attributes = yes_single_typed_attributes
         self.yes_pair_typed_attributes = yes_pair_typed_attributes
 

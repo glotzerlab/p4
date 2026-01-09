@@ -6,7 +6,7 @@ if TYPE_CHECKING:
 class BodyModel:
     """The names and spatial data for a body's primary and secondary types.
 
-    Every body model must have a primary paritlce type, but secondary types are
+    Every body model must have a primary particle type, but secondary types are
     optional.
     
     When secondary types **are not** provided, the model represents a

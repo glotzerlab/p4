@@ -1,9 +1,9 @@
 from . import p4, util
-from .p4 import Interaction, ParticleModel, System, Field
+from .p4 import Interaction, BodyModel, System, Field
 
 __all__ = [
     "Interaction",
-    "ParticleModel",
+    "BodyModel",
     "System",
     "Field"
 ]

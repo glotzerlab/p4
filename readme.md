@@ -6,9 +6,13 @@ Probe the effective potential landscape around an analyte using HOOMD-blue.
 Potential paper titles:
     - Toward the rational design of pairwise particle interaction models
 
+## Installation
+Clone the repository, navigate to the package's root directory, and run `pip install .`.
 
 ## Example usage
 ```python
+import p4
+
 # Probe the potential around a LJ sphere
 probe_model = p4.BodyModel("P")
 analyte_model = p4.BodyModel("A")

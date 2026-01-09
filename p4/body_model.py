@@ -37,7 +37,7 @@ class BodyModel:
         secondary_positions_by_type: dict[str, list[list[float]]] | None = None,
         secondary_orientations_by_type: dict[str, list[list[float]]] | None = None
     ):
-        if secondary_types != [] and secondary_positions_by_type is None:
+        if secondary_types != [] and not secondary_positions_by_type:
             raise ValueError(
                 "'get_secondary_positions_by_type' is required if "
                 + "'secondary_types' is provided"

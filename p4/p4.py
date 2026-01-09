@@ -380,11 +380,11 @@ class BodyModel:
             n_positions = len(self.secondary_positions_by_type[t])
             n_orientations = len(self.secondary_orientations_by_type[t])
             
-            reason = (
-                "The number of positions and orientations for secondary type "
-                + f"{t} do not match."
-            )
-            assert n_positions == n_orientations, reason
+            if n_positions != n_orientations:
+                raise ValueError(
+                    "The number of positions and orientations for secondary  "
+                    + f"type {t} do not match."
+                )
 
     @classmethod
     def from_hoomd_simulation(cls, simulation, primary_type):

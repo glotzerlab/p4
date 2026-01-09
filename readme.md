@@ -57,26 +57,36 @@ system.probe_potential(
 ## To-Do
 
 `Interaction`
-  - [x] Allow the interaction model to specify different parameters for different interacting type pairs
+- [x] Allow the interaction model to specify different parameters for different interacting type pairs
   ~~- [ ] Add support for HPMC potentials (contributes to goal of writing a simulation parser)~~
     ~~- to accomplish this, I think  `InteractionModel` would need to be its own class that checks to make sure every constituent `Interaction` has the same  simulation type (MD or HPMC). Ideally, it wouldn't matter (see HOOMD-rs), but for HOOMD-blue it certainly does.~~
+- [x] write tests
+- [ ] add parsing from `hoomd.md.pair.Pair` subclasses
+
+`BodyModel`
+- [x] write tests
+- [ ] add parsing from `hoomd.md.constraint.Rigid`, `hoomd.Snapshot`, and `hoomd.Simulation`
 
 `System`
-  - [ ] remove need for a separate probe `ParticleModel`, generating a probe particle on-the-fly to investigate the provided interactions (contributes to goal of writing a simulation parser)
-    - to accomplish this, need to change how index of probe particle is calculated. Does that index ever change?
-    - PROBLEM: what if you aren't interested in body A - body A interactions, but rather in body A - body B? How do you investigate those with no notion of a probe particle? The notion of a System would have to change - it would be a collection of named particle models and a single interaction model (Or maybe a combination of a Particle Model and an Interaction Model - a ParticleModel being a named collection of BodyModels...)
-  - [ ] add method for calculating an array of positions and orientations that do not produce effective overlaps (this would prevent the averaging problem that Josh pointed out). This could look like:
-    - have high orientation resolution (e.g. 10)
-    - at each position and orientation
-        - check if the probe and analyte would overlap
-        - if yes, remove the orientation
-        - tally the number of rejected orientations - if the number of accepted ones falls below some threshold (e.g. 2), then remove that position
-    - this filtering would happen **before** the parallelization/run_probe step
+- [ ] remove need for a separate probe `ParticleModel`, generating a probe particle on-the-fly to investigate the provided interactions (contributes to goal of writing a simulation parser)
+  - to accomplish this, need to change how index of probe particle is calculated. Does that index ever change?
+  - PROBLEM: what if you aren't interested in body A - body A interactions, but rather in body A - body B? How do you investigate those with no notion of a probe particle? The notion of a System would have to change - it would be a collection of named particle models and a single interaction model (Or maybe a combination of a Particle Model and an Interaction Model - a ParticleModel being a named collection of BodyModels...)
+- [ ] add method for calculating an array of positions and orientations that do not produce effective overlaps (this would prevent the averaging problem that Josh pointed out). This could look like:
+  - have high orientation resolution (e.g. 10)
+  - at each position and orientation
+      - check if the probe and analyte would overlap
+      - if yes, remove the orientation
+      - tally the number of rejected orientations - if the number of accepted ones falls below some threshold (e.g. 2), then remove that position
+  - this filtering would happen **before** the parallelization/run_probe step
+  - alternatively, have a dynamic meshing approach like with ChIMES (maybe do both?)
+- [ ] write tests
+- [ ] add parsing from `hoomd.Simulation`
 
 `Field`
-  - [ ] refine dimensionality handling (always 3D? if not, need checks when calling various methods)
-  - [ ] method for saving to npz
-  - [ ] methods or overloads for adding/overlaying multiple fields to create a new one
+- [ ] refine dimensionality handling (always 3D? if not, need checks when calling various methods)
+- [ ] method for saving to npz
+- [ ] methods or overloads for adding/overlaying multiple fields to create a new one
+- [ ] write tests
 
 `util`
   - [ ] functions for saving/creating interaction models to/from json

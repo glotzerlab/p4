@@ -293,10 +293,10 @@ class Interaction:
     #     )
 
 
-class ParticleModel:
-    """The names and positions of a particle's primary and secondary types.
+class BodyModel:
+    """The names and positions of a body's primary and secondary types.
 
-    Every particle model must have a primary type, but secondary types are
+    Every body model must have a primary paritlce type, but secondary types are
     optional.
     
     When secondary types **are not** provided, the model represents a
@@ -353,7 +353,7 @@ class ParticleModel:
         return len(self.secondary_types) == 0
     
     def must_be_rigid_body(self, interaction: Interaction) -> bool:
-        """Whether the particle must be a rigid body for some interaction."""
+        """Whether the model must represent a rigid body for some interaction."""
         return any([t in self.secondary_types for t in interaction.yes_types])
 
     def validate_secondary_positions_getter(self):
@@ -402,25 +402,25 @@ class ParticleModel:
     
 
 class System:
-    """A System is defined by its particle models and an interaction model.
+    """A System is defined by its body models and an interaction model.
     
     Once the system is instantiated, its potential energy landscape can be
     measured using the `probe()` method.
 
     Parameters
     ----------
-    probe : ParticleModel
-        The particle model for the probe.
-    analyte : ParticleModel
-        The particle model for the analyte.
+    probe : BodyModel
+        The body model for the probe.
+    analyte : BodyModel
+        The body model for the analyte.
     interaction_model : dict[str, Interaction]
         A collection of named interactions. All keys should have the `str` type
         and all values should have the `Interaction` type.
     """
     def __init__(
         self,
-        probe_model: ParticleModel,
-        analyte_model: ParticleModel,
+        probe_model: BodyModel,
+        analyte_model: BodyModel,
         interaction_model: dict[str, Interaction],
     ):
         self.probe_model = probe_model
@@ -430,7 +430,7 @@ class System:
         self.validate()
 
     def validate(self):
-        """Ensure all possible interacting types appear in particle models."""
+        """Ensure all possible interacting types appear in body models."""
         valid_types = []
         for model in [self.probe_model, self.analyte_model]:
             valid_types.append(model.primary_type)

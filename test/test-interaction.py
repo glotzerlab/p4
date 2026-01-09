@@ -6,10 +6,11 @@ import pkgutil
 import importlib
 from typing import Literal, Iterable
 import numpy as np
+from p4 import Interaction
 import pytest
 
 
-# 1. Get hoomd classes for testing
+# 1. Get all hoomd md pair classes for testing
 
 
 REQUIRED_PARENT_CLASS = hoomd.md.pair.pair.Pair
@@ -99,10 +100,10 @@ NLIST = hoomd.md.nlist.Cell(2)
 INITIAL_ARGS_REQUIRED = dict(
     kT=1
 )
-INITIAL_ARGS_OPTIONAL = dict(   # Different from default values
+INITIAL_ARGS_OPTIONAL = dict(   # all different from API's default values except for `mode`
     default_r_cut=2,
     default_r_on=1,
-    mode="xplor",
+    mode="none",               # NOTE: 'none' is the only mode supported by all classes, and it is required for applying the tail_correction
     tail_correction=True
 )
 
@@ -768,15 +769,368 @@ def test_all_yes_attributes_also_in_nos():
 # 5. Begin actual tests. Verify that
 #   1. instantiation works given valid args for every hoomd class
 #   2. instantiation fails expectedly given various kinds of invalid args (not needed for every class)
-#   3. all methods produce expected outputs for every hoomd class
-#   4. parsing produces expected outputs
 
+def get_typed_attributes(cls, no_or_yes, single_or_pair, required_or_all):
+    """Return the appropriate attribute dict with values set from defaults and constants."""
+    if no_or_yes == "no":
+        const_required = NO_ATTRIBUTES_REQUIRED
+        const_optional = NO_ATTRIBUTES_OPTIONAL
+    elif no_or_yes == "yes":
+        const_required = YES_ATTRIBUTES_REQUIRED
+        const_optional = YES_ATTRIBUTES_OPTIONAL
 
-def test_valid_instantiation(cls):
-    pass
+    parsed_attributes = parse_attributes(cls, single_or_pair, required_or_all)
+    final_attributes = {}
+    for k, v in parsed_attributes.items():
+        if isinstance(v, dict):
+            if k not in final_attributes.keys():
+                final_attributes[k] = {}
+            
+            for sk, sv in parsed_attributes[k].items():
+                if isinstance(sv, dict):
+                    if sk not in final_attributes[k].keys():
+                        final_attributes[k][sk] = {}
+                    
+                    for ssk, _ in parsed_attributes[k][sk].items():
+                        if k in const_required.keys() and sk in const_required[k].keys() and ssk in const_required[k][sk].keys():
+                            final_attributes[k][sk][ssk] = const_required[k][sk][ssk]
+                        elif required_or_all == "all" and k in const_optional.keys() and sk in const_optional[k].keys() and ssk in const_optional[k][sk].keys():
+                            final_attributes[k][sk][ssk] = const_optional[k][sk][ssk]
 
-def test_invalid_instantiation(cls):
-    pass
+                else:
+                    if k in const_required.keys() and sk in const_required[k].keys():
+                        final_attributes[k][sk] = const_required[k][sk]
+                    elif required_or_all == "all" and k in const_optional.keys() and sk in const_optional[k].keys():
+                        final_attributes[k][sk] = const_optional[k][sk]
+        
+        else:
+            if k in const_required.keys():
+                final_attributes[k] = const_required[k]
+            elif required_or_all == "all" and k in const_optional.keys():
+                final_attributes[k] = const_optional[k]
 
-def test_methods(interaction):
-    pass
+    return final_attributes
+
+@pytest.mark.parametrize("cls", CLASSES_TO_TEST)
+@pytest.mark.parametrize("required_or_all", ["required", "all"])
+def test_valid_instantiation(cls, required_or_all):
+    """Ensure every covered hoomd class can be instantiated with valid parameters."""    
+    initial_args = {}
+    for name in parse_initial_arg_names(cls, required_or_all):
+        if name in INITIAL_ARGS_REQUIRED.keys():
+            initial_args[name] = INITIAL_ARGS_REQUIRED[name]
+        elif required_or_all == "all" and name in INITIAL_ARGS_OPTIONAL.keys():
+            initial_args[name] = INITIAL_ARGS_OPTIONAL[name]
+
+    no_single_typed_attributes = get_typed_attributes(cls, "no", "single", required_or_all)
+    yes_single_typed_attributes = get_typed_attributes(cls, "yes", "single", required_or_all)
+    no_pair_typed_attributes = get_typed_attributes(cls, "no", "pair", required_or_all)
+    yes_pair_typed_attributes = get_typed_attributes(cls, "yes", "pair", required_or_all)
+
+    _ = Interaction(
+        hoomd_class=cls,
+        initial_args=initial_args,
+        no_single_typed_attributes=no_single_typed_attributes,
+        no_pair_typed_attributes=no_pair_typed_attributes,
+        yes_types=["A", "B"],
+        yes_single_typed_attributes=yes_single_typed_attributes,
+        yes_pair_typed_attributes=yes_pair_typed_attributes
+    )
+
+INVALID_PARAMETERS = [
+    # Initial args
+    dict(   # missing required names
+        hoomd_class=hoomd.md.pair.DPD,
+        initial_args=dict(),
+        no_single_typed_attributes=dict(),
+        no_pair_typed_attributes=dict(
+            params=dict(A=0, gamma=1),
+            r_cut=0
+        ),
+        yes_types=["A", "B"],
+        yes_single_typed_attributes=dict(),
+        yes_pair_typed_attributes=dict(
+            params=dict(A=1, gamma=1),
+            r_cut=1
+        )
+    ),
+    dict(   # unexpected names
+        hoomd_class=hoomd.md.pair.DPD,
+        initial_args=dict(kT=1, wrong=None),
+        no_single_typed_attributes=dict(),
+        no_pair_typed_attributes=dict(
+            params=dict(A=0, gamma=1),
+            r_cut=0
+        ),
+        yes_types=["A", "B"],
+        yes_single_typed_attributes=dict(),
+        yes_pair_typed_attributes=dict(
+            params=dict(A=1, gamma=1),
+            r_cut=1
+        )
+    ),
+    dict(   # wrong values
+        hoomd_class=hoomd.md.pair.DPD,
+        initial_args=dict(kT=None),
+        no_single_typed_attributes=dict(),
+        no_pair_typed_attributes=dict(
+            params=dict(A=0, gamma=1),
+            r_cut=0
+        ),
+        yes_types=["A", "B"],
+        yes_single_typed_attributes=dict(),
+        yes_pair_typed_attributes=dict(
+            params=dict(A=1, gamma=1),
+            r_cut=1
+        )
+    ),
+
+    # 'no' single-typed attributes
+    dict(   # missing required names
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_single_typed_attributes=dict(
+            shape=dict(vertices=[])
+        ),
+        no_pair_typed_attributes=dict(
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+            r_cut=0
+        ),
+        yes_types=["A", "B"],
+        yes_single_typed_attributes=dict(
+            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
+        ),
+        yes_pair_typed_attributes=dict(
+            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+            r_cut=1
+        )
+    ),
+    dict(   # unexpected names
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_single_typed_attributes=dict(
+            shape=dict(vertices=[], faces=[], wrong=None)
+        ),
+        no_pair_typed_attributes=dict(
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+            r_cut=0
+        ),
+        yes_types=["A", "B"],
+        yes_single_typed_attributes=dict(
+            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
+        ),
+        yes_pair_typed_attributes=dict(
+            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+            r_cut=1
+        )
+    ),
+    dict(   # wrong values
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_single_typed_attributes=dict(
+            shape=dict(vertices=[], faces=None)
+        ),
+        no_pair_typed_attributes=dict(
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+            r_cut=0
+        ),
+        yes_types=["A", "B"],
+        yes_single_typed_attributes=dict(
+            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
+        ),
+        yes_pair_typed_attributes=dict(
+            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+            r_cut=1
+        )
+    ),
+
+    # 'no' pair-typed attributes
+    dict(   # missing required names
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_single_typed_attributes=dict(
+            shape=dict(vertices=[], faces=[])
+        ),
+        no_pair_typed_attributes=dict(
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1),
+            r_cut=0
+        ),
+        yes_types=["A", "B"],
+        yes_single_typed_attributes=dict(
+            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
+        ),
+        yes_pair_typed_attributes=dict(
+            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+            r_cut=1
+        )
+    ),
+    dict(   # unexpected names
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_single_typed_attributes=dict(
+            shape=dict(vertices=[], faces=[])
+        ),
+        no_pair_typed_attributes=dict(
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0, wrong=None),
+            r_cut=0
+        ),
+        yes_types=["A", "B"],
+        yes_single_typed_attributes=dict(
+            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
+        ),
+        yes_pair_typed_attributes=dict(
+            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+            r_cut=1
+        )
+    ),
+    dict(   # wrong values
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_single_typed_attributes=dict(
+            shape=dict(vertices=[], faces=[])
+        ),
+        no_pair_typed_attributes=dict(
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=None),
+            r_cut=0
+        ),
+        yes_types=["A", "B"],
+        yes_single_typed_attributes=dict(
+            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
+        ),
+        yes_pair_typed_attributes=dict(
+            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+            r_cut=1
+        )
+    ),
+
+    # 'yes' single-typed attributes
+    dict(   # missing required names
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_single_typed_attributes=dict(
+            shape=dict(vertices=[], faces=[])
+        ),
+        no_pair_typed_attributes=dict(
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+            r_cut=0
+        ),
+        yes_types=["A", "B"],
+        yes_single_typed_attributes=dict(
+            shape=dict(vertices=get_cube_vertices(1))
+        ),
+        yes_pair_typed_attributes=dict(
+            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+            r_cut=1
+        )
+    ),
+    dict(   # unexpected names
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_single_typed_attributes=dict(
+            shape=dict(vertices=[], faces=[])
+        ),
+        no_pair_typed_attributes=dict(
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+            r_cut=0
+        ),
+        yes_types=["A", "B"],
+        yes_single_typed_attributes=dict(
+            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces(), wrong=None)
+        ),
+        yes_pair_typed_attributes=dict(
+            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+            r_cut=1
+        )
+    ),
+    dict(   # wrong values
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_single_typed_attributes=dict(
+            shape=dict(vertices=[], faces=[])
+        ),
+        no_pair_typed_attributes=dict(
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+            r_cut=0
+        ),
+        yes_types=["A", "B"],
+        yes_single_typed_attributes=dict(
+            shape=dict(vertices=get_cube_vertices(1), faces=None)
+        ),
+        yes_pair_typed_attributes=dict(
+            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+            r_cut=1
+        )
+    ),
+
+    # 'yes' pair-typed attributes
+    dict(   # missing required names
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_single_typed_attributes=dict(
+            shape=dict(vertices=[], faces=[])
+        ),
+        no_pair_typed_attributes=dict(
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+            r_cut=0
+        ),
+        yes_types=["A", "B"],
+        yes_single_typed_attributes=dict(
+            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
+        ),
+        yes_pair_typed_attributes=dict(
+            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2),
+            r_cut=1
+        )
+    ),
+    dict(   # unexpected names
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_single_typed_attributes=dict(
+            shape=dict(vertices=[], faces=[])
+        ),
+        no_pair_typed_attributes=dict(
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+            r_cut=0
+        ),
+        yes_types=["A", "B"],
+        yes_single_typed_attributes=dict(
+            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
+        ),
+        yes_pair_typed_attributes=dict(
+            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1, wrong=None),
+            r_cut=1
+        )
+    ),
+    dict(   # wrong values
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_single_typed_attributes=dict(
+            shape=dict(vertices=[], faces=[])
+        ),
+        no_pair_typed_attributes=dict(
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+            r_cut=0
+        ),
+        yes_types=["A", "B"],
+        yes_single_typed_attributes=dict(
+            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
+        ),
+        yes_pair_typed_attributes=dict(
+            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=None),
+            r_cut=1
+        )
+    ),
+]
+
+@pytest.mark.parametrize("params", INVALID_PARAMETERS)
+def test_invalid_instantiation(params):
+    """Ensure instantiation fails predictably with invalid parameters.
+    
+    Only one hoomd class is tested.
+    """
+    with pytest.raises((TypeError, ValueError)):
+        _ = Interaction(**params)
+
+# NOTE: currently, no further tests are needed, since all existing methods are
+# effectively tested on instantiation. This could change in the future if
+# more methods are added to Interaction. [JB 1/9/26]

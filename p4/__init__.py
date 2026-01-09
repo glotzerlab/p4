@@ -1,5 +1,7 @@
-from . import p4, util
-from .p4 import Interaction, BodyModel, System, Field
+from .interaction import Interaction
+from .body_model import BodyModel
+from .system import System
+from .field import Field
 
 __all__ = [
     "Interaction",
@@ -7,5 +9,3 @@ __all__ = [
     "System",
     "Field"
 ]
-
-

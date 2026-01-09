@@ -294,7 +294,7 @@ class Interaction:
 
 
 class BodyModel:
-    """The names and positions of a body's primary and secondary types.
+    """The names and spatial data for a body's primary and secondary types.
 
     Every body model must have a primary paritlce type, but secondary types are
     optional.

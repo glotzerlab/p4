@@ -72,17 +72,19 @@ system.probe_potential(
 - [ ] add parsing from `hoomd.md.constraint.Rigid`, `hoomd.Snapshot`, and `hoomd.Simulation`
 
 `System`
-- [ ] remove need for a separate probe `ParticleModel`, generating a probe particle on-the-fly to investigate the provided interactions (contributes to goal of writing a simulation parser)
-  - to accomplish this, need to change how index of probe particle is calculated. Does that index ever change?
-  - PROBLEM: what if you aren't interested in body A - body A interactions, but rather in body A - body B? How do you investigate those with no notion of a probe particle? The notion of a System would have to change - it would be a collection of named particle models and a single interaction model (Or maybe a combination of a Particle Model and an Interaction Model - a ParticleModel being a named collection of BodyModels...)
-- [ ] add method for calculating an array of positions and orientations that do not produce effective overlaps (this would prevent the averaging problem that Josh pointed out). This could look like:
-  - have high orientation resolution (e.g. 10)
-  - at each position and orientation
+- [ ] add a custom table writer to prevent memory issues if the number of points gets too large
+- [ ] add one or more methods for improving the sampling of position and orientation-space
+  1. Calculate an array of positions and orientations that do not produce effective overlaps between provided shapes
+     - have high orientation resolution (e.g. 10)
+     - before the run_probe step, at each position and orientation:
       - check if the probe and analyte would overlap
       - if yes, remove the orientation
       - tally the number of rejected orientations - if the number of accepted ones falls below some threshold (e.g. 2), then remove that position
-  - this filtering would happen **before** the parallelization/run_probe step
-  - alternatively, have a dynamic meshing approach like with ChIMES (maybe do both?)
+  2. Dynamical meshing during simulation (c.f. ChIMES-informed ML anisotropic potential)
+     - Note that this would affect and/or depend on the implementation of the custom table writer
+- [ ] (optional) remove need to provide separate probe body model to define a system, generating a suitable particle on-the-fly during the probe simulation with 1+ types that depend on the provided `yes_types`
+  - to accomplish this, need to change how index of probe particle is calculated. Does that index ever change?
+  - PROBLEM: what if you aren't interested in body A - body A interactions, but rather in body A - body B? How do you investigate those with no notion of a probe particle? The notion of a System would have to change - it would be a collection of named particle models and a single interaction model (Or maybe a combination of a Particle Model and an Interaction Model - a ParticleModel being a named collection of BodyModels...)
 - [ ] write tests
 - [ ] add parsing from `hoomd.Simulation`
 

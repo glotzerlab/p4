@@ -6,18 +6,18 @@ if TYPE_CHECKING:
     from p4 import Interaction
 
 
-class BodyModel:
+class Body:
     """The names and spatial data for a body's primary and secondary types.
 
-    Every body model must have a primary particle type, but secondary types are
+    Every body must have a primary particle type, but secondary types are
     optional.
     
-    When secondary types **are not** provided, the model represents a
+    When secondary types **are not** provided, the body represents a
     simple particle with a single type and no further information is needed.
     
-    When secondary types **are** provided, the model represents a rigid body
+    When secondary types **are** provided, the body represents a rigid body
     with a central particle (`primary_type`) and one or more constituent
-    particles (`secondary_types`). In this case, the model needs a way to
+    particles (`secondary_types`). In this case, the body needs a way to
     determine the position(s) of each type of constituent particle, and the user
     must provide a function that does so.
     
@@ -62,7 +62,7 @@ class BodyModel:
             self.validate_secondary_orientations_and_positions_match()
     
     def must_be_rigid_body(self, interaction: Interaction) -> bool:
-        """Whether the model must represent a rigid body for some interaction."""
+        """Whether the body must represent a rigid body for some interaction."""
         return any([t in self.secondary_types for t in interaction.yes_types])
 
     def validate_secondary_positions(self):

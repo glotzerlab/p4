@@ -48,8 +48,8 @@ def square_verts():
 
 
 def test_lj_sphere(n_processes=-1):
-    probe_model = pp.BodyModel("P")
-    analyte_model = pp.BodyModel("A")
+    probe_model = pp.Body("P")
+    analyte_model = pp.Body("A")
 
     interaction_model = {
         "LJ": pp.Interaction(
@@ -93,8 +93,8 @@ def test_lj_sphere(n_processes=-1):
     )
 
 def test_lj_sphere_3d():
-    probe_model = pp.BodyModel("P")
-    analyte_model = pp.BodyModel("A")
+    probe_model = pp.Body("P")
+    analyte_model = pp.Body("A")
 
     interaction_model = {
         "LJ": pp.Interaction(
@@ -137,8 +137,8 @@ def test_lj_sphere_3d():
     )
 
 def test_lj_sites():
-    probe_model = pp.BodyModel("P")
-    analyte_model = pp.BodyModel(
+    probe_model = pp.Body("P")
+    analyte_model = pp.Body(
         primary_type="A",
         secondary_types=["B"],
         secondary_positions_by_type=dict(B=square_verts())
@@ -187,8 +187,8 @@ def test_lj_sites():
     )
 
 def test_alj_cube():
-    probe_model = pp.BodyModel("P")
-    analyte_model = pp.BodyModel("A")
+    probe_model = pp.Body("P")
+    analyte_model = pp.Body("A")
 
     interaction_model = {
         "ALJ": pp.Interaction(
@@ -246,12 +246,12 @@ def test_alj_cube():
     )
 
 def test_alj_cube_with_eg_sites(n_processes=-1):
-    probe_model = pp.BodyModel(
+    probe_model = pp.Body(
         primary_type="P",
         secondary_types=["P2"],
         secondary_positions_by_type=dict(P2=square_verts())
     )
-    analyte_model = pp.BodyModel(
+    analyte_model = pp.Body(
         primary_type="A",
         secondary_types=["B"],
         secondary_positions_by_type=dict(B=square_verts())

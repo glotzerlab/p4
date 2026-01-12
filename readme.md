@@ -14,8 +14,8 @@ Clone the repository, navigate to the package's root directory, and run `pip ins
 import p4
 
 # Probe the potential around a LJ sphere
-probe_model = p4.BodyModel("P")
-analyte_model = p4.BodyModel("A")
+probe_model = p4.Body("P")
+analyte_model = p4.Body("A")
 
 interaction_model = {
     "LJ": p4.Interaction(
@@ -67,7 +67,7 @@ system.probe_potential(
 - [x] write tests
 - [ ] add parsing from `hoomd.md.pair.Pair` subclasses
 
-`BodyModel`
+`Body`
 - [x] write tests
 - [ ] add parsing from `hoomd.md.constraint.Rigid`, `hoomd.Snapshot`, and `hoomd.Simulation`
 
@@ -85,6 +85,7 @@ system.probe_potential(
 - [ ] (optional) remove need to provide separate probe body model to define a system, generating a suitable particle on-the-fly during the probe simulation with 1+ types that depend on the provided `yes_types`
   - to accomplish this, need to change how index of probe particle is calculated. Does that index ever change?
   - PROBLEM: what if you aren't interested in body A - body A interactions, but rather in body A - body B? How do you investigate those with no notion of a probe particle? The notion of a System would have to change - it would be a collection of named particle models and a single interaction model (Or maybe a combination of a Particle Model and an Interaction Model - a ParticleModel being a named collection of BodyModels...)
+- [ ] (optional) add support for Frame analytes
 - [ ] write tests
 - [ ] add parsing from `hoomd.Simulation`
 

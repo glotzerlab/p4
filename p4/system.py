@@ -11,7 +11,7 @@ import hoomd
 import p4.util
 
 if TYPE_CHECKING:
-    from p4 import Interaction, BodyModel
+    from p4 import Interaction, Body
 
 class System:
     """A System is defined by its body models and an interaction model.
@@ -31,8 +31,8 @@ class System:
     """
     def __init__(
         self,
-        probe_model: BodyModel,
-        analyte_model: BodyModel,
+        probe_model: Body,
+        analyte_model: Body,
         interaction_model: dict[str, Interaction],
     ):
         self.probe_model = probe_model

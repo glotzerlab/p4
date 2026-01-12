@@ -1,6 +1,6 @@
 import hoomd
 import pytest
-from p4 import BodyModel, Interaction
+from p4 import Body, Interaction
 from copy import deepcopy
 
 # Verify that
@@ -57,7 +57,7 @@ VALID_KWARGS = [
 @pytest.mark.parametrize("kwargs", VALID_KWARGS)
 def test_valid_instantiation(kwargs):
     """Ensure instantiation works with valid arguments."""
-    _ = BodyModel(**kwargs)
+    _ = Body(**kwargs)
 
 INVALID_KWARGS = [
     # Secondary types given with no orientations, position keys are missing
@@ -199,7 +199,7 @@ INVALID_KWARGS = [
 def test_invalid_instantiation(kwargs):
     """Ensure instantiation fails predictably with invalid arguments."""
     with pytest.raises(ValueError):
-        _ = BodyModel(**kwargs)
+        _ = Body(**kwargs)
 
 VALID_INTERACTION_KWARGS = dict(
     hoomd_class=hoomd.md.pair.LJ,
@@ -220,8 +220,8 @@ VALID_INTERACTION_KWARGS = dict(
 @pytest.mark.parametrize("kwargs", VALID_KWARGS)
 @pytest.mark.parametrize("variant", ["none", "some", "all"])
 def test_must_be_rigid_body(kwargs, variant):
-    """Ensure method returns True if the body model has any secondary types in common with an interction."""
-    b = BodyModel(**kwargs)
+    """Ensure method returns True if the body has any secondary types in common with an interction."""
+    b = Body(**kwargs)
     interaction_kwargs = deepcopy(VALID_INTERACTION_KWARGS)
 
     if variant == "none":

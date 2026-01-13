@@ -39,8 +39,8 @@ class Body:
         self,
         primary_type: str,
         secondary_types: list[str] = [],
-        secondary_positions_by_type: dict[str, list[list[float]]] | None = None,
-        secondary_orientations_by_type: dict[str, list[list[float]]] | None = None
+        secondary_positions_by_type: dict[str, list[list[float]]] = {},
+        secondary_orientations_by_type: dict[str, list[list[float]]] = {}
     ):
         if secondary_types != [] and not secondary_positions_by_type:
             raise ValueError(
@@ -53,13 +53,13 @@ class Body:
         self.secondary_positions_by_type = secondary_positions_by_type
         self.secondary_orientations_by_type = secondary_orientations_by_type
 
-        if self.secondary_positions_by_type is not None:
+        if self.secondary_positions_by_type:
             self.validate_secondary_positions()
-        if self.secondary_orientations_by_type is not None:
+        if self.secondary_orientations_by_type:
             self.validate_secondary_orientations()
         if (
-            (self.secondary_positions_by_type is not None)
-            and (self.secondary_orientations_by_type is not None)
+            self.secondary_positions_by_type
+            and self.secondary_orientations_by_type
         ):
             self.validate_secondary_orientations_and_positions_match()
     

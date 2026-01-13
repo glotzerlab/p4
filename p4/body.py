@@ -4,6 +4,7 @@
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from p4 import Interaction
+    import hoomd
 
 
 class Body:
@@ -98,9 +99,159 @@ class Body:
                 )
 
     @classmethod
-    def from_hoomd_simulation(cls, simulation, primary_type):
-        pass
+    def from_hoomd_simulation(
+        cls,
+        simulation: hoomd.Simulation,
+        primary_type: str | None = None
+    ) -> list[Body] | Body:
+        """Parse a hoomd.Simulation object into 1 or more Bodies.
+
+        This method is a provided as a convenience and is equivalent to
+        
+        ```python
+        p4.Body.from_hoomd_rigid(rigid=sim.operations.integrator.rigid)
+        ```
+        
+        Parameters
+        ----------
+        rigid : hoomd.md.constrain.Rigid
+            The constraint that defines rigid bodies.
+        primary_type : str, optional
+            The name of the primary type of a single body. If provided, just
+            that body is returned. If not provided, all possible bodies are
+            returned in a list.
+        """
+        if simulation.operations.integrator is None:
+            raise ValueError("`simulation` must have an integrator")
+        if simulation.operations.integrator.rigid is None:
+            raise ValueError(
+                "`simulation.operations.integrator` must have a rigid constraint"
+            )
+        return cls.from_hoomd_rigid(
+            simulation.operations.integrator.rigid, primary_type
+        )
 
     @classmethod
-    def from_hoomd_rigid(cls, rigid, primary_type):
-        pass
+    def from_hoomd_rigid(
+        cls,
+        rigid: hoomd.md.constrain.Rigid,
+        primary_type: str | None = None
+    ) -> list[Body] | Body:
+        """Parse a hoomd.md.constrain.Rigid object into 1 or more Bodies.
+        
+        Parameters
+        ----------
+        rigid : hoomd.md.constrain.Rigid
+            The constraint that defines rigid bodies.
+        primary_type : str, optional
+            The name of the primary type of a single body. If provided, just
+            that body is returned. If not provided, all possible bodies are
+            returned in a list.
+        """
+        # If primary type is supplied, it must be in the rigid's primary types
+        if primary_type and primary_type not in rigid.body.keys():
+            raise ValueError(
+                f"`primary_type` ({primary_type}) not in rigid's primary types "
+                f"({list(rigid.body.keys())})"
+            )
+        
+        # Hoomd does not detect nested body definitions until sim.run(), so a
+        # check is needed here
+        for p_t in rigid.body.keys():
+            for k, v in rigid.body.items():
+                if v is not None:
+                    if p_t in v["constituent_types"] and rigid.body[p_t] is not None:
+                        raise ValueError("Nested bodies are not supported.")
+
+        if primary_type:
+            primary_types = [primary_type]
+        else:
+            primary_types = rigid.body.keys()
+
+        def unique(strings):
+            """Find unique values in a list of strings."""
+            searched = []
+            for s in strings:
+                if s not in searched:
+                    searched.append(s)
+            return searched
+        
+        def data_by_type(types, data):
+            """Return a mapping of unique types to their corresponding data."""
+            d = {}
+            for t in unique(types):
+                d[t] = [x for i, x in enumerate(data) if types[i] == t]
+            return d
+        
+        # Construct bodies
+        bodies = []
+        for p_t in primary_types:
+            bodies.append(cls(
+                primary_type=p_t,
+                secondary_types=unique(rigid.body[p_t]["constituent_types"]),
+                secondary_positions_by_type=data_by_type(
+                    rigid.body[p_t]["constituent_types"],
+                    [list(p) for p in rigid.body[p_t]["positions"]]
+                ),
+                secondary_orientations_by_type=data_by_type(
+                    rigid.body[p_t]["constituent_types"],
+                    [list(p) for p in rigid.body[p_t]["orientations"]]
+                )
+            ))
+
+        if len(bodies) == 1:
+            return bodies[0]
+        else:
+            return bodies
+
+    def __eq__(self, other):
+        """Bodies are equal if their attributes are the same or equivalent."""
+        if self.primary_type != other.primary_type:
+            return False
+        else:
+            primary_same = True
+        
+        if self.secondary_types != other.secondary_types:
+            return False
+        else:
+            secondary_same = True
+        
+        if self.secondary_positions_by_type != other.secondary_positions_by_type:
+            return False
+        else:
+            positions_same = True
+
+        orientations_same = (
+            self.secondary_orientations_by_type == other.secondary_orientations_by_type
+        )
+
+        orientations_equivalent = False
+        if not self.secondary_orientations_by_type:
+            if all([
+                list(i) == [1, 0, 0, 0]
+                for t in other.secondary_types
+                for i in other.secondary_orientations_by_type[t]
+            ]):
+                orientations_equivalent = True
+        elif not other.secondary_orientations_by_type:
+            if all([
+                list(i) == [1, 0, 0, 0]
+                for t in self.secondary_types
+                for i in self.secondary_orientations_by_type[t]
+            ]):
+                orientations_equivalent = True
+
+        return (
+            primary_same and secondary_same and positions_same
+            and (orientations_same or orientations_equivalent)
+        )
+    
+    def __repr__(self):
+        return (
+            "Body ("
+            + f"\n\tprimary_type='{self.primary_type}',"
+            + f"\n\tsecondary_types={self.secondary_types},"
+            + f"\n\tsecondary_positions_by_type={self.secondary_positions_by_type},"
+            + f"\n\tsecondary_orientations_by_type={self.secondary_orientations_by_type},"
+            + "\n)"
+        )

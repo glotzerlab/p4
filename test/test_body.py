@@ -7,6 +7,7 @@ from copy import deepcopy
 #   1. instantiation works given valid args
 #   2. instantiation fails expectedly given various kinds of invalid args
 #   3. methods produce the expected output
+#   4. parsing produces the expected output
 
 VALID_KWARGS = [
     # Required kawrgs only
@@ -239,3 +240,70 @@ def test_must_be_rigid_body(kwargs, variant):
         assert b.must_be_rigid_body(i) == False
     elif variant in ["some", "all"]:
         assert b.must_be_rigid_body(i) == True
+
+def make_rigid(
+    primary_type,
+    secondary_types=[],
+    secondary_positions_by_type={},
+    secondary_orientations_by_type={}
+):
+    """Create a rigid constraint that corresponds to the args for a Body."""
+    rigid = hoomd.md.constrain.Rigid()
+
+    types = []
+    positions = []
+    orientations = []
+    for t in secondary_types:
+        for i, p in enumerate(secondary_positions_by_type[t]):
+            types.append(t)
+            positions.append(p)
+            if secondary_orientations_by_type and t in secondary_orientations_by_type.keys():
+                orientations.append(secondary_orientations_by_type[t][i])
+            else:
+                orientations.append([1, 0, 0, 0])
+
+    rigid.body[primary_type] = {
+        "constituent_types": types,
+        "positions": positions,
+        "orientations": orientations
+    }
+
+    return rigid
+
+def make_simulation(
+    primary_type,
+    secondary_types=[],
+    secondary_positions_by_type={},
+    secondary_orientations_by_type={}
+):
+    """Create a simulation with a rigid constraint that corresponds to the args for a Body."""
+    sim = hoomd.util.make_example_simulation(particle_types=[primary_type] + secondary_types)
+    rigid = make_rigid(
+        primary_type=primary_type,
+        secondary_types=secondary_types,
+        secondary_positions_by_type=secondary_positions_by_type,
+        secondary_orientations_by_type=secondary_orientations_by_type
+    )
+    rigid.create_bodies(sim.state)
+    sim.operations.integrator = hoomd.md.Integrator(dt=0.1)
+    sim.operations.integrator.rigid = rigid
+    sim.run(0)  # make sure it runs
+    return sim
+
+@pytest.mark.parametrize("kwargs", VALID_KWARGS)
+def test_from_hoomd_rigid(kwargs):
+    """Ensure parsing from hoomd.md.constrain.Rigid produces the expected output."""
+    # Skip case when there are not secondary types
+    if "secondary_types" in kwargs.keys():
+        body = Body(**kwargs)
+        rigid = make_rigid(**kwargs)
+        assert body == Body.from_hoomd_rigid(rigid, body.primary_type)
+
+@pytest.mark.parametrize("kwargs", VALID_KWARGS)
+def test_from_hoomd_simulation(kwargs):
+    """Ensure parsing from hoomd.Simulation produces the expected output."""
+    # Skip case when there are not secondary types
+    if "secondary_types" in kwargs.keys():
+        body = Body(**kwargs)
+        simulation = make_simulation(**kwargs)
+        assert body == Body.from_hoomd_simulation(simulation, body.primary_type)

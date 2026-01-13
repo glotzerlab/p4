@@ -27,11 +27,13 @@ class Body:
         The name of the primary type.
     secondary_types : list[str], optional
         The names of the secondary types.
-    get_secondary_positions_by_type : Callable, optional
-        A function that returns the position(s) of particle(s) with the
-        secondary types. The function must have at least one parameter, and the
-        first parameter must be a string representing the name of a secondary
-        type. Required if `secondary_types` is provided, otherwise ignored.
+    secondary_positions_by_type : Callable, optional
+        A mapping of secondary particle type names to position(s). Required if
+        `secondary_types` is provided, otherwise ignored.
+    secondary_orientations_by_type : Callable, optional
+        A mapping of secondary particle type names to orientation(s) in
+        quaternion form. Can only be provided if `secondary_types` and
+        `secondary_positions_by_type` are also provided.
     """
     def __init__(
         self,

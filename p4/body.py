@@ -5,6 +5,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from p4 import Interaction
 
+from marshmallow import (
+    Schema, fields, post_load, validate, ValidationError, validates_schema
+)
 
 class Body:
     """The names and spatial data for a body's primary and secondary types.
@@ -27,78 +30,152 @@ class Body:
         The name of the primary type.
     secondary_types : list[str], optional
         The names of the secondary types.
-    get_secondary_positions_by_type : Callable, optional
-        A function that returns the position(s) of particle(s) with the
-        secondary types. The function must have at least one parameter, and the
-        first parameter must be a string representing the name of a secondary
-        type. Required if `secondary_types` is provided, otherwise ignored.
+    secondary_positions_by_type : Callable, optional
+        A mapping of secondary particle type names to position(s). Required if
+        `secondary_types` is provided, otherwise ignored.
+    secondary_orientations_by_type : Callable, optional
+        A mapping of secondary particle type names to orientation(s) in
+        quaternion form. Can only be provided if `secondary_types` and
+        `secondary_positions_by_type` are also provided.
     """
     def __init__(
         self,
         primary_type: str,
         secondary_types: list[str] = [],
-        secondary_positions_by_type: dict[str, list[list[float]]] | None = None,
-        secondary_orientations_by_type: dict[str, list[list[float]]] | None = None
+        secondary_positions_by_type: dict[str, list[list[float]]] = {},
+        secondary_orientations_by_type: dict[str, list[list[float]]] = {}
     ):
-        if secondary_types != [] and not secondary_positions_by_type:
-            raise ValueError(
-                "'get_secondary_positions_by_type' is required if "
-                + "'secondary_types' is provided"
-            )
+        _ = BodySchema().load(dict(
+            primary_type = str(primary_type),
+            secondary_types = [str(t) for t in secondary_types],
+            secondary_positions_by_type = secondary_positions_by_type,
+            secondary_orientations_by_type = secondary_orientations_by_type
+        ))
 
         self.primary_type = str(primary_type)
         self.secondary_types = [str(t) for t in secondary_types]
         self.secondary_positions_by_type = secondary_positions_by_type
         self.secondary_orientations_by_type = secondary_orientations_by_type
-
-        if self.secondary_positions_by_type is not None:
-            self.validate_secondary_positions()
-        if self.secondary_orientations_by_type is not None:
-            self.validate_secondary_orientations()
-        if (
-            (self.secondary_positions_by_type is not None)
-            and (self.secondary_orientations_by_type is not None)
-        ):
-            self.validate_secondary_orientations_and_positions_match()
     
     def must_be_rigid_body(self, interaction: Interaction) -> bool:
         """Whether the body must represent a rigid body for some interaction."""
         return any([t in self.secondary_types for t in interaction.yes_types])
 
-    def validate_secondary_positions(self):
-        """Ensure that the provided callable works for all secondary types."""
-        for t in self.secondary_types:
-            if t not in self.secondary_positions_by_type.keys():
-                raise ValueError(
-                    "`secondary_positions_by_type` does not specify positions "
-                    + f"for secondary type '{t}'."
-                )
+    @classmethod
+    def from_hoomd_rigid(cls, rigid, primary_type):
+        pass
 
-    def validate_secondary_orientations(self):
-        """Ensure that the provided callable works for all secondary types."""
-        for t in self.secondary_types:
-            if t not in self.secondary_orientations_by_type.keys():
-                raise ValueError(
-                    "`secondary_orientations_by_type` does not specify "
-                    + f"orientations for secondary type '{t}'."
-                )
-
-    def validate_secondary_orientations_and_positions_match(self):
-        """Ensure secondary types' numbers of positions and orientations match."""
-        for t in self.secondary_types:
-            n_positions = len(self.secondary_positions_by_type[t])
-            n_orientations = len(self.secondary_orientations_by_type[t])
-            
-            if n_positions != n_orientations:
-                raise ValueError(
-                    "The number of positions and orientations for secondary  "
-                    + f"type {t} do not match."
-                )
+    def from_hoomd_snapshot(cls, snapshot, secondary_types_by_primary_type):
+        pass
 
     @classmethod
     def from_hoomd_simulation(cls, simulation, primary_type):
         pass
 
-    @classmethod
-    def from_hoomd_rigid(cls, rigid, primary_type):
-        pass
+class BodySchema(Schema):
+    primary_type = fields.Str(required=True)
+    secondary_types = fields.List(fields.Str())
+    secondary_positions_by_type = fields.Dict(
+        keys=fields.Str(),
+        values=fields.List(
+            fields.List(fields.Float(), validate=validate.Length(equal=3))
+        ),
+    )
+    secondary_orientations_by_type = fields.Dict(
+        keys=fields.Str(),
+        values=fields.List(
+            fields.List(fields.Float(), validate=validate.Length(equal=4))
+        ),
+    )
+
+    @validates_schema
+    def validate_no_type_clash(self, data, **kwargs):
+        errors = {}
+
+        if data["primary_type"] in data["secondary_types"]:
+            errors["secondary_types"] = ["must not include `primary_type`"]
+        
+        if errors:
+            raise ValidationError(errors)
+
+    @validates_schema
+    def validate_no_spatial_data_without_secondary_types(self, data, **kwargs):
+        errors = {}
+
+        if "secondary_types" not in data.keys():
+            if "secondary_positions_by_type" in data.keys():
+                errors["secondary_positions_by_type"] = ["cannot be provided if `secondary_types` is not provided"]
+            if "secondary_orientations_by_type" in data.keys():
+                errors["secondary_orientations_by_type"] = ["cannot be provided if `secondary_types` is not provided"]
+        
+        if errors:
+            raise ValidationError(errors)
+
+    @validates_schema
+    def validate_secondary_types_require_positions(self, data, **kwargs):
+        errors = {}
+        
+        if "secondary_types" in data.keys():
+            if "secondary_positions_by_type" not in data.keys():
+                errors["secondary_positions_by_type"] = ["required if `secondary_types` is provided"]
+        
+        if errors:
+            raise ValidationError(errors)
+
+    @validates_schema
+    def validate_all_types_in_positions(self, data, **kwargs):
+        errors = {}
+        suberrors = []
+
+        if (
+            ("secondary_types" in data.keys())
+            and ("secondary_positions_by_type" in data.keys())
+        ):
+            for t in data["secondary_types"]:
+                if t not in data["secondary_positions_by_type"].keys():
+                    suberrors.append(f"missing '{t}' from `secondary_types`")
+        
+            errors["secondary_positions_by_type"] = suberrors
+
+        if suberrors:
+            raise ValidationError(errors)
+
+    @validates_schema    
+    def validate_orientations_require_positions(self, data, **kwargs):
+        errors = {}
+
+        if (
+            ("secondary_orientations_by_type" in data.keys())
+            and ("secondary_positions_by_type" not in data.keys())
+        ):
+            errors["secondary_orientations_by_type"] = "can only be provided if `secondary_positions_by_type` is also provided"
+        
+        if errors:
+            raise ValidationError(errors)
+
+    @validates_schema
+    def validate_orientations_and_positions_match(self, data, **kwargs):
+        errors = {}
+        suberrors = []
+        if (
+            ("secondary_orientations_by_type" in data.keys())
+            and ("secondary_positions_by_type" in data.keys())
+        ):
+            for t in data["secondary_positions_by_type"].keys():
+                if t in data["secondary_orientations_by_type"].keys():
+                    n_p = len(data["secondary_positions_by_type"][t])
+                    n_o = len(data["secondary_orientations_by_type"][t])
+                    if n_p !=  n_o:
+                        suberrors.append(f"for type {t}, the number of positions ({n_p}) does not match the number of orientations ({n_o})")
+            
+            errors["secondary_orientations_by_type"] = suberrors
+        
+        if suberrors:
+            raise ValidationError(errors)
+
+    # @staticmethod
+    # def validate_constructor(fn):
+
+
+    # def make_body(self, data, **kwargs):
+    #     return Body(**data)

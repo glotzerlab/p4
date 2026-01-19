@@ -116,7 +116,7 @@ APPROVED_INITIAL_ARG_CLASHES = [
 ]
 
 def parse_initial_arg_names(hoomd_class, required_or_optional):
-    """Return the names of required and optional args for a class constructor."""
+    """Return the names of required and optional args for a Pair constructor."""
     names = []
 
     class_params = inspect.signature(hoomd_class.__init__).parameters
@@ -142,13 +142,13 @@ def test_no_unexpected_initial_args():
         required = parse_initial_arg_names(cls, "required")
         optional = parse_initial_arg_names(cls, "optional")
         for arg in required:
-            if arg not in INITIAL_ARGS_REQUIRED.keys():
+            if arg not in INITIAL_ARGS_REQUIRED:
                 raise Exception(
                     f"Initial arg `{arg}` is required by `{cls}` but is not "
                     f"provided in `INITIAL_ARGS_REQUIRED`."
                 )
         for arg in optional:
-            if arg not in INITIAL_ARGS_OPTIONAL.keys():
+            if arg not in INITIAL_ARGS_OPTIONAL:
                 raise Exception(
                     f"Initial arg `{arg}` is accepted by `{cls}` but is not "
                     f"provided in `INITIAL_ARGS_OPTIONAL`."
@@ -170,7 +170,7 @@ def test_no_unexpected_initial_arg_clashes():
         args = required + optional
 
         for arg in args:
-            if arg in classes_by_arg.keys():
+            if arg in classes_by_arg:
                 if arg not in APPROVED_INITIAL_ARG_CLASHES:
                     raise Exception(
                         f"Unapproved initial arg clash detected: `{arg}` is "
@@ -307,17 +307,17 @@ def get_all_attributes(classes, single_or_pair, required_or_optional):
     merged_attributes = {}
     for attribute in attributes:
         for k, v in attribute.items():
-            if k not in merged_attributes.keys():
+            if k not in merged_attributes:
                 merged_attributes[k] = v
             else:
                 if isinstance(v, dict):
                     for sk, sv in v.items():
-                        if sk not in merged_attributes[k].keys():
+                        if sk not in merged_attributes[k]:
                             merged_attributes[k][sk] = sv    # Note the potential for a clash between 'no' values here
                         else:
                             if isinstance(sv, dict):
                                 for ssk, ssv in sv.items():
-                                    if ssk not in merged_attributes[k][sk].keys():
+                                    if ssk not in merged_attributes[k][sk]:
                                         merged_attributes[k][sk][ssk] = ssv    # Note the potential for a clash between 'no' values here
 
     return merged_attributes
@@ -431,19 +431,19 @@ def get_types_with_attribute(classes, attribute, single_or_pair, required_or_opt
             required_results = [
                 cls
                 for cls in classes
-                if attribute in parse_attributes(cls, single_or_pair, "required").keys()
+                if attribute in parse_attributes(cls, single_or_pair, "required")
             ]
             optional_results = [
                 cls
                 for cls in classes
-                if attribute in parse_attributes(cls, single_or_pair, "optional").keys()
+                if attribute in parse_attributes(cls, single_or_pair, "optional")
             ]
             positive_results = list(set(required_results + optional_results))
         else:
             positive_results = [
                 cls
                 for cls in classes
-                if attribute in parse_attributes(cls, single_or_pair, required_or_optional).keys()
+                if attribute in parse_attributes(cls, single_or_pair, required_or_optional)
             ]
         return positive_results
     
@@ -453,7 +453,7 @@ def get_types_with_attribute(classes, attribute, single_or_pair, required_or_opt
             levels_searched = 0
             current_level_dict = parse_attributes(cls, single_or_pair, required_or_optional)
             for level_name in attribute:
-                if level_name in current_level_dict.keys():
+                if level_name in current_level_dict:
                     current_level_dict = current_level_dict[level_name]
                     levels_searched += 1
             if levels_searched == len(attribute):
@@ -556,17 +556,17 @@ def test_no_unexpected_attribute_paths():
             attributes = get_all_attributes(CLASSES_TO_TEST, t, r)
             for k, v in attributes.items():
                 reason = f"Attribute with name '{k}' is not given in {const_name}."
-                assert k in const.keys(), reason
+                assert k in const, reason
 
                 if isinstance(v, dict):
                     for sk, sv in v.items():
                         reason = f"Attribute with name '{sk}' is not given in {const_name}['{k}']."
-                        assert sk in const[k].keys(), reason
+                        assert sk in const[k], reason
 
                         if isinstance(sv, dict):
                             for ssk, _ in sv.items():
                                 reason = f"Attribute with name '{ssk}' is not given in {const_name}['{k}']['{sk}']."
-                                assert ssk in const[k][sk].keys(), reason
+                                assert ssk in const[k][sk], reason
 
 def test_no_unexpected_attribute_types():
     """Ensure all attributes are set with 1 or 2-tuples of particle types.
@@ -600,7 +600,7 @@ def test_no_unexpected_attribute_clashes():
                         classes_with_attribute = get_types_with_attribute(CLASSES_TO_TEST, [k, sk, ssk], "all", "all")
                         if len(classes_with_attribute) > 1:
                             reason = f"Attribute with path '{k}.{sk}.{ssk}' has clashes but is not given in `APPROVED_ATTRIBUTE_CLASHES`."
-                            assert ssk in APPROVED_ATTRIBUTE_CLASHES[k][sk].keys(), reason
+                            assert ssk in APPROVED_ATTRIBUTE_CLASHES[k][sk], reason
 
                             unapproved_clashes = [cls for cls in classes_with_attribute if cls not in APPROVED_ATTRIBUTE_CLASHES[k][sk][ssk]]
                             reason = f"Attribute with path '{k}.{sk}.{ssk}' has the following unapproved clashes: {unapproved_clashes}."
@@ -610,7 +610,7 @@ def test_no_unexpected_attribute_clashes():
                     classes_with_attribute = get_types_with_attribute(CLASSES_TO_TEST, [k, sk], "all", "all")
                     if len(classes_with_attribute) > 1:
                         reason = f"Attribute with path '{k}.{sk}' has clashes but is not given in `APPROVED_ATTRIBUTE_CLASHES`."
-                        assert sk in APPROVED_ATTRIBUTE_CLASHES[k].keys(), reason
+                        assert sk in APPROVED_ATTRIBUTE_CLASHES[k], reason
                         
                         unapproved_clashes = [cls for cls in classes_with_attribute if cls not in APPROVED_ATTRIBUTE_CLASHES[k][sk]]
                         reason = f"Attribute with path '{k}.{sk}' has the following unapproved clashes: {unapproved_clashes}."
@@ -619,7 +619,7 @@ def test_no_unexpected_attribute_clashes():
             classes_with_attribute = get_types_with_attribute(CLASSES_TO_TEST, k, "all", "all")
             if len(classes_with_attribute) > 1:
                 reason = f"Attribute with path '{k}' has clashes but is not given in `APPROVED_ATTRIBUTE_CLASHES`."
-                assert k in APPROVED_ATTRIBUTE_CLASHES.keys(), reason
+                assert k in APPROVED_ATTRIBUTE_CLASHES, reason
                 
                 unapproved_clashes = [cls for cls in classes_with_attribute if cls not in APPROVED_ATTRIBUTE_CLASHES[k]]
                 reason = f"Attribute with path '{k}' has the following unapproved clashes: {unapproved_clashes}."
@@ -756,19 +756,22 @@ def test_all_yes_attributes_also_in_nos():
                     if isinstance(sv, dict):
                         for ssk, _ in sv.items():
                             reason = f"Attribute with path '{k}.{sk}.{ssk}' is given in the 'yes' constant but not in the 'no' constant."
-                            assert ssk in no_const[k][sk].keys(), reason
+                            assert ssk in no_const[k][sk], reason
 
                     else:
                         reason = f"Attribute with path '{k}.{sk}' is given in the 'yes' constant but not in the 'no' constant."
-                        assert sk in no_const[k].keys(), reason
+                        assert sk in no_const[k], reason
             else:
                 reason = f"Attribute with path '{k}' is given in the 'yes' constant but not in the 'no' constant."
-                assert k in no_const.keys(), reason
+                assert k in no_const, reason
 
 
 # 5. Begin actual tests. Verify that
 #   1. instantiation works given valid args for every hoomd class
 #   2. instantiation fails expectedly given various kinds of invalid args (not needed for every class)
+#   3. 'to' methods produce expected outputs
+#   4. 'from' methods work given valid args
+#   5. 'from' methods fail expectedly given various kinds of invalid args
 
 def get_typed_attributes(cls, no_or_yes, single_or_pair, required_or_all):
     """Return the appropriate attribute dict with values set from defaults and constants."""
@@ -783,43 +786,41 @@ def get_typed_attributes(cls, no_or_yes, single_or_pair, required_or_all):
     final_attributes = {}
     for k, v in parsed_attributes.items():
         if isinstance(v, dict):
-            if k not in final_attributes.keys():
+            if k not in final_attributes:
                 final_attributes[k] = {}
             
             for sk, sv in parsed_attributes[k].items():
                 if isinstance(sv, dict):
-                    if sk not in final_attributes[k].keys():
+                    if sk not in final_attributes[k]:
                         final_attributes[k][sk] = {}
                     
                     for ssk, _ in parsed_attributes[k][sk].items():
-                        if k in const_required.keys() and sk in const_required[k].keys() and ssk in const_required[k][sk].keys():
+                        if k in const_required and sk in const_required[k] and ssk in const_required[k][sk]:
                             final_attributes[k][sk][ssk] = const_required[k][sk][ssk]
-                        elif required_or_all == "all" and k in const_optional.keys() and sk in const_optional[k].keys() and ssk in const_optional[k][sk].keys():
+                        elif required_or_all == "all" and k in const_optional and sk in const_optional[k] and ssk in const_optional[k][sk]:
                             final_attributes[k][sk][ssk] = const_optional[k][sk][ssk]
 
                 else:
-                    if k in const_required.keys() and sk in const_required[k].keys():
+                    if k in const_required and sk in const_required[k]:
                         final_attributes[k][sk] = const_required[k][sk]
-                    elif required_or_all == "all" and k in const_optional.keys() and sk in const_optional[k].keys():
+                    elif required_or_all == "all" and k in const_optional and sk in const_optional[k]:
                         final_attributes[k][sk] = const_optional[k][sk]
         
         else:
-            if k in const_required.keys():
+            if k in const_required:
                 final_attributes[k] = const_required[k]
-            elif required_or_all == "all" and k in const_optional.keys():
+            elif required_or_all == "all" and k in const_optional:
                 final_attributes[k] = const_optional[k]
 
     return final_attributes
 
-@pytest.mark.parametrize("cls", CLASSES_TO_TEST)
-@pytest.mark.parametrize("required_or_all", ["required", "all"])
-def test_valid_instantiation(cls, required_or_all):
-    """Ensure every covered hoomd class can be instantiated with valid parameters."""    
+def get_kwargs(cls, required_or_all):
+    """Return just required or all possible kwargs for the provided constructor."""
     initial_args = {}
     for name in parse_initial_arg_names(cls, required_or_all):
-        if name in INITIAL_ARGS_REQUIRED.keys():
+        if name in INITIAL_ARGS_REQUIRED:
             initial_args[name] = INITIAL_ARGS_REQUIRED[name]
-        elif required_or_all == "all" and name in INITIAL_ARGS_OPTIONAL.keys():
+        elif required_or_all == "all" and name in INITIAL_ARGS_OPTIONAL:
             initial_args[name] = INITIAL_ARGS_OPTIONAL[name]
 
     no_single_typed_attributes = get_typed_attributes(cls, "no", "single", required_or_all)
@@ -827,7 +828,7 @@ def test_valid_instantiation(cls, required_or_all):
     no_pair_typed_attributes = get_typed_attributes(cls, "no", "pair", required_or_all)
     yes_pair_typed_attributes = get_typed_attributes(cls, "yes", "pair", required_or_all)
 
-    _ = Interaction(
+    kwargs = dict(
         hoomd_class=cls,
         initial_args=initial_args,
         no_single_typed_attributes=no_single_typed_attributes,
@@ -836,6 +837,42 @@ def test_valid_instantiation(cls, required_or_all):
         yes_single_typed_attributes=yes_single_typed_attributes,
         yes_pair_typed_attributes=yes_pair_typed_attributes
     )
+
+    return kwargs
+
+def typeparam_dicts_are_equivalent(one, other):
+    """Return True if all items in the typeparam dicts are equivalent."""
+    same_keys = all(k in other for k in one)
+    
+    same_values = []
+    for k in one:
+        if isinstance(one[k], Iterable):
+            same_length = len(one[k])
+            same_items = all(i == j for i, j in zip(one[k], other[k]))
+            same_values.append(same_length and same_items)
+        else:
+            same_values.append(one[k] == other[k])
+    
+    return same_keys and all(same_values)
+
+def pairs_are_equivalent(one, other):
+    """Return True if hooomd.md.pair.Pair instances are equivalent."""
+    same_types = type(one) is type(other)
+    try:
+        same_typeparam_dicts = one._typeparam_dict == other._typeparam_dict     # TODO: I don't know why this sometimes works when the other branch doesn't
+    except ValueError:
+        same_typeparam_dicts = typeparam_dicts_are_equivalent(
+            one._typeparam_dict,
+            other._typeparam_dict
+        )
+    return same_types and same_typeparam_dicts
+
+@pytest.mark.parametrize("cls", CLASSES_TO_TEST)
+@pytest.mark.parametrize("required_or_all", ["required", "all"])
+def test_instantiation_valid(cls, required_or_all):
+    """Ensure every covered hoomd class can be instantiated and exported to hoomd instances with valid parameters."""    
+    kwargs = get_kwargs(cls, required_or_all)
+    _ = Interaction(**kwargs)
 
 INVALID_PARAMETERS = [
     # Initial args

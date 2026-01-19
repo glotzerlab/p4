@@ -1,3 +1,5 @@
+from copy import deepcopy
+import itertools
 import hoomd
 import inspect
 from types import ModuleType
@@ -1181,7 +1183,7 @@ INVALID_PARAMETERS = [
 ]
 
 @pytest.mark.parametrize("params", INVALID_PARAMETERS)
-def test_invalid_instantiation(params):
+def test_instantiation_invalid(params):
     """Ensure instantiation fails predictably with invalid parameters.
     
     Only one hoomd class is tested.
@@ -1189,6 +1191,153 @@ def test_invalid_instantiation(params):
     with pytest.raises((TypeError, ValueError)):
         _ = Interaction(**params)
 
-# NOTE: currently, no further tests are needed, since all existing methods are
-# effectively tested on instantiation. This could change in the future if
-# more methods are added to Interaction. [JB 1/9/26]
+@pytest.mark.parametrize("cls", CLASSES_TO_TEST)
+@pytest.mark.parametrize("required_or_all", ["required", "all"])
+def test_to_hoomd_instance(cls, required_or_all):
+    """Ensure for every coverted hoomd class an Interaction can be converted to an unparameterized hoomd instance."""
+    kwargs = get_kwargs(cls, required_or_all)
+    interaction = Interaction(**kwargs)
+
+    pair = cls(nlist=NLIST, **kwargs["initial_args"])
+    assert pairs_are_equivalent(pair, interaction.to_hoomd_instance(NLIST))
+
+@pytest.mark.parametrize("cls", CLASSES_TO_TEST)
+@pytest.mark.parametrize("required_or_all", ["required", "all"])
+def test_to_parameterized_hoomd_instance(cls, required_or_all):
+    """Ensure for every coverted hoomd class an Interaction can be converted to a parameterized hoomd instance."""
+    kwargs = get_kwargs(cls, required_or_all)
+    interaction = Interaction(**kwargs)
+
+    pair = cls(nlist=NLIST, **kwargs["initial_args"])
+
+    all_types = ["A", "B", "C"]
+    all_type_pairs = list(itertools.combinations(all_types, 2))
+    all_type_pairs.extend((t, t) for t in all_types)
+    yes_type_pairs = []
+
+    for p in all_type_pairs:
+        if (p[0] in kwargs["yes_types"] and p[1] in kwargs["yes_types"] and p[0] != p[1]):
+            yes_type_pairs.append(p)
+
+    # No single-typed
+    for a_t in all_types:
+        for k, v in kwargs["no_single_typed_attributes"].items():
+            getattr(pair, k)[a_t] = v
+    
+    # No pair-typed
+    for a_p in all_type_pairs:
+        for k, v in kwargs["no_pair_typed_attributes"].items():
+            getattr(pair, k)[a_p] = v
+    
+    # Yes single-typed
+    for y_t in kwargs["yes_types"]:
+        for k, v in kwargs["yes_single_typed_attributes"].items():
+            getattr(pair, k)[y_t] = v
+
+    # Yes pair-typed
+    for y_p in yes_type_pairs:
+        for k, v in kwargs["yes_pair_typed_attributes"].items():
+            getattr(pair, k)[y_p] = v
+    
+    assert pairs_are_equivalent(pair, interaction.to_parameterized_hoomd_instance(NLIST, all_types))
+
+@pytest.mark.parametrize("cls", [hoomd.md.pair.LJ, hoomd.md.pair.aniso.ALJ])
+def test_from_hoomd_pair_valid(cls):
+    """Ensure every covered hoomd class can be parsed into an Interaction."""
+    kwargs = get_kwargs(cls, "all")
+    interaction = Interaction(**kwargs)
+    pair = interaction.to_parameterized_hoomd_instance(nlist=hoomd.md.nlist.Cell(0), all_types=kwargs["yes_types"])
+    breakpoint()
+    other = Interaction.from_hoomd_pair(pair)
+    assert interaction == other
+
+def get_invalid_pairs(cls):
+    """Return a list of hoomd pairs corresponding to a type that are wrongly parameterized in several ways.
+    
+    1. Missing a top-level typeparam
+    2. Missing a particle type (or type pair) for a typeparam
+    3. Include a typeparam that shouldn't be there
+    4. Include a typeparam with a wrong value
+    """
+    initial_args = {}
+    for name in parse_initial_arg_names(cls, "required"):
+        if name in INITIAL_ARGS_REQUIRED:
+            initial_args[name] = INITIAL_ARGS_REQUIRED[name]
+    unparameterized_pair = cls(**initial_args)
+
+    pairs = []
+
+    # Missing a top-level typeparam
+    parameterized_pair = deepcopy(unparameterized_pair)
+
+    
+    # Missing a particle type (or type pair) for a typeparam
+    parameterized_pair = deepcopy(unparameterized_pair)
+
+    # Include a typeparam that shouldn't be there
+    parameterized_pair = deepcopy(unparameterized_pair)
+    
+    # Include a typeparam with a wrong value
+    parameterized_pair = deepcopy(unparameterized_pair)
+
+    return pairs
+
+# INVALID_PAIRS = get_invalid_pairs(hoomd.md.pair.LJ)
+
+# @pytest.mark.parametrize("invalid_pair", INVALID_PAIRS)
+# def test_from_hoomd_pair_invalid(invalid_pair):
+#     """Ensure pair parsing fails expectedly when the hoomd instance is not properly parameterized."""
+#     with pytest.raises(ValueError):
+#         _ = Interaction.from_hoomd_pair(invalid_pair)
+
+@pytest.mark.parametrize("cls", [hoomd.md.pair.LJ, hoomd.md.pair.aniso.ALJ])
+@pytest.mark.parametrize("multiple_forces", [False, True])
+def test_from_hoomd_integrator_valid(cls, multiple_forces):
+    """Ensure a hoomd integrator can be parsed into one or more Interactions."""
+    integrator = hoomd.md.Integrator(dt=0.1)
+    forces = []
+
+    kwargs = get_kwargs(cls, "required")
+    interaction = Interaction(**kwargs)
+    pair = interaction.to_parameterized_hoomd_instance(NLIST)
+    
+    forces.append(pair)
+
+    if multiple_forces:
+        kwargs = get_kwargs(hoomd.md.pair.DPD, "required")
+        interaction = Interaction(**kwargs)
+        pair = Interaction.to_parameterized_hoomd_instance(NLIST)
+        forces.append(pair)
+    
+    integrator.forces = forces
+    assert forces == Interaction.from_hoomd_integrator(integrator)
+
+
+INVALID_INTEGRATORS = [
+    # invalid pairs
+    # no forces
+    hoomd.md.Integrator(dt=0.1)
+]
+
+# def test_from_hoomd_integrator_invalid(invalid_integrator):
+#     """Ensure integrator parsing fails expectedly."""
+#     # TODO: test both expected failure modes
+#     with pytest.raises(ValueError):
+#         _ = Interaction.from_hoomd_integrator(invalid_integrator)
+
+# def test_from_hoomd_simulation_valid(simulation, expected):
+#     """Ensure a hoomd simulation can be parsed into one or more Interactions."""
+#     interaction = Interaction.from_hoomd_integrator(simulation)
+#     assert interaction == expected
+
+INVALID_SIMULATIONS = [
+    # invalid pairs
+    # integrator with no forces
+    # no integrator
+]
+
+# def test_from_hoomd_simulation_invalid(invalid_simulation):
+#     """Ensure hoomd simulation parsing fails expectedly."""
+#     # TODO: test all three expected failure modes
+#     with pytest.raises(ValueError):
+#         _ = Interaction.from_hoomd_simulation(invalid_simulation)

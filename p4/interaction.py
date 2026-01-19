@@ -249,30 +249,3 @@ class Interaction:
                     )
         
         return instance
-
-    # @classmethod
-    # def from_hoomd_md_pair(cls, pair: hoomd.md.pair.Pair) -> Interaction:
-    #     """Create an Interaction from a HOOMD pair instance.
-
-    #     Parameters
-    #     ----------
-    #     pair : hoomd.md.pair.Pair
-    #         The HOOMD pair instance.
-    #     """
-    #     hoomd_class = pair.__class__
-    #     initial_args = None
-    #     no_single_typed_attributes = None
-    #     no_pair_typed_attributes = None
-    #     yes_types = None
-    #     yes_single_typed_attributes = None
-    #     yes_pair_typed_attributes = None
-
-    #     return cls(
-    #         hoomd_class=hoomd_class
-    #         initial_args=initial_args
-    #         no_single_typed_attributes=no_single_typed_attributes
-    #         no_pair_typed_attributes=no_pair_typed_attributes
-    #         yes_types=yes_types
-    #         yes_single_typed_attributes=yes_single_typed_attributes
-    #         yes_pair_typed_attributes=yes_pair_typed_attributes
-    #     )

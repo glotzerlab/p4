@@ -69,7 +69,7 @@ system.probe_potential(
 
 `Body`
 - [x] write tests
-- [ ] add parsing from `hoomd.md.constraint.Rigid`, `hoomd.Snapshot`, and `hoomd.Simulation`
+- [x] add parsing from `hoomd.md.constraint.Rigid`, ~~`hoomd.Snapshot`~~, and `hoomd.Simulation`
 
 `System`
 - [ ] add a custom table writer to prevent memory issues if the number of points gets too large

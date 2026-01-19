@@ -124,9 +124,7 @@ class Body:
         if simulation.operations.integrator is None:
             raise ValueError("`simulation` must have an integrator")
         if simulation.operations.integrator.rigid is None:
-            raise ValueError(
-                "`simulation.operations.integrator` must have a rigid constraint"
-            )
+            raise ValueError("integrator must have a rigid constraint")
         return cls.from_hoomd_rigid(
             simulation.operations.integrator.rigid, primary_type
         )

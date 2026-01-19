@@ -106,10 +106,10 @@ class Body:
     ) -> list[Body] | Body:
         """Parse a hoomd.Simulation object into 1 or more Bodies.
 
-        This method is a provided as a convenience and is equivalent to
+        This is a convenience method that is equivalent to
         
         ```python
-        p4.Body.from_hoomd_rigid(rigid=sim.operations.integrator.rigid)
+        p4.Body.from_hoomd_rigid(sim.operations.integrator.rigid)
         ```
         
         Parameters

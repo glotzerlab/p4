@@ -85,32 +85,51 @@ class Interaction:
             raise ValueError(msg) from e
         
         # Usage
-        nlist = hoomd.md.nlist.Cell(2)
-        simulation = hoomd.util.make_example_simulation(
-            particle_types=self.yes_types
-        )
-        if "params" in self.yes_pair_typed_attributes.keys():
+        if "params" in self.yes_pair_typed_attributes:
                 yes_r_cut = self.yes_pair_typed_attributes["r_cut"]
         else:
             yes_r_cut = max([
                 v["r_cut"] for v in self.yes_pair_typed_attributes.values()
             ])
-        box_length = 10 * max([
+        max_r_cut = max([
             self.no_pair_typed_attributes.get("r_cut", 0.0),
             yes_r_cut
         ])
-        simulation.state.set_box([box_length, box_length, box_length, 0, 0, 0])
-        simulation = p4.util.add_integrator(simulation)
-        simulation = p4.util.add_interaction(simulation, nlist, self)
+        
+        simulation = self._get_test_simulation(
+            particle_types=self.yes_types,
+            max_r_cut=max_r_cut,
+            nlist=hoomd.md.nlist.Cell(2),
+            interaction_or_pair=self
+        )
 
         try:
            simulation.run(0)
-        except Exception as e:
+        except RuntimeError as e:
             msg = (
                 "Validation failed: the parameterized HOOMD instance cannot be "
                 + "used in a running simulation. See traceback for details."
             )
             raise ValueError(msg) from e
+
+    @staticmethod
+    def _get_test_simulation(particle_types, max_r_cut, nlist, interaction_or_pair):
+        """Return a small example simulation with an interaction that is ready to run.
+        TODO
+        """
+        simulation = hoomd.util.make_example_simulation(
+            particle_types=particle_types
+        )
+        s = 10 * max_r_cut
+        simulation.state.set_box([s, s, s, 0, 0, 0])
+        simulation = p4.util.add_integrator(simulation)
+        if isinstance(interaction_or_pair, Interaction):
+            breakpoint()
+            simulation = p4.util.add_interaction(simulation, nlist, interaction_or_pair)
+        elif isinstance(interaction_or_pair, hoomd.md.pair.Pair):
+            simulation.operations.integrator.forces.append(interaction_or_pair)
+        
+        return simulation
 
     def to_hoomd_instance(
         self,
@@ -172,6 +191,7 @@ class Interaction:
         instance = self.to_hoomd_instance(nlist)
         
         # Calculate the pairwise combinations of all types and interacting types
+        breakpoint()
         all_type_pairs = list(itertools.combinations(all_types, 2))
         all_type_pairs.extend([(t, t) for t in all_types])
         yes_type_pairs = []
@@ -211,7 +231,7 @@ class Interaction:
         if self.yes_single_typed_attributes != {}:
             for y_t in self.yes_types:
                 # Specific attributes for the current interacting type
-                if y_t in self.yes_single_typed_attributes.keys():
+                if y_t in self.yes_single_typed_attributes:
                     atts_for_this_type = self.yes_single_typed_attributes[y_t]
 
                 # Attributes for all interacting types
@@ -250,29 +270,173 @@ class Interaction:
         
         return instance
 
-    # @classmethod
-    # def from_hoomd_md_pair(cls, pair: hoomd.md.pair.Pair) -> Interaction:
-    #     """Create an Interaction from a HOOMD pair instance.
+    @classmethod
+    def from_hoomd_pair(
+        cls,
+        pair: hoomd.md.pair.Pair
+    ) -> list[Interaction] | Interaction:
+        """Parse a hoomd.md.pair.Pair object into an Interaction.
+        
+        Parameters
+        ----------
+        pair : hoomd.md.pair.Pair
+            The hoomd pairwise force instance.
+        """
+        def get_particle_types(typeparam_dict, yes_or_all):
+            """Return a list of particle type names in a typeparameter dictionary.
+            
+            'yes' types are defined as having non-zero r_cut values.
+            """
+            if yes_or_all == "yes":
+                particle_types = []
+                for k, v in typeparam_dict["r_cut"].items():
+                    if v != 0:
+                        particle_types.extend(i for i in k if i not in particle_types)
+                return particle_types
 
-    #     Parameters
-    #     ----------
-    #     pair : hoomd.md.pair.Pair
-    #         The HOOMD pair instance.
-    #     """
-    #     hoomd_class = pair.__class__
-    #     initial_args = None
-    #     no_single_typed_attributes = None
-    #     no_pair_typed_attributes = None
-    #     yes_types = None
-    #     yes_single_typed_attributes = None
-    #     yes_pair_typed_attributes = None
+            particle_types = []
+            for name, typeparam in typeparam_dict.items():
+                for t_k, t_v in typeparam.items():
+                    if isinstance(t_k, tuple):
+                        for i in t_k:
+                            if i not in particle_types:
+                                particle_types.append(i)
+                    elif isinstance(t_k, str):
+                        if t_k not in particle_types:
+                            particle_types.append(i)
+                    else:
+                        raise ValueError(
+                            f"Malformed typeparam dict: the value for key '{name}' must "
+                            + "be a dict with tuples or strings for keys, but it has a "
+                            + f"key '{t_k}'."
+                        )
+            return particle_types
 
-    #     return cls(
-    #         hoomd_class=hoomd_class
-    #         initial_args=initial_args
-    #         no_single_typed_attributes=no_single_typed_attributes
-    #         no_pair_typed_attributes=no_pair_typed_attributes
-    #         yes_types=yes_types
-    #         yes_single_typed_attributes=yes_single_typed_attributes
-    #         yes_pair_typed_attributes=yes_pair_typed_attributes
-    #     )
+        # Ensure pair is fully parameterized
+        tpd = {k: v.to_base() for k, v in pair._typeparam_dict.items()}
+
+        max_r_cut = max([v for v in tpd["r_cut"].values()])
+
+        simulation = cls._get_test_simulation(
+            particle_types=get_particle_types(tpd, "all"),
+            max_r_cut=max_r_cut,
+            nlist=hoomd.md.nlist.Cell(2),
+            interaction_or_pair=pair
+        )
+        try:
+            simulation.run(0)
+        except RuntimeError as e:
+            msg = "pair is not properly parameterized. See traceback for details."
+            raise ValueError(msg) from e
+
+        # Constructor
+        hoomd_class = type(pair)
+        
+        # Initial args
+        initial_args = pair._param_dict.to_base()   # TODO: default_r_cut, default_r_on??
+        
+        # Delete unnecessary initial args
+        del initial_args["nlist"]
+        if "mode" in initial_args and initial_args["mode"] == "none":
+            del initial_args["mode"]
+        
+        # Attributes
+        yes_types = get_particle_types(tpd, "yes")
+
+        no_single_typed_attributes = {}
+        no_pair_typed_attributes = {}
+        yes_single_typed_attributes = {}
+        yes_pair_typed_attributes = {}
+
+        for name, typeparam in tpd.items():
+            for t_k, t_v in typeparam.items():
+                if isinstance(t_k, tuple):
+                    if all(t in yes_types for t in t_k):
+                        if t_k not in yes_pair_typed_attributes:
+                            yes_pair_typed_attributes[t_k] = {}
+                        if name not in yes_pair_typed_attributes[t_k]:
+                            yes_pair_typed_attributes[t_k][name] = {}
+                        yes_pair_typed_attributes[t_k][name] = t_v  # NOTE the order of keys # TODO: cannot currently have yes (B, B), yes (C, C), but no (B, C)
+                    else:
+                        if name not in no_pair_typed_attributes:
+                            no_pair_typed_attributes[name] = {}
+                        no_pair_typed_attributes[name] = t_v    # NOTE: this can overwrite itself
+                elif isinstance(t_k, str):
+                    if t_k in yes_types:
+                        if t_k not in yes_single_typed_attributes:
+                            yes_single_typed_attributes[t_k] = {}
+                        if name not in yes_single_typed_attributes[t_k]:
+                            yes_single_typed_attributes[t_k][name] = {}
+                        yes_single_typed_attributes[t_k][name] = t_v  # NOTE the order of keys
+                    else:
+                        if name not in no_single_typed_attributes:
+                            no_single_typed_attributes[name] = {}
+                        no_single_typed_attributes[name] = t_v  # NOTE: this can overwrite itself
+
+        kwargs=dict(
+            hoomd_class=hoomd_class,
+            initial_args=initial_args,
+            no_single_typed_attributes=no_single_typed_attributes,
+            no_pair_typed_attributes=no_pair_typed_attributes,
+            yes_types=yes_types,
+            yes_single_typed_attributes=yes_single_typed_attributes,
+            yes_pair_typed_attributes=yes_pair_typed_attributes,
+        )
+
+        return cls(**kwargs)
+
+    def from_hoomd_integrator(
+        cls,
+        integrator: hoomd.md.Integrator
+    ) -> list[Interaction] | Interaction:
+        """Parse a hoomd.md.Integrator object into 1 or more Interactions.
+        
+        This is a convenience method that is equivalent to
+
+        ```python
+        [p4.Interaction.from_hoomd_pair(p) for p in integrator.forces]
+        ```
+
+        Parameters
+        ----------
+        integrator : hoomd.md.Integrator
+            The integrator that contains the pairwise forces.
+        """
+        if not integrator.forces:
+            raise ValueError("`integrator` must have forces")
+        return [cls.from_hoomd_pair(p) for p in integrator.forces]
+
+    def from_hoomd_simulation(
+        cls,
+        simulation: hoomd.Simulation,
+    ) -> list[Interaction] | Interaction:
+        """Parse a hoomd.Simulation object into 1 or more Interactions.
+
+        This is a convenience method that is equivalent to
+        
+        ```python
+        p4.Interaction.from_hoomd_integrator(simulation.operations.integrator)
+        ```
+        Parameters
+        ----------
+        integrator : hoomd.md.Integrator
+            The simulation whose integrator contains the pairwise forces.
+        """
+        if simulation.operations.integrator is None:
+            raise ValueError("`simulation` must have an integrator")
+        if not simulation.operations.integrator.forces:
+            raise ValueError("integrator must have forces")
+        return cls.from_hoomd_integrator(simulation.operations.integrator)
+
+    def __repr__(self):
+        return (
+            "Interaction ("
+            + f"\n\thoomd_class={self.hoomd_class},"
+            + f"\n\tinitial_args={self.initial_args},"
+            + f"\n\tno_single_typed_attributes={self.no_single_typed_attributes},"
+            + f"\n\tno_pair_typed_attributes={self.no_pair_typed_attributes},"
+            + f"\n\tyes_types={self.yes_types},"
+            + f"\n\tyes_single_typed_attributes={self.yes_single_typed_attributes},"
+            + f"\n\tyes_pair_typed_attributes={self.yes_pair_typed_attributes},"
+            + "\n)"
+        )

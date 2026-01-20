@@ -455,11 +455,9 @@ class Interaction:
             "Interaction ("
             + f"\n\thoomd_class={self.hoomd_class},"
             + f"\n\tinitial_args={self.initial_args},"
-            + f"\n\tno_single_typed_attributes={self.no_single_typed_attributes},"
-            + f"\n\tno_pair_typed_attributes={self.no_pair_typed_attributes},"
-            + f"\n\tyes_types={self.yes_types},"
-            + f"\n\tyes_single_typed_attributes={self.yes_single_typed_attributes},"
-            + f"\n\tyes_pair_typed_attributes={self.yes_pair_typed_attributes},"
+            + f"\n\tno_params={self.no_params},"
+            + f"\n\tall_types={self.all_types},"
+            + f"\n\tyes_params={self.yes_params}"
             + "\n)"
         )
 

@@ -99,7 +99,7 @@ class Interaction:
         nlist = hoomd.md.nlist.Cell(2)
         try:
             _ = self.to_parameterized_hoomd_instance(nlist)
-        except AttributeError as e:
+        except (AttributeError, KeyError) as e:
             msg = "Validation failed: the HOOMD class cannot be parameterized."
             raise ValueError(msg) from e
         

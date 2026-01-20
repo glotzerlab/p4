@@ -73,8 +73,21 @@ class Interaction:
         self.validate()
 
     def validate(self):
-        """Ensure the HOOMD class can be created, parameterized, and used."""
-        # Creation
+        """Ensure this Interaction behaves properly."""
+        # Ensure all "yes" types are provided in all_types
+        for type_name in self.yes_params:
+            if isinstance(type_name, Iterable):
+                for t in type_name:
+                    reason = (
+                        f"yes type pair '{type_name}' contains '{t}', which is "
+                        + "not in all_types"
+                    )
+                    assert t in self.all_types, reason
+            else:
+                reason = f"yes type '{t}' is not in all_types"
+                assert type_name in self.all_types, reason
+
+        # Ensure the hoomd class can be instantiated
         nlist = hoomd.md.nlist.Cell(2)
         try:
             _ = self.to_hoomd_instance(nlist)
@@ -82,15 +95,15 @@ class Interaction:
             msg = "Validation failed: the HOOMD class cannot be instantiated."
             raise ValueError(msg) from e
         
-        # Parameterization
+        # Ensure the hoomd class can be parameterized
         nlist = hoomd.md.nlist.Cell(2)
         try:
             _ = self.to_parameterized_hoomd_instance(nlist)
         except AttributeError as e:
-            msg = "Validation failed: the HOOMD instance cannot be parameterized."
+            msg = "Validation failed: the HOOMD class cannot be parameterized."
             raise ValueError(msg) from e
         
-        # Usage
+        # Ensure the parameterized hoomd class can be used in a simulation
         nlist = hoomd.md.nlist.Cell(2)
         simulation = hoomd.util.make_example_simulation(
             particle_types=self.all_types

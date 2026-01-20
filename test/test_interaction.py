@@ -1111,6 +1111,78 @@ INVALID_KWARGS = [
             )
         }
     ),
+    dict(   # unexpected single types (one)
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_params=dict(
+            shape=dict(vertices=[], faces=[]),
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+            r_cut=0
+        ),
+        all_types=["A", "B"],
+        yes_params={
+            "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            "C": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("A", "B"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+                r_cut=1
+            )
+        }
+    ),
+    dict(   # unexpected single types (two)
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_params=dict(
+            shape=dict(vertices=[], faces=[]),
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+            r_cut=0
+        ),
+        all_types=["A", "B"],
+        yes_params={
+            "C": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            "D": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("A", "B"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+                r_cut=1
+            )
+        }
+    ),
+    dict(   # unexpected pair types (one)
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_params=dict(
+            shape=dict(vertices=[], faces=[]),
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+            r_cut=0
+        ),
+        all_types=["A", "B"],
+        yes_params={
+            "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("A", "C"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+                r_cut=1
+            )
+        }
+    ),
+    dict(   # unexpected pair types (both)
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_params=dict(
+            shape=dict(vertices=[], faces=[]),
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+            r_cut=0
+        ),
+        all_types=["A", "B"],
+        yes_params={
+            "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("C", "D"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+                r_cut=1
+            )
+        }
+    ),
 
     # 'yes' pair-typed attributes
     dict(   # missing required names

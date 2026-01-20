@@ -1,3 +1,4 @@
+import itertools
 import hoomd
 import pytest
 from p4 import Body, Interaction
@@ -205,17 +206,17 @@ def test_invalid_instantiation(kwargs):
 VALID_INTERACTION_KWARGS = dict(
     hoomd_class=hoomd.md.pair.LJ,
     initial_args=dict(),
-    no_single_typed_attributes=dict(),
-    no_pair_typed_attributes=dict(
+    no_params=dict(
         params=dict(epsilon=0, sigma=1),
         r_cut=0
     ),
-    yes_types=["A", "B"],
-    yes_single_typed_attributes=dict(),
-    yes_pair_typed_attributes=dict(
-        params=dict(epsilon=1, sigma=1),
-        r_cut=5
-    )
+    all_types=["A", "B", "C"],
+    yes_params={
+        ("A", "B"): dict(
+            params=dict(epsilon=1, sigma=1),
+            r_cut=5
+        )
+    }
 )
 
 @pytest.mark.parametrize("kwargs", VALID_KWARGS)
@@ -226,20 +227,33 @@ def test_must_be_rigid_body(kwargs, variant):
     interaction_kwargs = deepcopy(VALID_INTERACTION_KWARGS)
 
     if variant == "none":
-        interaction_kwargs["yes_types"] = ["Z"]
+        interaction_kwargs["all_types"] = ["Y", "Z"]
+        for type_name, param_dict in deepcopy(interaction_kwargs["yes_params"]).items():
+            interaction_kwargs["yes_params"][("Y", "Z")] = param_dict # type: ignore
+            del interaction_kwargs["yes_params"][type_name]
+
     elif variant in ["some", "all"]:
         if "secondary_types" in kwargs.keys():
             if variant == "some":
-                interaction_kwargs["yes_types"] = [kwargs["secondary_types"][0]]
+                t = kwargs["secondary_types"][0]
+                interaction_kwargs["all_types"] = [t]
+                for type_name, param_dict in deepcopy(interaction_kwargs["yes_params"]).items():
+                    interaction_kwargs["yes_params"][(t, t)] = param_dict
+                    del interaction_kwargs["yes_params"][type_name]
+
             elif variant == "all":
-                interaction_kwargs["yes_types"] = kwargs["secondary_types"]
+                interaction_kwargs["all_types"] = kwargs["secondary_types"]
+                for type_name, param_dict in deepcopy(interaction_kwargs["yes_params"]).items():
+                    for pair in itertools.combinations_with_replacement(kwargs["secondary_types"], 2):
+                        interaction_kwargs["yes_params"][pair] = param_dict
+                    del interaction_kwargs["yes_params"][type_name]
 
     i = Interaction(**interaction_kwargs)
 
     if variant == "none" or "secondary_types" not in kwargs.keys() or len(kwargs["secondary_types"]) == 0:
-        assert b.must_be_rigid_body(i) == False
+        assert not b.must_be_rigid_body(i)
     elif variant in ["some", "all"]:
-        assert b.must_be_rigid_body(i) == True
+        assert b.must_be_rigid_body(i)
 
 def make_rigid(
     primary_type,

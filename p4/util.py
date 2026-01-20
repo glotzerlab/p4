@@ -405,7 +405,6 @@ def add_interaction(
     """
     force = interaction.to_parameterized_hoomd_instance(
         nlist=nlist,
-        all_types=simulation.state.particle_types
     )
 
     simulation.operations.integrator.forces.append(force)

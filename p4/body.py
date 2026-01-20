@@ -66,7 +66,15 @@ class Body:
     
     def must_be_rigid_body(self, interaction: Interaction) -> bool:
         """Whether the body must represent a rigid body for some interaction."""
-        return any([t in self.secondary_types for t in interaction.yes_types])
+        common_single_types = any(
+            t in self.secondary_types
+            for t in interaction.yes_single_types
+        )
+        common_pair_types = any(
+            p[0] in self.secondary_types or p[1] in self.secondary_types
+            for p in interaction.yes_pair_types
+        )
+        return common_single_types or common_pair_types
 
     def validate_secondary_positions(self):
         """Ensure that the provided callable works for all secondary types."""

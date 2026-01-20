@@ -76,16 +76,18 @@ class Interaction:
         """Ensure this Interaction behaves properly."""
         # Ensure all "yes" types are provided in all_types
         for type_name in self.yes_params:
-            if isinstance(type_name, Iterable):
+            if isinstance(type_name, Iterable) and not isinstance(type_name, (str, bytes)):
                 for t in type_name:
-                    reason = (
-                        f"yes type pair '{type_name}' contains '{t}', which is "
-                        + "not in all_types"
-                    )
-                    assert t in self.all_types, reason
+                    if t not in self.all_types:
+                        raise ValueError(
+                            f"yes type pair '{type_name}' contains '{t}', "
+                            + "which is not in all_types"
+                        )
             else:
-                reason = f"yes type '{t}' is not in all_types"
-                assert type_name in self.all_types, reason
+                if type_name not in self.all_types:
+                    raise ValueError(
+                        f"yes type '{type_name}' is not in all_types"
+                    )
 
         # Ensure the hoomd class can be instantiated
         nlist = hoomd.md.nlist.Cell(2)
@@ -116,7 +118,7 @@ class Interaction:
             ])
         
         simulation = self._get_test_simulation(
-            particle_types=self.yes_types,
+            particle_types=self.all_types,
             max_r_cut=max_r_cut,
             nlist=hoomd.md.nlist.Cell(2),
             interaction_or_pair=self
@@ -147,7 +149,6 @@ class Interaction:
         simulation.state.set_box([s, s, s, 0, 0, 0])
         simulation = p4.util.add_integrator(simulation)
         if isinstance(interaction_or_pair, Interaction):
-            breakpoint()
             simulation = p4.util.add_interaction(simulation, nlist, interaction_or_pair)
         elif isinstance(interaction_or_pair, hoomd.md.pair.Pair):
             simulation.operations.integrator.forces.append(interaction_or_pair)
@@ -168,7 +169,7 @@ class Interaction:
         return [
             key
             for key in self.yes_params
-            if isinstance(key, Iterable)
+            if isinstance(key, Iterable) and not isinstance(key, (str, bytes))
                 and len(key) == 2
                 and all(i in self.all_types for i in key)
         ]

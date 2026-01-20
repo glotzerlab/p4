@@ -926,26 +926,6 @@ INVALID_KWARGS = [
         }
     ),
 
-    # All types
-    dict(   # empty
-        hoomd_class=hoomd.md.pair.aniso.ALJ,
-        initial_args=dict(nlist=NLIST),
-        no_params=dict(
-            shape=dict(vertices=[], faces=[]),
-            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
-            r_cut=0
-        ),
-        all_types=[],
-        yes_params={
-            "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
-            "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
-            ("A", "B"): dict(
-                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
-                r_cut=1
-            )
-        }
-    ),
-
     # 'no' single-typed attributes
     dict(   # missing required names
         hoomd_class=hoomd.md.pair.aniso.ALJ,

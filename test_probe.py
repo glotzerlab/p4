@@ -55,23 +55,23 @@ def test_lj_sphere(n_processes=-1):
         "LJ": pp.Interaction(
             hoomd_class=hoomd.md.pair.LJ,
             initial_args=dict(),
-            no_single_typed_attributes=dict(),
-            no_pair_typed_attributes=dict(
+            no_params=dict(
                 params=dict(
                     epsilon=0.0,
                     sigma=1.0
                 ),
                 r_cut=0.0
             ),
-            yes_types=["A", "P"],
-            yes_single_typed_attributes=dict(),
-            yes_pair_typed_attributes=dict(
-                params=dict(
-                    epsilon=1.0,
-                    sigma=0.5
-                ),
-                r_cut=2.0
-            )
+            all_types=["A", "P"],
+            yes_params={
+                ("A", "P"): dict(
+                    params=dict(
+                        epsilon=1.0,
+                        sigma=0.5
+                    ),
+                    r_cut=2.0
+                )
+            }
         )
     }
 
@@ -100,23 +100,23 @@ def test_lj_sphere_3d():
         "LJ": pp.Interaction(
             hoomd_class=hoomd.md.pair.LJ,
             initial_args=dict(),
-            no_single_typed_attributes=dict(),
-            no_pair_typed_attributes=dict(
+            no_params=dict(
                 params=dict(
                     epsilon=0.0,
                     sigma=1.0
                 ),
                 r_cut=0.0
             ),
-            yes_types=["A", "P"],
-            yes_single_typed_attributes=dict(),
-            yes_pair_typed_attributes=dict(
-                params=dict(
-                    epsilon=1.0,
-                    sigma=0.5
-                ),
-                r_cut=2.0
-            )
+            all_types=["A", "P"],
+            yes_params={
+                ("A", "P"): dict(
+                    params=dict(
+                        epsilon=1.0,
+                        sigma=0.5
+                    ),
+                    r_cut=2.0
+                )
+            }
         )
     }
 
@@ -148,21 +148,19 @@ def test_lj_sites():
         "LJ": pp.Interaction(
             hoomd_class=hoomd.md.pair.LJ,
             initial_args=dict(),
-            no_single_typed_attributes=dict(),
-            no_pair_typed_attributes=dict(
+            no_params=dict(
                 params=dict(
                     epsilon=0.0,
                     sigma=1.0
                 ),
                 r_cut=0.0
             ),
-            yes_types=["B", "P"],
-            yes_single_typed_attributes=dict(),
-            yes_pair_typed_attributes={
+            all_types=["A", "B", "P"],  # TODO: I shouldn't need to include A, but it errors if I don't...
+            yes_params={
                 ("B", "P"): dict(
                     params=dict(
-                        epsilon=0.1,
-                        sigma=0.2
+                        epsilon=1.0,
+                        sigma=0.5
                     ),
                     r_cut=2.0
                 )
@@ -194,37 +192,30 @@ def test_alj_cube():
         "ALJ": pp.Interaction(
             hoomd_class=hoomd.md.pair.aniso.ALJ,
             initial_args=dict(),
-            no_single_typed_attributes=dict(
-                shape=dict(
-                    vertices=[],
-                    faces=[]
-                )
-            ),
-            no_pair_typed_attributes=dict(
+            no_params=dict(
                 params=dict(
                     epsilon=0.0,
                     sigma_i=1.0,
                     sigma_j=1.0,
                     alpha=0,
                 ),
-                r_cut=0.0
+                r_cut=0.0,
+                shape=dict(vertices=[], faces=[])
             ),
-            yes_types=["A", "P"],
-            yes_single_typed_attributes=dict(
-                shape=dict(
-                    vertices=cube_verts(),
-                    faces=cube_faces()
-                )
-            ),
-            yes_pair_typed_attributes=dict(
-                params=dict(
-                    epsilon=0.1,
-                    sigma_i=1.0,
-                    sigma_j=1.0,
-                    alpha=0,
+            all_types=["A", "P"],
+            yes_params={
+                ("A", "P"): dict(
+                    params=dict(
+                        epsilon=1.0,
+                        sigma_i=0.5,
+                        sigma_j=0.5,
+                        alpha=1
+                    ),
+                    r_cut=2.0
                 ),
-                r_cut=2.0
-            )
+                "A": dict(shape=dict(vertices=cube_verts(), faces=cube_faces())),
+                "P": dict(shape=dict(vertices=cube_verts(), faces=cube_faces()))
+            }
         )
     }
 
@@ -261,37 +252,30 @@ def test_alj_cube_with_eg_sites(n_processes=-1):
         "ALJ": pp.Interaction(
             hoomd_class=hoomd.md.pair.aniso.ALJ,
             initial_args=dict(),
-            no_single_typed_attributes=dict(
-                shape=dict(
-                    vertices=[],
-                    faces=[]
-                )
-            ),
-            no_pair_typed_attributes=dict(
+            no_params=dict(
                 params=dict(
                     epsilon=0.0,
                     sigma_i=1.0,
                     sigma_j=1.0,
                     alpha=0,
                 ),
-                r_cut=0.0
+                r_cut=0.0,
+                shape=dict(vertices=[], faces=[])
             ),
-            yes_types=["A", "P"],
-            yes_single_typed_attributes=dict(
-                shape=dict(
-                    vertices=cube_verts(),
-                    faces=cube_faces()
-                )
-            ),
-            yes_pair_typed_attributes=dict(
-                params=dict(
-                    epsilon=0.1,
-                    sigma_i=1.0,
-                    sigma_j=1.0,
-                    alpha=0,
+            all_types=["A", "P", "B", "P2"],  # TODO: I shouldn't need to include B and P2, but it errors if I don't...
+            yes_params={
+                ("A", "P"): dict(
+                    params=dict(
+                        epsilon=1.0,
+                        sigma_i=0.2,
+                        sigma_j=0.2,
+                        alpha=1
+                    ),
+                    r_cut=2.0
                 ),
-                r_cut=2.0
-            )
+                "A": dict(shape=dict(vertices=cube_verts(), faces=cube_faces())),
+                "P": dict(shape=dict(vertices=cube_verts(), faces=cube_faces()))
+            }
         ),
         "EG": pp.Interaction(
             hoomd_class=hoomd.md.pair.ExpandedGaussian,
@@ -299,8 +283,7 @@ def test_alj_cube_with_eg_sites(n_processes=-1):
                 default_r_cut=1.0,
                 default_r_on=0.0,
             ),
-            no_single_typed_attributes=dict(),
-            no_pair_typed_attributes=dict(
+            no_params=dict(
                 params=dict(
                     epsilon=0.0,
                     sigma=0.1,
@@ -308,16 +291,17 @@ def test_alj_cube_with_eg_sites(n_processes=-1):
                 ),
                 r_cut=0.0
             ),
-            yes_types=["B", "P2"],
-            yes_single_typed_attributes=dict(),
-            yes_pair_typed_attributes=dict(
-                params=dict(
-                    epsilon=-1.0,
-                    sigma=0.1,
-                    delta=0.2
-                ),
-                r_cut=2.0
-            )
+            all_types=["B", "P2", "A", "P"],  # TODO: I shouldn't need to include A and P, but it errors if I don't...
+            yes_params={
+                ("B", "P2"): dict(
+                    params=dict(
+                        epsilon=-1.0,
+                        sigma=0.1,
+                        delta=0.2
+                    ),
+                    r_cut=2.0
+                )
+            }
         )
     }
 
@@ -349,9 +333,9 @@ if __name__ == "__main__":
     #     test_alj_cube_with_eg_sites(n_processes)
     #     print(f"{n_processes} processes completed in {round(time.perf_counter() - start_time, 2)} s.")
     # test_alj_cube_with_eg_sites(2)
-    test_lj_sites()               # looks good
-    test_alj_cube()               # looks good
-    test_alj_cube_with_eg_sites()   # looks good
+    test_lj_sites()
+    test_alj_cube()
+    test_alj_cube_with_eg_sites()
     test_lj_sphere_3d()
 
     # f = pp.Field.from_csv("test-lj-sphere-3d.csv", "mean")

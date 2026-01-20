@@ -184,10 +184,10 @@ def test_no_unexpected_initial_arg_clashes():
                 classes_by_arg[arg] = [cls]
 
 
-# 3. Manually set non-interacting attribute values and verify that
-#   1. there are no attribute names that we don't know how to handle
-#   2. there are no attribute types that we don't know how to handle (no 3+ tuples)
-#   3. there are no attribute clashes that we haven't approved
+# 3. Manually set non-interacting param values and verify that
+#   1. there are no param names that we don't know how to handle
+#   2. there are no param types that we don't know how to handle (no 3+ tuples)
+#   3. there are no param clashes that we haven't approved
 
 
 class Required:
@@ -250,9 +250,9 @@ def parse_typeparam_default_item_dict(d, required_or_optional):
         
     return subdict
 
-def parse_attributes(hoomd_class, single_or_pair, required_or_optional):
-    """Return an attribute dictionary for a given constructor."""
-    attributes = {}
+def parse_params(hoomd_class, single_or_pair, required_or_optional):
+    """Return a param dictionary for a given constructor."""
+    params = {}
     required_args = parse_initial_arg_names(hoomd_class, "required")
     initial_args = {arg: INITIAL_ARGS_REQUIRED[arg] for arg in required_args}
     tpd = hoomd_class(nlist=NLIST, **initial_args)._typeparam_dict
@@ -285,11 +285,11 @@ def parse_attributes(hoomd_class, single_or_pair, required_or_optional):
         if something_to_add:
             if typeparam._indexer.len_key == 1:
                 if single_or_pair in ["single", "all"]:
-                        attributes[name] = value
+                        params[name] = value
             
             elif typeparam._indexer.len_key == 2:
                 if single_or_pair in ["pair", "all"]:
-                        attributes[name] = value
+                        params[name] = value
 
             else:
                 raise Exception(
@@ -297,34 +297,34 @@ def parse_attributes(hoomd_class, single_or_pair, required_or_optional):
                     f"{typeparam._indexer.len_key=}, but only 1 and 2 are allowed."
                 )
     
-    return attributes
+    return params
 
-def get_all_attributes(classes, single_or_pair, required_or_optional):
-    """Return a dictionary of all attributes for the provided classes."""
-    attributes = [
-        parse_attributes(cls, single_or_pair, required_or_optional)
+def get_all_params(classes, single_or_pair, required_or_optional):
+    """Return a dictionary of all params for the provided classes."""
+    params = [
+        parse_params(cls, single_or_pair, required_or_optional)
         for cls in classes
     ]
 
-    merged_attributes = {}
-    for attribute in attributes:
-        for k, v in attribute.items():
-            if k not in merged_attributes:
-                merged_attributes[k] = v
+    merged_params = {}
+    for param in params:
+        for k, v in param.items():
+            if k not in merged_params:
+                merged_params[k] = v
             else:
                 if isinstance(v, dict):
                     for sk, sv in v.items():
-                        if sk not in merged_attributes[k]:
-                            merged_attributes[k][sk] = sv    # Note the potential for a clash between 'no' values here
+                        if sk not in merged_params[k]:
+                            merged_params[k][sk] = sv    # Note the potential for a clash between 'no' values here
                         else:
                             if isinstance(sv, dict):
                                 for ssk, ssv in sv.items():
-                                    if ssk not in merged_attributes[k][sk]:
-                                        merged_attributes[k][sk][ssk] = ssv    # Note the potential for a clash between 'no' values here
+                                    if ssk not in merged_params[k][sk]:
+                                        merged_params[k][sk][ssk] = ssv    # Note the potential for a clash between 'no' values here
 
-    return merged_attributes
+    return merged_params
 
-NO_ATTRIBUTES_REQUIRED = dict(
+NO_PARAMS_REQUIRED = dict(
     # Single-typed
     shape=dict(
         vertices=[],
@@ -394,7 +394,7 @@ NO_ATTRIBUTES_REQUIRED = dict(
         B=1,
     )
 )
-NO_ATTRIBUTES_OPTIONAL = dict( # different from API's default values
+NO_PARAMS_OPTIONAL = dict( # different from API's default values
     # Single-typed
     shape=dict(
         rounding_radii=(1,1,1)
@@ -411,13 +411,13 @@ NO_ATTRIBUTES_OPTIONAL = dict( # different from API's default values
     )
 )
 
-def get_types_with_attribute(classes, attribute, single_or_pair, required_or_optional):
-    """Return a list of types with a given attribute.
+def get_types_with_param(classes, param_path, single_or_pair, required_or_optional):
+    """Return a list of types with a given param.
     
-    The attribute may be a string or a list. If it is a listt, it refers to an
-    attribute (at the end of a list) that is nested successively inside other
-    attributes (the rest of the list). For example, ["a", "b", "c"] refers to
-    the attribute structure
+    The param_path may be a string or a list. If it is a list, it refers to a
+    param (at the end of a list) that is nested successively inside other
+    params (the rest of the list). For example, ["a", "b", "c"] refers to
+    the param structure
 
     ```
     a
@@ -425,55 +425,55 @@ def get_types_with_attribute(classes, attribute, single_or_pair, required_or_opt
     │  ├─ c
     ```
     """
-    if isinstance(attribute, list) and len(attribute) == 1:
-        attribute = attribute[0]
+    if isinstance(param_path, list) and len(param_path) == 1:
+        param_path = param_path[0]
 
-    if isinstance(attribute, str):
+    if isinstance(param_path, str):
         if required_or_optional == "all":
             required_results = [
                 cls
                 for cls in classes
-                if attribute in parse_attributes(cls, single_or_pair, "required")
+                if param_path in parse_params(cls, single_or_pair, "required")
             ]
             optional_results = [
                 cls
                 for cls in classes
-                if attribute in parse_attributes(cls, single_or_pair, "optional")
+                if param_path in parse_params(cls, single_or_pair, "optional")
             ]
             positive_results = list(set(required_results + optional_results))
         else:
             positive_results = [
                 cls
                 for cls in classes
-                if attribute in parse_attributes(cls, single_or_pair, required_or_optional)
+                if param_path in parse_params(cls, single_or_pair, required_or_optional)
             ]
         return positive_results
     
-    elif isinstance(attribute, list):
+    elif isinstance(param_path, list):
         positive_results = []
         for cls in classes:
             levels_searched = 0
-            current_level_dict = parse_attributes(cls, single_or_pair, required_or_optional)
-            for level_name in attribute:
+            current_level_dict = parse_params(cls, single_or_pair, required_or_optional)
+            for level_name in param_path:
                 if level_name in current_level_dict:
                     current_level_dict = current_level_dict[level_name]
                     levels_searched += 1
-            if levels_searched == len(attribute):
+            if levels_searched == len(param_path):
                 positive_results.append(cls)
         return positive_results
 
-APPROVED_ATTRIBUTE_CLASHES = dict(
-    r_cut=get_types_with_attribute(CLASSES_TO_TEST, "r_cut", "all", "all"),         # always positive float
-    r_on=get_types_with_attribute(CLASSES_TO_TEST, "r_on", "all", "all"),           # always positive float
-    directors=get_types_with_attribute(CLASSES_TO_TEST, "directors", "all", "all"), # always N-list of 3-tuples of floats
+APPROVED_PARAM_CLASHES = dict(
+    r_cut=get_types_with_param(CLASSES_TO_TEST, "r_cut", "all", "all"),         # always positive float
+    r_on=get_types_with_param(CLASSES_TO_TEST, "r_on", "all", "all"),           # always positive float
+    directors=get_types_with_param(CLASSES_TO_TEST, "directors", "all", "all"), # always N-list of 3-tuples of floats
     mu=[
         hoomd.md.pair.aniso.Dipole, # 3-tuple of floats
         hoomd.md.pair.aniso.YLZ,    # 3-tuple of floats
     ],
     params=dict(
-        epsilon=get_types_with_attribute(CLASSES_TO_TEST, ["params", "epsilon"], "all", "all"), # always float
-        sigma=get_types_with_attribute(CLASSES_TO_TEST, ["params", "sigma"], "all", "all"),     # always positive non-zero float
-        delta=get_types_with_attribute(CLASSES_TO_TEST, ["params", "delta"], "all", "all"),     # always positive float
+        epsilon=get_types_with_param(CLASSES_TO_TEST, ["params", "epsilon"], "all", "all"), # always float
+        sigma=get_types_with_param(CLASSES_TO_TEST, ["params", "sigma"], "all", "all"),     # always positive non-zero float
+        delta=get_types_with_param(CLASSES_TO_TEST, ["params", "delta"], "all", "all"),     # always positive float
         alpha=[
             hoomd.md.pair.aniso.ALJ,    # int 0-3
             hoomd.md.pair.Morse,        # positive non-zero float
@@ -516,17 +516,17 @@ APPROVED_ATTRIBUTE_CLASHES = dict(
             hoomd.md.pair.pair.LJGauss, # float
             hoomd.md.pair.pair.Morse,   # float
         ],
-        qi=get_types_with_attribute(CLASSES_TO_TEST, ["params", "qi"], "all", "all"),   # always float
-        qj=get_types_with_attribute(CLASSES_TO_TEST, ["params", "qj"], "all", "all"),   # always float
-        aF=get_types_with_attribute(CLASSES_TO_TEST, ["params", "aF"], "all", "all"),   # always float
+        qi=get_types_with_param(CLASSES_TO_TEST, ["params", "qi"], "all", "all"),   # always float
+        qj=get_types_with_param(CLASSES_TO_TEST, ["params", "qj"], "all", "all"),   # always float
+        aF=get_types_with_param(CLASSES_TO_TEST, ["params", "aF"], "all", "all"),   # always float
         envelope_params=dict(
-            alpha=get_types_with_attribute(CLASSES_TO_TEST, ["params", "envelope_params", "alpha"], "pair", "required"),    # inhereted from Patchy, only used in Patchy's subclasses
-            omega=get_types_with_attribute(CLASSES_TO_TEST, ["params", "envelope_params", "omega"], "pair", "required"),    # inhereted from Patchy, only used in Patchy's subclasses
+            alpha=get_types_with_param(CLASSES_TO_TEST, ["params", "envelope_params", "alpha"], "pair", "required"),    # inhereted from Patchy, only used in Patchy's subclasses
+            omega=get_types_with_param(CLASSES_TO_TEST, ["params", "envelope_params", "omega"], "pair", "required"),    # inhereted from Patchy, only used in Patchy's subclasses
         ),
         pair_params=dict(
-            epsilon=get_types_with_attribute(CLASSES_TO_TEST, ["params", "pair_params", "epsilon"], "pair", "required"),# always float 
-            sigma=get_types_with_attribute(CLASSES_TO_TEST, ["params", "pair_params", "sigma"], "pair", "required"),    # always float
-            delta=get_types_with_attribute(CLASSES_TO_TEST, ["params", "pair_params", "delta"], "pair", "required"),    # always float
+            epsilon=get_types_with_param(CLASSES_TO_TEST, ["params", "pair_params", "epsilon"], "pair", "required"),# always float 
+            sigma=get_types_with_param(CLASSES_TO_TEST, ["params", "pair_params", "sigma"], "pair", "required"),    # always float
+            delta=get_types_with_param(CLASSES_TO_TEST, ["params", "pair_params", "delta"], "pair", "required"),    # always float
             m=[
                 hoomd.md.pair.aniso.PatchyExpandedMie,  # float, cannot equal n
                 hoomd.md.pair.aniso.PatchyMie,          # float, cannot equal n
@@ -539,39 +539,39 @@ APPROVED_ATTRIBUTE_CLASHES = dict(
     )
 )
 
-def test_no_unexpected_attribute_paths():
-    """Ensure all attributes parsed from classes are provided in constants.
+def test_no_unexpected_param_paths():
+    """Ensure all params parsed from classes are provided in constants.
     
     Only 'no' constants are tested (not the 'yes' constants), because if
-    setting an attribute works for no values then it should also work for
+    setting an param works for no values then it should also work for
     yes values.
     """
     for t in ["single", "pair"]:
         for r in ["required", "optional"]:
             if r == "required":
-                const = NO_ATTRIBUTES_REQUIRED
-                const_name = "NO_ATTRIBUTES_REQUIRED"
+                const = NO_PARAMS_REQUIRED
+                const_name = "NO_PARAMS_REQUIRED"
             elif r == "optional":
-                const = NO_ATTRIBUTES_OPTIONAL
-                const_name = "NO_ATTRIBUTES_OPTIONAL"
+                const = NO_PARAMS_OPTIONAL
+                const_name = "NO_PARAMS_OPTIONAL"
 
-            attributes = get_all_attributes(CLASSES_TO_TEST, t, r)
-            for k, v in attributes.items():
-                reason = f"Attribute with name '{k}' is not given in {const_name}."
+            params = get_all_params(CLASSES_TO_TEST, t, r)
+            for k, v in params.items():
+                reason = f"param with name '{k}' is not given in {const_name}."
                 assert k in const, reason
 
                 if isinstance(v, dict):
                     for sk, sv in v.items():
-                        reason = f"Attribute with name '{sk}' is not given in {const_name}['{k}']."
+                        reason = f"param with name '{sk}' is not given in {const_name}['{k}']."
                         assert sk in const[k], reason
 
                         if isinstance(sv, dict):
                             for ssk, _ in sv.items():
-                                reason = f"Attribute with name '{ssk}' is not given in {const_name}['{k}']['{sk}']."
+                                reason = f"param with name '{ssk}' is not given in {const_name}['{k}']['{sk}']."
                                 assert ssk in const[k][sk], reason
 
-def test_no_unexpected_attribute_types():
-    """Ensure all attributes are set with 1 or 2-tuples of particle types.
+def test_no_unexpected_param_types():
+    """Ensure all params are set with 1 or 2-tuples of particle types.
     
     This test is required because parsing only knows how to handle those cases.
     """
@@ -581,55 +581,55 @@ def test_no_unexpected_attribute_types():
         tpd = cls(nlist=NLIST, **initial_args)._typeparam_dict
 
         for typeparam in tpd.values():
-            reason = "All typed attributes must be assignable to single types or pairs of types."
+            reason = "All typed params must be assignable to single types or pairs of types."
             assert typeparam._indexer.len_key in (1, 2), reason
 
-def test_no_unexpected_attribute_clashes():
-    """Ensure attributes for classes are all unique unless explicitly approved.
+def test_no_unexpected_param_clashes():
+    """Ensure params for classes are all unique unless explicitly approved.
     
-    This test is required because required and optional attributes are all
-    pulled from `NO_ATTRIBUTES_REQUIRED` and `NO_ATTRIBUTES_OPTIONAL`,
+    This test is required because required and optional params are all
+    pulled from `NO_PARAMS_REQUIRED` and `NO_PARAMS_OPTIONAL`,
     which could cause errors on instantiation if different constructors have
     args with the same name but they expect different kinds of values.
     """
-    attributes = get_all_attributes(CLASSES_TO_TEST, "all", "all")
+    params = get_all_params(CLASSES_TO_TEST, "all", "all")
     
-    for k, v in attributes.items():
+    for k, v in params.items():
         if isinstance(v, dict):
             for sk, sv in v.items():
                 if isinstance(sv, dict):
                     for ssk, _ in sv.items():
-                        classes_with_attribute = get_types_with_attribute(CLASSES_TO_TEST, [k, sk, ssk], "all", "all")
-                        if len(classes_with_attribute) > 1:
-                            reason = f"Attribute with path '{k}.{sk}.{ssk}' has clashes but is not given in `APPROVED_ATTRIBUTE_CLASHES`."
-                            assert ssk in APPROVED_ATTRIBUTE_CLASHES[k][sk], reason
+                        classes_with_param = get_types_with_param(CLASSES_TO_TEST, [k, sk, ssk], "all", "all")
+                        if len(classes_with_param) > 1:
+                            reason = f"param with path '{k}/{sk}/{ssk}' has clashes but is not given in `APPROVED_PARAM_CLASHES`."
+                            assert ssk in APPROVED_PARAM_CLASHES[k][sk], reason
 
-                            unapproved_clashes = [cls for cls in classes_with_attribute if cls not in APPROVED_ATTRIBUTE_CLASHES[k][sk][ssk]]
-                            reason = f"Attribute with path '{k}.{sk}.{ssk}' has the following unapproved clashes: {unapproved_clashes}."
+                            unapproved_clashes = [cls for cls in classes_with_param if cls not in APPROVED_PARAM_CLASHES[k][sk][ssk]]
+                            reason = f"param with path '{k}/{sk}/{ssk}' has the following unapproved clashes: {unapproved_clashes}."
                             assert len(unapproved_clashes) == 0, reason
 
                 else:
-                    classes_with_attribute = get_types_with_attribute(CLASSES_TO_TEST, [k, sk], "all", "all")
-                    if len(classes_with_attribute) > 1:
-                        reason = f"Attribute with path '{k}.{sk}' has clashes but is not given in `APPROVED_ATTRIBUTE_CLASHES`."
-                        assert sk in APPROVED_ATTRIBUTE_CLASHES[k], reason
+                    classes_with_param = get_types_with_param(CLASSES_TO_TEST, [k, sk], "all", "all")
+                    if len(classes_with_param) > 1:
+                        reason = f"param with path '{k}/{sk}' has clashes but is not given in `APPROVED_PARAM_CLASHES`."
+                        assert sk in APPROVED_PARAM_CLASHES[k], reason
                         
-                        unapproved_clashes = [cls for cls in classes_with_attribute if cls not in APPROVED_ATTRIBUTE_CLASHES[k][sk]]
-                        reason = f"Attribute with path '{k}.{sk}' has the following unapproved clashes: {unapproved_clashes}."
+                        unapproved_clashes = [cls for cls in classes_with_param if cls not in APPROVED_PARAM_CLASHES[k][sk]]
+                        reason = f"param with path '{k}/{sk}' has the following unapproved clashes: {unapproved_clashes}."
                         assert len(unapproved_clashes) == 0, reason
         else:
-            classes_with_attribute = get_types_with_attribute(CLASSES_TO_TEST, k, "all", "all")
-            if len(classes_with_attribute) > 1:
-                reason = f"Attribute with path '{k}' has clashes but is not given in `APPROVED_ATTRIBUTE_CLASHES`."
-                assert k in APPROVED_ATTRIBUTE_CLASHES, reason
+            classes_with_param = get_types_with_param(CLASSES_TO_TEST, k, "all", "all")
+            if len(classes_with_param) > 1:
+                reason = f"param with path '{k}' has clashes but is not given in `APPROVED_PARAM_CLASHES`."
+                assert k in APPROVED_PARAM_CLASHES, reason
                 
-                unapproved_clashes = [cls for cls in classes_with_attribute if cls not in APPROVED_ATTRIBUTE_CLASHES[k]]
-                reason = f"Attribute with path '{k}' has the following unapproved clashes: {unapproved_clashes}."
+                unapproved_clashes = [cls for cls in classes_with_param if cls not in APPROVED_PARAM_CLASHES[k]]
+                reason = f"param with path '{k}' has the following unapproved clashes: {unapproved_clashes}."
                 assert len(unapproved_clashes) == 0, reason
 
 
-# 4. Manually set yes attribute values, and verify that
-#   1. all yes attributes are included in the no attributes
+# 4. Manually set yes param values, and verify that
+#   1. all yes params are included in the no params
 
 
 def get_cube_vertices(side_length):
@@ -655,7 +655,7 @@ def get_cube_faces():
         [1, 5, 7, 3],
     ]
 
-YES_ATTRIBUTES_REQUIRED = dict(
+YES_PARAMS_REQUIRED = dict(
     # Single-typed
     shape=dict(
         vertices=get_cube_vertices(1),
@@ -725,7 +725,7 @@ YES_ATTRIBUTES_REQUIRED = dict(
         B=2,
     )
 )
-YES_ATTRIBUTES_OPTIONAL = dict( # different from API's default values
+YES_PARAMS_OPTIONAL = dict( # different from API's default values
     # Single-typed
     shape=dict(
         rounding_radii=(2,2,2)
@@ -742,79 +742,81 @@ YES_ATTRIBUTES_OPTIONAL = dict( # different from API's default values
     )
 )
 
-def test_all_yes_attributes_also_in_nos():
-    """Ensure that all 'yes' attributes are also given in 'no' constants."""
+def test_all_yes_params_also_in_nos():
+    """Ensure that all params in the 'yes' constants are also given in 'no' constants."""
     for r in ["required", "optional"]:
         if r == "required":
-            yes_const = YES_ATTRIBUTES_REQUIRED
-            no_const = NO_ATTRIBUTES_REQUIRED
+            yes_const = YES_PARAMS_REQUIRED
+            no_const = NO_PARAMS_REQUIRED
         elif r == "optional":
-            yes_const = YES_ATTRIBUTES_OPTIONAL
-            no_const = NO_ATTRIBUTES_OPTIONAL
+            yes_const = YES_PARAMS_OPTIONAL
+            no_const = NO_PARAMS_OPTIONAL
     
         for k, v in yes_const.items():
             if isinstance(v, dict):
                 for sk, sv in v.items():
                     if isinstance(sv, dict):
                         for ssk, _ in sv.items():
-                            reason = f"Attribute with path '{k}.{sk}.{ssk}' is given in the 'yes' constant but not in the 'no' constant."
+                            reason = f"param with path '{k}.{sk}.{ssk}' is given in the 'yes' constant but not in the 'no' constant."
                             assert ssk in no_const[k][sk], reason
 
                     else:
-                        reason = f"Attribute with path '{k}.{sk}' is given in the 'yes' constant but not in the 'no' constant."
+                        reason = f"param with path '{k}.{sk}' is given in the 'yes' constant but not in the 'no' constant."
                         assert sk in no_const[k], reason
             else:
-                reason = f"Attribute with path '{k}' is given in the 'yes' constant but not in the 'no' constant."
+                reason = f"param with path '{k}' is given in the 'yes' constant but not in the 'no' constant."
                 assert k in no_const, reason
 
 
 # 5. Begin actual tests. Verify that
 #   1. instantiation works given valid args for every hoomd class
 #   2. instantiation fails expectedly given various kinds of invalid args (not needed for every class)
-#   3. 'to' methods produce expected outputs
-#   4. 'from' methods work given valid args
-#   5. 'from' methods fail expectedly given various kinds of invalid args
+#   3. properties behave as expected
+#   4. 'to' methods produce expected outputs
+#   5. 'from' methods work given valid args
+#   6. 'from' methods fail expectedly given various kinds of invalid args
 
-def get_typed_attributes(cls, no_or_yes, single_or_pair, required_or_all):
-    """Return the appropriate attribute dict with values set from defaults and constants."""
+
+def get_typed_params(cls, no_or_yes, single_or_pair, required_or_all):
+    """Return the appropriate param dict with values set from defaults and constants."""
     if no_or_yes == "no":
-        const_required = NO_ATTRIBUTES_REQUIRED
-        const_optional = NO_ATTRIBUTES_OPTIONAL
+        const_required = NO_PARAMS_REQUIRED
+        const_optional = NO_PARAMS_OPTIONAL
     elif no_or_yes == "yes":
-        const_required = YES_ATTRIBUTES_REQUIRED
-        const_optional = YES_ATTRIBUTES_OPTIONAL
+        const_required = YES_PARAMS_REQUIRED
+        const_optional = YES_PARAMS_OPTIONAL
 
-    parsed_attributes = parse_attributes(cls, single_or_pair, required_or_all)
-    final_attributes = {}
-    for k, v in parsed_attributes.items():
+    parsed_params = parse_params(cls, single_or_pair, required_or_all)
+    final_params = {}
+    for k, v in parsed_params.items():
         if isinstance(v, dict):
-            if k not in final_attributes:
-                final_attributes[k] = {}
+            if k not in final_params:
+                final_params[k] = {}
             
-            for sk, sv in parsed_attributes[k].items():
+            for sk, sv in parsed_params[k].items():
                 if isinstance(sv, dict):
-                    if sk not in final_attributes[k]:
-                        final_attributes[k][sk] = {}
+                    if sk not in final_params[k]:
+                        final_params[k][sk] = {}
                     
-                    for ssk, _ in parsed_attributes[k][sk].items():
+                    for ssk, _ in parsed_params[k][sk].items():
                         if k in const_required and sk in const_required[k] and ssk in const_required[k][sk]:
-                            final_attributes[k][sk][ssk] = const_required[k][sk][ssk]
+                            final_params[k][sk][ssk] = const_required[k][sk][ssk]
                         elif required_or_all == "all" and k in const_optional and sk in const_optional[k] and ssk in const_optional[k][sk]:
-                            final_attributes[k][sk][ssk] = const_optional[k][sk][ssk]
+                            final_params[k][sk][ssk] = const_optional[k][sk][ssk]
 
                 else:
                     if k in const_required and sk in const_required[k]:
-                        final_attributes[k][sk] = const_required[k][sk]
+                        final_params[k][sk] = const_required[k][sk]
                     elif required_or_all == "all" and k in const_optional and sk in const_optional[k]:
-                        final_attributes[k][sk] = const_optional[k][sk]
+                        final_params[k][sk] = const_optional[k][sk]
         
         else:
             if k in const_required:
-                final_attributes[k] = const_required[k]
+                final_params[k] = const_required[k]
             elif required_or_all == "all" and k in const_optional:
-                final_attributes[k] = const_optional[k]
+                final_params[k] = const_optional[k]
 
-    return final_attributes
+    return final_params
 
 def get_kwargs(cls, required_or_all):
     """Return just required or all possible kwargs for the provided constructor."""
@@ -825,19 +827,19 @@ def get_kwargs(cls, required_or_all):
         elif required_or_all == "all" and name in INITIAL_ARGS_OPTIONAL:
             initial_args[name] = INITIAL_ARGS_OPTIONAL[name]
 
-    no_single_typed_attributes = get_typed_attributes(cls, "no", "single", required_or_all)
-    yes_single_typed_attributes = get_typed_attributes(cls, "yes", "single", required_or_all)
-    no_pair_typed_attributes = get_typed_attributes(cls, "no", "pair", required_or_all)
-    yes_pair_typed_attributes = get_typed_attributes(cls, "yes", "pair", required_or_all)
+    no_params = get_typed_params(cls, "no", "all", required_or_all)
+    yes_params = {
+        "A": get_typed_params(cls, "yes", "single", required_or_all),
+        "B": get_typed_params(cls, "yes", "single", required_or_all),
+        ("A", "B"): get_typed_params(cls, "yes", "pair", required_or_all)
+    }
 
     kwargs = dict(
         hoomd_class=cls,
         initial_args=initial_args,
-        no_single_typed_attributes=no_single_typed_attributes,
-        no_pair_typed_attributes=no_pair_typed_attributes,
-        yes_types=["A", "B"],
-        yes_single_typed_attributes=yes_single_typed_attributes,
-        yes_pair_typed_attributes=yes_pair_typed_attributes
+        no_params=no_params,
+        all_types=["A", "B"],
+        yes_params=yes_params
     )
 
     return kwargs
@@ -876,320 +878,477 @@ def test_instantiation_valid(cls, required_or_all):
     kwargs = get_kwargs(cls, required_or_all)
     _ = Interaction(**kwargs)
 
-INVALID_PARAMETERS = [
+INVALID_KWARGS = [
     # Initial args
     dict(   # missing required names
         hoomd_class=hoomd.md.pair.DPD,
         initial_args=dict(),
-        no_single_typed_attributes=dict(),
-        no_pair_typed_attributes=dict(
+        no_params=dict(
             params=dict(A=0, gamma=1),
             r_cut=0
         ),
-        yes_types=["A", "B"],
-        yes_single_typed_attributes=dict(),
-        yes_pair_typed_attributes=dict(
-            params=dict(A=1, gamma=1),
-            r_cut=1
-        )
+        all_types=["A", "B"],
+        yes_params={
+            ("A", "B"): dict(
+                params=dict(A=1, gamma=1),
+                r_cut=1
+            )
+        }
     ),
     dict(   # unexpected names
         hoomd_class=hoomd.md.pair.DPD,
         initial_args=dict(kT=1, wrong=None),
-        no_single_typed_attributes=dict(),
-        no_pair_typed_attributes=dict(
+        no_params=dict(
             params=dict(A=0, gamma=1),
             r_cut=0
         ),
-        yes_types=["A", "B"],
-        yes_single_typed_attributes=dict(),
-        yes_pair_typed_attributes=dict(
-            params=dict(A=1, gamma=1),
-            r_cut=1
-        )
+        all_types=["A", "B"],
+        yes_params={
+            ("A", "B"): dict(
+                params=dict(A=1, gamma=1),
+                r_cut=1
+            )
+        }
     ),
     dict(   # wrong values
         hoomd_class=hoomd.md.pair.DPD,
         initial_args=dict(kT=None),
-        no_single_typed_attributes=dict(),
-        no_pair_typed_attributes=dict(
+        no_params=dict(
             params=dict(A=0, gamma=1),
             r_cut=0
         ),
-        yes_types=["A", "B"],
-        yes_single_typed_attributes=dict(),
-        yes_pair_typed_attributes=dict(
-            params=dict(A=1, gamma=1),
-            r_cut=1
-        )
+        all_types=["A", "B"],
+        yes_params={
+            ("A", "B"): dict(
+                params=dict(A=1, gamma=1),
+                r_cut=1
+            )
+        }
     ),
 
-    # Yes types
+    # All types
     dict(   # empty
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_single_typed_attributes=dict(
-            shape=dict(vertices=[], faces=[])
-        ),
-        no_pair_typed_attributes=dict(
+        no_params=dict(
+            shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        yes_types=[],
-        yes_single_typed_attributes=dict(
-            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
-        ),
-        yes_pair_typed_attributes=dict(
-            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
-            r_cut=1
-        )
+        all_types=[],
+        yes_params={
+            "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("A", "B"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+                r_cut=1
+            )
+        }
     ),
 
     # 'no' single-typed attributes
     dict(   # missing required names
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_single_typed_attributes=dict(
-            shape=dict(vertices=[])
-        ),
-        no_pair_typed_attributes=dict(
+        no_params=dict(
+            shape=dict(vertices=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        yes_types=["A", "B"],
-        yes_single_typed_attributes=dict(
-            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
-        ),
-        yes_pair_typed_attributes=dict(
-            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
-            r_cut=1
-        )
+        all_types=["A", "B"],
+        yes_params={
+            "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("A", "B"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+                r_cut=1
+            )
+        }
     ),
     dict(   # unexpected names
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_single_typed_attributes=dict(
-            shape=dict(vertices=[], faces=[], wrong=None)
-        ),
-        no_pair_typed_attributes=dict(
+        no_params=dict(
+            shape=dict(vertices=[], faces=[], wrong=None),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        yes_types=["A", "B"],
-        yes_single_typed_attributes=dict(
-            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
-        ),
-        yes_pair_typed_attributes=dict(
-            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
-            r_cut=1
-        )
+        all_types=["A", "B"],
+        yes_params={
+            "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("A", "B"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+                r_cut=1
+            )
+        }
     ),
     dict(   # wrong values
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_single_typed_attributes=dict(
-            shape=dict(vertices=[], faces=None)
-        ),
-        no_pair_typed_attributes=dict(
+        no_params=dict(
+            shape=dict(vertices=[], faces=None),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        yes_types=["A", "B"],
-        yes_single_typed_attributes=dict(
-            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
-        ),
-        yes_pair_typed_attributes=dict(
-            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
-            r_cut=1
-        )
+        all_types=["A", "B"],
+        yes_params={
+            "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("A", "B"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+                r_cut=1
+            )
+        }
     ),
 
     # 'no' pair-typed attributes
     dict(   # missing required names
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_single_typed_attributes=dict(
-            shape=dict(vertices=[], faces=[])
-        ),
-        no_pair_typed_attributes=dict(
+        no_params=dict(
+            shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1),
             r_cut=0
         ),
-        yes_types=["A", "B"],
-        yes_single_typed_attributes=dict(
-            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
-        ),
-        yes_pair_typed_attributes=dict(
-            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
-            r_cut=1
-        )
+        all_types=["A", "B"],
+        yes_params={
+            "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("A", "B"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+                r_cut=1
+            )
+        }
     ),
     dict(   # unexpected names
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_single_typed_attributes=dict(
-            shape=dict(vertices=[], faces=[])
-        ),
-        no_pair_typed_attributes=dict(
+        no_params=dict(
+            shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0, wrong=None),
             r_cut=0
         ),
-        yes_types=["A", "B"],
-        yes_single_typed_attributes=dict(
-            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
-        ),
-        yes_pair_typed_attributes=dict(
-            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
-            r_cut=1
-        )
+        all_types=["A", "B"],
+        yes_params={
+            "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("A", "B"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+                r_cut=1
+            )
+        }
     ),
     dict(   # wrong values
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_single_typed_attributes=dict(
-            shape=dict(vertices=[], faces=[])
-        ),
-        no_pair_typed_attributes=dict(
+        no_params=dict(
+            shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=None),
             r_cut=0
         ),
-        yes_types=["A", "B"],
-        yes_single_typed_attributes=dict(
-            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
-        ),
-        yes_pair_typed_attributes=dict(
-            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
-            r_cut=1
-        )
+        all_types=["A", "B"],
+        yes_params={
+            "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("A", "B"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+                r_cut=1
+            )
+        }
     ),
 
     # 'yes' single-typed attributes
     dict(   # missing required names
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_single_typed_attributes=dict(
-            shape=dict(vertices=[], faces=[])
-        ),
-        no_pair_typed_attributes=dict(
+        no_params=dict(
+            shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        yes_types=["A", "B"],
-        yes_single_typed_attributes=dict(
-            shape=dict(vertices=get_cube_vertices(1))
-        ),
-        yes_pair_typed_attributes=dict(
-            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
-            r_cut=1
-        )
+        all_types=["A", "B"],
+        yes_params={
+            "A": dict(shape=dict(vertices=get_cube_vertices(1))),
+            "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("A", "B"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+                r_cut=1
+            )
+        }
     ),
     dict(   # unexpected names
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_single_typed_attributes=dict(
-            shape=dict(vertices=[], faces=[])
-        ),
-        no_pair_typed_attributes=dict(
+        no_params=dict(
+            shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        yes_types=["A", "B"],
-        yes_single_typed_attributes=dict(
-            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces(), wrong=None)
-        ),
-        yes_pair_typed_attributes=dict(
-            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
-            r_cut=1
-        )
+        all_types=["A", "B"],
+        yes_params={
+            "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces()), wrong=None),
+            ("A", "B"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+                r_cut=1
+            )
+        }
     ),
     dict(   # wrong values
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_single_typed_attributes=dict(
-            shape=dict(vertices=[], faces=[])
-        ),
-        no_pair_typed_attributes=dict(
+        no_params=dict(
+            shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        yes_types=["A", "B"],
-        yes_single_typed_attributes=dict(
-            shape=dict(vertices=get_cube_vertices(1), faces=None)
+        all_types=["A", "B"],
+        yes_params={
+            "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=None)),
+            "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("A", "B"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+                r_cut=1
+            )
+        }
+    ),
+    dict(   # unexpected single types (one)
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_params=dict(
+            shape=dict(vertices=[], faces=[]),
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+            r_cut=0
         ),
-        yes_pair_typed_attributes=dict(
-            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
-            r_cut=1
-        )
+        all_types=["A", "B"],
+        yes_params={
+            "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            "C": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("A", "B"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+                r_cut=1
+            )
+        }
+    ),
+    dict(   # unexpected single types (two)
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_params=dict(
+            shape=dict(vertices=[], faces=[]),
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+            r_cut=0
+        ),
+        all_types=["A", "B"],
+        yes_params={
+            "C": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            "D": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("A", "B"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+                r_cut=1
+            )
+        }
+    ),
+    dict(   # unexpected pair types (one)
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_params=dict(
+            shape=dict(vertices=[], faces=[]),
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+            r_cut=0
+        ),
+        all_types=["A", "B"],
+        yes_params={
+            "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("A", "C"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+                r_cut=1
+            )
+        }
+    ),
+    dict(   # unexpected pair types (both)
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(nlist=NLIST),
+        no_params=dict(
+            shape=dict(vertices=[], faces=[]),
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+            r_cut=0
+        ),
+        all_types=["A", "B"],
+        yes_params={
+            "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("C", "D"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+                r_cut=1
+            )
+        }
     ),
 
     # 'yes' pair-typed attributes
     dict(   # missing required names
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_single_typed_attributes=dict(
-            shape=dict(vertices=[], faces=[])
-        ),
-        no_pair_typed_attributes=dict(
+        no_params=dict(
+            shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        yes_types=["A", "B"],
-        yes_single_typed_attributes=dict(
-            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
-        ),
-        yes_pair_typed_attributes=dict(
-            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2),
-            r_cut=1
-        )
+        all_types=["A", "B"],
+        yes_params={
+            "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("A", "B"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2),
+                r_cut=1
+            )
+        }
     ),
     dict(   # unexpected names
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_single_typed_attributes=dict(
-            shape=dict(vertices=[], faces=[])
-        ),
-        no_pair_typed_attributes=dict(
+        no_params=dict(
+            shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        yes_types=["A", "B"],
-        yes_single_typed_attributes=dict(
-            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
-        ),
-        yes_pair_typed_attributes=dict(
-            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1, wrong=None),
-            r_cut=1
-        )
+        all_types=["A", "B"],
+        yes_params={
+            "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("A", "B"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=1),
+                r_cut=1,
+                wrong=None
+            )
+        }
     ),
     dict(   # wrong values
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_single_typed_attributes=dict(
-            shape=dict(vertices=[], faces=[])
-        ),
-        no_pair_typed_attributes=dict(
+        no_params=dict(
+            shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        yes_types=["A", "B"],
-        yes_single_typed_attributes=dict(
-            shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
-        ),
-        yes_pair_typed_attributes=dict(
-            params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=None),
-            r_cut=1
-        )
+        all_types=["A", "B"],
+        yes_params={
+            "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            ("A", "B"): dict(
+                params=dict(epsilon=1, sigma_i=0.2, sigma_j=0.2, alpha=None),
+                r_cut=1
+            )
+        }
     ),
 ]
 
-@pytest.mark.parametrize("params", INVALID_PARAMETERS)
-def test_instantiation_invalid(params):
-    """Ensure instantiation fails predictably with invalid parameters.
+@pytest.mark.parametrize("kwargs", INVALID_KWARGS)
+def test_invalid_instantiation(kwargs):
+    """Ensure instantiation fails predictably with invalid keyword arguments.
     
     Only one hoomd class is tested.
     """
     with pytest.raises((TypeError, ValueError)):
-        _ = Interaction(**params)
+        _ = Interaction(**kwargs)
+
+@pytest.mark.parametrize("kwargs,expected_singles,expected_pairs", [
+    [   # 0 singles, 1 pair
+        dict(
+            hoomd_class=hoomd.md.pair.LJ,
+            initial_args=dict(),
+            no_params=dict(
+                params=dict(epsilon=0, sigma=0.1),
+                r_cut=0
+            ),
+            all_types=["A", "B", "C"],
+            yes_params={
+                ("A", "B"): dict(
+                    params=dict(epsilon=1, sigma=0.1),
+                    r_cut=5
+                ),
+            }
+        ),
+        [],
+        [("A", "B")]
+    ],
+    [   # 0 singles, 2 pairs
+        dict(
+            hoomd_class=hoomd.md.pair.LJ,
+            initial_args=dict(),
+            no_params=dict(
+                params=dict(epsilon=0, sigma=0.1),
+                r_cut=0
+            ),
+            all_types=["A", "B", "C"],
+            yes_params={
+                ("A", "B"): dict(
+                    params=dict(epsilon=1, sigma=0.1),
+                    r_cut=5
+                ),
+                ("B", "B"): dict(
+                    params=dict(epsilon=1, sigma=0.1),
+                    r_cut=5
+                ),
+            }
+        ),
+        [],
+        [("A", "B"), ("B", "B")]
+    ],
+    [   # 1 single, 1 pair
+        dict(
+            hoomd_class=hoomd.md.pair.aniso.ALJ,
+            initial_args=dict(),
+            no_params=dict(
+                params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+                shape=dict(vertices=[], faces=[]),
+                r_cut=0
+            ),
+            all_types=["A", "B", "C"],
+            yes_params={
+                ("A", "B"): dict(
+                    params=dict(epsilon=1, sigma_i=0.1, sigma_j=0.1, alpha=0),
+                    r_cut=5
+                ),
+                "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            }
+        ),
+        ["A"],
+        [("A", "B")]
+    ],
+    [   # 2 singles, 2 pairs
+        dict(
+            hoomd_class=hoomd.md.pair.aniso.ALJ,
+            initial_args=dict(),
+            no_params=dict(
+                params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+                shape=dict(vertices=[], faces=[]),
+                r_cut=0
+            ),
+            all_types=["A", "B", "C"],
+            yes_params={
+                ("A", "B"): dict(
+                    params=dict(epsilon=1, sigma_i=0.1, sigma_j=0.1, alpha=0),
+                    r_cut=5
+                ),
+                ("B", "B"): dict(
+                    params=dict(epsilon=1, sigma_i=0.1, sigma_j=0.1, alpha=0),
+                    r_cut=5
+                ),
+                "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+                "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
+            }
+        ),
+        ["A", "B"],
+        [("A", "B"), ("B", "B")]
+    ]
+])
+def test_yes_type_properties(kwargs, expected_singles, expected_pairs):
+    """Ensure single and pair yes type properties return expected values."""
+    interaction = Interaction(**kwargs)
+    assert interaction.yes_single_types == expected_singles
+    assert interaction.yes_pair_types == expected_pairs
 
 @pytest.mark.parametrize("cls", CLASSES_TO_TEST)
 @pytest.mark.parametrize("required_or_all", ["required", "all"])

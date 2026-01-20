@@ -251,7 +251,7 @@ def add_rigid_constraint(
         for position in particle_model.secondary_positions_by_type[t]
     ]
 
-    if particle_model.secondary_orientations_by_type is not None:
+    if particle_model.secondary_orientations_by_type:
         orientations = [
             orientation
             for t in included_secondary_types
@@ -405,7 +405,6 @@ def add_interaction(
     """
     force = interaction.to_parameterized_hoomd_instance(
         nlist=nlist,
-        all_types=simulation.state.particle_types
     )
 
     simulation.operations.integrator.forces.append(force)

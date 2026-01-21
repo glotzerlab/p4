@@ -515,17 +515,6 @@ class Interaction:
             raise ValueError("integrator must have forces")
         return cls.from_hoomd_integrator(simulation.operations.integrator)
 
-    def __repr__(self):
-        return (
-            "Interaction ("
-            + f"\n\thoomd_class={self.hoomd_class},"
-            + f"\n\tinitial_args={self.initial_args},"
-            + f"\n\tno_params={self.no_params},"
-            + f"\n\tall_types={self.all_types},"
-            + f"\n\tyes_params={self.yes_params}"
-            + "\n)"
-        )
-
     def _parse_params(self, single_or_pair, required_or_optional):
         """Return a param dictionary for a given hoomd class.
 
@@ -944,3 +933,13 @@ class Interaction:
             and same_yes_params
         )
 
+    def __repr__(self):
+        return (
+            "Interaction ("
+            + f"\n\thoomd_class={self.hoomd_class},"
+            + f"\n\tinitial_args={self.initial_args},"
+            + f"\n\tno_params={self.no_params},"
+            + f"\n\tall_types={self.all_types},"
+            + f"\n\tyes_params={self.yes_params}"
+            + "\n)"
+        )

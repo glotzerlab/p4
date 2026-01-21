@@ -136,6 +136,69 @@ class Interaction:
                 + "used in a running simulation. See traceback for details."
             )
             raise ValueError(msg) from e
+        
+        # Simplify yes_params where possible, moving full repeats into no_params
+        # [TODO: reduce code duplication here]
+        for type_name, param_dict in deepcopy(self.yes_params).items():
+            for param_name, param_value in param_dict.items():
+                
+                types_with_same_param = []
+                other_params = {
+                    k: v
+                    for k, v in self.yes_params.items()
+                    if k != type_name
+                }
+                for t, d in other_params.items():
+                    if param_name in d:
+                        if d[param_name] == param_value:
+                            types_with_same_param.append(t)
+
+                if isinstance(type_name, str):
+                    if (
+                        len(types_with_same_param) == len(self.all_types) - 1 and
+                        all(t in self.all_types for t in types_with_same_param)
+                    ):
+                        for k, v in param_dict.items():
+                            self.no_params[k] = v
+                        for t in types_with_same_param:
+                            del self.yes_params[t][param_name]
+                
+                elif isinstance(type_name, Iterable) and len(type_name) == 2:
+                    all_type_pairs = list(itertools.combinations_with_replacement(
+                        self.all_types, 2
+                    ))
+                    if (
+                        len(types_with_same_param) == len(all_type_pairs) - 1 and
+                        all(p in all_type_pairs for p in types_with_same_param)
+                    ):
+                        for k, v in param_dict.items():
+                            self.no_params[k] = v
+                        for t in types_with_same_param:
+                            del self.yes_params[t][param_name]
+        
+        self.yes_params = {k: v for k, v in self.yes_params.items() if v != {}}
+        
+        # Convert all tuples to lists in values (NOT in keys)
+        # [TODO: this implementation is horribly hacky. Improve later.]
+        def tuples_to_lists(item):
+            """Convert item to list if it is a tuple, same for its elements."""
+            if isinstance(item, tuple):
+                item = list(item)
+            if isinstance(item, list):
+                item = [list(i) if isinstance(i, tuple) else i for i in item]
+            return item
+        params = [self.no_params, self.yes_params]
+        for p in params:
+            for k, v in p.items():
+                if isinstance(v, dict):
+                    for sk, sv in v.items():
+                        if isinstance(sv, dict):
+                            for ssk, ssv in sv.items():
+                                p[k][sk][ssk] = tuples_to_lists(ssv)
+                        else:
+                            p[k][sk] = tuples_to_lists(sv)
+                else:
+                    p[k] = tuples_to_lists(v)               
 
     @staticmethod
     def _get_test_simulation(particle_types, max_r_cut, nlist, interaction_or_pair):

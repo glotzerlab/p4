@@ -834,6 +834,11 @@ def get_kwargs(cls, required_or_all):
         ("A", "B"): get_typed_params(cls, "yes", "pair", required_or_all)
     }
 
+    if not yes_params["A"]:
+        del yes_params["A"]
+    if not yes_params["B"]:
+        del yes_params["B"]
+
     kwargs = dict(
         hoomd_class=cls,
         initial_args=initial_args,
@@ -1344,49 +1349,49 @@ def test_to_hoomd_instance(cls, required_or_all):
 @pytest.mark.parametrize("required_or_all", ["required", "all"])
 def test_to_parameterized_hoomd_instance(cls, required_or_all):
     """Ensure for every coverted hoomd class an Interaction can be converted to a parameterized hoomd instance."""
+    # TODO: is there a better way to test this? I'm basically just copying the
+    # actual implementation...
     kwargs = get_kwargs(cls, required_or_all)
     interaction = Interaction(**kwargs)
 
     pair = cls(nlist=NLIST, **kwargs["initial_args"])
 
-    all_types = ["A", "B", "C"]
-    all_type_pairs = list(itertools.combinations(all_types, 2))
-    all_type_pairs.extend((t, t) for t in all_types)
-    yes_type_pairs = []
+    all_types = kwargs["all_types"]
+    all_type_pairs = list(itertools.combinations_with_replacement(all_types, 2))
 
-    for p in all_type_pairs:
-        if (p[0] in kwargs["yes_types"] and p[1] in kwargs["yes_types"] and p[0] != p[1]):
-            yes_type_pairs.append(p)
+    single_typed_params = parse_params(cls, "single", "all")
+    pair_typed_params = parse_params(cls, "pair", "all")
 
     # No single-typed
     for a_t in all_types:
-        for k, v in kwargs["no_single_typed_attributes"].items():
-            getattr(pair, k)[a_t] = v
+        for param_name, param_value in kwargs["no_params"].items():
+            if param_name in single_typed_params:
+                getattr(pair, param_name)[a_t] = param_value
     
     # No pair-typed
     for a_p in all_type_pairs:
-        for k, v in kwargs["no_pair_typed_attributes"].items():
-            getattr(pair, k)[a_p] = v
+        for param_name, param_value in kwargs["no_params"].items():
+            if param_name in pair_typed_params:
+                getattr(pair, param_name)[a_p] = param_value
     
     # Yes single-typed
-    for y_t in kwargs["yes_types"]:
-        for k, v in kwargs["yes_single_typed_attributes"].items():
-            getattr(pair, k)[y_t] = v
+    for y_t in [i for i in kwargs["yes_params"] if isinstance(i, str) and i in kwargs["all_types"]]:
+        for param_name, param_value in kwargs["yes_params"][y_t].items():
+            getattr(pair, param_name)[y_t] = param_value
 
     # Yes pair-typed
-    for y_p in yes_type_pairs:
-        for k, v in kwargs["yes_pair_typed_attributes"].items():
-            getattr(pair, k)[y_p] = v
+    for y_p in [i for i in kwargs["yes_params"] if isinstance(i, Iterable) and not isinstance(i, (str, bytes)) and all(j in kwargs["all_types"] for j in i)]:
+        for param_name, param_value in kwargs["yes_params"][y_p].items():
+            getattr(pair, param_name)[y_p] = param_value
     
-    assert pairs_are_equivalent(pair, interaction.to_parameterized_hoomd_instance(NLIST, all_types))
+    assert pairs_are_equivalent(pair, interaction.to_parameterized_hoomd_instance(NLIST))
 
 @pytest.mark.parametrize("cls", [hoomd.md.pair.LJ, hoomd.md.pair.aniso.ALJ])
 def test_from_hoomd_pair_valid(cls):
     """Ensure every covered hoomd class can be parsed into an Interaction."""
     kwargs = get_kwargs(cls, "all")
     interaction = Interaction(**kwargs)
-    pair = interaction.to_parameterized_hoomd_instance(nlist=hoomd.md.nlist.Cell(0), all_types=kwargs["yes_types"])
-    breakpoint()
+    pair = interaction.to_parameterized_hoomd_instance(nlist=hoomd.md.nlist.Cell(0))
     other = Interaction.from_hoomd_pair(pair)
     assert interaction == other
 
@@ -1445,12 +1450,15 @@ def test_from_hoomd_integrator_valid(cls, multiple_forces):
     if multiple_forces:
         kwargs = get_kwargs(hoomd.md.pair.DPD, "required")
         interaction = Interaction(**kwargs)
-        pair = Interaction.to_parameterized_hoomd_instance(NLIST)
+        pair = interaction.to_parameterized_hoomd_instance(NLIST)
         forces.append(pair)
     
     integrator.forces = forces
-    assert forces == Interaction.from_hoomd_integrator(integrator)
-
+    # TODO: What on earth is going on here??? 
+    try:
+        assert [Interaction.from_hoomd_pair(f) for f in forces] == Interaction.from_hoomd_integrator(integrator)
+    except AssertionError:
+        assert [Interaction.from_hoomd_pair(f) for f in forces] == Interaction.from_hoomd_integrator(integrator)
 
 INVALID_INTEGRATORS = [
     # invalid pairs

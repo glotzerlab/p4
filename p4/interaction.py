@@ -370,30 +370,32 @@ class Interaction:
         def get_particle_types(typeparam_dict, yes_or_all):
             """Return a list of particle type names in a typeparameter dictionary.
             
-            'yes' types are defined as having non-zero r_cut values.
+            'yes' types are defined as having non-zero r_cut values and are
+            returned in pairs. 'all' types are returned as a flat list of names.
             """
             if yes_or_all == "yes":
                 particle_types = []
-                for k, v in typeparam_dict["r_cut"].items():
-                    if v != 0:
-                        particle_types.extend(i for i in k if i not in particle_types)
+                for type_pair, value in typeparam_dict["r_cut"].items():
+                    if value != 0:
+                        particle_types.append(type_pair)
                 return particle_types
 
             particle_types = []
-            for name, typeparam in typeparam_dict.items():
-                for t_k, t_v in typeparam.items():
-                    if isinstance(t_k, tuple):
-                        for i in t_k:
+            for param_name, typeparam in typeparam_dict.items():
+                for type_name in typeparam:
+                    if isinstance(type_name, tuple):
+                        for i in type_name:
                             if i not in particle_types:
                                 particle_types.append(i)
-                    elif isinstance(t_k, str):
-                        if t_k not in particle_types:
+                    elif isinstance(type_name, str):
+                        if type_name not in particle_types:
                             particle_types.append(i)
                     else:
                         raise ValueError(
-                            f"Malformed typeparam dict: the value for key '{name}' must "
-                            + "be a dict with tuples or strings for keys, but it has a "
-                            + f"key '{t_k}'."
+                            f"Malformed typeparam dict: the value for key "
+                            + f"'{param_name}' must be a dict with tuples or "
+                            + "strings for keys, but it has a "
+                            + f"key '{type_name}'."
                         )
             return particle_types
 
@@ -426,46 +428,31 @@ class Interaction:
             del initial_args["mode"]
         
         # Attributes
-        yes_types = get_particle_types(tpd, "yes")
+        all_types = get_particle_types(tpd, "all")  # includes ONLY singles
+        yes_types = get_particle_types(tpd, "yes")  # includes singles AND pairs
 
-        no_single_typed_attributes = {}
-        no_pair_typed_attributes = {}
-        yes_single_typed_attributes = {}
-        yes_pair_typed_attributes = {}
+        no_params = {}
+        yes_params = {}
 
-        for name, typeparam in tpd.items():
-            for t_k, t_v in typeparam.items():
-                if isinstance(t_k, tuple):
-                    if all(t in yes_types for t in t_k):
-                        if t_k not in yes_pair_typed_attributes:
-                            yes_pair_typed_attributes[t_k] = {}
-                        if name not in yes_pair_typed_attributes[t_k]:
-                            yes_pair_typed_attributes[t_k][name] = {}
-                        yes_pair_typed_attributes[t_k][name] = t_v  # NOTE the order of keys # TODO: cannot currently have yes (B, B), yes (C, C), but no (B, C)
-                    else:
-                        if name not in no_pair_typed_attributes:
-                            no_pair_typed_attributes[name] = {}
-                        no_pair_typed_attributes[name] = t_v    # NOTE: this can overwrite itself
-                elif isinstance(t_k, str):
-                    if t_k in yes_types:
-                        if t_k not in yes_single_typed_attributes:
-                            yes_single_typed_attributes[t_k] = {}
-                        if name not in yes_single_typed_attributes[t_k]:
-                            yes_single_typed_attributes[t_k][name] = {}
-                        yes_single_typed_attributes[t_k][name] = t_v  # NOTE the order of keys
-                    else:
-                        if name not in no_single_typed_attributes:
-                            no_single_typed_attributes[name] = {}
-                        no_single_typed_attributes[name] = t_v  # NOTE: this can overwrite itself
+        for param_name, typeparam in tpd.items():
+            for type_name, param_value in typeparam.items():
+                # Yes params
+                if type_name in yes_types:
+                    if type_name not in yes_params:
+                        yes_params[type_name] = {}
+                    yes_params[type_name][param_name] = param_value
+
+                # No params
+                else:
+                    if param_name not in no_params:
+                        no_params[param_name] = param_value
 
         kwargs=dict(
             hoomd_class=hoomd_class,
             initial_args=initial_args,
-            no_single_typed_attributes=no_single_typed_attributes,
-            no_pair_typed_attributes=no_pair_typed_attributes,
-            yes_types=yes_types,
-            yes_single_typed_attributes=yes_single_typed_attributes,
-            yes_pair_typed_attributes=yes_pair_typed_attributes,
+            no_params=no_params,
+            all_types=all_types,
+            yes_params=yes_params,
         )
 
         return cls(**kwargs)

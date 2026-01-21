@@ -470,6 +470,7 @@ class Interaction:
 
         return cls(**kwargs)
 
+    @classmethod
     def from_hoomd_integrator(
         cls,
         integrator: hoomd.md.Integrator
@@ -491,6 +492,7 @@ class Interaction:
             raise ValueError("`integrator` must have forces")
         return [cls.from_hoomd_pair(p) for p in integrator.forces]
 
+    @classmethod
     def from_hoomd_simulation(
         cls,
         simulation: hoomd.Simulation,

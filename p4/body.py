@@ -45,7 +45,7 @@ class Body:
     ):
         if secondary_types != [] and not secondary_positions_by_type:
             raise ValueError(
-                "'get_secondary_positions_by_type' is required if "
+                "'secondary_positions_by_type' is required if "
                 + "'secondary_types' is provided"
             )
 

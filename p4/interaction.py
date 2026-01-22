@@ -123,7 +123,7 @@ class Interaction:
             particle_types=self.all_types,
             max_r_cut=max_r_cut,
             nlist=hoomd.md.nlist.Cell(2),
-            interaction_or_pair=self
+            interaction=self
         )
         box_length = 10 * max(max_r_cut, 1.0)
         simulation.state.set_box([box_length, box_length, box_length, 0, 0, 0])
@@ -203,7 +203,7 @@ class Interaction:
                     p[k] = tuples_to_lists(v)               
 
     @staticmethod
-    def _get_test_simulation(particle_types, max_r_cut, nlist, interaction_or_pair):
+    def _get_test_simulation(particle_types, max_r_cut, nlist, interaction):
         """Return a small example simulation with an interaction that is ready to run.
         TODO
         """
@@ -213,10 +213,7 @@ class Interaction:
         s = 10 * max_r_cut
         simulation.state.set_box([s, s, s, 0, 0, 0])
         simulation = p4.util.add_integrator(simulation)
-        if isinstance(interaction_or_pair, Interaction):
-            simulation = p4.util.add_interaction(simulation, nlist, interaction_or_pair)
-        elif isinstance(interaction_or_pair, hoomd.md.pair.Pair):
-            simulation.operations.integrator.forces.append(interaction_or_pair)
+        simulation = p4.util.add_interaction(simulation, nlist, interaction)
         
         return simulation
     @property
@@ -401,22 +398,8 @@ class Interaction:
                         )
             return particle_types
 
-        # Ensure pair is fully parameterized
+        # Get typeparam dict as a native Python object
         tpd = {k: v.to_base() for k, v in pair._typeparam_dict.items()}
-
-        max_r_cut = max([v for v in tpd["r_cut"].values()])
-
-        simulation = cls._get_test_simulation(
-            particle_types=get_particle_types(tpd, "all"),
-            max_r_cut=max_r_cut,
-            nlist=hoomd.md.nlist.Cell(2),
-            interaction_or_pair=pair
-        )
-        try:
-            simulation.run(0)
-        except RuntimeError as e:
-            msg = "pair is not properly parameterized. See traceback for details."
-            raise ValueError(msg) from e
 
         # Constructor
         hoomd_class = type(pair)
@@ -429,7 +412,7 @@ class Interaction:
         if "mode" in initial_args and initial_args["mode"] == "none":
             del initial_args["mode"]
         
-        # Attributes
+        # Params
         all_types = get_particle_types(tpd, "all")  # includes ONLY singles
         yes_types = get_particle_types(tpd, "yes")  # includes singles AND pairs
 

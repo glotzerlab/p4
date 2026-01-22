@@ -1440,25 +1440,24 @@ def test_from_hoomd_integrator_valid(cls, multiple_forces):
     """Ensure a hoomd integrator can be parsed into one or more Interactions."""
     integrator = hoomd.md.Integrator(dt=0.1)
     forces = []
+    # forces2 = []
 
     kwargs = get_kwargs(cls, "required")
     interaction = Interaction(**kwargs)
     pair = interaction.to_parameterized_hoomd_instance(NLIST)
     
     forces.append(pair)
+    # forces2.append(deepcopy(pair))
 
     if multiple_forces:
         kwargs = get_kwargs(hoomd.md.pair.DPD, "required")
         interaction = Interaction(**kwargs)
         pair = interaction.to_parameterized_hoomd_instance(NLIST)
         forces.append(pair)
+        # forces2.append(deepcopy(pair))
     
     integrator.forces = forces
-    # TODO: What on earth is going on here??? 
-    try:
-        assert [Interaction.from_hoomd_pair(f) for f in forces] == Interaction.from_hoomd_integrator(integrator)
-    except AssertionError:
-        assert [Interaction.from_hoomd_pair(f) for f in forces] == Interaction.from_hoomd_integrator(integrator)
+    assert [Interaction.from_hoomd_pair(f) for f in forces] == Interaction.from_hoomd_integrator(integrator)
 
 INVALID_INTEGRATORS = [
     # invalid pairs

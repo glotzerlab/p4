@@ -65,7 +65,7 @@ system.probe_potential(
   ~~- [ ] Add support for HPMC potentials (contributes to goal of writing a simulation parser)~~
     ~~- to accomplish this, I think  `InteractionModel` would need to be its own class that checks to make sure every constituent `Interaction` has the same  simulation type (MD or HPMC). Ideally, it wouldn't matter (see HOOMD-rs), but for HOOMD-blue it certainly does.~~
 - [x] write tests
-- [ ] add parsing from `hoomd.md.pair.Pair` subclasses
+- [x] add parsing from `hoomd.md.pair.Pair` subclasses
 
 `Body`
 - [x] write tests

@@ -1395,45 +1395,6 @@ def test_from_hoomd_pair_valid(cls):
     other = Interaction.from_hoomd_pair(pair)
     assert interaction == other
 
-def get_invalid_pairs(cls):
-    """Return a list of hoomd pairs corresponding to a type that are wrongly parameterized in several ways.
-    
-    1. Missing a top-level typeparam
-    2. Missing a particle type (or type pair) for a typeparam
-    3. Include a typeparam that shouldn't be there
-    4. Include a typeparam with a wrong value
-    """
-    initial_args = {}
-    for name in parse_initial_arg_names(cls, "required"):
-        if name in INITIAL_ARGS_REQUIRED:
-            initial_args[name] = INITIAL_ARGS_REQUIRED[name]
-    unparameterized_pair = cls(**initial_args)
-
-    pairs = []
-
-    # Missing a top-level typeparam
-    parameterized_pair = deepcopy(unparameterized_pair)
-
-    
-    # Missing a particle type (or type pair) for a typeparam
-    parameterized_pair = deepcopy(unparameterized_pair)
-
-    # Include a typeparam that shouldn't be there
-    parameterized_pair = deepcopy(unparameterized_pair)
-    
-    # Include a typeparam with a wrong value
-    parameterized_pair = deepcopy(unparameterized_pair)
-
-    return pairs
-
-# INVALID_PAIRS = get_invalid_pairs(hoomd.md.pair.LJ)
-
-# @pytest.mark.parametrize("invalid_pair", INVALID_PAIRS)
-# def test_from_hoomd_pair_invalid(invalid_pair):
-#     """Ensure pair parsing fails expectedly when the hoomd instance is not properly parameterized."""
-#     with pytest.raises(ValueError):
-#         _ = Interaction.from_hoomd_pair(invalid_pair)
-
 @pytest.mark.parametrize("cls", [hoomd.md.pair.LJ, hoomd.md.pair.aniso.ALJ])
 @pytest.mark.parametrize("multiple_forces", [False, True])
 def test_from_hoomd_integrator_valid(cls, multiple_forces):
@@ -1456,31 +1417,45 @@ def test_from_hoomd_integrator_valid(cls, multiple_forces):
     integrator.forces = forces
     assert [Interaction.from_hoomd_pair(f) for f in forces] == Interaction.from_hoomd_integrator(integrator)
 
-INVALID_INTEGRATORS = [
-    # invalid pairs
-    # no forces
-    hoomd.md.Integrator(dt=0.1)
-]
+def test_from_hoomd_integrator_invalid():
+    """Ensure integrator parsing fails expectedly when given an empty integrator."""
+    with pytest.raises(ValueError):
+        _ = Interaction.from_hoomd_integrator(hoomd.md.Integrator(dt=0.1))
 
-# def test_from_hoomd_integrator_invalid(invalid_integrator):
-#     """Ensure integrator parsing fails expectedly."""
-#     # TODO: test both expected failure modes
-#     with pytest.raises(ValueError):
-#         _ = Interaction.from_hoomd_integrator(invalid_integrator)
+@pytest.mark.parametrize("cls", [hoomd.md.pair.LJ, hoomd.md.pair.aniso.ALJ])
+@pytest.mark.parametrize("multiple_forces", [False, True])
+def test_from_hoomd_simulation_valid(cls, multiple_forces):
+    """Ensure a hoomd simulation can be parsed into one or more Interactions."""
+    integrator = hoomd.md.Integrator(dt=0.1)
+    forces = []
 
-# def test_from_hoomd_simulation_valid(simulation, expected):
-#     """Ensure a hoomd simulation can be parsed into one or more Interactions."""
-#     interaction = Interaction.from_hoomd_integrator(simulation)
-#     assert interaction == expected
+    kwargs = get_kwargs(cls, "required")
+    interaction = Interaction(**kwargs)
+    pair = interaction.to_parameterized_hoomd_instance(NLIST)
+    
+    forces.append(pair)
 
-INVALID_SIMULATIONS = [
-    # invalid pairs
-    # integrator with no forces
-    # no integrator
-]
+    if multiple_forces:
+        kwargs = get_kwargs(hoomd.md.pair.DPD, "required")
+        interaction = Interaction(**kwargs)
+        pair = interaction.to_parameterized_hoomd_instance(NLIST)
+        forces.append(pair)
+    
+    integrator.forces = forces
 
-# def test_from_hoomd_simulation_invalid(invalid_simulation):
-#     """Ensure hoomd simulation parsing fails expectedly."""
-#     # TODO: test all three expected failure modes
-#     with pytest.raises(ValueError):
-#         _ = Interaction.from_hoomd_simulation(invalid_simulation)
+    simulation = hoomd.util.make_example_simulation(
+        particle_types=kwargs["all_types"]
+    )
+    simulation.operations.integrator = integrator
+
+    assert [Interaction.from_hoomd_pair(f) for f in forces] == Interaction.from_hoomd_simulation(simulation)
+
+def test_from_hoomd_simulation_invalid():
+    """Ensure hoomd simulation parsing fails expectedly when given a simulation with no integrator or an empty integrator."""
+    simulation = hoomd.util.make_example_simulation()
+    with pytest.raises(ValueError):
+        _ = Interaction.from_hoomd_simulation(simulation)
+
+    simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
+    with pytest.raises(ValueError):
+        _ = Interaction.from_hoomd_simulation(simulation)

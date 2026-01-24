@@ -102,15 +102,14 @@ class System:
 
     def probe_potential(
         self,
-        position_resolutions: list[list[float]],
+        position_resolutions: list[list[float]],    # TODO: sampling_strategy: 'grid' with p_res and o_res, 'dynamic' with ???
         orientation_resolutions: list[list[float]],
-        orientation_symmetries: list[int],
-        interactions_to_include: list[str],
+        symmetries: list[int],  # TODO: auto-calculate
         csv_filename: str,
         nlist: hoomd.md.nlist.NeighborList,
-        probe_cutoff_outside_distance: Callable,  # needs to be a callable if the user can change params after instantiation
-        probe_cutoff_inside_distance: Callable | None = None,
-        probe_cutoff_shape: coxeter.shapes.ConvexPolyhedron | None = None,
+        outside_cutoff: float,
+        inside_cutoff: float | None = None,
+        cutoff_shape: coxeter.shapes.ConvexPolyhedron | None = None,
         box_safety_factor: float = 100,
         n_processes: int = 1,
         save_gsd: bool = False,
@@ -128,35 +127,29 @@ class System:
         orientation_symmetries : list[int]
             The rotational symmetry for each axis. If not provided, C1 symmetry
             is assumed for every axis. $[X, Y, Z]$
-        interactions_to_include : list[str]
-            The names of the interactions to include.
         csv_filename : str
             The name of the CSV file to save.
         nlist : hoomd.md.nlist.NeighborList
             The neighbor list to use for the interactions.
-        probe_cutoff_outside_distance : Callable
-            A callable that takes `self` as its only argument and returns a
-            float representing the cutoff distance outside which no positions
-            will be probed. If`probe_cutoff_shape` is provided, this distance
-            represents a buffer distance around the shape, otherwise it
-            distance represents the side lengths of a cube centered on the
-            origin.
-        probe_cutoff_inside_distance : Callable, optional
-            A callable that takes `self` as its only argument and returns a
-            float representing the cutoff distance inside which no positions
-            will be probed. If`probe_cutoff_shape` is provided, this distance
-            represents a buffer distance inside the shape, otherwise it
-            distance represents the side lengths of a cube centered on the
-            origin. If not provided, all positions inside the outer cutoff
-            distance will be probed.
-        probe_cutoff_shape : coxeter.shapes.ConvexPolyhedron, optional
+        outside_cutoff : float
+            The cutoff distance outside which no positions will be probed. If
+            `cutoff_shape` is provided, this distance represents a buffer
+            distance around the shape, otherwise it distance represents the side
+            lengths of a cube centered on the origin.
+        inside_cutoff : float, optional
+            The cutoff distance inside which no positions will be probed.
+            If `probe_cutoff_shape` is provided, this distance represents a
+            buffer distance inside the shape, otherwise it distance represents
+            the side lengths of a cube centered on the origin. If not provided,
+            all positions inside the outer cutoff distance will be probed.
+        cutoff_shape : coxeter.shapes.ConvexPolyhedron, optional
             A convex polyhedron representing a shape to which cutoff distances
-            are relative, enabling the user to probe non-cubic boxes. If not
+            are relative, enabling the user to sample non-cubic boxes. If not
             provided, cutoff distances describe the side lengths of a cube.
         box_safety_factor : float, default=100
             The scale factor for the simulation box, since it must be bigger
             than the probe box to prevent the minimum image problem. Defaults
-            to 100.
+            to 100, which should be sufficient in most cases.
         n_processes : int, default=1
             The number of processes to distribute the probe operation between.
             Parallelization is implemented at the Python level, so each process
@@ -170,15 +163,13 @@ class System:
             the GSD has the same name as the CSV. The name of the GSD file will
             be almost identical to that of the CSV file, with a suffix
             the process whose simulation wrote the GSD file. This option is
-            available for debugging, but is not necessary for most users.
+            available for debugging purposes, but generally should not be used.
         """
-        # Calculate probe box based on distance cutoff callables for included
-        # interactions
-        outside_cutoff = probe_cutoff_outside_distance(self)
-        if probe_cutoff_shape is None:
+        # Calculate probe box based on cutoff distances
+        if cutoff_shape is None:
             probe_box = [outside_cutoff, outside_cutoff, outside_cutoff]
         else:
-            shape_maxes = probe_cutoff_shape.vertices.max(axis=0)
+            shape_maxes = cutoff_shape.vertices.max(axis=0)
             probe_box = [m + outside_cutoff for m in shape_maxes]
 
         # Determine the frame's box from the probe box
@@ -200,7 +191,7 @@ class System:
         )
         probe_orientations = p4.util.get_probe_orientations(
             orientation_resolutions,
-            orientation_symmetries
+            symmetries
         )
 
         # Remove positions that are too far away
@@ -208,21 +199,19 @@ class System:
             positions=probe_positions,
             exclude_inside=False,
             shape=(
-                probe_cutoff_shape
-                if probe_cutoff_shape is not None
+                cutoff_shape
+                if cutoff_shape is not None
                 else p4.util.get_cube(outside_cutoff)
             ),
-            buffer=outside_cutoff if probe_cutoff_shape is not None else 0.0
+            buffer=outside_cutoff if cutoff_shape is not None else 0.0
         )
 
         # Remove positions that are too close
         # TODO: allow distance to be negative?
-        if probe_cutoff_inside_distance is not None:
-            inside_cutoff = probe_cutoff_inside_distance(self)
+        if inside_cutoff is not None:
             # if inside_cutoff <= 0:
             #     raise ValueError(
-            #         "'probe_cutoff_inside_distance' must return a value "
-            #         f"greater than 0."
+            #         "'inside_cutoff' must be a value greater than 0."
             #     ) 
             if inside_cutoff > outside_cutoff:
                 raise ValueError("inside cutoff must be smaller than outside cutoff.")
@@ -230,13 +219,13 @@ class System:
                 positions=probe_positions,
                 exclude_inside=True,
                 shape=(
-                    probe_cutoff_shape
-                    if probe_cutoff_shape is not None
+                    cutoff_shape
+                    if cutoff_shape is not None
                     else p4.util.get_cube(inside_cutoff)
                 ),
                 buffer=(
                     inside_cutoff
-                    if probe_cutoff_shape is not None
+                    if cutoff_shape is not None
                     else 0.0
                 )
             )

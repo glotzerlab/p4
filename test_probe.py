@@ -82,13 +82,12 @@ def test_lj_sphere(n_processes=-1):
     system.probe_potential(
         position_resolutions=[30, 30, 1],
         orientation_resolutions=[1, 1, 1],
-        orientation_symmetries=[1, 1, 1],
-        interactions_to_include=["LJ"],
+        symmetries=[1, 1, 1],
         nlist=nlist,
         csv_filename="test-lj-sphere.csv",
-        probe_cutoff_shape=None,
-        probe_cutoff_outside_distance=lambda _: 2.0,
-        probe_cutoff_inside_distance=lambda _: 0.2,
+        cutoff_shape=None,
+        outside_cutoff=2.0,
+        inside_cutoff=0.2,
         n_processes=n_processes,
     )
 
@@ -127,13 +126,12 @@ def test_lj_sphere_3d():
     system.probe_potential(
         position_resolutions=[30, 30, 30],
         orientation_resolutions=[1, 1, 1],
-        orientation_symmetries=[1, 1, 1],
-        interactions_to_include=["LJ"],
+        symmetries=[1, 1, 1],
         nlist=nlist,
         csv_filename="test-lj-sphere-3d.csv",
-        probe_cutoff_shape=None,
-        probe_cutoff_outside_distance=lambda _: 2.0,
-        probe_cutoff_inside_distance=lambda _: 0.2,
+        cutoff_shape=None,
+        outside_cutoff=2.0,
+        inside_cutoff=0.2,
     )
 
 def test_lj_sites():
@@ -175,13 +173,11 @@ def test_lj_sites():
     system.probe_potential(
         position_resolutions=[10, 10, 1],
         orientation_resolutions=[1, 1, 1],
-        orientation_symmetries= [1, 1, 1],
-        interactions_to_include=["LJ"],
+        symmetries= [1, 1, 1],
         nlist=nlist,
         csv_filename="test-lj-sites.csv",
-        probe_cutoff_shape=None,
-        probe_cutoff_outside_distance=lambda _: 2.0,
-        # probe_cutoff_inside_distance=lambda _: 0.0
+        cutoff_shape=None,
+        outside_cutoff=2.0,
     )
 
 def test_alj_cube():
@@ -226,14 +222,13 @@ def test_alj_cube():
     system.probe_potential(
         position_resolutions=[30, 30, 1],
         orientation_resolutions=[1, 1, 10],
-        orientation_symmetries= [1, 1, 4],
-        interactions_to_include=["ALJ"],
+        symmetries= [1, 1, 4],
         nlist=nlist,
         csv_filename="test-alj-cube.csv",
         save_gsd=True,
-        probe_cutoff_shape=None,
-        probe_cutoff_outside_distance=lambda _: 2.0,
-        # probe_cutoff_inside_distance=lambda _: 0.0
+        cutoff_shape=None,
+        outside_cutoff=2.0,
+        # probe_cutoff_inside_distance=0.0
     )
 
 def test_alj_cube_with_eg_sites(n_processes=-1):
@@ -312,14 +307,13 @@ def test_alj_cube_with_eg_sites(n_processes=-1):
     system.probe_potential(
         position_resolutions=[30, 30, 1],
         orientation_resolutions=[1, 1, 4],
-        orientation_symmetries= [1, 1, 4],
-        interactions_to_include=["ALJ", "EG"],
+        symmetries= [1, 1, 4],
         nlist=nlist,
         csv_filename="test-alj-cube-with-eg-sites.csv",
         save_gsd=True,
-        probe_cutoff_shape=None,
-        probe_cutoff_outside_distance=lambda _: 2.0,
-        probe_cutoff_inside_distance=lambda _: 0.2,
+        cutoff_shape=None,
+        outside_cutoff=2.0,
+        inside_cutoff=0.2,
         n_processes=n_processes
     )
 

@@ -14,20 +14,20 @@ if TYPE_CHECKING:
     from p4 import Interaction, Body
 
 class System:
-    """A System is defined by its body models and an interaction model.
+    """A System is defined by its bodies and interactions.
     
     Once the system is instantiated, its potential energy landscape can be
-    measured using the `probe()` method.
+    measured using the `probe_potential()` method.
 
     Parameters
     ----------
-    probe : BodyModel
-        The body model for the probe.
-    analyte : BodyModel
-        The body model for the analyte.
-    interaction_model : dict[str, Interaction]
-        A collection of named interactions. All keys should have the `str` type
-        and all values should have the `Interaction` type.
+    probe : Body
+        The body for the probe.
+    analyte : Body
+        The body for the analyte.
+    interactions : list[Interaction]
+        A collection of interactions that define how one or more particle types
+        in the probe interact with one or more types in the analyte.
     """
     def __init__(
         self,
@@ -42,39 +42,61 @@ class System:
         self.validate()
 
     def validate(self):
-        """Ensure all possible interacting types appear in body models."""
-        valid_types = []
-        for model in [self.probe, self.analyte]:
-            valid_types.append(model.primary_type)
-            valid_types.extend(model.secondary_types)
-        
-        invalid_types = {}
-        for i, interaction in enumerate(self.interactions):
-            invalid_types[i] = [
-                t
-                for t in interaction.all_types if t not in valid_types
-            ]
+        """Ensure bodies do not contain types not covered by interactions."""
+        covered_types = [t for i in self.interactions for t in i.all_types]
 
-        if any([len(v) > 0 for v in invalid_types.values()]):
-            raise ValueError(
-                f"The provided interaction model contains types that are "
-                f"not in any of the provided interaction models: "
-                f"{invalid_types}."
+        def err_msg(probe_or_analyte, primary_or_secondary, particle_type):
+            return (
+                f"{probe_or_analyte} {primary_or_secondary} type "
+                + f"{self.probe.primary_type} is not covered by the provided "
+                + f"interactions. Covered types are {covered_types}."
             )
+        
+        if self.probe.primary_type not in covered_types:
+            raise ValueError(
+                err_msg("probe", "primary", self.probe.primary_type)
+            )
+        for t in self.probe.secondary_types:
+            if t not in covered_types:
+                raise ValueError(
+                    err_msg("probe", "secondary", t)
+                )
+        if self.analyte.primary_type not in covered_types:
+            raise ValueError(
+                err_msg("analyte", "primary", self.analyte.primary_type)
+            )
+        for t in self.analyte.secondary_types:
+            if t not in covered_types:
+                raise ValueError(
+                    err_msg("analyte", "secondary", t)
+                )
 
     @property
     def active_interactions(self) -> list[Interaction]:
-        """The interactions with 'yes' particle types in the probe or analyte.
-        """
+        """Interactions with 'yes' types in both the probe and the analyte."""
+        probe_types = [self.probe.primary_type] + self.probe.secondary_types
+        analyte_types = [self.analyte.primary_type] + self.analyte.secondary_types
+        
         included_interactions = []
 
         for interaction in self.interactions:
-            for type_name in interaction.yes_single_types:
-                if type_name in self.all_types:
-                    included_interactions.append(interaction)
+            # For single types, there must be at least one in probe and one in
+            # analyte
+            if (
+                any(t in probe_types for t in interaction.yes_single_types)
+                and any(t in analyte_types for t in interaction.yes_single_types)
+            ):
+                included_interactions.append(interaction)
+
+            # For pair types, there must be at least one pair that contains a
+            # type in the probe and a type (could be the same one) in the
+            # analyte
+            straddlers = []
             for type_pair in interaction.yes_pair_types:
-                if any(t in self.all_types for t in type_pair):
-                    included_interactions.append(interaction)
+                if any(t in probe_types for t in type_pair) and any(t in analyte_types for t in type_pair):
+                    straddlers.append(type_pair)
+            if len(straddlers) > 0:
+                included_interactions.append(interaction)
 
         return included_interactions
     
@@ -89,7 +111,7 @@ class System:
 
     @property
     def interacting_types(self) -> list[str]:
-        """The particle types that are 'yes' types in the active interactions."""
+        """The types from bodies that are 'yes' types in the active interactions."""
         interacting_types = []
         for t in self.all_types:
             for i in self.active_interactions:

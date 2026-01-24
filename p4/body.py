@@ -133,6 +133,11 @@ class Body:
             raise ValueError("`simulation` must have an integrator")
         if simulation.operations.integrator.rigid is None:
             raise ValueError("integrator must have a rigid constraint")
+        types_in_state = simulation.state.get_snapshot().particles.type
+        if primary_type is not None and primary_type not in types_in_state:
+            raise ValueError(
+                f"`simulation` does not contain primary_type {primary_type}"
+            )
         return cls.from_hoomd_rigid(
             simulation.operations.integrator.rigid, primary_type
         )

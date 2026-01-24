@@ -294,5 +294,64 @@ class System:
             file.write(table.read())
 
     @classmethod
-    def from_hoomd_simulation(cls, simulation, probe_primary_type, analyte_primary_type):
-        pass
+    def from_hoomd_simulation(
+        cls,
+        simulation: hoomd.Simulation,
+        probe_primary_type: str,
+        analyte_primary_type: str
+    ):
+        """Parse a hoomd.Simulation object into a System.
+
+        The simulation must have an integrator, and the integrator must have one
+        or more forces. Optionally, the integrator may also have a rigid
+        constraint. If it does have one, and if  this constraint's keys
+        include the probe's and/or the analyte's primary type, then the
+        constraint is parsed to determine secondary types, positions, and
+        orientations for the probe and/or analyte bodies.
+
+        Parameters
+        ----------
+        simulation : hoomd.Simulation
+            The simulation to parse.
+        probe_primary_type : str
+            The name of the particle type to use for the probe's primary type.
+            This name must be represented in the simulation's current state.
+        analyte_primary_type : str
+            The name of the particle type to use for the analyte's primary type.
+            This name must be represented in the simulation's current state.
+        """
+        if (
+            not simulation.operations.integrator
+            or not simulation.operations.integrator.forces 
+        ):
+            raise ValueError("simulation must have an integrator with forces.")
+
+        types_in_state = simulation.state.get_snapshot().particles.type
+        if probe_primary_type not in types_in_state:
+            raise ValueError(
+                "simulation state does not have particle type "
+                + f"{probe_primary_type}"
+            )
+        if analyte_primary_type not in types_in_state:
+            raise ValueError(
+                "simulation state does not have particle type "
+                + f"{analyte_primary_type}"
+            )
+        
+        interactions = Interaction.from_hoomd_simulation(simulation)
+
+        # [Review: is there a better way to do this?]
+        try:
+            probe = Body.from_hoomd_simulation(simulation, probe_primary_type)
+        except ValueError:
+            probe = Body(probe_primary_type)
+        try:
+            analyte = Body.from_hoomd_simulation(simulation, analyte_primary_type)
+        except ValueError:
+            analyte = Body(analyte_primary_type)
+        
+        return cls(
+            probe=probe,
+            analyte=analyte,
+            interactions=interactions
+        )

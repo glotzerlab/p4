@@ -31,12 +31,12 @@ class System:
     """
     def __init__(
         self,
-        probe_model: Body,
-        analyte_model: Body,
+        probe: Body,
+        analyte: Body,
         interaction_model: dict[str, Interaction],
     ):
-        self.probe_model = probe_model
-        self.analyte_model = analyte_model
+        self.probe = probe
+        self.analyte = analyte
         self.interaction_model = interaction_model
 
         self.validate()
@@ -44,7 +44,7 @@ class System:
     def validate(self):
         """Ensure all possible interacting types appear in body models."""
         valid_types = []
-        for model in [self.probe_model, self.analyte_model]:
+        for model in [self.probe, self.analyte]:
             valid_types.append(model.primary_type)
             valid_types.extend(model.secondary_types)
         

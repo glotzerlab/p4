@@ -476,7 +476,7 @@ def find_nearest(array, value):
 
 def get_simulation(
     system: System,
-    interactions_to_include: list[str],
+    included_interactions: list[Interaction],
     nlist: hoomd.md.nlist.NeighborList,
     probe_box: list[float],
     simulation_box: list[float]
@@ -488,9 +488,8 @@ def get_simulation(
     system : System
         The system containing the probe and analyte particle models, as well as
         the interaction model for the simulation.
-    interactions_to_include : list[str]
-        The names of the interactions from the system's interaction model to
-        include in the simulation.
+    interactions_to_include : list[Interaction]
+        The interactions to include in the simulation.
     nlist : hoomd.md.nlist.NeighborList
         The neighbor list to use for the interactions in the simulation.
     probe_box : list[float]
@@ -504,15 +503,17 @@ def get_simulation(
     hoomd.Simulation
         The simulation object, fully prepared and ready to be run.
     """
-    # Determine needed interactions and particle types
-    interactions = system.interactions(interactions_to_include)
-    types = system.interacting_types(interactions_to_include)
 
     # Create initial frame
+    included_secondary_types = [
+        t
+        for t in system.all_types
+        if t in system.probe.secondary_types or t in system.analyte.secondary_types
+    ]
     frame = get_initial_frame(
-        system.probe_model,
-        system.analyte_model,
-        types,
+        system.probe,
+        system.analyte,
+        included_secondary_types,
         probe_box,
         simulation_box
     )
@@ -526,31 +527,31 @@ def get_simulation(
 
     # Add rigid bodies if necessary
     probe_is_rigid = particle_must_be_rigid_body(
-        system.probe_model,
-        interactions
+        system.probe,
+        included_interactions
     )
     analyte_is_rigid = particle_must_be_rigid_body(
-        system.analyte_model,
-        interactions
+        system.analyte,
+        included_interactions
     )
     if probe_is_rigid:
         simulation, rigid = add_rigid_constraint(
             simulation,
-            system.probe_model,
+            system.probe,
             False if analyte_is_rigid else True,
-            [t for t in system.probe_model.secondary_types if t in types]
+            [t for t in system.probe.secondary_types if t in included_secondary_types]
         )
     if analyte_is_rigid:
         simulation, _ = add_rigid_constraint(
             simulation,
-            system.analyte_model,
+            system.analyte,
             True,
-            [t for t in system.analyte_model.secondary_types if t in types],
+            [t for t in system.analyte.secondary_types if t in included_secondary_types],
             rigid if probe_is_rigid else None
         )
 
     # Add required interactions
-    for interaction in interactions:
+    for interaction in included_interactions:
         simulation = add_interaction(simulation, nlist, interaction)
     
     return simulation
@@ -559,7 +560,7 @@ def run_probe(
     system: System,
     probe_positions: list[list[float]],
     probe_orientations: list[list[float]],
-    interactions_to_include: list[str],
+    included_interactions: list[Interaction],
     nlist: hoomd.md.nlist.NeighborList,
     probe_box: list[float],
     simulation_box: list[float],
@@ -575,9 +576,8 @@ def run_probe(
         The positions to probe at.
     probe_orientations : list[list[float]]
         The orientations to probe at each position (in quaternion form).
-    interactions_to_include : list[str]
-        The names of the interactions from the system's interaction model to
-        include in the simulation.
+    included_interactions : list[Interactions]
+        The Interactions to include in the simulation.
     gsd_filename : str
         The name of the final output CSV file. This is not used to actually
         write 
@@ -601,7 +601,7 @@ def run_probe(
     # Create simulation
     simulation = get_simulation(
         system,
-        interactions_to_include,
+        included_interactions,
         nlist,
         probe_box,
         simulation_box
@@ -615,13 +615,13 @@ def run_probe(
     simulation, _ = add_table_writer(
         simulation=simulation,
         csv_file=table,
-        probe_model=system.probe_model,
+        probe_model=system.probe,
         compute=None if gsd_filename is None else compute
     )
     
     probe_index = get_primary_particle_index(
         simulation.state.get_snapshot(),
-        system.probe_model
+        system.probe
     )
 
     # Iterate over positions

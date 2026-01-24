@@ -51,8 +51,8 @@ def test_lj_sphere(n_processes=-1):
     probe_model = pp.Body("P")
     analyte_model = pp.Body("A")
 
-    interaction_model = {
-        "LJ": pp.Interaction(
+    interactions = [
+        pp.Interaction(
             hoomd_class=hoomd.md.pair.LJ,
             initial_args=dict(),
             no_params=dict(
@@ -73,9 +73,9 @@ def test_lj_sphere(n_processes=-1):
                 )
             }
         )
-    }
+    ]
 
-    system = pp.System(probe_model, analyte_model, interaction_model)
+    system = pp.System(probe_model, analyte_model, interactions)
 
     nlist = hoomd.md.nlist.Cell(10)
 
@@ -96,8 +96,8 @@ def test_lj_sphere_3d():
     probe_model = pp.Body("P")
     analyte_model = pp.Body("A")
 
-    interaction_model = {
-        "LJ": pp.Interaction(
+    interactions = [
+        pp.Interaction(
             hoomd_class=hoomd.md.pair.LJ,
             initial_args=dict(),
             no_params=dict(
@@ -118,9 +118,9 @@ def test_lj_sphere_3d():
                 )
             }
         )
-    }
+    ]
 
-    system = pp.System(probe_model, analyte_model, interaction_model)
+    system = pp.System(probe_model, analyte_model, interactions)
 
     nlist = hoomd.md.nlist.Cell(10)
 
@@ -144,8 +144,8 @@ def test_lj_sites():
         secondary_positions_by_type=dict(B=square_verts())
     )
 
-    interaction_model = {
-        "LJ": pp.Interaction(
+    interactions = [
+        pp.Interaction(
             hoomd_class=hoomd.md.pair.LJ,
             initial_args=dict(),
             no_params=dict(
@@ -166,9 +166,9 @@ def test_lj_sites():
                 )
             }
         )
-    }
+    ]
 
-    system = pp.System(probe_model, analyte_model, interaction_model)
+    system = pp.System(probe_model, analyte_model, interactions)
 
     nlist = hoomd.md.nlist.Cell(10)
 
@@ -188,8 +188,8 @@ def test_alj_cube():
     probe_model = pp.Body("P")
     analyte_model = pp.Body("A")
 
-    interaction_model = {
-        "ALJ": pp.Interaction(
+    interactions = [
+        pp.Interaction(
             hoomd_class=hoomd.md.pair.aniso.ALJ,
             initial_args=dict(),
             no_params=dict(
@@ -217,9 +217,9 @@ def test_alj_cube():
                 "P": dict(shape=dict(vertices=cube_verts(), faces=cube_faces()))
             }
         )
-    }
+    ]
 
-    system = pp.System(probe_model, analyte_model, interaction_model)
+    system = pp.System(probe_model, analyte_model, interactions)
 
     nlist = hoomd.md.nlist.Cell(10)
 
@@ -248,8 +248,8 @@ def test_alj_cube_with_eg_sites(n_processes=-1):
         secondary_positions_by_type=dict(B=square_verts())
     )
 
-    interaction_model = {
-        "ALJ": pp.Interaction(
+    interactions = [
+        pp.Interaction(
             hoomd_class=hoomd.md.pair.aniso.ALJ,
             initial_args=dict(),
             no_params=dict(
@@ -277,7 +277,7 @@ def test_alj_cube_with_eg_sites(n_processes=-1):
                 "P": dict(shape=dict(vertices=cube_verts(), faces=cube_faces()))
             }
         ),
-        "EG": pp.Interaction(
+        pp.Interaction(
             hoomd_class=hoomd.md.pair.ExpandedGaussian,
             initial_args=dict(
                 default_r_cut=1.0,
@@ -303,9 +303,9 @@ def test_alj_cube_with_eg_sites(n_processes=-1):
                 )
             }
         )
-    }
+    ]
 
-    system = pp.System(probe_model, analyte_model, interaction_model)
+    system = pp.System(probe_model, analyte_model, interactions)
 
     nlist = hoomd.md.nlist.Cell(10)
 

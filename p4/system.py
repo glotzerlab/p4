@@ -33,11 +33,11 @@ class System:
         self,
         probe: Body,
         analyte: Body,
-        interaction_model: dict[str, Interaction],
+        interactions: list[Interaction],
     ):
         self.probe = probe
         self.analyte = analyte
-        self.interaction_model = interaction_model
+        self.interactions = interactions
 
         self.validate()
 
@@ -49,10 +49,10 @@ class System:
             valid_types.extend(model.secondary_types)
         
         invalid_types = {}
-        for name, interaction in self.interaction_model.items():
-            invalid_types[name] = [
+        for i, interaction in enumerate(self.interactions):
+            invalid_types[i] = [
                 t
-                for t in interaction.yes_types if t not in valid_types
+                for t in interaction.all_types if t not in valid_types
             ]
 
         if any([len(v) > 0 for v in invalid_types.values()]):
@@ -62,42 +62,42 @@ class System:
                 f"{invalid_types}."
             )
 
-    def interactions(self, names: list[str] = []) -> list[Interaction]:
-        """A list of interactions, all of them or just those named.
-
-        Parameters
-        ----------
-        names : list[str], optional
-            The names of the interactions to include. If not provided, all
-            interactions from the interaction model are included.
-
-        Returns
-        -------
-        interactions
+    @property
+    def active_interactions(self) -> list[Interaction]:
+        """The interactions with 'yes' particle types in the probe or analyte.
         """
-        if names != []:
-            return [self.interaction_model[name] for name in names]
-        else:
-            return list(self.interaction_model.values())
+        included_interactions = []
 
-    def interacting_types(self, names: list[str] | None = None) -> set[str]:
-        """The interacting types, for all interactions or just those named.
-        
-        Parameters
-        ----------
-        names : list[str], optional
-            The names of the interactions to include. If not provided, particle
-            types for all interactions in the interaction model are included.
+        for interaction in self.interactions:
+            for type_name in interaction.yes_single_types:
+                if type_name in self.all_types:
+                    included_interactions.append(interaction)
+            for type_pair in interaction.yes_pair_types:
+                if any(t in self.all_types for t in type_pair):
+                    included_interactions.append(interaction)
 
-        Returns
-        -------
-        types
-        """
-        interacting_types = set([
-            t
-            for interaction in self.interactions(names)
-            for t in interaction.yes_types
-        ])
+        return included_interactions
+    
+    @property
+    def all_types(self) -> list[str]:
+        """All particle types in the probe and analyte."""
+        all_types = [self.probe.primary_type]
+        all_types.extend(self.probe.secondary_types)
+        all_types.append(self.analyte.primary_type)
+        all_types.extend(self.analyte.secondary_types)
+        return all_types
+
+    @property
+    def interacting_types(self) -> list[str]:
+        """The particle types that are 'yes' types in the active interactions."""
+        interacting_types = []
+        for t in self.all_types:
+            for i in self.active_interactions:
+                if (
+                    t in i.yes_single_types
+                    or any(t in p for p in i.yes_pair_types)
+                ):
+                    interacting_types.append(t)
         return interacting_types
 
     def probe_potential(
@@ -259,7 +259,7 @@ class System:
                     [deepcopy(self) for _ in range(n_processes)],
                     p4.util.subdivide(probe_positions, n_processes),
                     [probe_orientations for _ in range(n_processes)],
-                    [interactions_to_include for _ in range(n_processes)],
+                    [self.active_interactions for _ in range(n_processes)],
                     [nlist for _ in range(n_processes)],
                     [probe_box for _ in range(n_processes)],
                     [simulation_box for _ in range(n_processes)],
@@ -273,7 +273,7 @@ class System:
         else:   # TODO: move header cleaning to its own function
             table = p4.util.run_probe(
                 self, probe_positions, probe_orientations,
-                interactions_to_include, nlist, probe_box, simulation_box
+                self.active_interactions, nlist, probe_box, simulation_box
             )
 
             table = p4.util.clean_header(table)

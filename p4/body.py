@@ -112,18 +112,18 @@ class Body:
         simulation: hoomd.Simulation,
         primary_type: str | None = None
     ) -> list[Body] | Body:
-        """Parse a hoomd.Simulation object into 1 or more Bodies.
+        """Parse a hoomd.Simulation object into one or more Bodies.
 
         This is a convenience method that is equivalent to
         
         ```python
-        p4.Body.from_hoomd_rigid(sim.operations.integrator.rigid)
+        p4.Body.from_hoomd_rigid(sim.operations.integrator.rigid, primary_type)
         ```
         
         Parameters
         ----------
-        rigid : hoomd.md.constrain.Rigid
-            The constraint that defines rigid bodies.
+        simulation : hoomd.Simulation
+            The simulation to parse.
         primary_type : str, optional
             The name of the primary type of a single body. If provided, just
             that body is returned. If not provided, all possible bodies are

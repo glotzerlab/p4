@@ -20,7 +20,7 @@ import rowan
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from p4 import Interaction, ParticleModel, System
+    from p4 import Interaction, System
 
 def get_cube(side_length: float):
     """Return a coxeter cube with a given side length."""
@@ -442,31 +442,6 @@ def add_integrator(
     
     return simulation
 
-def get_primary_particle_index(
-    snapshot: hoomd.Snapshot,
-    particle_model: ParticleModel
-):
-    """Return the snapshot's particle index for the model's primary type.
-
-    The returned index corresponds to the **first** occurance of the given type.
-    
-    Parameters
-    ----------
-    snapshot : Snapshot
-        The snapshot containing the particle of interest.
-    particle_model : ParticleModel
-        The model whose primary type is of interest.
-    
-    Returns
-    -------
-    index
-    """
-    all_types = snapshot.particles.types
-    particle_index = deepcopy(np.where(
-        snapshot.particles.typeid == all_types.index(particle_model.primary_type)
-    ))
-    return particle_index
-
 def find_nearest(array, value):
     """TODO"""
     # Ref: https://stackoverflow.com/a/2566508/15426433
@@ -619,10 +594,7 @@ def run_probe(
         compute=None if gsd_filename is None else compute
     )
     
-    probe_index = get_primary_particle_index(
-        simulation.state.get_snapshot(),
-        system.probe
-    )
+    probe_index = 1
 
     # Iterate over positions
     for p in probe_positions:

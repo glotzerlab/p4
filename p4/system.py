@@ -12,7 +12,7 @@ import p4.util
 from p4 import Body, Interaction
 
 class System:
-    """A System is defined by its bodies and interactions.
+    """A System is defined by two bodies and a set of interactions.
     
     Once the system is instantiated, its potential energy landscape can be
     measured using the `probe_potential()` method.

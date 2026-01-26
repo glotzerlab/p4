@@ -292,9 +292,17 @@ class System:
         
         # If not multiprocessing, don't initialize a pool (easier for debugging)
         else:   # TODO: move header cleaning to its own function
+            if save_gsd:
+                gsd_filename = csv_filename.split(".")[-2] + ".gsd"
             table = p4.util.run_probe(
-                self, probe_positions, probe_orientations,
-                self.active_interactions, nlist, probe_box, simulation_box
+                system=self,
+                probe_positions=probe_positions,
+                probe_orientations=probe_orientations,
+                included_interactions=self.active_interactions,
+                nlist=nlist,
+                probe_box=probe_box,
+                simulation_box=simulation_box,
+                gsd_filename=gsd_filename
             )
 
             table = p4.util.clean_header(table)

@@ -9,9 +9,7 @@ import coxeter
 import hoomd
 
 import p4.util
-
-if TYPE_CHECKING:
-    from p4 import Interaction, Body
+from p4 import Body, Interaction
 
 class System:
     """A System is defined by its bodies and interactions.

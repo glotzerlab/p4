@@ -3,7 +3,7 @@
 
 from copy import deepcopy
 import os
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Iterable
 
 import coxeter
 import hoomd
@@ -35,6 +35,18 @@ class System:
         analyte: Body,
         interactions: list[Interaction],
     ):
+        if not isinstance(probe, Body):
+            raise TypeError("`probe` must be an instance of 'Body'.")
+        if not isinstance(analyte, Body):
+            raise TypeError("`analyte` must be an instance of 'Body'.")
+        if (
+            not isinstance(interactions, Iterable)
+            or not all(type(i) is Interaction for i in interactions)
+        ):
+            raise TypeError(
+                "`interactions` must be a list of Interaction instances."
+            )
+
         self.probe = probe
         self.analyte = analyte
         self.interactions = interactions

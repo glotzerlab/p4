@@ -55,13 +55,12 @@ class System:
         """Ensure the system can be simulated."""
         # Ensure there is no rigid body clash
         if self.probe.primary_type == self.analyte.primary_type:
-            reason = (
-                "If `probe` and `analyte` have the same primary_type, they "
-                + "must also have the same secondary types, positions, and "
-                + "orientations, otherwise HOOMD's rigid body constraint "
-                + "cannot be constructed."
-            )
-            assert self.probe == self.analyte, reason
+            if self.probe != self.analyte:
+                raise ValueError(
+                    "If `probe` and `analyte` have the same primary_type, they "
+                    + "must also have the same secondary types, positions, and "
+                    + "orientations."
+                )
         if self.probe.primary_type in self.analyte.secondary_types:
             raise ValueError(
                 "probe primary type cannot appear in analyte secondary types."

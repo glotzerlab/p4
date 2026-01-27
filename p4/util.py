@@ -306,7 +306,6 @@ def add_gsd_writer(
 def add_table_writer(
     simulation: hoomd.Simulation,
     csv_file: TextIOWrapper,
-    probe_model: ParticleModel,
     compute: hoomd.md.compute.ThermodynamicQuantities | None = None
 ) -> Tuple[hoomd.Simulation, hoomd.logging.Logger]:
     """Add a table writer that logs potential energy to the simulation.
@@ -330,19 +329,19 @@ def add_table_writer(
     logger.add(simulation, quantities=["timestep"])
 
     snapshot = simulation.state.get_snapshot()
-    probe_index = get_primary_particle_index(snapshot, probe_model)
+    probe_index = 1
 
     def probe_position():
         with simulation.state.cpu_local_snapshot as snapshot:
             return snapshot.particles.position[
                 snapshot.particles.rtag[probe_index]
-            ][0]
+            ]
 
     def probe_orientation():
         with simulation.state.cpu_local_snapshot as snapshot:
             return snapshot.particles.orientation[
                 snapshot.particles.rtag[probe_index]
-            ][0]
+            ]
 
     logger["x"] = (lambda: probe_position()[0], "scalar")
     logger["y"] = (lambda: probe_position()[1], "scalar")
@@ -572,7 +571,6 @@ def run_probe(
     simulation, _ = add_table_writer(
         simulation=simulation,
         csv_file=table,
-        probe_model=system.probe,
         compute=None if gsd_filename is None else compute
     )
     

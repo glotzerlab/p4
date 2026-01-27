@@ -20,7 +20,7 @@ import rowan
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from p4 import Interaction, System
+    from p4 import Interaction, System, Body
 
 def get_cube(side_length: float):
     """Return a coxeter cube with a given side length."""
@@ -36,16 +36,6 @@ def get_cube(side_length: float):
         [ s,  s,  s]
     ]
     return coxeter.shapes.ConvexPolyhedron(vertices)
-
-def particle_must_be_rigid_body(
-    particle_model: ParticleModel,
-    interactions: list[Interaction]
-) -> bool:
-    """Whether the particle must be rigid for any of the given interactions."""
-    return any([
-        particle_model.must_be_rigid_body(interaction)
-        for interaction in interactions
-    ])
 
 def get_probe_positions(
     box: list[float],
@@ -501,28 +491,20 @@ def get_simulation(
     simulation = add_integrator(simulation)
 
     # Add rigid bodies if necessary
-    probe_is_rigid = particle_must_be_rigid_body(
-        system.probe,
-        included_interactions
-    )
-    analyte_is_rigid = particle_must_be_rigid_body(
-        system.analyte,
-        included_interactions
-    )
-    if probe_is_rigid:
+    if system.probe.is_rigid(included_interactions):
         simulation, rigid = add_rigid_constraint(
             simulation,
             system.probe,
-            False if analyte_is_rigid else True,
+            False if system.analyte.is_rigid(included_interactions) else True,
             [t for t in system.probe.secondary_types if t in included_secondary_types]
         )
-    if analyte_is_rigid:
+    if system.analyte.is_rigid(included_interactions):
         simulation, _ = add_rigid_constraint(
             simulation,
             system.analyte,
             True,
             [t for t in system.analyte.secondary_types if t in included_secondary_types],
-            rigid if probe_is_rigid else None
+            rigid if system.probe.is_rigid(included_interactions) else None
         )
 
     # Add required interactions

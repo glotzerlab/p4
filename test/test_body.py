@@ -221,7 +221,7 @@ VALID_INTERACTION_KWARGS = dict(
 
 @pytest.mark.parametrize("kwargs", VALID_KWARGS)
 @pytest.mark.parametrize("variant", ["none", "some", "all"])
-def test_must_be_rigid_body(kwargs, variant):
+def test_is_rigid(kwargs, variant):
     """Ensure method returns True if the body has any secondary types in common with an interction."""
     b = Body(**kwargs)
     interaction_kwargs = deepcopy(VALID_INTERACTION_KWARGS)
@@ -251,9 +251,9 @@ def test_must_be_rigid_body(kwargs, variant):
     i = Interaction(**interaction_kwargs)
 
     if variant == "none" or "secondary_types" not in kwargs.keys() or len(kwargs["secondary_types"]) == 0:
-        assert not b.must_be_rigid_body(i)
+        assert not b.is_rigid([i])
     elif variant in ["some", "all"]:
-        assert b.must_be_rigid_body(i)
+        assert b.is_rigid([i])
 
 def make_rigid(
     primary_type,

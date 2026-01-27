@@ -64,14 +64,16 @@ class Body:
         ):
             self.validate_secondary_orientations_and_positions_match()
     
-    def must_be_rigid_body(self, interaction: Interaction) -> bool:
-        """Whether the body must represent a rigid body for some interaction."""
+    def is_rigid(self, interactions: list[Interaction]) -> bool:
+        """Whether the body must represent a rigid body for some interactions."""
         common_single_types = any(
             t in self.secondary_types
+            for interaction in interactions
             for t in interaction.yes_single_types
         )
         common_pair_types = any(
             p[0] in self.secondary_types or p[1] in self.secondary_types
+            for interaction in interactions
             for p in interaction.yes_pair_types
         )
         return common_single_types or common_pair_types

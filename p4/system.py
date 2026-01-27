@@ -119,12 +119,16 @@ class System:
             # For pair types, there must be at least one pair that contains a
             # type in the probe and a type (could be the same one) in the
             # analyte
-            straddlers = []
-            for type_pair in interaction.yes_pair_types:
-                if any(t in probe_types for t in type_pair) and any(t in analyte_types for t in type_pair):
-                    straddlers.append(type_pair)
-            if len(straddlers) > 0:
-                included_interactions.append(interaction)
+            else:
+                straddlers = []
+                for type_pair in interaction.yes_pair_types:
+                    if (
+                        any(t in probe_types for t in type_pair)
+                        and any(t in analyte_types for t in type_pair)
+                    ):
+                        straddlers.append(type_pair)
+                if len(straddlers) > 0:
+                    included_interactions.append(interaction)
 
         return included_interactions
     

@@ -333,15 +333,15 @@ def add_table_writer(
 
     def probe_position():
         with simulation.state.cpu_local_snapshot as snapshot:
-            return snapshot.particles.position[
+            return np.array(snapshot.particles.position[
                 snapshot.particles.rtag[probe_index]
-            ]
+            ])
 
     def probe_orientation():
         with simulation.state.cpu_local_snapshot as snapshot:
-            return snapshot.particles.orientation[
+            return np.array(snapshot.particles.orientation[
                 snapshot.particles.rtag[probe_index]
-            ]
+            ])
 
     logger["x"] = (lambda: probe_position()[0], "scalar")
     logger["y"] = (lambda: probe_position()[1], "scalar")

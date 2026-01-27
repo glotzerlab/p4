@@ -137,19 +137,6 @@ class System:
         all_types.extend(self.analyte.secondary_types)
         return all_types
 
-    @property
-    def interacting_types(self) -> list[str]:
-        """The types from bodies that are 'yes' types in the active interactions."""
-        interacting_types = []
-        for t in self.all_types:
-            for i in self.active_interactions:
-                if (
-                    t in i.yes_single_types
-                    or any(t in p for p in i.yes_pair_types)
-                ):
-                    interacting_types.append(t)
-        return interacting_types
-
     def probe_potential(
         self,
         position_resolutions: list[list[float]],    # TODO: sampling_strategy: 'grid' with p_res and o_res, 'dynamic' with ???

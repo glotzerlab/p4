@@ -137,8 +137,8 @@ def get_probe_orientations(
     return rowan.from_euler(angles[:,0], angles[:,1], angles[:,2])
 
 def get_initial_frame(
-    probe_model: ParticleModel,
-    analyte_model: ParticleModel,
+    probe_body: Body,
+    analyte_body: Body,
     included_types: list[str],
     probe_box: list[float],
     simulation_box: list[float],
@@ -152,10 +152,10 @@ def get_initial_frame(
 
     Parameters
     ----------
-    probe_model : ParticleModel
-        The particle model for the probe.
-    analyte_model : ParticleModel
-        The particle model for the analyte.
+    probe_model : Body
+        The body for the probe.
+    analyte_model : Body
+        The body for the analyte.
     included_secondary_types : list[str]
         The secondary types to include in the particle data, accessible via
         frame.particles.types.
@@ -173,7 +173,7 @@ def get_initial_frame(
 
     all_types = list(
         set(
-            [analyte_model.primary_type, probe_model.primary_type]
+            [analyte_body.primary_type, probe_body.primary_type]
         ).union(included_types)
     )
     all_types.sort()
@@ -186,8 +186,8 @@ def get_initial_frame(
     frame.particles.N = 2
     frame.particles.position = positions
     frame.particles.typeid = [
-        frame.particles.types.index(analyte_model.primary_type),
-        frame.particles.types.index(probe_model.primary_type)
+        frame.particles.types.index(analyte_body.primary_type),
+        frame.particles.types.index(probe_body.primary_type)
     ]
     frame.configuration.box = simulation_box
     frame.particles.mass = [1] * frame.particles.N
@@ -198,7 +198,7 @@ def get_initial_frame(
 
 def add_rigid_constraint(
     simulation: hoomd.Simulation,
-    particle_model: ParticleModel,
+    body: Body,
     create_bodies: bool,
     included_secondary_types: list[str] | None = None,
     rigid: hoomd.md.constrain.Rigid | None = None,
@@ -209,8 +209,8 @@ def add_rigid_constraint(
     ----------
     simulation : hoomd.Simulation
         The simulation to modify.
-    particle_model : ParticleModel
-        The particle model containing the rigid body information. The model's
+    body : Body
+        The body containing the rigid body information. The model's
         `primary_type` corresponds to the rigid body's central particle, while
         the `secondary_types` correspond to the constituent particles.
     create_bodies : bool
@@ -233,24 +233,24 @@ def add_rigid_constraint(
         rigid = hoomd.md.constrain.Rigid()
     
     if included_secondary_types is None:
-        included_secondary_types = particle_model.secondary_types
+        included_secondary_types = body.secondary_types
     
     types_and_positions = [
         [t, position]
         for t in included_secondary_types
-        for position in particle_model.secondary_positions_by_type[t]
+        for position in body.secondary_positions_by_type[t]
     ]
 
-    if particle_model.secondary_orientations_by_type:
+    if body.secondary_orientations_by_type:
         orientations = [
             orientation
             for t in included_secondary_types
-            for orientation in particle_model.secondary_orientations_by_type[t]
+            for orientation in body.secondary_orientations_by_type[t]
         ]
     else:
         orientations = [(1.0, 0.0, 0.0, 0.0) for _ in types_and_positions]
 
-    rigid.body[particle_model.primary_type] = {
+    rigid.body[body.primary_type] = {
         "constituent_types": [t for (t, p) in types_and_positions],
         "positions": [p for (t, p) in types_and_positions],
         "orientations": [o for o in orientations]

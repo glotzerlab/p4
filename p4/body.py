@@ -219,20 +219,17 @@ class Body:
 
     def __eq__(self, other):
         """Bodies are equal if their attributes are the same or equivalent."""
-        if self.primary_type != other.primary_type:
+        primary_same = self.primary_type == other.primary_type
+        if not primary_same:
             return False
-        else:
-            primary_same = True
         
-        if self.secondary_types != other.secondary_types:
+        secondary_same = self.secondary_types == other.secondary_types
+        if not secondary_same:
             return False
-        else:
-            secondary_same = True
         
-        if self.secondary_positions_by_type != other.secondary_positions_by_type:
+        positions_same = self.secondary_positions_by_type == other.secondary_positions_by_type
+        if not positions_same:
             return False
-        else:
-            positions_same = True
 
         orientations_same = (
             self.secondary_orientations_by_type == other.secondary_orientations_by_type

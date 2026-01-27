@@ -52,7 +52,26 @@ class System:
         self.validate()
 
     def validate(self):
-        """Ensure bodies do not contain types not covered by interactions."""
+        """Ensure the system can be simulated."""
+        # Ensure there is no rigid body clash
+        if self.probe.primary_type == self.analyte.primary_type:
+            reason = (
+                "If `probe` and `analyte` have the same primary_type, they "
+                + "must also have the same secondary types, positions, and "
+                + "orientations, otherwise HOOMD's rigid body constraint "
+                + "cannot be constructed."
+            )
+            assert self.probe == self.analyte, reason
+        if self.probe.primary_type in self.analyte.secondary_types:
+            raise ValueError(
+                "probe primary type cannot appear in analyte secondary types."
+            )
+        if self.analyte.primary_type in self.probe.secondary_types:
+            raise ValueError(
+                "analyte primary type cannot appear in probe secondary types."
+            )
+
+        # Ensure bodies do not contain types not covered by interactions.        
         covered_types = [t for i in self.interactions for t in i.all_types]
 
         def err_msg(probe_or_analyte, primary_or_secondary, particle_type):

@@ -134,12 +134,12 @@ class System:
     
     @property
     def all_types(self) -> list[str]:
-        """All particle types in the probe and analyte."""
+        """All unique particle types in the probe and analyte."""
         all_types = [self.probe.primary_type]
         all_types.extend(self.probe.secondary_types)
         all_types.append(self.analyte.primary_type)
         all_types.extend(self.analyte.secondary_types)
-        return all_types
+        return list(set(all_types))
 
     def probe_potential(
         self,

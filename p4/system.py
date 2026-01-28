@@ -353,7 +353,7 @@ class System:
         ):
             raise ValueError("simulation must have an integrator with forces.")
 
-        types_in_state = simulation.state.get_snapshot().particles.type
+        types_in_state = simulation.state.get_snapshot().particles.types
         if probe_primary_type not in types_in_state:
             raise ValueError(
                 "simulation state does not have particle type "

@@ -331,7 +331,7 @@ class System:
 
         The simulation must have an integrator, and the integrator must have one
         or more forces. Optionally, the integrator may also have a rigid
-        constraint. If it does have one, and if  this constraint's keys
+        constraint. If it does have one, and if this constraint's keys
         include the probe's and/or the analyte's primary type, then the
         constraint is parsed to determine secondary types, positions, and
         orientations for the probe and/or analyte bodies.

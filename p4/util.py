@@ -432,7 +432,7 @@ def add_integrator(
     return simulation
 
 def find_nearest(array, value):
-    """TODO"""
+    """Find the item nearest to a given value in an array."""
     # Ref: https://stackoverflow.com/a/2566508/15426433
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()

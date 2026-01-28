@@ -145,7 +145,7 @@ class System:
         self,
         position_resolutions: list[list[float]],    # TODO: sampling_strategy: 'grid' with p_res and o_res, 'dynamic' with ???
         orientation_resolutions: list[list[float]],
-        symmetries: list[int],  # TODO: auto-calculate
+        symmetries: list[int],
         csv_filename: str,
         nlist: hoomd.md.nlist.NeighborList,
         outside_cutoff: float,
@@ -248,7 +248,7 @@ class System:
         )
 
         # Remove positions that are too close
-        # TODO: allow distance to be negative?
+        # Review: allow distance to be negative?
         if inside_cutoff is not None:
             # if inside_cutoff <= 0:
             #     raise ValueError(
@@ -300,7 +300,7 @@ class System:
             table = p4.util.clean_header(p4.util.merge_tables(tables))
         
         # If not multiprocessing, don't initialize a pool (easier for debugging)
-        else:   # TODO: move header cleaning to its own function
+        else:
             if save_gsd:
                 gsd_filename = csv_filename.split(".")[-2] + ".gsd"
             table = p4.util.run_probe(

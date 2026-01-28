@@ -405,7 +405,7 @@ class Interaction:
         hoomd_class = type(pair)
         
         # Initial args
-        initial_args = pair._param_dict.to_base()   # TODO: default_r_cut, default_r_on??
+        initial_args = pair._param_dict.to_base()
         
         # Delete unnecessary initial args
         del initial_args["nlist"]

@@ -382,3 +382,11 @@ class System:
             analyte=analyte,
             interactions=interactions
         )
+    
+    def __eq__(self, other):
+        """Two Systems are equivalent if their settable properties are, too."""
+        return (
+            self.interactions == other.interactions
+            and self.probe == other.probe
+            and self.analyte == other.analyte
+        )

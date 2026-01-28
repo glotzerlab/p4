@@ -69,7 +69,7 @@ class Interaction:
         self.hoomd_class = hoomd_class
         self.initial_args = initial_args
         self.no_params = no_params
-        self.all_types = [str(t) for t in all_types]
+        self.all_types = [str(t) for t in all_types]  # Review: enforce uniqueness?
         self.yes_params = yes_params
 
         self.validate()

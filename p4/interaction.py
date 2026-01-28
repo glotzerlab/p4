@@ -620,6 +620,7 @@ class Interaction:
         same_initial_args = self.initial_args == other.initial_args
         same_no_params = self.no_params == other.no_params
         same_all_types = self.all_types == other.all_types
+        equivalent_all_types = set(self.all_types) == set(other.all_types)
         same_yes_params = self.yes_params == other.yes_params
 
         def without_keys(d, keys):
@@ -903,12 +904,189 @@ class Interaction:
                 or (all(optional_params_equivalent) and all(rs_equivalent))
             )
 
+        # If yes and/or no_params are different, they should be considered
+        # equivalent if the only differences are between
+        #   - the absence of `r_cut` or `r_on` parameters that are covered by
+        #     equivalent default values in initial_args
+        #   - the presence of optional parameters that are set to their default
+        #     values
+        #   - the presence of the same parameter value for every single or pair
+        #   - TODO: add support for type pairs that are tuples in a different
+        #     order (Review: consider changing tuples to sets)
+        equivalent_yes_params = same_yes_params
+        if not same_yes_params:
+            # Check for equivalence based on r_cut and/or r_on values
+            same_without_rs = (
+                without_keys(self.yes_params, ["r_cut", "r_on"])
+                == without_keys(other.yes_params, ["r_cut", "r_on"])
+            )
+
+            different_rs = [
+                r
+                for r in ["r_cut", "r_on"]
+                if self.yes_params.get(r) != other.no_params.get(r)
+            ]
+            rs_equivalent = [True] if not different_rs else []
+            for r in different_rs:
+                # For r_cut, there MUST be a value in either initial_args or
+                # no_params, otherwise the hoomd pair cannot be parameterized.
+                # For r_on, there does not need to be a value, and if this is
+                # the case then hoomd defaults the parameter to zero.
+                if r not in self.yes_params:
+                    if r in self.no_params:
+                        self_dominant_r = self.no_params[r]
+                    elif f"default_{r}" in self.initial_args:
+                        self_dominant_r = self.initial_args[f"default_{r}"]
+                    else:
+                        if r == "r_on":
+                            self_dominant_r = 0
+                        else:
+                            msg = (
+                                "During equivalence comparison, encountered a "
+                                + "problem: can find neither 'default_r_cut' "
+                                + "in `self.initial_args` nor 'r_cut' in "
+                                + "`self.no_params`. This is undefined "
+                                + "behavior."
+                            )
+                            raise ValueError(msg)
+                else:
+                    self_dominant_r = self.yes_params[r]
+                
+                if r not in other.yes_params:
+                    if r in other.no_params:
+                        other_dominant_r = other.no_params[r]
+                    elif f"default_{r}" in other.initial_args:
+                        other_dominant_r = other.initial_args[f"default_{r}"]
+                    else:
+                        if r == "r_on":
+                            other_dominant_r = 0
+                        else:
+                            msg = (
+                                "During equivalence comparison, encountered a "
+                                + "problem: can find neither 'default_r_cut' "
+                                + "in `other.initial_args` nor 'r_cut' in "
+                                + "`other.no_params`. This is undefined "
+                                + "behavior."
+                            )
+                            raise ValueError(msg)
+                else:
+                    other_dominant_r = other.yes_params[r]
+
+                rs_equivalent.append(self_dominant_r == other_dominant_r)
+            
+            # Check for equivalence based on optional parameters
+            optional_params_equivalent = []
+            if not same_without_rs:
+                instance = self.to_hoomd_instance(hoomd.md.nlist.Cell(0))
+                tpd = instance._typeparam_dict
+                for name, typeparam in tpd.items():
+                    # If the typeparam is a dictionary mapping names to some
+                    # subtypeparams, then each of those subtypeparams must also
+                    # be checked. This process is not recursive - i.e., it does
+                    # not perform this dictionary check on each of those
+                    # subtypeparams.
+                    if isinstance(typeparam.default, dict):
+                        for k, v in typeparam.default.items():
+                            if isinstance(v, dict):
+                                for sk, sv in v.items():
+                                    if isinstance(sv, dict):
+                                        for ssk, ssv in sv.items():
+                                            # Check self
+                                            if (
+                                                name in self.yes_params
+                                                and isinstance(self.yes_params[name], dict)
+                                                and k in self.yes_params[name]
+                                                and isinstance(self.yes_params[name][k], dict)
+                                                and sk in self.yes_params[name][k]
+                                                and isinstance(self.yes_params[name][k][sk], dict)
+                                                and ssk in self.yes_params[name][k][sk]
+                                            ):
+                                                optional_params_equivalent.append(
+                                                    ssv == self.yes_params[name][k][sk][ssk]
+                                                )
+                                            # Check other
+                                            if (
+                                                name in other.yes_params
+                                                and isinstance(other.yes_params[name], dict)
+                                                and k in other.yes_params[name]
+                                                and isinstance(other.yes_params[name][k], dict)
+                                                and sk in other.yes_params[name][k]
+                                                and isinstance(other.yes_params[name][k][sk], dict)
+                                                and ssk in other.yes_params[name][k][sk]
+                                            ):
+                                                optional_params_equivalent.append(
+                                                    sv == other.yes_params[name][k][sk][ssk]
+                                                )
+                                    else:
+                                        # Check self
+                                        if (
+                                            name in self.yes_params
+                                            and isinstance(self.yes_params[name], dict)
+                                            and k in self.yes_params[name]
+                                            and isinstance(self.yes_params[name][k], dict)
+                                            and sk in self.yes_params[name][k]
+                                        ):
+                                            optional_params_equivalent.append(
+                                                sv == self.yes_params[name][k][sk]
+                                            )
+                                        # Check other
+                                        if (
+                                            name in other.yes_params
+                                            and isinstance(other.yes_params[name], dict)
+                                            and k in other.yes_params[name]
+                                            and isinstance(other.yes_params[name][k], dict)
+                                            and sk in other.yes_params[name][k]
+                                        ):
+                                            optional_params_equivalent.append(
+                                                sv == other.yes_params[name][k][sk]
+                                            )
+                            else:
+                                # Check self
+                                if (
+                                    name in self.yes_params
+                                    and isinstance(self.yes_params[name], dict)
+                                    and k in self.yes_params[name]
+                                ):
+                                    optional_params_equivalent.append(
+                                        v == self.yes_params[name][k]
+                                    )
+                                # Check other
+                                if (
+                                    name in other.yes_params
+                                    and isinstance(other.yes_params[name], dict)
+                                    and k in other.yes_params[name]
+                                ):
+                                    optional_params_equivalent.append(
+                                        v == other.yes_params[name][k]
+                                    )
+                                
+
+                    # If the typeparam is not a dictionary, everything's simple
+                    else:
+                        # Loop over all optional params
+                        if typeparam.default is not hoomd.data.typeconverter.RequiredArg:
+                            # Check self
+                            if name in self.yes_params:
+                                optional_params_equivalent.append(
+                                    typeparam.default == self.yes_params[name]
+                                )
+                            # Check other
+                            if name in other.yes_params:
+                                optional_params_equivalent.append(
+                                    typeparam.default == other.yes_params[name]
+                                )
+
+            equivalent_yes_params = (
+                (same_without_rs and all(rs_equivalent))
+                or (all(optional_params_equivalent) and all(rs_equivalent))
+            )
+
         return (
             same_type
             and (same_initial_args or equivalent_initial_args)
             and (same_no_params or equivalent_no_params)
-            and same_all_types
-            and same_yes_params
+            and (same_all_types or equivalent_all_types)
+            and (same_yes_params or equivalent_yes_params)
         )
 
     def __repr__(self):

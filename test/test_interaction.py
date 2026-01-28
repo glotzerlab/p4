@@ -258,7 +258,7 @@ def parse_params(hoomd_class, single_or_pair, required_or_optional):
     tpd = hoomd_class(nlist=NLIST, **initial_args)._typeparam_dict
 
     for name, typeparam in tpd.items():
-        something_to_add = False    # TODO: this flag indicates refactoring needed
+        something_to_add = False    # Review: this flag indicates refactoring needed
 
         # If the typeparam is a dictionary mapping names to some subtypeparams,
         # then each of those subtypeparams must also be checked. This process
@@ -868,7 +868,7 @@ def pairs_are_equivalent(one, other):
     """Return True if hooomd.md.pair.Pair instances are equivalent."""
     same_types = type(one) is type(other)
     try:
-        same_typeparam_dicts = one._typeparam_dict == other._typeparam_dict     # TODO: I don't know why this sometimes works when the other branch doesn't
+        same_typeparam_dicts = one._typeparam_dict == other._typeparam_dict     # Review: I don't know why this sometimes works when the other branch doesn't
     except ValueError:
         same_typeparam_dicts = typeparam_dicts_are_equivalent(
             one._typeparam_dict,
@@ -1349,7 +1349,7 @@ def test_to_hoomd_instance(cls, required_or_all):
 @pytest.mark.parametrize("required_or_all", ["required", "all"])
 def test_to_parameterized_hoomd_instance(cls, required_or_all):
     """Ensure for every coverted hoomd class an Interaction can be converted to a parameterized hoomd instance."""
-    # TODO: is there a better way to test this? I'm basically just copying the
+    # Review: is there a better way to test this? I'm basically just copying the
     # actual implementation...
     kwargs = get_kwargs(cls, required_or_all)
     interaction = Interaction(**kwargs)

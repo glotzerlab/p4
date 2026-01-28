@@ -425,12 +425,18 @@ class Interaction:
                 if type_name in yes_types:
                     if type_name not in yes_params:
                         yes_params[type_name] = {}
-                    yes_params[type_name][param_name] = param_value
+                    if hasattr(param_value, "to_base"):
+                        yes_params[type_name][param_name] = param_value.to_base()
+                    else:
+                        yes_params[type_name][param_name] = param_value
 
                 # No params
                 else:
                     if param_name not in no_params:
-                        no_params[param_name] = param_value
+                        if hasattr(param_value, "to_base"):
+                            no_params[param_name] = param_value.to_base()
+                        else:
+                            no_params[param_name] = param_value
 
         kwargs=dict(
             hoomd_class=hoomd_class,

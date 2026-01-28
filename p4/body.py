@@ -135,7 +135,7 @@ class Body:
             raise ValueError("`simulation` must have an integrator")
         if simulation.operations.integrator.rigid is None:
             raise ValueError("integrator must have a rigid constraint")
-        types_in_state = simulation.state.get_snapshot().particles.type
+        types_in_state = simulation.state.get_snapshot().particles.types
         if primary_type is not None and primary_type not in types_in_state:
             raise ValueError(
                 f"`simulation` does not contain primary_type {primary_type}"
@@ -159,7 +159,8 @@ class Body:
         primary_type : str, optional
             The name of the primary type of a single body. If provided, just
             that body is returned. If not provided, all possible bodies are
-            returned in a list.
+            returned in a list. If there is no body defined for the provided
+            primary type, a single-particle body is returned.
         """
         # If primary type is supplied, it must be in the rigid's primary types
         if primary_type and primary_type not in rigid.body.keys():
@@ -199,19 +200,22 @@ class Body:
         # Construct bodies
         bodies = []
         for p_t in primary_types:
-            bodies.append(cls(
-                primary_type=p_t,
-                secondary_types=unique(rigid.body[p_t]["constituent_types"]),
-                secondary_positions_by_type=data_by_type(
-                    rigid.body[p_t]["constituent_types"],
-                    [list(p) for p in rigid.body[p_t]["positions"]]
-                ),
-                secondary_orientations_by_type=data_by_type(
-                    rigid.body[p_t]["constituent_types"],
-                    [list(p) for p in rigid.body[p_t]["orientations"]]
-                )
-            ))
+            if rigid.body[p_t] is not None:
+                bodies.append(cls(
+                    primary_type=p_t,
+                    secondary_types=unique(rigid.body[p_t]["constituent_types"]),
+                    secondary_positions_by_type=data_by_type(
+                        rigid.body[p_t]["constituent_types"],
+                        [list(p) for p in rigid.body[p_t]["positions"]]
+                    ),
+                    secondary_orientations_by_type=data_by_type(
+                        rigid.body[p_t]["constituent_types"],
+                        [list(p) for p in rigid.body[p_t]["orientations"]]
+                    )
+                ))
 
+        if len(bodies) == 0:
+            return cls(primary_type=primary_type)
         if len(bodies) == 1:
             return bodies[0]
         else:

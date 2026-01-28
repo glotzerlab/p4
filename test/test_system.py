@@ -567,12 +567,187 @@ def test_all_types(kwargs, expected):
 
 def test_probe_potential_valid():
     """Ensure probe_potential method works and returns expected results for valid kwargs."""
+    # TODO
     pass
 
-def test_from_hoomd_simulation_valid():
+def get_valid_simulations_and_kwargs():
+    """Return an array of valid simulations with corresponding kwargs.
+    
+    The kwargs assume that when parsing the simulation, the primary type for
+    the probe will always be 'A', and for the analyte the primary type will
+    always be 'C'.
+    """
+    simulations_and_kwargs = []
+
+    # single-particle probe, single-particle analyte
+    simulation = hoomd.util.make_example_simulation(particle_types=["A", "C"])
+    simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
+    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Cell(2))
+    lj.r_cut[("A", "A")] = 0
+    lj.r_cut[("C", "C")] = 0
+    lj.r_cut[("A", "C")] = 5
+    lj.params[("A", "A")] = dict(epsilon=0, sigma=1)
+    lj.params[("C", "C")] = dict(epsilon=0, sigma=1)
+    lj.params[("A", "C")] = dict(epsilon=1, sigma=1)
+    simulation.operations.integrator.forces.append(lj)
+    kwargs = dict(
+        probe=Body("A"),
+        analyte=Body("C"),
+        interactions=[lj_interaction(["A", "C"], [("A", "C")])]
+    )
+    simulations_and_kwargs.append([simulation, kwargs])
+
+    # single-particle probe, multi-particle analyte
+    simulation = hoomd.util.make_example_simulation(particle_types=["A", "C", "D"])
+    simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
+    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Cell(2))
+    lj.r_cut[("A", "A")] = 0
+    lj.r_cut[("A", "C")] = 0
+    lj.r_cut[("C", "C")] = 0
+    lj.r_cut[("C", "D")] = 0
+    lj.r_cut[("D", "D")] = 0
+    lj.r_cut[("A", "D")] = 5
+    lj.params[("A", "A")] = dict(epsilon=0, sigma=1)
+    lj.params[("A", "C")] = dict(epsilon=0, sigma=1)
+    lj.params[("C", "C")] = dict(epsilon=0, sigma=1)
+    lj.params[("C", "D")] = dict(epsilon=0, sigma=1)
+    lj.params[("D", "D")] = dict(epsilon=0, sigma=1)
+    lj.params[("A", "D")] = dict(epsilon=1, sigma=1)
+    simulation.operations.integrator.forces.append(lj)
+    rigid = hoomd.md.constrain.Rigid()
+    rigid.body["C"] = {
+        "constituent_types": ["D"],
+        "positions": [(1,0,0)],
+        "orientations": [(1, 0, 0, 0)],
+    }
+    simulation.operations.integrator.rigid = rigid
+    kwargs = dict(
+        probe=Body("A"),
+        analyte=Body(
+            primary_type="C",
+            secondary_types="D",
+            secondary_positions_by_type={"D": [[1,0,0]]}
+        ),
+        interactions=[lj_interaction(["A", "C", "D"], [("A", "D")])]
+    )
+    simulations_and_kwargs.append([simulation, kwargs])
+
+    # multi-particle probe, single-particle analyte
+    simulation = hoomd.util.make_example_simulation(particle_types=["A", "B", "C"])
+    simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
+    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Cell(2))
+    lj.r_cut[("C", "C")] = 0
+    lj.r_cut[("C", "A")] = 0
+    lj.r_cut[("A", "A")] = 0
+    lj.r_cut[("A", "B")] = 0
+    lj.r_cut[("B", "B")] = 0
+    lj.r_cut[("C", "B")] = 5
+    lj.params[("C", "C")] = dict(epsilon=0, sigma=1)
+    lj.params[("C", "A")] = dict(epsilon=0, sigma=1)
+    lj.params[("A", "A")] = dict(epsilon=0, sigma=1)
+    lj.params[("A", "B")] = dict(epsilon=0, sigma=1)
+    lj.params[("B", "B")] = dict(epsilon=0, sigma=1)
+    lj.params[("C", "B")] = dict(epsilon=1, sigma=1)
+    simulation.operations.integrator.forces.append(lj)
+    rigid = hoomd.md.constrain.Rigid()
+    rigid.body["A"] = {
+        "constituent_types": ["B"],
+        "positions": [(1,0,0)],
+        "orientations": [(1, 0, 0, 0)],
+    }
+    simulation.operations.integrator.rigid = rigid
+    kwargs = dict(
+        probe=Body(
+            primary_type="A",
+            secondary_types="B",
+            secondary_positions_by_type={"B": [[1,0,0]]}
+        ),
+        analyte=Body("C"),
+        interactions=[lj_interaction(["A", "B", "C"], [("B", "C")])]
+    )
+    simulations_and_kwargs.append([simulation, kwargs])
+
+    # multi-particle probe, multi-particle analyte
+    simulation = hoomd.util.make_example_simulation(particle_types=["A", "B", "C", "D"])
+    simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
+    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Cell(2))
+    lj.r_cut[("A", "A")] = 0
+    lj.r_cut[("A", "B")] = 0
+    lj.r_cut[("A", "C")] = 0
+    lj.r_cut[("A", "D")] = 0
+    lj.r_cut[("B", "B")] = 0
+    lj.r_cut[("B", "C")] = 0
+    lj.r_cut[("B", "D")] = 5
+    lj.r_cut[("C", "C")] = 0
+    lj.r_cut[("C", "D")] = 0
+    lj.r_cut[("D", "D")] = 0
+    lj.params[("A", "A")] = dict(epsilon=0, sigma=1)
+    lj.params[("A", "B")] = dict(epsilon=0, sigma=1)
+    lj.params[("A", "C")] = dict(epsilon=0, sigma=1)
+    lj.params[("A", "D")] = dict(epsilon=0, sigma=1)
+    lj.params[("B", "B")] = dict(epsilon=0, sigma=1)
+    lj.params[("B", "C")] = dict(epsilon=0, sigma=1)
+    lj.params[("B", "D")] = dict(epsilon=1, sigma=1)
+    lj.params[("C", "C")] = dict(epsilon=0, sigma=1)
+    lj.params[("C", "D")] = dict(epsilon=0, sigma=1)
+    lj.params[("D", "D")] = dict(epsilon=0, sigma=1)
+    simulation.operations.integrator.forces.append(lj)
+    rigid = hoomd.md.constrain.Rigid()
+    rigid.body["A"] = {
+        "constituent_types": ["B"],
+        "positions": [(1,0,0)],
+        "orientations": [(1, 0, 0, 0)],
+    }
+    rigid.body["C"] = {
+        "constituent_types": ["D"],
+        "positions": [(0,1,0)],
+        "orientations": [(1, 0, 0, 0)],
+    }
+    simulation.operations.integrator.rigid = rigid
+    kwargs = dict(
+        probe=Body(
+            primary_type="A",
+            secondary_types=["B"],
+            secondary_positions_by_type={"B": [[1,0,0]]}
+        ),
+        analyte=Body(
+            primary_type="C",
+            secondary_types="D",
+            secondary_positions_by_type={"D": [[0,1,0]]}
+        ),
+        interactions=[lj_interaction(["A", "B", "C", "D"], [("B", "D")])]
+    )
+    simulations_and_kwargs.append([simulation, kwargs])
+
+    return simulations_and_kwargs
+
+@pytest.mark.parametrize("simulation,kwargs", get_valid_simulations_and_kwargs())
+def test_from_hoomd_simulation_valid(simulation, kwargs):
     """Ensure parsing from hoomd simulations works for valid simulations."""
-    pass
+    a = System.from_hoomd_simulation(simulation, "A", "C")
+    b = System(**kwargs)
+    assert a == b
 
-def test_from_hoomd_simulation_invalid():
+@pytest.mark.parametrize("variant", ["no-forces", "no-integrator", "missing-probe-type", "missing-analyte-type"])
+def test_from_hoomd_simulation_invalid(variant):
     """Ensure parsing from hoomd simulations fails expectedly for invalid simulations."""
-    pass
+    if variant == "no-forces":
+        simulation = hoomd.util.make_example_simulation(particle_types=["A", "B"])
+        simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
+        with pytest.raises(ValueError):
+            _ = System.from_hoomd_simulation(simulation, "A", "B")
+
+    elif variant == "no-integrator":
+        simulation = hoomd.util.make_example_simulation(particle_types=["A", "B"])
+        with pytest.raises(ValueError):
+            _ = System.from_hoomd_simulation(simulation, "A", "B")
+
+    elif variant == "missing-probe-type":
+        simulation = hoomd.util.make_example_simulation(particle_types=["X", "B"])
+        with pytest.raises(ValueError):
+            _ = System.from_hoomd_simulation(simulation, "A", "B")
+
+    elif variant == "missing-analyte-type":
+        simulation = hoomd.util.make_example_simulation(particle_types=["A", "X"])
+        with pytest.raises(ValueError):
+            _ = System.from_hoomd_simulation(simulation, "A", "B")

@@ -14,47 +14,45 @@ Clone the repository, navigate to the package's root directory, and run `pip ins
 import p4
 
 # Probe the potential around a LJ sphere
-probe_model = p4.Body("P")
-analyte_model = p4.Body("A")
+probe = p4.Body("P")
+analyte = p4.Body("A")
 
-interaction_model = {
-    "LJ": p4.Interaction(
+interactions = [
+    p4.Interaction(
         hoomd_class=hoomd.md.pair.LJ,
         initial_args=dict(),
-        no_single_typed_attributes=dict(),
-        no_pair_typed_attributes=dict(
+        no_params=dict(
+            r_cut=0,
             params=dict(
-                epsilon=0.0,
-                sigma=1.0
-            ),
-            r_cut=0.0
+                epsilon=0,
+                sigma=1
+            )
         ),
-        yes_types=["A", "P"],
-        yes_single_typed_attributes=dict(),
-        yes_pair_typed_attributes=dict(
-            params=dict(
-                epsilon=1.0,
-                sigma=0.5
-            ),
-            r_cut=2.0
-        )
+        all_types=["A", "P"],
+        yes_params={
+            ("A", "P"): dict(
+                r_cut=5,
+                params=dict(
+                    epsilon=1,
+                    sigma=0.5
+                )
+            )
+        }
     )
-}
+]
 
-system = p4.System(probe_model, analyte_model, interaction_model)
+system = p4.System(probe, analyte, interactions)
 
 nlist = hoomd.md.nlist.Cell(10)
 
 system.probe_potential(
     position_resolutions=[30, 30, 1],
     orientation_resolutions=[1, 1, 1],
-    orientation_symmetries=[1, 1, 1],
-    interactions_to_include=["LJ"],
+    symmetries=[1, 1, 1],
     nlist=nlist,
-    csv_filename="test-lj-sphere.csv",
-    probe_cutoff_shape=None,
-    probe_cutoff_outside_distance=lambda _: 2.0,
-    probe_cutoff_inside_distance=lambda _: 0.2
+    csv_filename="lj-sphere.csv",
+    outside_cutoff=2.0,
+    inside_cutoff=0.2
 )
 ```
 
@@ -86,8 +84,8 @@ system.probe_potential(
   - to accomplish this, need to change how index of probe particle is calculated. Does that index ever change?
   - PROBLEM: what if you aren't interested in body A - body A interactions, but rather in body A - body B? How do you investigate those with no notion of a probe particle? The notion of a System would have to change - it would be a collection of named particle models and a single interaction model (Or maybe a combination of a Particle Model and an Interaction Model - a ParticleModel being a named collection of BodyModels...)
 - [ ] (optional) add support for Frame analytes
-- [ ] write tests
-- [ ] add parsing from `hoomd.Simulation`
+- [x] write tests
+- [x] add parsing from `hoomd.Simulation`
 
 `Field`
 - [ ] refine dimensionality handling (always 3D? if not, need checks when calling various methods)
@@ -112,7 +110,7 @@ Other
 
 ### Open to group members
 functionality
-  - [ ] parse hoomd objects to create Interaction, ParticleModel, System
+  - [x] parse hoomd objects to create Interaction, ParticleModel, System
   - [ ] plot 1D and 2D slices of Fields
 
 tests

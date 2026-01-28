@@ -20,24 +20,24 @@ VALID_KWARGS = [
     dict(   # 1 seconary type, positions only
         primary_type="A",
         secondary_types=["B"],
-        secondary_positions_by_type=dict(
+        positions_by_type=dict(
             B=[[1,1,1]]
         )
     ),
     dict(   # 1 seconary type, positions and orientations
         primary_type="A",
         secondary_types=["B"],
-        secondary_positions_by_type=dict(
+        positions_by_type=dict(
             B=[[1,1,1]]
         ),
-        secondary_orientations_by_type=dict(
+        orientations_by_type=dict(
             B=[[1,1,0,0,]]
         )
     ),
     dict(   # 2 seconary types, positions only
         primary_type="A",
         secondary_types=["B", "C"],
-        secondary_positions_by_type=dict(
+        positions_by_type=dict(
             B=[[1,1,1]],
             C=[[1,0,0], [0,1,0]]
         )
@@ -45,11 +45,11 @@ VALID_KWARGS = [
     dict(   # 2 seconary types, positions and orientations
         primary_type="A",
         secondary_types=["B", "C"],
-        secondary_positions_by_type=dict(
+        positions_by_type=dict(
             B=[[1,1,1]],
             C=[[1,0,0], [0,1,0]]
         ),
-        secondary_orientations_by_type=dict(
+        orientations_by_type=dict(
             B=[[1,1,0,0]],
             C=[[1,0,0,0], [0,1,0,0]]
         )
@@ -70,60 +70,60 @@ INVALID_KWARGS = [
     dict(   # 1 secondary type (empty positions given)
         primary_type="A",
         secondary_types=["B"],
-        secondary_positions_by_type=dict()
+        positions_by_type=dict()
     ),
     dict(   # 1 secondary type (positions given with wrong key)
         primary_type="A",
         secondary_types=["B"],
-        secondary_positions_by_type=dict(
+        positions_by_type=dict(
             wrong=[[1,1,1]]
         )
     ),
     dict(   # 2 secondary types (first is wrong)
         primary_type="A",
         secondary_types=["B", "C"],
-        secondary_positions_by_type=dict(
+        positions_by_type=dict(
             C=[[1,0,0], [0,1,0]]
         )
     ),
     dict(   # 2 secondary types (second is wrong)
         primary_type="A",
         secondary_types=["B", "C"],
-        secondary_positions_by_type=dict(
+        positions_by_type=dict(
             B=[[1,1,1]]
         )
     ),
     dict(   # 2 secondary types (both are wrong)
         primary_type="A",
         secondary_types=["B", "C"],
-        secondary_positions_by_type=dict()
+        positions_by_type=dict()
     ),
 
     # Secondary types with orientations, position keys are missing
     dict(   # 1 secondary type
         primary_type="A",
         secondary_types=["B"],
-        secondary_orientations_by_type=dict(
+        orientations_by_type=dict(
             B=[[1,1,0,0,]]
         )
     ),
     dict(   # 1 secondary type (positions given with wrong key)
         primary_type="A",
         secondary_types=["B"],
-        secondary_positions_by_type=dict(
+        positions_by_type=dict(
             wrong=[[1,1,1]]
         ),
-        secondary_orientations_by_type=dict(
+        orientations_by_type=dict(
             B=[[1,1,0,0,]]
         )
     ),
     dict(   # 2 secondary types (first is wrong)
         primary_type="A",
         secondary_types=["B", "C"],
-        secondary_positions_by_type=dict(
+        positions_by_type=dict(
             C=[[1,0,0], [0,1,0]]
         ),
-        secondary_orientations_by_type=dict(
+        orientations_by_type=dict(
             B=[[1,1,0,0]],
             C=[[1,0,0,0], [0,1,0,0]]
         )
@@ -131,10 +131,10 @@ INVALID_KWARGS = [
     dict(   # 2 secondary types (second is wrong)
         primary_type="A",
         secondary_types=["B", "C"],
-        secondary_positions_by_type=dict(
+        positions_by_type=dict(
             B=[[1,1,1]]
         ),
-        secondary_orientations_by_type=dict(
+        orientations_by_type=dict(
             B=[[1,1,0,0]],
             C=[[1,0,0,0], [0,1,0,0]]
         )
@@ -142,7 +142,7 @@ INVALID_KWARGS = [
     dict(   # 2 secondary types (both are wrong)
         primary_type="A",
         secondary_types=["B", "C"],
-        secondary_orientations_by_type=dict(
+        orientations_by_type=dict(
             B=[[1,1,0,0]],
             C=[[1,0,0,0], [0,1,0,0]]
         )
@@ -152,21 +152,21 @@ INVALID_KWARGS = [
     dict(   # 1 secondary type
         primary_type="A",
         secondary_types=["B"],
-        secondary_positions_by_type=dict(
+        positions_by_type=dict(
             B=[[1,1,1]]
         ),
-        secondary_orientations_by_type=dict(
+        orientations_by_type=dict(
             B=[[1,1,0,0,], [1,1,0,0,]]
         )
     ),
     dict(   # 2 secondary types (first does not match)
         primary_type="A",
         secondary_types=["B", "C"],
-        secondary_positions_by_type=dict(
+        positions_by_type=dict(
             B=[[1,1,1]],
             C=[[1,0,0], [0,1,0]]
         ),
-        secondary_orientations_by_type=dict(
+        orientations_by_type=dict(
             B=[[1,1,0,0], [1,1,0,0,]],
             C=[[1,0,0,0], [0,1,0,0]]
         )
@@ -174,11 +174,11 @@ INVALID_KWARGS = [
     dict(   # 2 secondary types (second does not match)
         primary_type="A",
         secondary_types=["B", "C"],
-        secondary_positions_by_type=dict(
+        positions_by_type=dict(
             B=[[1,1,1]],
             C=[[1,0,0], [0,1,0]]
         ),
-        secondary_orientations_by_type=dict(
+        orientations_by_type=dict(
             B=[[1,1,0,0]],
             C=[[1,0,0,0]]
         )
@@ -186,11 +186,11 @@ INVALID_KWARGS = [
     dict(   # 2 secondary types (both do not match)
         primary_type="A",
         secondary_types=["B", "C"],
-        secondary_positions_by_type=dict(
+        positions_by_type=dict(
             B=[[1,1,1]],
             C=[[1,0,0], [0,1,0]]
         ),
-        secondary_orientations_by_type=dict(
+        orientations_by_type=dict(
             B=[[1,1,0,0], [1,1,0,0,]],
             C=[[1,0,0,0]]
         )
@@ -258,8 +258,8 @@ def test_is_rigid(kwargs, variant):
 def make_rigid(
     primary_type,
     secondary_types=[],
-    secondary_positions_by_type={},
-    secondary_orientations_by_type={}
+    positions_by_type={},
+    orientations_by_type={}
 ):
     """Create a rigid constraint that corresponds to the args for a Body."""
     rigid = hoomd.md.constrain.Rigid()
@@ -268,11 +268,11 @@ def make_rigid(
     positions = []
     orientations = []
     for t in secondary_types:
-        for i, p in enumerate(secondary_positions_by_type[t]):
+        for i, p in enumerate(positions_by_type[t]):
             types.append(t)
             positions.append(p)
-            if secondary_orientations_by_type and t in secondary_orientations_by_type.keys():
-                orientations.append(secondary_orientations_by_type[t][i])
+            if orientations_by_type and t in orientations_by_type.keys():
+                orientations.append(orientations_by_type[t][i])
             else:
                 orientations.append([1, 0, 0, 0])
 
@@ -287,16 +287,16 @@ def make_rigid(
 def make_simulation(
     primary_type,
     secondary_types=[],
-    secondary_positions_by_type={},
-    secondary_orientations_by_type={}
+    positions_by_type={},
+    orientations_by_type={}
 ):
     """Create a simulation with a rigid constraint that corresponds to the args for a Body."""
     sim = hoomd.util.make_example_simulation(particle_types=[primary_type] + secondary_types)
     rigid = make_rigid(
         primary_type=primary_type,
         secondary_types=secondary_types,
-        secondary_positions_by_type=secondary_positions_by_type,
-        secondary_orientations_by_type=secondary_orientations_by_type
+        positions_by_type=positions_by_type,
+        orientations_by_type=orientations_by_type
     )
     rigid.create_bodies(sim.state)
     sim.operations.integrator = hoomd.md.Integrator(dt=0.1)

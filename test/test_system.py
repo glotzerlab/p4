@@ -99,8 +99,8 @@ VALID_KWARGS = [
         analyte=Body(
             primary_type="B",
             secondary_types=["C"],
-            secondary_positions_by_type={"C": [[1,0,0]]},
-            secondary_orientations_by_type={"C": [[0,1,0,0]]}
+            positions_by_type={"C": [[1,0,0]]},
+            orientations_by_type={"C": [[0,1,0,0]]}
         ),
         interactions=[
             lj_interaction(["A", "B", "C"], [("A", "C")])
@@ -111,8 +111,8 @@ VALID_KWARGS = [
         analyte=Body(
             primary_type="B",
             secondary_types=["C"],
-            secondary_positions_by_type={"C": [[1,0,0]]},
-            secondary_orientations_by_type={"C": [[0,1,0,0]]}
+            positions_by_type={"C": [[1,0,0]]},
+            orientations_by_type={"C": [[0,1,0,0]]}
         ),
         interactions=[
             lj_interaction(["A", "B", "C"], [("A", "C")]),
@@ -124,8 +124,8 @@ VALID_KWARGS = [
         analyte=Body(
             primary_type="B",
             secondary_types=["C"],
-            secondary_positions_by_type={"C": [[1,0,0]]},
-            secondary_orientations_by_type={"C": [[0,1,0,0]]}
+            positions_by_type={"C": [[1,0,0]]},
+            orientations_by_type={"C": [[0,1,0,0]]}
         ),
         interactions=[
             lj_interaction(["A", "B", "C", "D"], [("A", "C")]),
@@ -138,8 +138,8 @@ VALID_KWARGS = [
         probe=Body(
             primary_type="B",
             secondary_types=["C"],
-            secondary_positions_by_type={"C": [[1,0,0]]},
-            secondary_orientations_by_type={"C": [[0,1,0,0]]}
+            positions_by_type={"C": [[1,0,0]]},
+            orientations_by_type={"C": [[0,1,0,0]]}
         ),
         analyte=Body(primary_type="A"),
         interactions=[
@@ -150,8 +150,8 @@ VALID_KWARGS = [
         probe=Body(
             primary_type="B",
             secondary_types=["C"],
-            secondary_positions_by_type={"C": [[1,0,0]]},
-            secondary_orientations_by_type={"C": [[0,1,0,0]]}
+            positions_by_type={"C": [[1,0,0]]},
+            orientations_by_type={"C": [[0,1,0,0]]}
         ),
         analyte=Body(primary_type="A"),
         interactions=[
@@ -163,8 +163,8 @@ VALID_KWARGS = [
         probe=Body(
             primary_type="B",
             secondary_types=["C"],
-            secondary_positions_by_type={"C": [[1,0,0]]},
-            secondary_orientations_by_type={"C": [[0,1,0,0]]}
+            positions_by_type={"C": [[1,0,0]]},
+            orientations_by_type={"C": [[0,1,0,0]]}
         ),
         analyte=Body(primary_type="A"),
         interactions=[
@@ -178,14 +178,14 @@ VALID_KWARGS = [
         probe=Body(
             primary_type="B",
             secondary_types=["C"],
-            secondary_positions_by_type={"C": [[1,0,0]]},
-            secondary_orientations_by_type={"C": [[0,1,0,0]]}
+            positions_by_type={"C": [[1,0,0]]},
+            orientations_by_type={"C": [[0,1,0,0]]}
         ),
         analyte=Body(
             primary_type="B",
             secondary_types=["C"],
-            secondary_positions_by_type={"C": [[1,0,0]]},
-            secondary_orientations_by_type={"C": [[0,1,0,0]]}
+            positions_by_type={"C": [[1,0,0]]},
+            orientations_by_type={"C": [[0,1,0,0]]}
         ),
         interactions=[
             lj_interaction(["B", "C"], [("C", "C")])
@@ -195,12 +195,12 @@ VALID_KWARGS = [
         probe=Body(
             primary_type="A",
             secondary_types=["B"],
-            secondary_positions_by_type={"B": [[0,1,0]]},
+            positions_by_type={"B": [[0,1,0]]},
         ),
         analyte=Body(
             primary_type="C",
             secondary_types=["D"],
-            secondary_positions_by_type={"D": [[1,0,0]]},
+            positions_by_type={"D": [[1,0,0]]},
         ),
         interactions=[
             lj_interaction(["A", "B", "C", "D"], [("B", "D")]),
@@ -211,12 +211,12 @@ VALID_KWARGS = [
         probe=Body(
             primary_type="A",
             secondary_types=["B"],
-            secondary_positions_by_type={"B": [[0,1,0]]},
+            positions_by_type={"B": [[0,1,0]]},
         ),
         analyte=Body(
             primary_type="C",
             secondary_types=["D"],
-            secondary_positions_by_type={"D": [[1,0,0]]},
+            positions_by_type={"D": [[1,0,0]]},
         ),
         interactions=[
             lj_interaction(["A", "B", "C", "D", "E"], [("B", "D")]),
@@ -256,7 +256,7 @@ INVALID_KWARGS = [
         analyte=Body(
             primary_type="A",
             secondary_types=["B"],
-            secondary_positions_by_type={"B": [[1,0,0]]}
+            positions_by_type={"B": [[1,0,0]]}
         ),
         interactions=[lj_interaction(["A", "B"], [("A", "B")])]
     ),
@@ -265,7 +265,7 @@ INVALID_KWARGS = [
         analyte=Body(
             primary_type="B",
             secondary_types=["A"],
-            secondary_positions_by_type={"A": [[1,0,0]]}
+            positions_by_type={"A": [[1,0,0]]}
         ),
         interactions=[lj_interaction(["A", "B"], [("A", "B")])]
     ),
@@ -273,7 +273,7 @@ INVALID_KWARGS = [
         probe=Body(
             primary_type="B",
             secondary_types=["A"],
-            secondary_positions_by_type={"A": [[1,0,0]]}
+            positions_by_type={"A": [[1,0,0]]}
         ),
         analyte=Body(primary_type="A"),
         interactions=[lj_interaction(["A", "B"], [("A", "B")])]
@@ -282,12 +282,12 @@ INVALID_KWARGS = [
         probe=Body(
             primary_type="A",
             secondary_types=["B"],
-            secondary_positions_by_type={"B": [[1,0,0]]}
+            positions_by_type={"B": [[1,0,0]]}
         ),
         analyte=Body(
             primary_type="C",
             secondary_types=["D"],
-            secondary_positions_by_type={"D": [[1,0,0]]}
+            positions_by_type={"D": [[1,0,0]]}
         ),
         interactions=[lj_interaction(["B", "C", "D"], [("B", "D")])]
     ),
@@ -295,12 +295,12 @@ INVALID_KWARGS = [
         probe=Body(
             primary_type="A",
             secondary_types=["B"],
-            secondary_positions_by_type={"B": [[1,0,0]]}
+            positions_by_type={"B": [[1,0,0]]}
         ),
         analyte=Body(
             primary_type="C",
             secondary_types=["D"],
-            secondary_positions_by_type={"D": [[1,0,0]]}
+            positions_by_type={"D": [[1,0,0]]}
         ),
         interactions=[lj_interaction(["A", "C", "D"], [("A", "D")])]
     ),
@@ -308,12 +308,12 @@ INVALID_KWARGS = [
         probe=Body(
             primary_type="A",
             secondary_types=["B"],
-            secondary_positions_by_type={"B": [[1,0,0]]}
+            positions_by_type={"B": [[1,0,0]]}
         ),
         analyte=Body(
             primary_type="C",
             secondary_types=["D"],
-            secondary_positions_by_type={"D": [[1,0,0]]}
+            positions_by_type={"D": [[1,0,0]]}
         ),
         interactions=[lj_interaction(["A", "B", "D"], [("B", "D")])]
     ),
@@ -321,12 +321,12 @@ INVALID_KWARGS = [
         probe=Body(
             primary_type="A",
             secondary_types=["B"],
-            secondary_positions_by_type={"B": [[1,0,0]]}
+            positions_by_type={"B": [[1,0,0]]}
         ),
         analyte=Body(
             primary_type="C",
             secondary_types=["D"],
-            secondary_positions_by_type={"D": [[1,0,0]]}
+            positions_by_type={"D": [[1,0,0]]}
         ),
         interactions=[lj_interaction(["A", "B", "C"], [("B", "C")])]
     )
@@ -345,12 +345,12 @@ def test_instantiation_invalid(kwargs):
             probe=Body(
                 primary_type="A",
                 secondary_types=["B"],
-                secondary_positions_by_type={"B": [[1,0,0]]}
+                positions_by_type={"B": [[1,0,0]]}
             ),
             analyte=Body(
                 primary_type="C",
                 secondary_types=["D"],
-                secondary_positions_by_type={"D": [[0,1,0]]},
+                positions_by_type={"D": [[0,1,0]]},
             ),
             interactions=[
                 alj_interaction(("A", "B", "C", "D"), [], ["A", "C"])
@@ -363,12 +363,12 @@ def test_instantiation_invalid(kwargs):
             probe=Body(
                 primary_type="A",
                 secondary_types=["B"],
-                secondary_positions_by_type={"B": [[1,0,0]]}
+                positions_by_type={"B": [[1,0,0]]}
             ),
             analyte=Body(
                 primary_type="C",
                 secondary_types=["D"],
-                secondary_positions_by_type={"D": [[0,1,0]]},
+                positions_by_type={"D": [[0,1,0]]},
             ),
             interactions=[
                 alj_interaction(("A", "B", "C", "D"), [], ["A", "D"])
@@ -381,12 +381,12 @@ def test_instantiation_invalid(kwargs):
             probe=Body(
                 primary_type="A",
                 secondary_types=["B"],
-                secondary_positions_by_type={"B": [[1,0,0]]}
+                positions_by_type={"B": [[1,0,0]]}
             ),
             analyte=Body(
                 primary_type="C",
                 secondary_types=["D"],
-                secondary_positions_by_type={"D": [[0,1,0]]},
+                positions_by_type={"D": [[0,1,0]]},
             ),
             interactions=[
                 alj_interaction(("A", "B", "C", "D"), [], ["B", "C"])
@@ -399,12 +399,12 @@ def test_instantiation_invalid(kwargs):
             probe=Body(
                 primary_type="A",
                 secondary_types=["B"],
-                secondary_positions_by_type={"B": [[1,0,0]]}
+                positions_by_type={"B": [[1,0,0]]}
             ),
             analyte=Body(
                 primary_type="C",
                 secondary_types=["D"],
-                secondary_positions_by_type={"D": [[0,1,0]]},
+                positions_by_type={"D": [[0,1,0]]},
             ),
             interactions=[
                 alj_interaction(("A", "B", "C", "D"), [], ["B", "D"])
@@ -417,12 +417,12 @@ def test_instantiation_invalid(kwargs):
             probe=Body(
                 primary_type="A",
                 secondary_types=["B"],
-                secondary_positions_by_type={"B": [[1,0,0]]}
+                positions_by_type={"B": [[1,0,0]]}
             ),
             analyte=Body(
                 primary_type="C",
                 secondary_types=["B"],
-                secondary_positions_by_type={"B": [[0,1,0]]},
+                positions_by_type={"B": [[0,1,0]]},
             ),
             interactions=[
                 alj_interaction(("A", "B", "C", "D", "E"), [("B", "E")], [])
@@ -435,12 +435,12 @@ def test_instantiation_invalid(kwargs):
             probe=Body(
                 primary_type="A",
                 secondary_types=["B"],
-                secondary_positions_by_type={"B": [[1,0,0]]}
+                positions_by_type={"B": [[1,0,0]]}
             ),
             analyte=Body(
                 primary_type="C",
                 secondary_types=["D"],
-                secondary_positions_by_type={"D": [[0,1,0]]},
+                positions_by_type={"D": [[0,1,0]]},
             ),
             interactions=[
                 alj_interaction(("A", "B", "C", "D"), [("A", "C")], [])
@@ -454,12 +454,12 @@ def test_instantiation_invalid(kwargs):
             probe=Body(
                 primary_type="A",
                 secondary_types=["B"],
-                secondary_positions_by_type={"B": [[1,0,0]]}
+                positions_by_type={"B": [[1,0,0]]}
             ),
             analyte=Body(
                 primary_type="C",
                 secondary_types=["D"],
-                secondary_positions_by_type={"D": [[0,1,0]]},
+                positions_by_type={"D": [[0,1,0]]},
             ),
             interactions=[
                 alj_interaction(("A", "B", "C", "D"), [("A", "C")], ["A", "C"]),
@@ -513,7 +513,7 @@ def test_active_interactions(kwargs, expected):
             analyte=Body(
                 primary_type="B",
                 secondary_types=["C"],
-                secondary_positions_by_type={"C": [[1,0,0]]}
+                positions_by_type={"C": [[1,0,0]]}
             ),
             interactions=[
                 lj_interaction(["A", "B", "C"], [("A", "C")]),
@@ -528,7 +528,7 @@ def test_active_interactions(kwargs, expected):
             probe=Body(
                 primary_type="B",
                 secondary_types=["C"],
-                secondary_positions_by_type={"C": [[1,0,0]]}
+                positions_by_type={"C": [[1,0,0]]}
             ),
             analyte=Body(primary_type="A"),
             interactions=[
@@ -544,12 +544,12 @@ def test_active_interactions(kwargs, expected):
             probe=Body(
                 primary_type="A",
                 secondary_types=["B"],
-                secondary_positions_by_type={"B": [[1,0,0]]}
+                positions_by_type={"B": [[1,0,0]]}
             ),
             analyte=Body(
                 primary_type="C",
                 secondary_types=["D"],
-                secondary_positions_by_type={"D": [[0,1,0]]}
+                positions_by_type={"D": [[0,1,0]]}
             ),
             interactions=[
                 lj_interaction(["A", "B", "C", "D"], [("B", "D")]),
@@ -626,7 +626,7 @@ def get_valid_simulations_and_kwargs():
         analyte=Body(
             primary_type="C",
             secondary_types="D",
-            secondary_positions_by_type={"D": [[1,0,0]]}
+            positions_by_type={"D": [[1,0,0]]}
         ),
         interactions=[lj_interaction(["A", "C", "D"], [("A", "D")])]
     )
@@ -660,7 +660,7 @@ def get_valid_simulations_and_kwargs():
         probe=Body(
             primary_type="A",
             secondary_types="B",
-            secondary_positions_by_type={"B": [[1,0,0]]}
+            positions_by_type={"B": [[1,0,0]]}
         ),
         analyte=Body("C"),
         interactions=[lj_interaction(["A", "B", "C"], [("B", "C")])]
@@ -708,12 +708,12 @@ def get_valid_simulations_and_kwargs():
         probe=Body(
             primary_type="A",
             secondary_types=["B"],
-            secondary_positions_by_type={"B": [[1,0,0]]}
+            positions_by_type={"B": [[1,0,0]]}
         ),
         analyte=Body(
             primary_type="C",
             secondary_types="D",
-            secondary_positions_by_type={"D": [[0,1,0]]}
+            positions_by_type={"D": [[0,1,0]]}
         ),
         interactions=[lj_interaction(["A", "B", "C", "D"], [("B", "D")])]
     )

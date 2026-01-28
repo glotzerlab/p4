@@ -28,39 +28,39 @@ class Body:
         The name of the primary type.
     secondary_types : list[str], optional
         The names of the secondary types.
-    secondary_positions_by_type : Callable, optional
+    positions_by_type : Callable, optional
         A mapping of secondary particle type names to position(s). Required if
         `secondary_types` is provided, otherwise ignored.
-    secondary_orientations_by_type : Callable, optional
+    orientations_by_type : Callable, optional
         A mapping of secondary particle type names to orientation(s) in
         quaternion form. Can only be provided if `secondary_types` and
-        `secondary_positions_by_type` are also provided.
+        `positions_by_type` are also provided.
     """
     def __init__(
         self,
         primary_type: str,
         secondary_types: list[str] = [],
-        secondary_positions_by_type: dict[str, list[list[float]]] = {},
-        secondary_orientations_by_type: dict[str, list[list[float]]] = {}
+        positions_by_type: dict[str, list[list[float]]] = {},
+        orientations_by_type: dict[str, list[list[float]]] = {}
     ):
-        if secondary_types != [] and not secondary_positions_by_type:
+        if secondary_types != [] and not positions_by_type:
             raise ValueError(
-                "'secondary_positions_by_type' is required if "
+                "'positions_by_type' is required if "
                 + "'secondary_types' is provided"
             )
 
         self.primary_type = str(primary_type)
         self.secondary_types = [str(t) for t in secondary_types]
-        self.secondary_positions_by_type = secondary_positions_by_type
-        self.secondary_orientations_by_type = secondary_orientations_by_type
+        self.positions_by_type = positions_by_type
+        self.orientations_by_type = orientations_by_type
 
-        if self.secondary_positions_by_type:
+        if self.positions_by_type:
             self.validate_secondary_positions()
-        if self.secondary_orientations_by_type:
+        if self.orientations_by_type:
             self.validate_secondary_orientations()
         if (
-            self.secondary_positions_by_type
-            and self.secondary_orientations_by_type
+            self.positions_by_type
+            and self.orientations_by_type
         ):
             self.validate_secondary_orientations_and_positions_match()
     
@@ -81,26 +81,26 @@ class Body:
     def validate_secondary_positions(self):
         """Ensure that the provided callable works for all secondary types."""
         for t in self.secondary_types:
-            if t not in self.secondary_positions_by_type.keys():
+            if t not in self.positions_by_type.keys():
                 raise ValueError(
-                    "`secondary_positions_by_type` does not specify positions "
+                    "`positions_by_type` does not specify positions "
                     + f"for secondary type '{t}'."
                 )
 
     def validate_secondary_orientations(self):
         """Ensure that the provided callable works for all secondary types."""
         for t in self.secondary_types:
-            if t not in self.secondary_orientations_by_type.keys():
+            if t not in self.orientations_by_type.keys():
                 raise ValueError(
-                    "`secondary_orientations_by_type` does not specify "
+                    "`orientations_by_type` does not specify "
                     + f"orientations for secondary type '{t}'."
                 )
 
     def validate_secondary_orientations_and_positions_match(self):
         """Ensure secondary types' numbers of positions and orientations match."""
         for t in self.secondary_types:
-            n_positions = len(self.secondary_positions_by_type[t])
-            n_orientations = len(self.secondary_orientations_by_type[t])
+            n_positions = len(self.positions_by_type[t])
+            n_orientations = len(self.orientations_by_type[t])
             
             if n_positions != n_orientations:
                 raise ValueError(
@@ -204,11 +204,11 @@ class Body:
                 bodies.append(cls(
                     primary_type=p_t,
                     secondary_types=unique(rigid.body[p_t]["constituent_types"]),
-                    secondary_positions_by_type=data_by_type(
+                    positions_by_type=data_by_type(
                         rigid.body[p_t]["constituent_types"],
                         [list(p) for p in rigid.body[p_t]["positions"]]
                     ),
-                    secondary_orientations_by_type=data_by_type(
+                    orientations_by_type=data_by_type(
                         rigid.body[p_t]["constituent_types"],
                         [list(p) for p in rigid.body[p_t]["orientations"]]
                     )
@@ -231,27 +231,27 @@ class Body:
         if not secondary_same:
             return False
         
-        positions_same = self.secondary_positions_by_type == other.secondary_positions_by_type
+        positions_same = self.positions_by_type == other.positions_by_type
         if not positions_same:
             return False
 
         orientations_same = (
-            self.secondary_orientations_by_type == other.secondary_orientations_by_type
+            self.orientations_by_type == other.orientations_by_type
         )
 
         orientations_equivalent = False
-        if not self.secondary_orientations_by_type:
+        if not self.orientations_by_type:
             if all([
                 list(i) == [1, 0, 0, 0]
                 for t in other.secondary_types
-                for i in other.secondary_orientations_by_type[t]
+                for i in other.orientations_by_type[t]
             ]):
                 orientations_equivalent = True
-        elif not other.secondary_orientations_by_type:
+        elif not other.orientations_by_type:
             if all([
                 list(i) == [1, 0, 0, 0]
                 for t in self.secondary_types
-                for i in self.secondary_orientations_by_type[t]
+                for i in self.orientations_by_type[t]
             ]):
                 orientations_equivalent = True
 
@@ -265,7 +265,7 @@ class Body:
             "Body ("
             + f"\n\tprimary_type='{self.primary_type}',"
             + f"\n\tsecondary_types={self.secondary_types},"
-            + f"\n\tsecondary_positions_by_type={self.secondary_positions_by_type},"
-            + f"\n\tsecondary_orientations_by_type={self.secondary_orientations_by_type},"
+            + f"\n\tpositions_by_type={self.positions_by_type},"
+            + f"\n\torientations_by_type={self.orientations_by_type},"
             + "\n)"
         )

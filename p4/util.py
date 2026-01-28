@@ -238,14 +238,14 @@ def add_rigid_constraint(
     types_and_positions = [
         [t, position]
         for t in included_secondary_types
-        for position in body.secondary_positions_by_type[t]
+        for position in body.positions_by_type[t]
     ]
 
-    if body.secondary_orientations_by_type:
+    if body.orientations_by_type:
         orientations = [
             orientation
             for t in included_secondary_types
-            for orientation in body.secondary_orientations_by_type[t]
+            for orientation in body.orientations_by_type[t]
         ]
     else:
         orientations = [(1.0, 0.0, 0.0, 0.0) for _ in types_and_positions]

@@ -52,7 +52,6 @@ system.probe_potential(
     nlist=nlist,
     csv_filename="lj-sphere.csv",
     outside_cutoff=2.0,
-    inside_cutoff=0.2
 )
 ```
 
@@ -68,6 +67,7 @@ system.probe_potential(
 `Body`
 - [x] write tests
 - [x] add parsing from `hoomd.md.constraint.Rigid`, ~~`hoomd.Snapshot`~~, and `hoomd.Simulation`
+- [ ] add a basic plotting method
 
 `System`
 - [ ] add a custom table writer to prevent memory issues if the number of points gets too large

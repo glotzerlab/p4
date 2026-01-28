@@ -303,6 +303,8 @@ class System:
         else:
             if save_gsd:
                 gsd_filename = csv_filename.split(".")[-2] + ".gsd"
+            else:
+                gsd_filename = None
             table = p4.util.run_probe(
                 system=self,
                 probe_positions=probe_positions,

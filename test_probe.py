@@ -3,7 +3,7 @@ import time
 from typing import Literal
 
 import coxeter
-import p4 as pp
+import p4
 import hoomd
 import pandas as pd
 import numpy as np
@@ -11,31 +11,29 @@ import numpy as np
 import p4.util as util
 
 
-def cube_verts():
-    verts = [(-0.5, -0.5, -0.5),
-             (-0.5, -0.5,  0.5),
-             (-0.5,  0.5, -0.5),
-             (-0.5,  0.5,  0.5),
-             ( 0.5, -0.5, -0.5),
-             ( 0.5, -0.5,  0.5),
-             ( 0.5,  0.5, -0.5),
-             ( 0.5,  0.5,  0.5)]
-    return verts
+def get_cube_vertices(side_length):
+    s = side_length
+    return [
+        [-s/2, -s/2, -s/2],
+        [-s/2, -s/2,  s/2],
+        [-s/2,  s/2, -s/2],
+        [-s/2,  s/2,  s/2],
+        [ s/2, -s/2, -s/2],
+        [ s/2, -s/2,  s/2],
+        [ s/2,  s/2, -s/2],
+        [ s/2,  s/2,  s/2]
+    ]
 
-def cube_faces():
-    faces = [[0, 2, 6],
-              [6, 4, 0],
-              [5, 0, 4],
-              [5,1,0],
-              [5,4,6],
-              [5,6,7],
-              [3,2,0],
-              [3,0,1],
-              [3,6,2],
-              [3,7,6],
-              [3,1,5],
-              [3,5,7]]
-    return faces
+def get_cube_faces():
+    return [
+        [0, 2, 6, 4],
+        [0, 4, 5, 1],
+        [4, 6, 7, 5],
+        [0, 1, 3, 2],
+        [2, 3, 7, 6],
+        [1, 5, 7, 3],
+    ]
+
 
 def square_verts():
     verts = [
@@ -47,35 +45,36 @@ def square_verts():
     return verts
 
 
-def test_lj_sphere(n_processes=-1):
-    probe_model = pp.Body("P")
-    analyte_model = pp.Body("A")
+def test_lj_sphere():
+    """Probe the potential around an LJ sphere."""
+    probe = p4.Body("A")
+    analyte = p4.Body("A")
 
     interactions = [
-        pp.Interaction(
+        p4.Interaction(
             hoomd_class=hoomd.md.pair.LJ,
             initial_args=dict(),
             no_params=dict(
+                r_cut=0,
                 params=dict(
-                    epsilon=0.0,
-                    sigma=1.0
-                ),
-                r_cut=0.0
+                    epsilon=0,
+                    sigma=1
+                )
             ),
-            all_types=["A", "P"],
+            all_types=["A"],
             yes_params={
-                ("A", "P"): dict(
+                ("A", "A"): dict(
+                    r_cut=5,
                     params=dict(
-                        epsilon=1.0,
+                        epsilon=1,
                         sigma=0.5
-                    ),
-                    r_cut=2.0
+                    )
                 )
             }
         )
     ]
 
-    system = pp.System(probe_model, analyte_model, interactions)
+    system = p4.System(probe, analyte, interactions)
 
     nlist = hoomd.md.nlist.Cell(10)
 
@@ -84,237 +83,157 @@ def test_lj_sphere(n_processes=-1):
         orientation_resolutions=[1, 1, 1],
         symmetries=[1, 1, 1],
         nlist=nlist,
-        csv_filename="test-lj-sphere.csv",
-        cutoff_shape=None,
-        outside_cutoff=2.0,
-        inside_cutoff=0.2,
-        n_processes=n_processes,
-    )
-
-def test_lj_sphere_3d():
-    probe_model = pp.Body("P")
-    analyte_model = pp.Body("A")
-
-    interactions = [
-        pp.Interaction(
-            hoomd_class=hoomd.md.pair.LJ,
-            initial_args=dict(),
-            no_params=dict(
-                params=dict(
-                    epsilon=0.0,
-                    sigma=1.0
-                ),
-                r_cut=0.0
-            ),
-            all_types=["A", "P"],
-            yes_params={
-                ("A", "P"): dict(
-                    params=dict(
-                        epsilon=1.0,
-                        sigma=0.5
-                    ),
-                    r_cut=2.0
-                )
-            }
-        )
-    ]
-
-    system = pp.System(probe_model, analyte_model, interactions)
-
-    nlist = hoomd.md.nlist.Cell(10)
-
-    system.probe_potential(
-        position_resolutions=[30, 30, 30],
-        orientation_resolutions=[1, 1, 1],
-        symmetries=[1, 1, 1],
-        nlist=nlist,
-        csv_filename="test-lj-sphere-3d.csv",
-        cutoff_shape=None,
-        outside_cutoff=2.0,
-        inside_cutoff=0.2,
-    )
-
-def test_lj_sites():
-    probe_model = pp.Body("P")
-    analyte_model = pp.Body(
-        primary_type="A",
-        secondary_types=["B"],
-        secondary_positions_by_type=dict(B=square_verts())
-    )
-
-    interactions = [
-        pp.Interaction(
-            hoomd_class=hoomd.md.pair.LJ,
-            initial_args=dict(),
-            no_params=dict(
-                params=dict(
-                    epsilon=0.0,
-                    sigma=1.0
-                ),
-                r_cut=0.0
-            ),
-            all_types=["A", "B", "P"],  # TODO: I shouldn't need to include A, but it errors if I don't...
-            yes_params={
-                ("B", "P"): dict(
-                    params=dict(
-                        epsilon=1.0,
-                        sigma=0.5
-                    ),
-                    r_cut=2.0
-                )
-            }
-        )
-    ]
-
-    system = pp.System(probe_model, analyte_model, interactions)
-
-    nlist = hoomd.md.nlist.Cell(10)
-
-    system.probe_potential(
-        position_resolutions=[10, 10, 1],
-        orientation_resolutions=[1, 1, 1],
-        symmetries= [1, 1, 1],
-        nlist=nlist,
-        csv_filename="test-lj-sites.csv",
-        cutoff_shape=None,
+        csv_filename="lj-sphere.csv",
         outside_cutoff=2.0,
     )
 
 def test_alj_cube():
-    probe_model = pp.Body("P")
-    analyte_model = pp.Body("A")
+    """Probe the potential around an ALJ cube."""
+    probe = p4.Body("A")
+    analyte = p4.Body("A")
 
     interactions = [
-        pp.Interaction(
+        p4.Interaction(
             hoomd_class=hoomd.md.pair.aniso.ALJ,
             initial_args=dict(),
             no_params=dict(
+                r_cut=0,
                 params=dict(
-                    epsilon=0.0,
-                    sigma_i=1.0,
-                    sigma_j=1.0,
-                    alpha=0,
+                    epsilon=0,
+                    sigma_i=1,
+                    sigma_j=1,
+                    alpha=0
                 ),
-                r_cut=0.0,
-                shape=dict(vertices=[], faces=[])
+                shape=dict(
+                    vertices=[],
+                    faces=[]
+                )
             ),
-            all_types=["A", "P"],
+            all_types=["A"],
             yes_params={
-                ("A", "P"): dict(
+                ("A", "A"): dict(
+                    r_cut=5,
                     params=dict(
-                        epsilon=1.0,
-                        sigma_i=0.5,
-                        sigma_j=0.5,
-                        alpha=1
-                    ),
-                    r_cut=2.0
+                        epsilon=2,
+                        sigma_i=2,
+                        sigma_j=2,
+                        alpha=3
+                    )
                 ),
-                "A": dict(shape=dict(vertices=cube_verts(), faces=cube_faces())),
-                "P": dict(shape=dict(vertices=cube_verts(), faces=cube_faces()))
-            }
-        )
-    ]
-
-    system = pp.System(probe_model, analyte_model, interactions)
-
-    nlist = hoomd.md.nlist.Cell(10)
-
-    system.probe_potential(
-        position_resolutions=[30, 30, 1],
-        orientation_resolutions=[1, 1, 10],
-        symmetries= [1, 1, 4],
-        nlist=nlist,
-        csv_filename="test-alj-cube.csv",
-        save_gsd=True,
-        cutoff_shape=None,
-        outside_cutoff=2.0,
-        # probe_cutoff_inside_distance=0.0
-    )
-
-def test_alj_cube_with_eg_sites(n_processes=-1):
-    probe_model = pp.Body(
-        primary_type="P",
-        secondary_types=["P2"],
-        secondary_positions_by_type=dict(P2=square_verts())
-    )
-    analyte_model = pp.Body(
-        primary_type="A",
-        secondary_types=["B"],
-        secondary_positions_by_type=dict(B=square_verts())
-    )
-
-    interactions = [
-        pp.Interaction(
-            hoomd_class=hoomd.md.pair.aniso.ALJ,
-            initial_args=dict(),
-            no_params=dict(
-                params=dict(
-                    epsilon=0.0,
-                    sigma_i=1.0,
-                    sigma_j=1.0,
-                    alpha=0,
-                ),
-                r_cut=0.0,
-                shape=dict(vertices=[], faces=[])
-            ),
-            all_types=["A", "P", "B", "P2"],  # TODO: I shouldn't need to include B and P2, but it errors if I don't...
-            yes_params={
-                ("A", "P"): dict(
-                    params=dict(
-                        epsilon=1.0,
-                        sigma_i=0.2,
-                        sigma_j=0.2,
-                        alpha=1
-                    ),
-                    r_cut=2.0
-                ),
-                "A": dict(shape=dict(vertices=cube_verts(), faces=cube_faces())),
-                "P": dict(shape=dict(vertices=cube_verts(), faces=cube_faces()))
-            }
-        ),
-        pp.Interaction(
-            hoomd_class=hoomd.md.pair.ExpandedGaussian,
-            initial_args=dict(
-                default_r_cut=1.0,
-                default_r_on=0.0,
-            ),
-            no_params=dict(
-                params=dict(
-                    epsilon=0.0,
-                    sigma=0.1,
-                    delta=0.0
-                ),
-                r_cut=0.0
-            ),
-            all_types=["B", "P2", "A", "P"],  # TODO: I shouldn't need to include A and P, but it errors if I don't...
-            yes_params={
-                ("B", "P2"): dict(
-                    params=dict(
-                        epsilon=-1.0,
-                        sigma=0.1,
-                        delta=0.2
-                    ),
-                    r_cut=2.0
+                "A": dict(
+                    shape=dict(
+                        vertices=get_cube_vertices(2),
+                        faces=get_cube_faces()
+                    )
                 )
             }
         )
     ]
 
-    system = pp.System(probe_model, analyte_model, interactions)
+    system = p4.System(probe, analyte, interactions)
 
     nlist = hoomd.md.nlist.Cell(10)
 
     system.probe_potential(
-        position_resolutions=[30, 30, 1],
-        orientation_resolutions=[1, 1, 4],
-        symmetries= [1, 1, 4],
+        position_resolutions=[50, 50, 1],
+        orientation_resolutions=[1, 1, 10],
+        symmetries=[1, 1, 4],
         nlist=nlist,
-        csv_filename="test-alj-cube-with-eg-sites.csv",
-        save_gsd=True,
-        cutoff_shape=None,
-        outside_cutoff=2.0,
-        inside_cutoff=0.2,
-        n_processes=n_processes
+        csv_filename="alj-cube.csv",
+        outside_cutoff=10,
+        n_processes=-1
+    )
+
+def test_alj_cube_with_lj_sites(n_processes=-1):
+    """Probe potential energy of an ALJ cube dotted with EG interaction sites."""
+    probe = p4.Body(
+        primary_type="A",
+        secondary_types=["B"],
+        positions_by_type=dict(B=get_cube_vertices(2))
+    )
+    analyte = p4.Body(
+        primary_type="C",
+        secondary_types=["D"],
+        positions_by_type=dict(D=get_cube_vertices(2))
+    )
+
+    interactions = [
+        p4.Interaction(
+            hoomd_class=hoomd.md.pair.aniso.ALJ,
+            initial_args=dict(),
+            no_params=dict(
+                r_cut=0,
+                params=dict(
+                    epsilon=0,
+                    sigma_i=1,
+                    sigma_j=1,
+                    alpha=0
+                ),
+                shape=dict(
+                    vertices=[],
+                    faces=[]
+                )
+            ),
+            all_types=["A", "B", "C", "D"],
+            yes_params={
+                ("A", "C"): dict(
+                    r_cut=5,
+                    params=dict(
+                        epsilon=2,
+                        sigma_i=2,
+                        sigma_j=2,
+                        alpha=0
+                    )
+                ),
+                "A": dict(
+                    shape=dict(
+                        vertices=get_cube_vertices(2),
+                        faces=get_cube_faces()
+                    )
+                ),
+                "C": dict(
+                    shape=dict(
+                        vertices=get_cube_vertices(2),
+                        faces=get_cube_faces()
+                    )
+                )
+            }
+        ),
+        p4.Interaction(
+            hoomd_class=hoomd.md.pair.Gaussian,
+            initial_args=dict(),
+            no_params=dict(
+                r_cut=0,
+                params=dict(
+                    epsilon=0,
+                    sigma=1,
+                )
+            ),
+            all_types=["A", "B", "C", "D"],
+            yes_params={
+                ("B", "D"): dict(
+                    r_cut=5,
+                    params=dict(
+                        epsilon=-5,
+                        sigma=0.25,
+                    )
+                )
+            }
+        )
+    ]
+
+    system = p4.System(probe, analyte, interactions)
+
+    nlist = hoomd.md.nlist.Cell(10)
+
+    system.probe_potential(
+        position_resolutions=[100, 100, 1],
+        orientation_resolutions=[1, 1, 10],
+        symmetries=[1, 1, 4],
+        nlist=nlist,
+        csv_filename="alj-cube-with-gauss-sites.csv",
+        outside_cutoff=10,
+        n_processes=-1,
     )
 
 if __name__ == "__main__":
@@ -326,11 +245,10 @@ if __name__ == "__main__":
     #     start_time = time.perf_counter()
     #     test_alj_cube_with_eg_sites(n_processes)
     #     print(f"{n_processes} processes completed in {round(time.perf_counter() - start_time, 2)} s.")
-    # test_alj_cube_with_eg_sites(2)
-    test_lj_sites()
-    test_alj_cube()
-    test_alj_cube_with_eg_sites()
-    test_lj_sphere_3d()
+    # test_lj_sphere()
+    # test_alj_cube()
+    test_alj_cube_with_lj_sites()
+    # test_lj_sphere_3d()
 
-    # f = pp.Field.from_csv("test-lj-sphere-3d.csv", "mean")
+    # f = p4.Field.from_csv("test-lj-sphere-3d.csv", "mean")
     # f.save_image("test-lj-sphere-3d.vti")

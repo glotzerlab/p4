@@ -176,7 +176,10 @@ class Interaction:
                         for k, v in param_dict.items():
                             self.no_params[k] = v
                         for t in types_with_same_param:
-                            del self.yes_params[t][param_name]
+                            try:    # Review: make this less hacky
+                                del self.yes_params[t][param_name]
+                            except KeyError:
+                                continue
         
         self.yes_params = {k: v for k, v in self.yes_params.items() if v != {}}
         

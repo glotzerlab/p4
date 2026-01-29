@@ -140,7 +140,7 @@ class Interaction:
             raise ValueError(msg) from e
         
         # Simplify yes_params where possible, moving full repeats into no_params
-        # [TODO: reduce code duplication here]
+        # [Review: reduce code duplication here]
         for type_name, param_dict in deepcopy(self.yes_params).items():
             for param_name, param_value in param_dict.items():
                 
@@ -184,7 +184,7 @@ class Interaction:
         self.yes_params = {k: v for k, v in self.yes_params.items() if v != {}}
         
         # Convert all tuples to lists in values (NOT in keys)
-        # [TODO: this implementation is horribly hacky. Improve later.]
+        # [Review: this implementation is horribly hacky. Improve later.]
         def tuples_to_lists(item):
             """Convert item to list if it is a tuple, same for its elements."""
             if isinstance(item, tuple):

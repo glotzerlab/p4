@@ -198,8 +198,8 @@ class Field:
         else:
             raise ValueError("`orientation` must be 'mean' or 'min' or 'boltzmann'.")
         
-        df = df.reset_index(level=[0,1,2])
-        df = df.drop(labels=["t", "q0", "q1", "q2", "q3"], axis=1)
+        # df = df.reset_index(level=[0,1,2])
+        # df = df.drop(labels=["t", "q0", "q1", "q2", "q3"], axis=1)
 
         # TODO: consider replacing NaN with Inf
         # df = df.replace([np.nan], np.inf)

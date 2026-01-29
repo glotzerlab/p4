@@ -357,6 +357,7 @@ class Field:
         core_scale_factor: float = 1.0,
         cmap_name: str = "RdYlBu_r",
         core_color: str = "#FFCF00",
+        fill_nan_with_inf: bool = False
     ):
         """TODO"""
         # In 2D, use matplotlib
@@ -397,9 +398,12 @@ class Field:
             # cmap = cmap.set_over(cmap(1.0))
 
             # Plot image and outline
+            if fill_nan_with_inf:
+                array = np.nan_to_num(self.array, nan=1e99)
+            else:
+                array = self.array
             im = im_ax.imshow(
-                # np.nan_to_num(self.array),
-                self.array,
+                array,
                 extent=mpl_extents,
                 cmap=cmap,
                 norm=TwoSlopeNorm(vcenter=0.0, vmin=vmin, vmax=vmax)

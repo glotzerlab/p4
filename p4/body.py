@@ -76,7 +76,14 @@ class Body:
             for interaction in interactions
             for p in interaction.yes_pair_types
         )
-        return common_single_types or common_pair_types
+        nonzero_default_r_cut = any(
+            (
+                interaction.no_params["r_cut"] > 0
+                or interaction.initial_args.get("default_r_cut", 0) > 0
+            )
+            for interaction in interactions
+        )
+        return common_single_types or common_pair_types or nonzero_default_r_cut
 
     def validate_secondary_positions(self):
         """Ensure that the provided callable works for all secondary types."""

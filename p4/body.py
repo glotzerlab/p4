@@ -242,16 +242,16 @@ class Body:
         orientations_equivalent = False
         if not self.orientations_by_type:
             if all([
-                list(i) == [1, 0, 0, 0]
-                for t in other.secondary_types
-                for i in other.orientations_by_type[t]
+                list(orientation) == [1, 0, 0, 0]
+                for orientations in other.orientations_by_type.values()
+                for orientation in orientations
             ]):
                 orientations_equivalent = True
         elif not other.orientations_by_type:
             if all([
-                list(i) == [1, 0, 0, 0]
-                for t in self.secondary_types
-                for i in self.orientations_by_type[t]
+                list(orientation) == [1, 0, 0, 0]
+                for orientations in self.orientations_by_type.values()
+                for orientation in orientations
             ]):
                 orientations_equivalent = True
 

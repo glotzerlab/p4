@@ -233,7 +233,7 @@ def test_alj_cube_with_lj_sites(n_processes=-1):
         nlist=nlist,
         csv_filename="alj-cube-with-gauss-sites.csv",
         outside_cutoff=10,
-        n_processes=-1,
+        n_processes=n_processes,
     )
 
 if __name__ == "__main__":

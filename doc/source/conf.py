@@ -30,6 +30,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "nbsphinx",
     "sphinx_autodoc_typehints",
+    "sphinx_copybutton",
 ]
 
 # For sphincontrib.bibtex (as of v2.0).

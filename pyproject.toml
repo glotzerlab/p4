@@ -35,7 +35,8 @@ docs = [
     "sphinx>9.0",
     "furo>2025",
     "numpydoc",
-    "nbsphinx"
+    "nbsphinx",
+    "sphinx-copybutton"
 ]
 
 [tool.conda-lock]

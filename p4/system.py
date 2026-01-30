@@ -16,7 +16,49 @@ class System:
     """A System is defined by two bodies and a set of interactions.
     
     Once the system is instantiated, its potential energy landscape can be
-    measured using the `probe_potential()` method.
+    measured using :meth:`~p4.System.probe_potential`.
+
+    .. code-block::
+        :caption: A system composed of a probe that is a point body 'A' and an
+            analyte that is a cubic body with primary particle 'B' and secondary
+            particles 'C' at the vertices. 'A' and 'C' particles interact
+            through a Lennard-Jones potential.
+
+        probe = p4.Body("A")
+        analyte = p4.Body(
+            primary_type="B",
+            secondary_types=["C"],
+            positions_by_type=dict(
+                C=[
+                    [-1, -1, -1],
+                    [-1, -1,  1],
+                    [-1,  1, -1],
+                    [-1,  1,  1],
+                    [ 1, -1, -1],
+                    [ 1, -1,  1],
+                    [ 1,  1, -1],
+                    [ 1,  1,  1]
+                ]
+            )
+        )
+        interactions = [
+            p4.Interaction(
+                hoomd_class=hoomd.md.pair.LJ,
+                initial_args=dict(),
+                no_params=dict(
+                    r_cut=0,
+                    params=dict(epsilon=0, sigma=1)
+                ),
+                all_types=["A", "B", "C"],
+                yes_params={
+                    ("A", "C"): dict(
+                        r_cut=5.0,
+                        params=dict(epsilon=1, sigma=1)
+                    )
+                }
+            )
+        ]
+        system = p4.System(probe, analyte, interactions)
 
     Parameters
     ----------
@@ -328,14 +370,14 @@ class System:
         probe_primary_type: str,
         analyte_primary_type: str
     ):
-        """Parse a hoomd.Simulation object into a System.
+        """Parse a `hoomd.Simulation <https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html>`_ to create a :class:`~p4.System`.
 
         The simulation must have an integrator, and the integrator must have one
         or more forces. Optionally, the integrator may also have a rigid
         constraint. If it does have one, and if this constraint's keys
-        include the probe's and/or the analyte's primary type, then the
+        include ``probe_primary_type`` or ``analyte_primary_type``, then the
         constraint is parsed to determine secondary types, positions, and
-        orientations for the probe and/or analyte bodies.
+        orientations for the resulting probe and/or analyte :class:`~p4.Body`.
 
         Parameters
         ----------

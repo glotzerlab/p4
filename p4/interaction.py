@@ -15,25 +15,26 @@ class Interaction:
 
     `Interaction` is self-validating, i.e., every instance is guaranteed to
     successfully create and parameterize its provided HOOMD pair potential.
+      
+    .. code-block::
+        :caption: A Lennard-Jones potential that allows A-B interactions but
+            not A-A or B-B.
 
-    # Example
-    ```python
-    i = Interaction(
-        hoomd_class=hoomd.md.pair.LJ,
-        initial_args=dict(),
-        no_params=dict(
-            r_cut=0,
-            params=dict(epsilon=0, sigma=1)
-        ),
-        all_types=["A", "B"],
-        yes_params={
-            ("A", "B"): dict(
-                r_cut=5.0},
-                params=dict(epsilon=1, sigma=1)}
-            )
-        }
-    )
-    ```
+        interaction = p4.Interaction(
+            hoomd_class=hoomd.md.pair.LJ,
+            initial_args=dict(),
+            no_params=dict(
+                r_cut=0,
+                params=dict(epsilon=0, sigma=1)
+            ),
+            all_types=["A", "B"],
+            yes_params={
+                ("A", "B"): dict(
+                    r_cut=5.0,
+                    params=dict(epsilon=1, sigma=1)
+                )
+            }
+        )
 
     Parameters
     ----------
@@ -362,7 +363,7 @@ class Interaction:
         cls,
         pair: hoomd.md.pair.Pair
     ) -> list[Interaction] | Interaction:
-        """Parse a hoomd.md.pair.Pair object into an Interaction.
+        """Parse a `hoomd.md.pair.Pair <https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/pair/pair.html>`_ to create an :class:`~p4.Interaction`.
         
         Parameters
         ----------
@@ -456,13 +457,13 @@ class Interaction:
         cls,
         integrator: hoomd.md.Integrator
     ) -> list[Interaction] | Interaction:
-        """Parse a hoomd.md.Integrator object into 1 or more Interactions.
+        """Parse a `hoomd.md.Integrator <https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/integrator.html#hoomd.md.Integrator>`_ to create 1 or more :class:`~p4.Interaction`.
         
         This is a convenience method that is equivalent to
 
-        ```python
-        [p4.Interaction.from_hoomd_pair(p) for p in integrator.forces]
-        ```
+        .. code-block::
+
+            [p4.Interaction.from_hoomd_pair(p) for p in integrator.forces]
 
         Parameters
         ----------
@@ -478,13 +479,14 @@ class Interaction:
         cls,
         simulation: hoomd.Simulation,
     ) -> list[Interaction] | Interaction:
-        """Parse a hoomd.Simulation object into 1 or more Interactions.
+        """Parse a `hoomd.Simulation <https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html>`_ to create one or more :class:`~p4.Interaction`.
 
         This is a convenience method that is equivalent to
         
-        ```python
-        p4.Interaction.from_hoomd_integrator(simulation.operations.integrator)
-        ```
+        .. code-block::
+
+            p4.Interaction.from_hoomd_integrator(simulation.operations.integrator)
+
         Parameters
         ----------
         integrator : hoomd.md.Integrator

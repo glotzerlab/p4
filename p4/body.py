@@ -21,17 +21,39 @@ class Body:
     particles (`secondary_types`). In this case, the body needs a way to
     determine the position(s) of each type of constituent particle, and the user
     must provide a function that does so.
-    
+
+    .. code-block::
+        :caption: A cubic body with primary particle 'A' at the center and
+            secondary particles 'B' at the vertices.
+
+        body = p4.Body(
+            primary_type="A",
+            secondary_types=["B"],
+            positions_by_type=dict(
+                B=[
+                    [-1, -1, -1],
+                    [-1, -1,  1],
+                    [-1,  1, -1],
+                    [-1,  1,  1],
+                    [ 1, -1, -1],
+                    [ 1, -1,  1],
+                    [ 1,  1, -1],
+                    [ 1,  1,  1]
+                ]
+            )
+        )
+
+
     Parameters
     ----------
     primary_type : str
         The name of the primary type.
     secondary_types : list[str], optional
         The names of the secondary types.
-    positions_by_type : Callable, optional
+    positions_by_type : dict[str, list[list[float]]], optional
         A mapping of secondary particle type names to position(s). Required if
         `secondary_types` is provided, otherwise ignored.
-    orientations_by_type : Callable, optional
+    orientations_by_type : dict[str, list[list[float]]], optional
         A mapping of secondary particle type names to orientation(s) in
         quaternion form. Can only be provided if `secondary_types` and
         `positions_by_type` are also provided.
@@ -157,7 +179,7 @@ class Body:
         rigid: hoomd.md.constrain.Rigid,
         primary_type: str | None = None
     ) -> list[Body] | Body:
-        """Parse a hoomd.md.constrain.Rigid object into 1 or more Bodies.
+        """Parse a `hoomd.md.constrain.Rigid <https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/constrain/rigid.html>`_ to create one or more :class:`~p4.Body`.
         
         Parameters
         ----------

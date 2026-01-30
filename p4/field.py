@@ -31,17 +31,15 @@ class Field:
 
     Both the array and the extents are **always** 3D. If a Field is constructed
     with a 2D array, the array is coerced to 3D and represents a 2D slice
-    embedded within a 3D grid. The extents thus has the form
+    embedded within a 3D grid. The extents thus has the form::
     
-    ```
-    [
-        [xmin, xmax],
-        [ymin, ymax],
-        [zmin, zmax],
-    ]
-    ```
+        [
+            [xmin, xmax],
+            [ymin, ymax],
+            [zmin, zmax],
+        ]
     
-    where a 2D array represents a slice at the position z =  zmin = zmax.
+    where a 2D array represents a slice at the position ``z = zmin = zmax``.
 
     Parameters
     ----------

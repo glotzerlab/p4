@@ -16,7 +16,17 @@ analyzed, sliced, and plotted using **p4**'s `Field <doc/source/api/field.rst>`_
 Installation
 ++++++++++++
 
-Clone the repository, navigate to the package's root directory, and run `pip install .`
+To install **p4**, clone the repository, navigate to the package's root directory, and run
+
+.. code-block::
+
+    pip install .
+
+To build the documentation, install the requirements, navigate to the package's ``doc`` directory, and run
+
+.. code-block::
+
+    make html
 
 +++++++++++++
 Example usage

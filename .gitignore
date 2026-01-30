@@ -14,3 +14,5 @@ p4/__pycache__/*
 
 new-api-idea.py
 test_probe.py
+
+doc/build/*

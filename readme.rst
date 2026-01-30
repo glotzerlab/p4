@@ -22,7 +22,9 @@ Clone the repository, navigate to the package's root directory, and run `pip ins
 Example usage
 +++++++++++++
 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Probe the potential around a LJ sphere
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block::
 
@@ -73,8 +75,9 @@ Probe the potential around a LJ sphere
 
 .. image:: ../assets/lj-sphere-plot.png
 
-
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Probe the potential around an attractive and repulsive ALJ cube
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block::
 
@@ -102,7 +105,6 @@ Probe the potential around an attractive and repulsive ALJ cube
             [2, 3, 7, 6],
             [1, 5, 7, 3],
         ]
-
 
     probe = p4.Body("A")
     analyte = p4.Body("B")
@@ -166,11 +168,36 @@ Probe the potential around an attractive and repulsive ALJ cube
 
 .. image:: ../assets/alj-cube-plot.png
 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Probe the potential around a repulsive ALJ cube with attractive gaussian sites
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block::
 
     import p4
+
+    def cube_vertices(side_length):
+        s = side_length
+        return [
+            [-s/2, -s/2, -s/2],
+            [-s/2, -s/2,  s/2],
+            [-s/2,  s/2, -s/2],
+            [-s/2,  s/2,  s/2],
+            [ s/2, -s/2, -s/2],
+            [ s/2, -s/2,  s/2],
+            [ s/2,  s/2, -s/2],
+            [ s/2,  s/2,  s/2]
+        ]
+
+    def cube_faces():
+        return [
+            [0, 2, 6, 4],
+            [0, 4, 5, 1],
+            [4, 6, 7, 5],
+            [0, 1, 3, 2],
+            [2, 3, 7, 6],
+            [1, 5, 7, 3],
+        ]
 
     probe = p4.Body(
         primary_type="A",
@@ -266,4 +293,3 @@ Probe the potential around a repulsive ALJ cube with attractive gaussian sites
     field.plot(fill_nan_with_inf=True)
 
 .. image:: ../assets/alj-cube-gauss-sites-plot.png
-

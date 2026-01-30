@@ -138,42 +138,6 @@ class Body:
                 )
 
     @classmethod
-    def from_hoomd_simulation(
-        cls,
-        simulation: hoomd.Simulation,
-        primary_type: str | None = None
-    ) -> list[Body] | Body:
-        """Parse a hoomd.Simulation object into one or more Bodies.
-
-        This is a convenience method that is equivalent to
-        
-        ```python
-        p4.Body.from_hoomd_rigid(sim.operations.integrator.rigid, primary_type)
-        ```
-        
-        Parameters
-        ----------
-        simulation : hoomd.Simulation
-            The simulation to parse.
-        primary_type : str, optional
-            The name of the primary type of a single body. If provided, just
-            that body is returned. If not provided, all possible bodies are
-            returned in a list.
-        """
-        if simulation.operations.integrator is None:
-            raise ValueError("`simulation` must have an integrator")
-        if simulation.operations.integrator.rigid is None:
-            raise ValueError("integrator must have a rigid constraint")
-        types_in_state = simulation.state.get_snapshot().particles.types
-        if primary_type is not None and primary_type not in types_in_state:
-            raise ValueError(
-                f"`simulation` does not contain primary_type {primary_type}"
-            )
-        return cls.from_hoomd_rigid(
-            simulation.operations.integrator.rigid, primary_type
-        )
-
-    @classmethod
     def from_hoomd_rigid(
         cls,
         rigid: hoomd.md.constrain.Rigid,
@@ -249,6 +213,42 @@ class Body:
             return bodies[0]
         else:
             return bodies
+
+    @classmethod
+    def from_hoomd_simulation(
+        cls,
+        simulation: hoomd.Simulation,
+        primary_type: str | None = None
+    ) -> list[Body] | Body:
+        """Parse a `hoomd.Simulation <https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html>`_ to create one or more :class:`~p4.Body`.
+
+        This is a convenience method that is equivalent to
+        
+        .. code-block::
+            
+            p4.Body.from_hoomd_rigid(sim.operations.integrator.rigid, primary_type)
+        
+        Parameters
+        ----------
+        simulation : hoomd.Simulation
+            The simulation to parse.
+        primary_type : str, optional
+            The name of the primary type of a single body. If provided, just
+            that body is returned. If not provided, all possible bodies are
+            returned in a list.
+        """
+        if simulation.operations.integrator is None:
+            raise ValueError("`simulation` must have an integrator")
+        if simulation.operations.integrator.rigid is None:
+            raise ValueError("integrator must have a rigid constraint")
+        types_in_state = simulation.state.get_snapshot().particles.types
+        if primary_type is not None and primary_type not in types_in_state:
+            raise ValueError(
+                f"`simulation` does not contain primary_type {primary_type}"
+            )
+        return cls.from_hoomd_rigid(
+            simulation.operations.integrator.rigid, primary_type
+        )
 
     def __eq__(self, other):
         """Bodies are equal if their attributes are the same or equivalent."""

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "p4"
 version = "0.0.1"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 description = "Probe the effective potential landscape around an analyte using HOOMD-blue."
 readme = "readme.md"
 license-files = ["LICENSE"]
@@ -34,7 +34,8 @@ dependencies = [
 docs = [
     "sphinx>9.0",
     "furo>2025",
-    "numpydoc"
+    "numpydoc",
+    "nbsphinx"
 ]
 
 [tool.conda-lock]

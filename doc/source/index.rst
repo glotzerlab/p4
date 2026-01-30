@@ -6,10 +6,6 @@ Pairwise Potential Particle Probe
     :start-line: 3
 
 .. toctree::
-
-    gettingstarted
-
-.. toctree::
    :caption: API
 
    api/body

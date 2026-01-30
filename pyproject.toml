@@ -28,9 +28,6 @@ dependencies = [
 
     # Plotting
     "matplotlib>=3.10.8",   # only needed for Field
-
-    # Parallelization
-    "pathos>=0.3.4",    # maybe not needed, now that I have removed callables as an option
 ]
 
 [tool.conda-lock]

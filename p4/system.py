@@ -4,6 +4,7 @@
 from copy import deepcopy
 import os
 from typing import TYPE_CHECKING, Callable, Iterable
+import multiprocessing
 
 import coxeter
 import hoomd
@@ -274,9 +275,7 @@ class System:
         # If multiprocessing, run copies of the probe simulation with chunks
         # of the set of positions across a collection of processes
         if n_processes != 1:
-            import pathos
-            mp = pathos.helpers.mp
-            with mp.Pool() as pool:
+            with multiprocessing.Pool(processes=n_processes) as pool:
                 if save_gsd:
                     gsd_filenames = [
                         csv_filename.split(".")[-2] + f"_{i}.gsd"

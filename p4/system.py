@@ -50,9 +50,9 @@ class System:
         self.analyte = analyte
         self.interactions = interactions
 
-        self.validate()
+        self._validate()
 
-    def validate(self):
+    def _validate(self):
         """Ensure the system can be simulated."""
         # Ensure there is no rigid body clash
         if self.probe.primary_type == self.analyte.primary_type:

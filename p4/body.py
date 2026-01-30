@@ -55,14 +55,14 @@ class Body:
         self.orientations_by_type = orientations_by_type
 
         if self.positions_by_type:
-            self.validate_secondary_positions()
+            self._validate_secondary_positions()
         if self.orientations_by_type:
-            self.validate_secondary_orientations()
+            self._validate_secondary_orientations()
         if (
             self.positions_by_type
             and self.orientations_by_type
         ):
-            self.validate_secondary_orientations_and_positions_match()
+            self._validate_secondary_orientations_and_positions_match()
     
     def is_rigid(self, interactions: list[Interaction]) -> bool:
         """Whether the body must represent a rigid body for some interactions."""
@@ -85,7 +85,7 @@ class Body:
         )
         return common_single_types or common_pair_types or nonzero_default_r_cut
 
-    def validate_secondary_positions(self):
+    def _validate_secondary_positions(self):
         """Ensure that the provided callable works for all secondary types."""
         for t in self.secondary_types:
             if t not in self.positions_by_type.keys():
@@ -94,7 +94,7 @@ class Body:
                     + f"for secondary type '{t}'."
                 )
 
-    def validate_secondary_orientations(self):
+    def _validate_secondary_orientations(self):
         """Ensure that the provided callable works for all secondary types."""
         for t in self.secondary_types:
             if t not in self.orientations_by_type.keys():
@@ -103,7 +103,7 @@ class Body:
                     + f"orientations for secondary type '{t}'."
                 )
 
-    def validate_secondary_orientations_and_positions_match(self):
+    def _validate_secondary_orientations_and_positions_match(self):
         """Ensure secondary types' numbers of positions and orientations match."""
         for t in self.secondary_types:
             n_positions = len(self.positions_by_type[t])

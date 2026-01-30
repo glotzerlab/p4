@@ -72,9 +72,9 @@ class Interaction:
         self.all_types = [str(t) for t in all_types]  # Review: enforce uniqueness?
         self.yes_params = yes_params
 
-        self.validate()
+        self._validate()
 
-    def validate(self):
+    def _validate(self):
         """Ensure this Interaction behaves properly."""
         # Ensure all "yes" types are provided in all_types
         for type_name in self.yes_params:

@@ -2,8 +2,8 @@
 Pairwise Potential Particle Probe
 =================================
 
-.. .. include:: ../../README.rst
-..     :start-line: 4
+.. include:: ../../readme.rst
+    :start-line: 3
 
 .. toctree::
 

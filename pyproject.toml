@@ -30,6 +30,13 @@ dependencies = [
     "matplotlib>=3.10.8",   # only needed for Field
 ]
 
+[project.optional-dependencies]
+docs = [
+    "sphinx>9.0",
+    "furo>2025",
+    "numpydoc"
+]
+
 [tool.conda-lock]
 channels=["conda-forge"]
 platforms=["osx-arm64", "linux-64"]

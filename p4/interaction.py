@@ -255,10 +255,6 @@ class Interaction:
         nlist : hoomd.md.nlist.NeighborList
             The neighbor list to use.
 
-        Returns
-        -------
-        instance
-
         Raises
         ------
         ValueError
@@ -284,10 +280,6 @@ class Interaction:
         all_types : list[str]
             The names of all the particle types for which the instance should be
             parameterized.
-
-        Returns
-        -------
-        parameterized_instance
 
         Raises
         ------

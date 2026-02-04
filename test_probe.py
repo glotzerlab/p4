@@ -11,7 +11,7 @@ import numpy as np
 import p4.util as util
 
 
-def get_cube_vertices(side_length):
+def cube_vertices(side_length):
     s = side_length
     return [
         [-s/2, -s/2, -s/2],
@@ -24,7 +24,7 @@ def get_cube_vertices(side_length):
         [ s/2,  s/2,  s/2]
     ]
 
-def get_cube_faces():
+def cube_faces():
     return [
         [0, 2, 6, 4],
         [0, 4, 5, 1],
@@ -89,7 +89,7 @@ def test_lj_sphere():
 def test_alj_cube():
     """Probe the potential around an ALJ cube."""
     probe = p4.Body("A")
-    analyte = p4.Body("A")
+    analyte = p4.Body("B")
 
     interactions = [
         p4.Interaction(
@@ -102,14 +102,10 @@ def test_alj_cube():
                     sigma_i=1,
                     sigma_j=1,
                     alpha=0
-                ),
-                shape=dict(
-                    vertices=[],
-                    faces=[]
                 )
             ),
             typed_params={
-                ("A", "A"): dict(
+                ("A", "B"): dict(
                     r_cut=5,
                     params=dict(
                         epsilon=2,
@@ -120,8 +116,14 @@ def test_alj_cube():
                 ),
                 "A": dict(
                     shape=dict(
-                        vertices=get_cube_vertices(2),
-                        faces=get_cube_faces()
+                        vertices=cube_vertices(2),
+                        faces=cube_faces()
+                    )
+                ),
+                "B": dict(
+                    shape=dict(
+                        vertices=cube_vertices(2),
+                        faces=cube_faces()
                     )
                 )
             }
@@ -142,17 +144,17 @@ def test_alj_cube():
         n_processes=-1
     )
 
-def test_alj_cube_with_lj_sites(n_processes=-1):
+def test_alj_cube_with_g_sites(n_processes=-1):
     """Probe potential energy of an ALJ cube dotted with EG interaction sites."""
     probe = p4.Body(
         primary_type="A",
         secondary_types=["B"],
-        positions_by_type=dict(B=get_cube_vertices(2))
+        positions_by_type=dict(B=cube_vertices(2))
     )
     analyte = p4.Body(
         primary_type="C",
         secondary_types=["D"],
-        positions_by_type=dict(D=get_cube_vertices(2))
+        positions_by_type=dict(D=cube_vertices(2))
     )
 
     interactions = [
@@ -184,14 +186,14 @@ def test_alj_cube_with_lj_sites(n_processes=-1):
                 ),
                 "A": dict(
                     shape=dict(
-                        vertices=get_cube_vertices(2),
-                        faces=get_cube_faces()
+                        vertices=cube_vertices(2),
+                        faces=cube_faces()
                     )
                 ),
                 "C": dict(
                     shape=dict(
-                        vertices=get_cube_vertices(2),
-                        faces=get_cube_faces()
+                        vertices=cube_vertices(2),
+                        faces=cube_faces()
                     )
                 )
             }
@@ -229,7 +231,7 @@ def test_alj_cube_with_lj_sites(n_processes=-1):
         nlist=nlist,
         csv_filename="alj-cube-with-gauss-sites.csv",
         outside_cutoff=10,
-        n_processes=n_processes,
+        n_processes=-1,
     )
 
 if __name__ == "__main__":
@@ -241,9 +243,9 @@ if __name__ == "__main__":
     #     start_time = time.perf_counter()
     #     test_alj_cube_with_eg_sites(n_processes)
     #     print(f"{n_processes} processes completed in {round(time.perf_counter() - start_time, 2)} s.")
-    # test_lj_sphere()
-    # test_alj_cube()
-    test_alj_cube_with_lj_sites()
+    test_lj_sphere()
+    test_alj_cube()
+    test_alj_cube_with_g_sites()
     # test_lj_sphere_3d()
 
     # f = p4.Field.from_csv("test-lj-sphere-3d.csv", "mean")

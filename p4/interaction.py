@@ -493,7 +493,7 @@ class Interaction:
 
         Parameters
         ----------
-        integrator : hoomd.md.Integrator
+        simulation : hoomd.Simulatoin
             The simulation whose integrator contains the pairwise forces.
         """
         if simulation.operations.integrator is None:

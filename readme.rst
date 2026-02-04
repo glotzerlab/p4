@@ -47,15 +47,14 @@ Probe the potential around a LJ sphere
         p4.Interaction(
             hoomd_class=hoomd.md.pair.LJ,
             initial_args=dict(),
-            no_params=dict(
+            default_params=dict(
                 r_cut=0,
                 params=dict(
                     epsilon=0,
                     sigma=1
                 )
             ),
-            all_types=["A"],
-            yes_params={
+            typed_params={
                 ("A", "A"): dict(
                     r_cut=5,
                     params=dict(
@@ -123,7 +122,7 @@ Probe the potential around an attractive and repulsive ALJ cube
         p4.Interaction(
             hoomd_class=hoomd.md.pair.aniso.ALJ,
             initial_args=dict(),
-            no_params=dict(
+            default_params=dict(
                 r_cut=0,
                 params=dict(
                     epsilon=0,
@@ -132,8 +131,7 @@ Probe the potential around an attractive and repulsive ALJ cube
                     alpha=0
                 )
             ),
-            all_types=["A", "B"],
-            yes_params={
+            typed_params={
                 ("A", "B"): dict(
                     r_cut=5,
                     params=dict(
@@ -224,7 +222,7 @@ Probe the potential around a repulsive ALJ cube with attractive gaussian sites
         p4.Interaction(
             hoomd_class=hoomd.md.pair.aniso.ALJ,
             initial_args=dict(),
-            no_params=dict(
+            default_params=dict(
                 r_cut=0,
                 params=dict(
                     epsilon=0,
@@ -237,8 +235,7 @@ Probe the potential around a repulsive ALJ cube with attractive gaussian sites
                     faces=[]
                 )
             ),
-            all_types=["A", "B", "C", "D"],
-            yes_params={
+            typed_params={
                 ("A", "C"): dict(
                     r_cut=5,
                     params=dict(
@@ -265,15 +262,14 @@ Probe the potential around a repulsive ALJ cube with attractive gaussian sites
         p4.Interaction(
             hoomd_class=hoomd.md.pair.Gaussian,
             initial_args=dict(),
-            no_params=dict(
+            default_params=dict(
                 r_cut=0,
                 params=dict(
                     epsilon=0,
                     sigma=1,
                 )
             ),
-            all_types=["A", "B", "C", "D"],
-            yes_params={
+            typed_params={
                 ("B", "D"): dict(
                     r_cut=5,
                     params=dict(

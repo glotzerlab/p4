@@ -133,8 +133,8 @@ interactions = [
             ),
             "B": dict(
                 shape=dict(
-                    vertices=get_cube_vertices(2),
-                    faces=get_cube_faces()
+                    vertices=cube_vertices(2),
+                    faces=cube_faces()
                 )
             )
         }
@@ -167,12 +167,12 @@ import p4
 probe = p4.Body(
     primary_type="A",
     secondary_types=["B"],
-    positions_by_type=dict(B=get_cube_vertices(2))
+    positions_by_type=dict(B=cube_vertices(2))
 )
 analyte = p4.Body(
     primary_type="C",
     secondary_types=["D"],
-    positions_by_type=dict(D=get_cube_vertices(2))
+    positions_by_type=dict(D=cube_vertices(2))
 )
 
 interactions = [
@@ -204,14 +204,14 @@ interactions = [
             ),
             "A": dict(
                 shape=dict(
-                    vertices=get_cube_vertices(2),
-                    faces=get_cube_faces()
+                    vertices=cube_vertices(2),
+                    faces=cube_faces()
                 )
             ),
             "C": dict(
                 shape=dict(
-                    vertices=get_cube_vertices(2),
-                    faces=get_cube_faces()
+                    vertices=cube_vertices(2),
+                    faces=cube_faces()
                 )
             )
         }

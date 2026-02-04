@@ -16,7 +16,7 @@ pip install .
 To build the documentation, install the requirements, navigate to the package's `doc` directory, and run
 
 ```bash
-    make html
+make html
 ```
 
 ## Example usage

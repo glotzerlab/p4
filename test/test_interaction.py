@@ -315,16 +315,16 @@ def get_all_params(classes, single_or_pair, required_or_optional):
                 if isinstance(v, dict):
                     for sk, sv in v.items():
                         if sk not in merged_params[k]:
-                            merged_params[k][sk] = sv    # Note the potential for a clash between 'no' values here
+                            merged_params[k][sk] = sv    # Note the potential for a clash between 'default' values here
                         else:
                             if isinstance(sv, dict):
                                 for ssk, ssv in sv.items():
                                     if ssk not in merged_params[k][sk]:
-                                        merged_params[k][sk][ssk] = ssv    # Note the potential for a clash between 'no' values here
+                                        merged_params[k][sk][ssk] = ssv    # Note the potential for a clash between 'default' values here
 
     return merged_params
 
-NO_PARAMS_REQUIRED = dict(
+DEFAULT_PARAMS_REQUIRED = dict(
     # Single-typed
     shape=dict(
         vertices=[],
@@ -394,7 +394,7 @@ NO_PARAMS_REQUIRED = dict(
         B=1,
     )
 )
-NO_PARAMS_OPTIONAL = dict( # different from API's default values
+DEFAULT_PARAMS_OPTIONAL = dict( # different from API's default values
     # Single-typed
     shape=dict(
         rounding_radii=(1,1,1)
@@ -542,18 +542,18 @@ APPROVED_PARAM_CLASHES = dict(
 def test_no_unexpected_param_paths():
     """Ensure all params parsed from classes are provided in constants.
     
-    Only 'no' constants are tested (not the 'yes' constants), because if
+    Only 'default' constants are tested (not the 'typed' constants), because if
     setting an param works for no values then it should also work for
-    yes values.
+    typed values.
     """
     for t in ["single", "pair"]:
         for r in ["required", "optional"]:
             if r == "required":
-                const = NO_PARAMS_REQUIRED
-                const_name = "NO_PARAMS_REQUIRED"
+                const = DEFAULT_PARAMS_REQUIRED
+                const_name = "DEFAULT_PARAMS_REQUIRED"
             elif r == "optional":
-                const = NO_PARAMS_OPTIONAL
-                const_name = "NO_PARAMS_OPTIONAL"
+                const = DEFAULT_PARAMS_OPTIONAL
+                const_name = "DEFAULT_PARAMS_OPTIONAL"
 
             params = get_all_params(CLASSES_TO_TEST, t, r)
             for k, v in params.items():
@@ -588,7 +588,7 @@ def test_no_unexpected_param_clashes():
     """Ensure params for classes are all unique unless explicitly approved.
     
     This test is required because required and optional params are all
-    pulled from `NO_PARAMS_REQUIRED` and `NO_PARAMS_OPTIONAL`,
+    pulled from `DEFAULT_PARAMS_REQUIRED` and `DEFAULT_PARAMS_OPTIONAL`,
     which could cause errors on instantiation if different constructors have
     args with the same name but they expect different kinds of values.
     """
@@ -628,8 +628,8 @@ def test_no_unexpected_param_clashes():
                 assert len(unapproved_clashes) == 0, reason
 
 
-# 4. Manually set yes param values, and verify that
-#   1. all yes params are included in the no params
+# 4. Manually set typed param values, and verify that
+#   1. all typed params are included in the no params
 
 
 def get_cube_vertices(side_length):
@@ -655,7 +655,7 @@ def get_cube_faces():
         [1, 5, 7, 3],
     ]
 
-YES_PARAMS_REQUIRED = dict(
+TYPED_PARAMS_REQUIRED = dict(
     # Single-typed
     shape=dict(
         vertices=get_cube_vertices(1),
@@ -725,7 +725,7 @@ YES_PARAMS_REQUIRED = dict(
         B=2,
     )
 )
-YES_PARAMS_OPTIONAL = dict( # different from API's default values
+TYPED_PARAMS_OPTIONAL = dict( # different from API's default values
     # Single-typed
     shape=dict(
         rounding_radii=(2,2,2)
@@ -742,30 +742,30 @@ YES_PARAMS_OPTIONAL = dict( # different from API's default values
     )
 )
 
-def test_all_yes_params_also_in_nos():
-    """Ensure that all params in the 'yes' constants are also given in 'no' constants."""
+def test_all_typed_params_also_in_defaults():
+    """Ensure that all params in the 'typed' constants are also given in 'default' constants."""
     for r in ["required", "optional"]:
         if r == "required":
-            yes_const = YES_PARAMS_REQUIRED
-            no_const = NO_PARAMS_REQUIRED
+            typed_const = TYPED_PARAMS_REQUIRED
+            default_const = DEFAULT_PARAMS_REQUIRED
         elif r == "optional":
-            yes_const = YES_PARAMS_OPTIONAL
-            no_const = NO_PARAMS_OPTIONAL
+            typed_const = TYPED_PARAMS_OPTIONAL
+            default_const = DEFAULT_PARAMS_OPTIONAL
     
-        for k, v in yes_const.items():
+        for k, v in typed_const.items():
             if isinstance(v, dict):
                 for sk, sv in v.items():
                     if isinstance(sv, dict):
                         for ssk, _ in sv.items():
-                            reason = f"param with path '{k}.{sk}.{ssk}' is given in the 'yes' constant but not in the 'no' constant."
-                            assert ssk in no_const[k][sk], reason
+                            reason = f"param with path '{k}.{sk}.{ssk}' is given in the 'typed' constant but not in the 'default' constant."
+                            assert ssk in default_const[k][sk], reason
 
                     else:
-                        reason = f"param with path '{k}.{sk}' is given in the 'yes' constant but not in the 'no' constant."
-                        assert sk in no_const[k], reason
+                        reason = f"param with path '{k}.{sk}' is given in the 'typed' constant but not in the 'default' constant."
+                        assert sk in default_const[k], reason
             else:
-                reason = f"param with path '{k}' is given in the 'yes' constant but not in the 'no' constant."
-                assert k in no_const, reason
+                reason = f"param with path '{k}' is given in the 'typed' constant but not in the 'default' constant."
+                assert k in default_const, reason
 
 
 # 5. Begin actual tests. Verify that
@@ -777,14 +777,14 @@ def test_all_yes_params_also_in_nos():
 #   6. 'from' methods fail expectedly given various kinds of invalid args
 
 
-def get_typed_params(cls, no_or_yes, single_or_pair, required_or_all):
+def get_param_dict(cls, default_or_typed, single_or_pair, required_or_all):
     """Return the appropriate param dict with values set from defaults and constants."""
-    if no_or_yes == "no":
-        const_required = NO_PARAMS_REQUIRED
-        const_optional = NO_PARAMS_OPTIONAL
-    elif no_or_yes == "yes":
-        const_required = YES_PARAMS_REQUIRED
-        const_optional = YES_PARAMS_OPTIONAL
+    if default_or_typed == "default":
+        const_required = DEFAULT_PARAMS_REQUIRED
+        const_optional = DEFAULT_PARAMS_OPTIONAL
+    elif default_or_typed == "typed":
+        const_required = TYPED_PARAMS_REQUIRED
+        const_optional = TYPED_PARAMS_OPTIONAL
 
     parsed_params = parse_params(cls, single_or_pair, required_or_all)
     final_params = {}
@@ -827,24 +827,23 @@ def get_kwargs(cls, required_or_all):
         elif required_or_all == "all" and name in INITIAL_ARGS_OPTIONAL:
             initial_args[name] = INITIAL_ARGS_OPTIONAL[name]
 
-    no_params = get_typed_params(cls, "no", "all", required_or_all)
-    yes_params = {
-        "A": get_typed_params(cls, "yes", "single", required_or_all),
-        "B": get_typed_params(cls, "yes", "single", required_or_all),
-        ("A", "B"): get_typed_params(cls, "yes", "pair", required_or_all)
+    default_params = get_param_dict(cls, "default", "all", required_or_all)
+    typed_params = {
+        "A": get_param_dict(cls, "typed", "single", required_or_all),
+        "B": get_param_dict(cls, "typed", "single", required_or_all),
+        ("A", "B"): get_param_dict(cls, "typed", "pair", required_or_all)
     }
 
-    if not yes_params["A"]:
-        del yes_params["A"]
-    if not yes_params["B"]:
-        del yes_params["B"]
+    if not typed_params["A"]:
+        del typed_params["A"]
+    if not typed_params["B"]:
+        del typed_params["B"]
 
     kwargs = dict(
         hoomd_class=cls,
         initial_args=initial_args,
-        no_params=no_params,
-        all_types=["A", "B"],
-        yes_params=yes_params
+        default_params=default_params,
+        typed_params=typed_params
     )
 
     return kwargs
@@ -888,12 +887,11 @@ INVALID_KWARGS = [
     dict(   # missing required names
         hoomd_class=hoomd.md.pair.DPD,
         initial_args=dict(),
-        no_params=dict(
+        default_params=dict(
             params=dict(A=0, gamma=1),
             r_cut=0
         ),
-        all_types=["A", "B"],
-        yes_params={
+        typed_params={
             ("A", "B"): dict(
                 params=dict(A=1, gamma=1),
                 r_cut=1
@@ -903,12 +901,11 @@ INVALID_KWARGS = [
     dict(   # unexpected names
         hoomd_class=hoomd.md.pair.DPD,
         initial_args=dict(kT=1, wrong=None),
-        no_params=dict(
+        default_params=dict(
             params=dict(A=0, gamma=1),
             r_cut=0
         ),
-        all_types=["A", "B"],
-        yes_params={
+        typed_params={
             ("A", "B"): dict(
                 params=dict(A=1, gamma=1),
                 r_cut=1
@@ -918,12 +915,11 @@ INVALID_KWARGS = [
     dict(   # wrong values
         hoomd_class=hoomd.md.pair.DPD,
         initial_args=dict(kT=None),
-        no_params=dict(
+        default_params=dict(
             params=dict(A=0, gamma=1),
             r_cut=0
         ),
-        all_types=["A", "B"],
-        yes_params={
+        typed_params={
             ("A", "B"): dict(
                 params=dict(A=1, gamma=1),
                 r_cut=1
@@ -931,17 +927,16 @@ INVALID_KWARGS = [
         }
     ),
 
-    # 'no' single-typed attributes
+    # 'default' single-typed attributes
     dict(   # missing required names
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_params=dict(
+        default_params=dict(
             shape=dict(vertices=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        all_types=["A", "B"],
-        yes_params={
+        typed_params={
             "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             ("A", "B"): dict(
@@ -953,13 +948,12 @@ INVALID_KWARGS = [
     dict(   # unexpected names
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_params=dict(
+        default_params=dict(
             shape=dict(vertices=[], faces=[], wrong=None),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        all_types=["A", "B"],
-        yes_params={
+        typed_params={
             "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             ("A", "B"): dict(
@@ -971,13 +965,12 @@ INVALID_KWARGS = [
     dict(   # wrong values
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_params=dict(
+        default_params=dict(
             shape=dict(vertices=[], faces=None),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        all_types=["A", "B"],
-        yes_params={
+        typed_params={
             "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             ("A", "B"): dict(
@@ -987,17 +980,16 @@ INVALID_KWARGS = [
         }
     ),
 
-    # 'no' pair-typed attributes
+    # 'default' pair-typed attributes
     dict(   # missing required names
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_params=dict(
+        default_params=dict(
             shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1),
             r_cut=0
         ),
-        all_types=["A", "B"],
-        yes_params={
+        typed_params={
             "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             ("A", "B"): dict(
@@ -1009,13 +1001,12 @@ INVALID_KWARGS = [
     dict(   # unexpected names
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_params=dict(
+        default_params=dict(
             shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0, wrong=None),
             r_cut=0
         ),
-        all_types=["A", "B"],
-        yes_params={
+        typed_params={
             "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             ("A", "B"): dict(
@@ -1027,13 +1018,12 @@ INVALID_KWARGS = [
     dict(   # wrong values
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_params=dict(
+        default_params=dict(
             shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=None),
             r_cut=0
         ),
-        all_types=["A", "B"],
-        yes_params={
+        typed_params={
             "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             ("A", "B"): dict(
@@ -1043,17 +1033,16 @@ INVALID_KWARGS = [
         }
     ),
 
-    # 'yes' single-typed attributes
+    # 'typed' single-typed attributes
     dict(   # missing required names
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_params=dict(
+        default_params=dict(
             shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        all_types=["A", "B"],
-        yes_params={
+        typed_params={
             "A": dict(shape=dict(vertices=get_cube_vertices(1))),
             "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             ("A", "B"): dict(
@@ -1065,13 +1054,12 @@ INVALID_KWARGS = [
     dict(   # unexpected names
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_params=dict(
+        default_params=dict(
             shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        all_types=["A", "B"],
-        yes_params={
+        typed_params={
             "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces()), wrong=None),
             ("A", "B"): dict(
@@ -1083,13 +1071,12 @@ INVALID_KWARGS = [
     dict(   # wrong values
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_params=dict(
+        default_params=dict(
             shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        all_types=["A", "B"],
-        yes_params={
+        typed_params={
             "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=None)),
             "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             ("A", "B"): dict(
@@ -1101,13 +1088,12 @@ INVALID_KWARGS = [
     dict(   # unexpected single types (one)
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_params=dict(
+        default_params=dict(
             shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        all_types=["A", "B"],
-        yes_params={
+        typed_params={
             "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             "C": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             ("A", "B"): dict(
@@ -1119,13 +1105,12 @@ INVALID_KWARGS = [
     dict(   # unexpected single types (two)
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_params=dict(
+        default_params=dict(
             shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        all_types=["A", "B"],
-        yes_params={
+        typed_params={
             "C": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             "D": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             ("A", "B"): dict(
@@ -1137,13 +1122,12 @@ INVALID_KWARGS = [
     dict(   # unexpected pair types (one)
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_params=dict(
+        default_params=dict(
             shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        all_types=["A", "B"],
-        yes_params={
+        typed_params={
             "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             ("A", "C"): dict(
@@ -1155,13 +1139,12 @@ INVALID_KWARGS = [
     dict(   # unexpected pair types (both)
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_params=dict(
+        default_params=dict(
             shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        all_types=["A", "B"],
-        yes_params={
+        typed_params={
             "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             ("C", "D"): dict(
@@ -1171,17 +1154,16 @@ INVALID_KWARGS = [
         }
     ),
 
-    # 'yes' pair-typed attributes
+    # 'typed' pair-typed attributes
     dict(   # missing required names
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_params=dict(
+        default_params=dict(
             shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        all_types=["A", "B"],
-        yes_params={
+        typed_params={
             "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             ("A", "B"): dict(
@@ -1193,13 +1175,12 @@ INVALID_KWARGS = [
     dict(   # unexpected names
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_params=dict(
+        default_params=dict(
             shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        all_types=["A", "B"],
-        yes_params={
+        typed_params={
             "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             ("A", "B"): dict(
@@ -1212,13 +1193,12 @@ INVALID_KWARGS = [
     dict(   # wrong values
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args=dict(nlist=NLIST),
-        no_params=dict(
+        default_params=dict(
             shape=dict(vertices=[], faces=[]),
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             r_cut=0
         ),
-        all_types=["A", "B"],
-        yes_params={
+        typed_params={
             "A": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             "B": dict(shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())),
             ("A", "B"): dict(
@@ -1243,12 +1223,11 @@ def test_invalid_instantiation(kwargs):
         dict(
             hoomd_class=hoomd.md.pair.LJ,
             initial_args=dict(),
-            no_params=dict(
+            default_params=dict(
                 params=dict(epsilon=0, sigma=0.1),
                 r_cut=0
             ),
-            all_types=["A", "B", "C"],
-            yes_params={
+            typed_params={
                 ("A", "B"): dict(
                     params=dict(epsilon=1, sigma=0.1),
                     r_cut=5
@@ -1262,12 +1241,11 @@ def test_invalid_instantiation(kwargs):
         dict(
             hoomd_class=hoomd.md.pair.LJ,
             initial_args=dict(),
-            no_params=dict(
+            default_params=dict(
                 params=dict(epsilon=0, sigma=0.1),
                 r_cut=0
             ),
-            all_types=["A", "B", "C"],
-            yes_params={
+            typed_params={
                 ("A", "B"): dict(
                     params=dict(epsilon=1, sigma=0.1),
                     r_cut=5
@@ -1285,13 +1263,12 @@ def test_invalid_instantiation(kwargs):
         dict(
             hoomd_class=hoomd.md.pair.aniso.ALJ,
             initial_args=dict(),
-            no_params=dict(
+            default_params=dict(
                 params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
                 shape=dict(vertices=[], faces=[]),
                 r_cut=0
             ),
-            all_types=["A", "B", "C"],
-            yes_params={
+            typed_params={
                 ("A", "B"): dict(
                     params=dict(epsilon=1, sigma_i=0.1, sigma_j=0.1, alpha=0),
                     r_cut=5
@@ -1306,13 +1283,12 @@ def test_invalid_instantiation(kwargs):
         dict(
             hoomd_class=hoomd.md.pair.aniso.ALJ,
             initial_args=dict(),
-            no_params=dict(
+            default_params=dict(
                 params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
                 shape=dict(vertices=[], faces=[]),
                 r_cut=0
             ),
-            all_types=["A", "B", "C"],
-            yes_params={
+            typed_params={
                 ("A", "B"): dict(
                     params=dict(epsilon=1, sigma_i=0.1, sigma_j=0.1, alpha=0),
                     r_cut=5
@@ -1329,11 +1305,19 @@ def test_invalid_instantiation(kwargs):
         [("A", "B"), ("B", "B")]
     ]
 ])
-def test_yes_type_properties(kwargs, expected_singles, expected_pairs):
-    """Ensure single and pair yes type properties return expected values."""
+def test_type_properties(kwargs, expected_singles, expected_pairs):
+    """Ensure single and pair type properties return expected values."""
     interaction = Interaction(**kwargs)
-    assert interaction.yes_single_types == expected_singles
-    assert interaction.yes_pair_types == expected_pairs
+    
+    expected_all = deepcopy(expected_singles)
+    for p in expected_pairs:
+        for t in p:
+            if t not in expected_all:
+                expected_all.append(t)
+
+    assert interaction.interacting_types("single") == expected_singles
+    assert interaction.interacting_types("pair") == expected_pairs
+    assert interaction.interacting_types("all") == expected_all
 
 @pytest.mark.parametrize("cls", CLASSES_TO_TEST)
 @pytest.mark.parametrize("required_or_all", ["required", "all"])
@@ -1356,7 +1340,7 @@ def test_to_parameterized_hoomd_instance(cls, required_or_all):
 
     pair = cls(nlist=NLIST, **kwargs["initial_args"])
 
-    all_types = kwargs["all_types"]
+    all_types = ["A", "B"]
     all_type_pairs = list(itertools.combinations_with_replacement(all_types, 2))
 
     single_typed_params = parse_params(cls, "single", "all")
@@ -1364,34 +1348,34 @@ def test_to_parameterized_hoomd_instance(cls, required_or_all):
 
     # No single-typed
     for a_t in all_types:
-        for param_name, param_value in kwargs["no_params"].items():
+        for param_name, param_value in kwargs["default_params"].items():
             if param_name in single_typed_params:
                 getattr(pair, param_name)[a_t] = param_value
     
     # No pair-typed
     for a_p in all_type_pairs:
-        for param_name, param_value in kwargs["no_params"].items():
+        for param_name, param_value in kwargs["default_params"].items():
             if param_name in pair_typed_params:
                 getattr(pair, param_name)[a_p] = param_value
     
     # Yes single-typed
-    for y_t in [i for i in kwargs["yes_params"] if isinstance(i, str) and i in kwargs["all_types"]]:
-        for param_name, param_value in kwargs["yes_params"][y_t].items():
+    for y_t in [i for i in kwargs["typed_params"] if isinstance(i, str) and i in all_types]:
+        for param_name, param_value in kwargs["typed_params"][y_t].items():
             getattr(pair, param_name)[y_t] = param_value
 
     # Yes pair-typed
-    for y_p in [i for i in kwargs["yes_params"] if isinstance(i, Iterable) and not isinstance(i, (str, bytes)) and all(j in kwargs["all_types"] for j in i)]:
-        for param_name, param_value in kwargs["yes_params"][y_p].items():
+    for y_p in [i for i in kwargs["typed_params"] if isinstance(i, Iterable) and not isinstance(i, (str, bytes)) and all(j in all_types for j in i)]:
+        for param_name, param_value in kwargs["typed_params"][y_p].items():
             getattr(pair, param_name)[y_p] = param_value
     
-    assert pairs_are_equivalent(pair, interaction.to_parameterized_hoomd_instance(NLIST))
+    assert pairs_are_equivalent(pair, interaction.to_parameterized_hoomd_instance(nlist=NLIST, all_types=all_types))
 
-@pytest.mark.parametrize("cls", [hoomd.md.pair.LJ, hoomd.md.pair.aniso.ALJ])
+@pytest.mark.parametrize("cls", [hoomd.md.pair.LJ, hoomd.md.pair.ExpandedGaussian]) # [Review: test aniso?]
 def test_from_hoomd_pair_valid(cls):
     """Ensure every covered hoomd class can be parsed into an Interaction."""
     kwargs = get_kwargs(cls, "all")
     interaction = Interaction(**kwargs)
-    pair = interaction.to_parameterized_hoomd_instance(nlist=hoomd.md.nlist.Cell(0))
+    pair = interaction.to_parameterized_hoomd_instance(nlist=hoomd.md.nlist.Cell(0), all_types=interaction.interacting_types("all"))
     other = Interaction.from_hoomd_pair(pair)
     assert interaction == other
 
@@ -1404,14 +1388,14 @@ def test_from_hoomd_integrator_valid(cls, multiple_forces):
 
     kwargs = get_kwargs(cls, "required")
     interaction = Interaction(**kwargs)
-    pair = interaction.to_parameterized_hoomd_instance(NLIST)
+    pair = interaction.to_parameterized_hoomd_instance(nlist=NLIST, all_types=interaction.interacting_types("all"))
     
     forces.append(pair)
 
     if multiple_forces:
         kwargs = get_kwargs(hoomd.md.pair.DPD, "required")
         interaction = Interaction(**kwargs)
-        pair = interaction.to_parameterized_hoomd_instance(NLIST)
+        pair = interaction.to_parameterized_hoomd_instance(nlist=NLIST, all_types=interaction.interacting_types("all"))
         forces.append(pair)
     
     integrator.forces = forces
@@ -1431,20 +1415,20 @@ def test_from_hoomd_simulation_valid(cls, multiple_forces):
 
     kwargs = get_kwargs(cls, "required")
     interaction = Interaction(**kwargs)
-    pair = interaction.to_parameterized_hoomd_instance(NLIST)
+    pair = interaction.to_parameterized_hoomd_instance(nlist=NLIST, all_types=interaction.interacting_types("all"))
     
     forces.append(pair)
 
     if multiple_forces:
         kwargs = get_kwargs(hoomd.md.pair.DPD, "required")
         interaction = Interaction(**kwargs)
-        pair = interaction.to_parameterized_hoomd_instance(NLIST)
+        pair = interaction.to_parameterized_hoomd_instance(nlist=NLIST, all_types=interaction.interacting_types("all"))
         forces.append(pair)
     
     integrator.forces = forces
 
     simulation = hoomd.util.make_example_simulation(
-        particle_types=kwargs["all_types"]
+        particle_types=["A", "B"]
     )
     simulation.operations.integrator = integrator
 

@@ -26,44 +26,42 @@ def get_cube_faces():
     ]
 
 
-def lj_interaction(all_types, yes_pairs):
-    """Return a simple LJ Interaction with the specified all and yes types."""
+def lj_interaction(interacting_types):
+    """Return a simple LJ Interaction with the specified interacting types."""
     return Interaction(
         hoomd_class=hoomd.md.pair.LJ,
         initial_args={},
-        all_types=all_types,
-        no_params=dict(
+        default_params=dict(
             r_cut=0,
             params=dict(epsilon=0, sigma=1)
         ),
-        yes_params={
+        typed_params={
             p: dict(r_cut=5, params=dict(epsilon=1, sigma=1))
-            for p in yes_pairs
+            for p in interacting_types
         }
     )
 
-def alj_interaction(all_types, yes_pairs, yes_singles):
-    """Return a simple ALJ Interaction with the specified all and yes types."""
+def alj_interaction(interacting_pairs, interacting_singles):
+    """Return a simple ALJ Interaction with the specified interacting types."""
     kwargs = dict(
         hoomd_class=hoomd.md.pair.aniso.ALJ,
         initial_args={},
-        all_types=all_types,
-        no_params=dict(
+        default_params=dict(
             r_cut=0,
             params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
             shape=dict(vertices=[], faces=[])
         ),
-        yes_params={
+        typed_params={
             p: dict(
                 r_cut=5,
                 params=dict(epsilon=1, sigma_i=0.1, sigma_j=0.1, alpha=0),
             )
-            for p in yes_pairs
+            for p in interacting_pairs
         }
     )
 
-    for t in yes_singles:
-        kwargs["yes_params"][t] = dict(
+    for t in interacting_singles:
+        kwargs["typed_params"][t] = dict(
             shape=dict(vertices=get_cube_vertices(1), faces=get_cube_faces())
         )
 
@@ -74,22 +72,22 @@ VALID_KWARGS = [
     dict(   # one interaction
         probe=Body(primary_type="A"),
         analyte=Body(primary_type="A"),
-        interactions=[lj_interaction(["A"], [("A", "A")])]
+        interactions=[lj_interaction([("A", "A")])]
     ),
     dict(   # two interactions (no extra types)
         probe=Body(primary_type="A"),
         analyte=Body(primary_type="B"),
         interactions=[
-            lj_interaction(["A", "B"], [("A", "B")]),
-            lj_interaction(["A", "B"], [("A", "A")])
+            lj_interaction([("A", "B")]),
+            lj_interaction([("A", "A")])
         ]
     ),
     dict(   # two interactions (extra types)
         probe=Body(primary_type="A"),
         analyte=Body(primary_type="B"),
         interactions=[
-            lj_interaction(["A", "B", "C"], [("A", "B")]),
-            lj_interaction(["A", "B", "C", "D"], [("A", "A"), ("C", "C")])
+            lj_interaction([("A", "B")]),
+            lj_interaction([("A", "A"), ("C", "C")])
         ]
     ),
 
@@ -103,7 +101,7 @@ VALID_KWARGS = [
             orientations_by_type={"C": [[0,1,0,0]]}
         ),
         interactions=[
-            lj_interaction(["A", "B", "C"], [("A", "C")])
+            lj_interaction([("A", "C")])
         ]
     ),
     dict(   # two interactions (no extra types)
@@ -115,8 +113,8 @@ VALID_KWARGS = [
             orientations_by_type={"C": [[0,1,0,0]]}
         ),
         interactions=[
-            lj_interaction(["A", "B", "C"], [("A", "C")]),
-            lj_interaction(["A", "B", "C"], [("A", "B")])
+            lj_interaction([("A", "C")]),
+            lj_interaction([("A", "B")])
         ]
     ),
     dict(   # two interactions (extra types)
@@ -128,8 +126,8 @@ VALID_KWARGS = [
             orientations_by_type={"C": [[0,1,0,0]]}
         ),
         interactions=[
-            lj_interaction(["A", "B", "C", "D"], [("A", "C")]),
-            lj_interaction(["A", "B", "C", "D", "E"], [("A", "B")])
+            lj_interaction([("A", "C")]),
+            lj_interaction([("A", "B")])
         ]
     ),
 
@@ -143,7 +141,7 @@ VALID_KWARGS = [
         ),
         analyte=Body(primary_type="A"),
         interactions=[
-            lj_interaction(["A", "B", "C"], [("A", "C")])
+            lj_interaction([("A", "C")])
         ]
     ),
     dict(   # two interactions (no extra types)
@@ -155,8 +153,8 @@ VALID_KWARGS = [
         ),
         analyte=Body(primary_type="A"),
         interactions=[
-            lj_interaction(["A", "B", "C"], [("A", "C")]),
-            lj_interaction(["A", "B", "C"], [("A", "B")])
+            lj_interaction([("A", "C")]),
+            lj_interaction([("A", "B")])
         ]
     ),
     dict(   # two interactions (extra types)
@@ -168,8 +166,8 @@ VALID_KWARGS = [
         ),
         analyte=Body(primary_type="A"),
         interactions=[
-            lj_interaction(["A", "B", "C", "D"], [("A", "C")]),
-            lj_interaction(["A", "B", "C", "D", "E"], [("A", "B")])
+            lj_interaction([("A", "C")]),
+            lj_interaction([("A", "B")])
         ]
     ),
 
@@ -188,7 +186,7 @@ VALID_KWARGS = [
             orientations_by_type={"C": [[0,1,0,0]]}
         ),
         interactions=[
-            lj_interaction(["B", "C"], [("C", "C")])
+            lj_interaction([("C", "C")])
         ]
     ),
     dict(   # two interactions (no extra types)
@@ -203,8 +201,8 @@ VALID_KWARGS = [
             positions_by_type={"D": [[1,0,0]]},
         ),
         interactions=[
-            lj_interaction(["A", "B", "C", "D"], [("B", "D")]),
-            lj_interaction(["A", "B", "C", "D"], [("A", "C")])
+            lj_interaction([("B", "D")]),
+            lj_interaction([("A", "C")])
         ]
     ),
     dict(   # two interactions (extra types)
@@ -219,8 +217,8 @@ VALID_KWARGS = [
             positions_by_type={"D": [[1,0,0]]},
         ),
         interactions=[
-            lj_interaction(["A", "B", "C", "D", "E"], [("B", "D")]),
-            lj_interaction(["A", "B", "C", "D", "E", "F"], [("A", "C"), ("E", "F")])
+            lj_interaction([("B", "D")]),
+            lj_interaction([("A", "C"), ("E", "F")])
         ]
     ),
 ]
@@ -234,12 +232,12 @@ INVALID_KWARGS = [
     dict(   # wrong probe type
         probe="wrong",
         analyte=Body(primary_type="A"),
-        interactions=[lj_interaction(["A"], [("A", "A")])]
+        interactions=[lj_interaction([("A", "A")])]
     ),
     dict(   # wrong analyte type
         probe=Body(primary_type="A"),
         analyte="wrong",
-        interactions=[lj_interaction(["A"], [("A", "A")])]
+        interactions=[lj_interaction([("A", "A")])]
     ),
     dict(   # wrong interactions type
         probe=Body(primary_type="A"),
@@ -258,7 +256,7 @@ INVALID_KWARGS = [
             secondary_types=["B"],
             positions_by_type={"B": [[1,0,0]]}
         ),
-        interactions=[lj_interaction(["A", "B"], [("A", "B")])]
+        interactions=[lj_interaction([("A", "B")])]
     ),
     dict(   # probe primary type is in analyte secondary types
         probe=Body(primary_type="A"),
@@ -267,7 +265,7 @@ INVALID_KWARGS = [
             secondary_types=["A"],
             positions_by_type={"A": [[1,0,0]]}
         ),
-        interactions=[lj_interaction(["A", "B"], [("A", "B")])]
+        interactions=[lj_interaction([("A", "B")])]
     ),
     dict(   # analyte primary type is in probe secondary types
         probe=Body(
@@ -276,60 +274,8 @@ INVALID_KWARGS = [
             positions_by_type={"A": [[1,0,0]]}
         ),
         analyte=Body(primary_type="A"),
-        interactions=[lj_interaction(["A", "B"], [("A", "B")])]
+        interactions=[lj_interaction([("A", "B")])]
     ),
-    dict(   # probe primary type not covered
-        probe=Body(
-            primary_type="A",
-            secondary_types=["B"],
-            positions_by_type={"B": [[1,0,0]]}
-        ),
-        analyte=Body(
-            primary_type="C",
-            secondary_types=["D"],
-            positions_by_type={"D": [[1,0,0]]}
-        ),
-        interactions=[lj_interaction(["B", "C", "D"], [("B", "D")])]
-    ),
-    dict(   # probe secondary type not covered
-        probe=Body(
-            primary_type="A",
-            secondary_types=["B"],
-            positions_by_type={"B": [[1,0,0]]}
-        ),
-        analyte=Body(
-            primary_type="C",
-            secondary_types=["D"],
-            positions_by_type={"D": [[1,0,0]]}
-        ),
-        interactions=[lj_interaction(["A", "C", "D"], [("A", "D")])]
-    ),
-    dict(   # analyte primary type not covered
-        probe=Body(
-            primary_type="A",
-            secondary_types=["B"],
-            positions_by_type={"B": [[1,0,0]]}
-        ),
-        analyte=Body(
-            primary_type="C",
-            secondary_types=["D"],
-            positions_by_type={"D": [[1,0,0]]}
-        ),
-        interactions=[lj_interaction(["A", "B", "D"], [("B", "D")])]
-    ),
-    dict(   # analyte secondary type not covered
-        probe=Body(
-            primary_type="A",
-            secondary_types=["B"],
-            positions_by_type={"B": [[1,0,0]]}
-        ),
-        analyte=Body(
-            primary_type="C",
-            secondary_types=["D"],
-            positions_by_type={"D": [[1,0,0]]}
-        ),
-        interactions=[lj_interaction(["A", "B", "C"], [("B", "C")])]
-    )
 ]
 
 @pytest.mark.parametrize("kwargs", INVALID_KWARGS)
@@ -353,10 +299,10 @@ def test_instantiation_invalid(kwargs):
                 positions_by_type={"D": [[0,1,0]]},
             ),
             interactions=[
-                alj_interaction(("A", "B", "C", "D"), [], ["A", "C"])
+                alj_interaction([], ["A", "C"])
             ]
         ),
-        [alj_interaction(("A", "B", "C", "D"), [], ["A", "C"])]
+        [alj_interaction([], ["A", "C"])]
     ],
     [   # common single types (probe primary, analyte secondary)
         dict(
@@ -371,10 +317,10 @@ def test_instantiation_invalid(kwargs):
                 positions_by_type={"D": [[0,1,0]]},
             ),
             interactions=[
-                alj_interaction(("A", "B", "C", "D"), [], ["A", "D"])
+                alj_interaction([], ["A", "D"])
             ]
         ),
-        [alj_interaction(("A", "B", "C", "D"), [], ["A", "D"])]
+        [alj_interaction([], ["A", "D"])]
     ],
     [   # common single types (probe secondary, analyte primary)
         dict(
@@ -389,10 +335,10 @@ def test_instantiation_invalid(kwargs):
                 positions_by_type={"D": [[0,1,0]]},
             ),
             interactions=[
-                alj_interaction(("A", "B", "C", "D"), [], ["B", "C"])
+                alj_interaction([], ["B", "C"])
             ]
         ),
-        [alj_interaction(("A", "B", "C", "D"), [], ["B", "C"])]
+        [alj_interaction([], ["B", "C"])]
     ],
     [   # common single types (probe secondary, analyte secondary)
         dict(
@@ -407,10 +353,10 @@ def test_instantiation_invalid(kwargs):
                 positions_by_type={"D": [[0,1,0]]},
             ),
             interactions=[
-                alj_interaction(("A", "B", "C", "D"), [], ["B", "D"])
+                alj_interaction([], ["B", "D"])
             ]
         ),
-        [alj_interaction(("A", "B", "C", "D"), [], ["B", "D"])]
+        [alj_interaction([], ["B", "D"])]
     ],
     [   # common pair types (one member of pair, same for both probe and analyte)
         dict(
@@ -425,10 +371,10 @@ def test_instantiation_invalid(kwargs):
                 positions_by_type={"B": [[0,1,0]]},
             ),
             interactions=[
-                alj_interaction(("A", "B", "C", "D", "E"), [("B", "E")], [])
+                alj_interaction([("B", "E")], [])
             ]
         ),
-        [alj_interaction(("A", "B", "C", "D", "E"), [("B", "E")], [])]
+        [alj_interaction([("B", "E")], [])]
     ],
     [   # common pair types (different members for probe and analyte)
         dict(
@@ -443,10 +389,10 @@ def test_instantiation_invalid(kwargs):
                 positions_by_type={"D": [[0,1,0]]},
             ),
             interactions=[
-                alj_interaction(("A", "B", "C", "D"), [("A", "C")], [])
+                alj_interaction([("A", "C")], [])
             ]
         ),
-        [alj_interaction(("A", "B", "C", "D"), [("A", "C")], [])]
+        [alj_interaction([("A", "C")], [])]
     ],
     # multiple active
     [
@@ -462,13 +408,13 @@ def test_instantiation_invalid(kwargs):
                 positions_by_type={"D": [[0,1,0]]},
             ),
             interactions=[
-                alj_interaction(("A", "B", "C", "D"), [("A", "C")], ["A", "C"]),
-                lj_interaction(("A", "B", "C", "D"), [("B", "D")])
+                alj_interaction([("A", "C")], ["A", "C"]),
+                lj_interaction([("B", "D")])
             ]
         ),
         [
-            alj_interaction(("A", "B", "C", "D"), [("A", "C")], ["A", "C"]),
-            lj_interaction(("A", "B", "C", "D"), [("B", "D")])
+            alj_interaction([("A", "C")], ["A", "C"]),
+            lj_interaction([("B", "D")])
         ]
     ],
 ])
@@ -483,7 +429,7 @@ def test_active_interactions(kwargs, expected):
         dict(
             probe=Body(primary_type="A"),
             analyte=Body(primary_type="A"),
-            interactions=[lj_interaction(["A"], [("A", "A")])]
+            interactions=[lj_interaction([("A", "A")])]
         ),
         ["A"]
     ],
@@ -491,7 +437,7 @@ def test_active_interactions(kwargs, expected):
         dict(
             probe=Body(primary_type="A"),
             analyte=Body(primary_type="B"),
-            interactions=[lj_interaction(["A", "B"], [("A", "B")])]
+            interactions=[lj_interaction([("A", "B")])]
         ),
         ["A", "B"]
     ],
@@ -500,8 +446,8 @@ def test_active_interactions(kwargs, expected):
             probe=Body(primary_type="A"),
             analyte=Body(primary_type="B"),
             interactions=[
-                lj_interaction(["A", "B"], [("A", "B")]),
-                lj_interaction(["A", "B"], [("A", "B")])
+                lj_interaction([("A", "B")]),
+                lj_interaction([("A", "B")])
             ]
         ),
         ["A", "B"]
@@ -516,8 +462,8 @@ def test_active_interactions(kwargs, expected):
                 positions_by_type={"C": [[1,0,0]]}
             ),
             interactions=[
-                lj_interaction(["A", "B", "C"], [("A", "C")]),
-                lj_interaction(["A", "B", "C"], [("A", "B")])
+                lj_interaction([("A", "C")]),
+                lj_interaction([("A", "B")])
             ]
         ),
         ["A", "B", "C"]
@@ -532,8 +478,8 @@ def test_active_interactions(kwargs, expected):
             ),
             analyte=Body(primary_type="A"),
             interactions=[
-                lj_interaction(["A", "B", "C"], [("A", "C")]),
-                lj_interaction(["A", "B", "C"], [("A", "B")])
+                lj_interaction([("A", "C")]),
+                lj_interaction([("A", "B")])
             ]
         ),
         ["A", "B", "C"]
@@ -552,8 +498,8 @@ def test_active_interactions(kwargs, expected):
                 positions_by_type={"D": [[0,1,0]]}
             ),
             interactions=[
-                lj_interaction(["A", "B", "C", "D"], [("B", "D")]),
-                lj_interaction(["A", "B", "C", "D"], [("A", "C")])
+                lj_interaction([("B", "D")]),
+                lj_interaction([("A", "C")])
             ]
         ),
         ["A", "B", "C", "D"]
@@ -593,7 +539,7 @@ def get_valid_simulations_and_kwargs():
     kwargs = dict(
         probe=Body("A"),
         analyte=Body("C"),
-        interactions=[lj_interaction(["A", "C"], [("A", "C")])]
+        interactions=[lj_interaction([("A", "C")])]
     )
     simulations_and_kwargs.append([simulation, kwargs])
 
@@ -628,7 +574,7 @@ def get_valid_simulations_and_kwargs():
             secondary_types="D",
             positions_by_type={"D": [[1,0,0]]}
         ),
-        interactions=[lj_interaction(["A", "C", "D"], [("A", "D")])]
+        interactions=[lj_interaction([("A", "D")])]
     )
     simulations_and_kwargs.append([simulation, kwargs])
 
@@ -663,7 +609,7 @@ def get_valid_simulations_and_kwargs():
             positions_by_type={"B": [[1,0,0]]}
         ),
         analyte=Body("C"),
-        interactions=[lj_interaction(["A", "B", "C"], [("B", "C")])]
+        interactions=[lj_interaction([("B", "C")])]
     )
     simulations_and_kwargs.append([simulation, kwargs])
 
@@ -715,7 +661,7 @@ def get_valid_simulations_and_kwargs():
             secondary_types="D",
             positions_by_type={"D": [[0,1,0]]}
         ),
-        interactions=[lj_interaction(["A", "B", "C", "D"], [("B", "D")])]
+        interactions=[lj_interaction([("B", "D")])]
     )
     simulations_and_kwargs.append([simulation, kwargs])
 

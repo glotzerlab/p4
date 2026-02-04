@@ -206,12 +206,11 @@ def test_invalid_instantiation(kwargs):
 VALID_INTERACTION_KWARGS = dict(
     hoomd_class=hoomd.md.pair.LJ,
     initial_args=dict(),
-    no_params=dict(
+    default_params=dict(
         params=dict(epsilon=0, sigma=1),
         r_cut=0
     ),
-    all_types=["A", "B", "C"],
-    yes_params={
+    typed_params={
         ("A", "B"): dict(
             params=dict(epsilon=1, sigma=1),
             r_cut=5
@@ -223,30 +222,28 @@ VALID_INTERACTION_KWARGS = dict(
 @pytest.mark.parametrize("variant", ["none", "some", "all"])
 def test_is_rigid(kwargs, variant):
     """Ensure method returns True if the body has any secondary types in common with an interction."""
+    # TODO: check that the variants are handled correctly
     b = Body(**kwargs)
     interaction_kwargs = deepcopy(VALID_INTERACTION_KWARGS)
 
     if variant == "none":
-        interaction_kwargs["all_types"] = ["Y", "Z"]
-        for type_name, param_dict in deepcopy(interaction_kwargs["yes_params"]).items():
-            interaction_kwargs["yes_params"][("Y", "Z")] = param_dict # type: ignore
-            del interaction_kwargs["yes_params"][type_name]
+        for type_name, param_dict in deepcopy(interaction_kwargs["typed_params"]).items():
+            interaction_kwargs["typed_params"][("Y", "Z")] = param_dict # type: ignore
+            del interaction_kwargs["typed_params"][type_name]
 
     elif variant in ["some", "all"]:
         if "secondary_types" in kwargs.keys():
             if variant == "some":
                 t = kwargs["secondary_types"][0]
-                interaction_kwargs["all_types"] = [t]
-                for type_name, param_dict in deepcopy(interaction_kwargs["yes_params"]).items():
-                    interaction_kwargs["yes_params"][(t, t)] = param_dict
-                    del interaction_kwargs["yes_params"][type_name]
+                for type_name, param_dict in deepcopy(interaction_kwargs["typed_params"]).items():
+                    interaction_kwargs["typed_params"][(t, t)] = param_dict
+                    del interaction_kwargs["typed_params"][type_name]
 
             elif variant == "all":
-                interaction_kwargs["all_types"] = kwargs["secondary_types"]
-                for type_name, param_dict in deepcopy(interaction_kwargs["yes_params"]).items():
+                for type_name, param_dict in deepcopy(interaction_kwargs["typed_params"]).items():
                     for pair in itertools.combinations_with_replacement(kwargs["secondary_types"], 2):
-                        interaction_kwargs["yes_params"][pair] = param_dict
-                    del interaction_kwargs["yes_params"][type_name]
+                        interaction_kwargs["typed_params"][pair] = param_dict
+                    del interaction_kwargs["typed_params"][type_name]
 
     i = Interaction(**interaction_kwargs)
 

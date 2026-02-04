@@ -45,12 +45,11 @@ class System:
             p4.Interaction(
                 hoomd_class=hoomd.md.pair.LJ,
                 initial_args=dict(),
-                no_params=dict(
+                default_params=dict(
                     r_cut=0,
                     params=dict(epsilon=0, sigma=1)
                 ),
-                all_types=["A", "B", "C"],
-                yes_params={
+                typed_params={
                     ("A", "C"): dict(
                         r_cut=5.0,
                         params=dict(epsilon=1, sigma=1)
@@ -113,38 +112,9 @@ class System:
                 "analyte primary type cannot appear in probe secondary types."
             )
 
-        # Ensure bodies do not contain types not covered by interactions.        
-        covered_types = [t for i in self.interactions for t in i.all_types]
-
-        def err_msg(probe_or_analyte, primary_or_secondary, particle_type):
-            return (
-                f"{probe_or_analyte} {primary_or_secondary} type "
-                + f"{self.probe.primary_type} is not covered by the provided "
-                + f"interactions. Covered types are {covered_types}."
-            )
-        
-        if self.probe.primary_type not in covered_types:
-            raise ValueError(
-                err_msg("probe", "primary", self.probe.primary_type)
-            )
-        for t in self.probe.secondary_types:
-            if t not in covered_types:
-                raise ValueError(
-                    err_msg("probe", "secondary", t)
-                )
-        if self.analyte.primary_type not in covered_types:
-            raise ValueError(
-                err_msg("analyte", "primary", self.analyte.primary_type)
-            )
-        for t in self.analyte.secondary_types:
-            if t not in covered_types:
-                raise ValueError(
-                    err_msg("analyte", "secondary", t)
-                )
-
     @property
     def active_interactions(self) -> list[Interaction]:
-        """Interactions with 'yes' types in both the probe and the analyte."""
+        """Interactions with typed params for both the probe and the analyte."""
         probe_types = [self.probe.primary_type] + self.probe.secondary_types
         analyte_types = [self.analyte.primary_type] + self.analyte.secondary_types
         
@@ -154,8 +124,8 @@ class System:
             # For single types, there must be at least one in probe and one in
             # analyte
             if (
-                any(t in probe_types for t in interaction.yes_single_types)
-                and any(t in analyte_types for t in interaction.yes_single_types)
+                any(t in probe_types for t in interaction.interacting_types("single"))
+                and any(t in analyte_types for t in interaction.interacting_types("single"))
             ):
                 included_interactions.append(interaction)
 
@@ -164,7 +134,7 @@ class System:
             # analyte
             else:
                 straddlers = []
-                for type_pair in interaction.yes_pair_types:
+                for type_pair in interaction.interacting_types("pair"):
                     if (
                         any(t in probe_types for t in type_pair)
                         and any(t in analyte_types for t in type_pair)

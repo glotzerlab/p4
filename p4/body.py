@@ -89,16 +89,16 @@ class Body:
         common_single_types = any(
             t in self.secondary_types
             for interaction in interactions
-            for t in interaction.yes_single_types
+            for t in interaction.interacting_types("single")
         )
         common_pair_types = any(
             p[0] in self.secondary_types or p[1] in self.secondary_types
             for interaction in interactions
-            for p in interaction.yes_pair_types
+            for p in interaction.interacting_types("pair")
         )
         nonzero_default_r_cut = any(
             (
-                interaction.no_params["r_cut"] > 0
+                interaction.default_params["r_cut"] > 0
                 or interaction.initial_args.get("default_r_cut", 0) > 0
             )
             for interaction in interactions

@@ -374,7 +374,8 @@ def add_table_writer(
 def add_interaction(
     simulation: hoomd.Simulation,
     nlist: hoomd.md.nlist.NeighborList,
-    interaction: Interaction
+    interaction: Interaction,
+    all_types: list[str]
 ) -> hoomd.Simulation:
     """Add an interaction to the simulation.
 
@@ -386,6 +387,8 @@ def add_interaction(
         The neighborlist to use for the interaction.
     interaction : Interaction
         The interaction to add.
+    all_types : list[str]
+        The names of the particle types to parameterize the interaction for.
 
     Returns
     -------
@@ -394,6 +397,7 @@ def add_interaction(
     """
     force = interaction.to_parameterized_hoomd_instance(
         nlist=nlist,
+        all_types=all_types
     )
 
     simulation.operations.integrator.forces.append(force)
@@ -508,7 +512,12 @@ def get_simulation(
 
     # Add required interactions
     for interaction in included_interactions:
-        simulation = add_interaction(simulation, nlist, interaction)
+        simulation = add_interaction(
+            simulation=simulation,
+            nlist=nlist,
+            interaction=interaction,
+            all_types=system.all_types
+        )
     
     return simulation
 

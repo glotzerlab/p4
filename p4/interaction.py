@@ -4,7 +4,7 @@
 from copy import deepcopy
 import inspect
 import itertools
-from typing import Iterable
+from typing import Iterable, Literal
 import hoomd
 
 import p4.util
@@ -23,12 +23,11 @@ class Interaction:
         interaction = p4.Interaction(
             hoomd_class=hoomd.md.pair.LJ,
             initial_args=dict(),
-            no_params=dict(
+            default_params=dict(
                 r_cut=0,
                 params=dict(epsilon=0, sigma=1)
             ),
-            all_types=["A", "B"],
-            yes_params={
+            typed_params={
                 ("A", "B"): dict(
                     r_cut=5.0,
                     params=dict(epsilon=1, sigma=1)
@@ -43,55 +42,31 @@ class Interaction:
     initial_args : dict[str, float | str]
         All parameters (that aren't `nlist`) that are needed for instantiating
         the class from its constructor.
-    no_params : dict
-        The names and values of parameters that will be set for the
-        **non-interacting** individual and pairs of particle types. These values
-        are the "default" for particle types covered by this interaction.
-        To determine the required params for `hoomd_class`, consult the docs
-        or use the static method `Interaction.get_param_schema()`.
-    all_types : list[str]
-        The particle types that are covered by this interaction. This list may
-        include one or more effectively non-interacting types, whose pairwise
-        interactions are parameterized with `no_params`.
-    yes_params : dict
-        The names and type-parameterized values of parameters that will be set
-        for the **interacting** individual and pairs of particle types. To
-        determine the required params for `hoomd_class`, consult the docs
-        or use the static method `Interaction.get_param_schema()`.
+    default_params : dict
+        The names and values of parameters that will be set by default for
+        **all** single and pair types. To determine the params for
+        your `hoomd_class`, consult the HOOMD docs.
+    typed_params : dict
+        A mapping of single and pair types to parameter names and values. These
+        names and values will override those from `default_params`.
     """
     def __init__(
         self,
         hoomd_class: hoomd.md.pair.Pair,
         initial_args: dict[str, float | str],
-        no_params: dict[str, float],
-        all_types: list[str],
-        yes_params: dict[str, float],
+        default_params: dict[str, float],
+        typed_params: dict[str, float],
     ):
         self.hoomd_class = hoomd_class
         self.initial_args = initial_args
-        self.no_params = no_params
-        self.all_types = [str(t) for t in all_types]  # Review: enforce uniqueness?
-        self.yes_params = yes_params
+        self.default_params = default_params
+        self.typed_params = typed_params
 
         self._validate()
+        # self._simplify()
 
     def _validate(self):
         """Ensure this Interaction behaves properly."""
-        # Ensure all "yes" types are provided in all_types
-        for type_name in self.yes_params:
-            if isinstance(type_name, Iterable) and not isinstance(type_name, (str, bytes)):
-                for t in type_name:
-                    if t not in self.all_types:
-                        raise ValueError(
-                            f"yes type pair '{type_name}' contains '{t}', "
-                            + "which is not in all_types"
-                        )
-            else:
-                if type_name not in self.all_types:
-                    raise ValueError(
-                        f"yes type '{type_name}' is not in all_types"
-                    )
-
         # Ensure the hoomd class can be instantiated
         nlist = hoomd.md.nlist.Cell(2)
         try:
@@ -102,8 +77,12 @@ class Interaction:
         
         # Ensure the hoomd class can be parameterized
         nlist = hoomd.md.nlist.Cell(2)
+        test_all_types = self.interacting_types("all")
         try:
-            _ = self.to_parameterized_hoomd_instance(nlist)
+            _ = self.to_parameterized_hoomd_instance(
+                nlist=nlist,
+                all_types=test_all_types
+            )
         except (AttributeError, KeyError) as e:
             msg = "Validation failed: the HOOMD class cannot be parameterized."
             raise ValueError(msg) from e
@@ -111,17 +90,17 @@ class Interaction:
         # Ensure the parameterized hoomd class can be used in a simulation
         nlist = hoomd.md.nlist.Cell(2)
         simulation = hoomd.util.make_example_simulation(
-            particle_types=self.all_types
+            particle_types=self.interacting_types("all")
         )
-        if not any("params" in v for v in self.yes_params.values()):
-            max_r_cut = self.no_params["r_cut"]
+        if not any("params" in v for v in self.typed_params.values()):
+            max_r_cut = self.default_params["r_cut"]
         else:
             max_r_cut = max([
-                v.get("r_cut", 0) for v in self.yes_params.values()
+                v.get("r_cut", 0) for v in self.typed_params.values()
             ])
         
         simulation = self._get_test_simulation(
-            particle_types=self.all_types,
+            particle_types=self.interacting_types("all"),
             max_r_cut=max_r_cut,
             nlist=hoomd.md.nlist.Cell(2),
             interaction=self
@@ -129,7 +108,12 @@ class Interaction:
         box_length = 10 * max(max_r_cut, 1.0)
         simulation.state.set_box([box_length, box_length, box_length, 0, 0, 0])
         simulation = p4.util.add_integrator(simulation)
-        simulation = p4.util.add_interaction(simulation, nlist, self)
+        simulation = p4.util.add_interaction(
+            simulation=simulation,
+            nlist=nlist,
+            interaction=self,
+            all_types=self.interacting_types("all")
+        )
 
         try:
            simulation.run(0)
@@ -140,15 +124,16 @@ class Interaction:
             )
             raise ValueError(msg) from e
         
-        # Simplify yes_params where possible, moving full repeats into no_params
+    def _simplify(self):
+        """Simplify typed_params where possible, moving repeats into defaults."""
         # [Review: reduce code duplication here]
-        for type_name, param_dict in deepcopy(self.yes_params).items():
+        for type_name, param_dict in deepcopy(self.typed_params).items():
             for param_name, param_value in param_dict.items():
                 
                 types_with_same_param = []
                 other_params = {
                     k: v
-                    for k, v in self.yes_params.items()
+                    for k, v in self.typed_params.items()
                     if k != type_name
                 }
                 for t, d in other_params.items():
@@ -156,16 +141,18 @@ class Interaction:
                         if d[param_name] == param_value:
                             types_with_same_param.append(t)
 
+                # Handle single-typed params
                 if isinstance(type_name, str):
                     if (
                         len(types_with_same_param) == len(self.all_types) - 1 and
                         all(t in self.all_types for t in types_with_same_param)
                     ):
                         for k, v in param_dict.items():
-                            self.no_params[k] = v
+                            self.default_params[k] = v
                         for t in types_with_same_param:
-                            del self.yes_params[t][param_name]
+                            del self.typed_params[t][param_name]
                 
+                # Handle pair-typed params
                 elif isinstance(type_name, Iterable) and len(type_name) == 2:
                     all_type_pairs = list(itertools.combinations_with_replacement(
                         self.all_types, 2
@@ -175,14 +162,14 @@ class Interaction:
                         all(p in all_type_pairs for p in types_with_same_param)
                     ):
                         for k, v in param_dict.items():
-                            self.no_params[k] = v
+                            self.default_params[k] = v
                         for t in types_with_same_param:
                             try:    # Review: make this less hacky
-                                del self.yes_params[t][param_name]
+                                del self.typed_params[t][param_name]
                             except KeyError:
                                 continue
         
-        self.yes_params = {k: v for k, v in self.yes_params.items() if v != {}}
+        self.typed_params = {k: v for k, v in self.typed_params.items() if v != {}}
         
         # Convert all tuples to lists in values (NOT in keys)
         # [Review: this implementation is horribly hacky. Improve later.]
@@ -193,7 +180,7 @@ class Interaction:
             if isinstance(item, list):
                 item = [list(i) if isinstance(i, tuple) else i for i in item]
             return item
-        params = [self.no_params, self.yes_params]
+        params = [self.default_params, self.typed_params]
         for p in params:
             for k, v in p.items():
                 if isinstance(v, dict):
@@ -217,28 +204,45 @@ class Interaction:
         s = 10 * max_r_cut
         simulation.state.set_box([s, s, s, 0, 0, 0])
         simulation = p4.util.add_integrator(simulation)
-        simulation = p4.util.add_interaction(simulation, nlist, interaction)
+        simulation = p4.util.add_interaction(
+            simulation=simulation,
+            nlist=nlist,
+            interaction=interaction,
+            all_types=interaction.interacting_types("all")
+        )
         
         return simulation
-    @property
-    def yes_single_types(self):
-        """A list of all single particle types for which yes params are given."""
-        return [
-            key
-            for key in self.yes_params
-            if isinstance(key, str) and key in self.all_types
-        ]
 
-    @property
-    def yes_pair_types(self):
-        """A list of all pairs of particle types for which yes params are given."""
-        return [
-            key
-            for key in self.yes_params
-            if isinstance(key, Iterable) and not isinstance(key, (str, bytes))
-                and len(key) == 2
-                and all(i in self.all_types for i in key)
-        ]
+    def interacting_types(self, category=Literal["single", "pair", "all"]):
+        """A list of particle types from `typed_params`.
+        
+        Parameters
+        ----------
+        category : 'single', 'pair', or 'all'
+            Which types to return. If set to 'single', single types (strings)
+            will be returned. If set to 'pair', pair types (2-tuples of strings) 
+            will be returned. If set to 'all', a union of all single types and
+            the contents of all pair types will be returned.
+        """
+        if category == "single":
+            return [key for key in self.typed_params if isinstance(key, str)]
+
+        elif category == "pair":
+            return [
+                key
+                for key in self.typed_params
+                if isinstance(key, Iterable)
+                    and not isinstance(key, (str, bytes))
+                    and len(key) == 2
+            ]
+        
+        elif category == "all":
+            types = [t for t in self.interacting_types("single")]
+            for p in self.interacting_types("pair"):
+                for t in p:
+                    if t not in types:
+                        types.append(t)
+            return types
 
     def to_hoomd_instance(
         self,
@@ -269,6 +273,7 @@ class Interaction:
     def to_parameterized_hoomd_instance(
         self,
         nlist: hoomd.md.nlist.NeighborList,
+        all_types: list[str]
     ) -> hoomd.md.pair.Pair:
         """Return a parameterized instance of the HOOMD class.
         
@@ -289,70 +294,70 @@ class Interaction:
         AttributeError
             If the typed params are wrong.
         """
-        def wrong_type_msg(param, no_or_yes, single_or_pair, hoomd_class):
+        def wrong_type_msg(param, default_or_typed, single_or_pair, hoomd_class):
             return (
-                f"'{param}' was provided as a {no_or_yes} {single_or_pair}"
-                f"-typed-param, but no such param was found in hoomd "
-                f"class '{hoomd_class}'."
+                f"'{param}' was provided as a {default_or_typed} "
+                f"{single_or_pair}-typed-param, but no such param was found in "
+                f"hoomd class '{hoomd_class}'."
             )
 
         instance = self.to_hoomd_instance(nlist)
         
         # Calculate the pairwise combinations of all types and interacting types
         all_type_pairs = list(
-            itertools.combinations_with_replacement(self.all_types, 2)
+            itertools.combinations_with_replacement(all_types, 2)
         )
 
         single_typed_params = self._parse_params("single", "all")
         pair_typed_params = self._parse_params("pair", "all")
 
-        # Set no single-typed params
-        for a_t in self.all_types:
-            for name, typed_param in self.no_params.items():
+        # Set default single type params
+        for t in all_types:
+            for name, typed_param in self.default_params.items():
                 if name in single_typed_params:
                     try:    # TODO: probably don't need try-block if there's a parsing method
-                        getattr(instance, name)[a_t] = typed_param
+                        getattr(instance, name)[t] = typed_param
                     except AttributeError:
                         raise AttributeError(
                             wrong_type_msg(
-                                name, "no", "single", self.hoomd_class
+                                name, "default", "single", self.hoomd_class
                             )
                         )
 
-        # Set no pair-typed params
-        for a_p in all_type_pairs:
-            for name, typed_param in self.no_params.items():
+        # Set default pair type params
+        for p in all_type_pairs:
+            for name, typed_param in self.default_params.items():
                 if name in pair_typed_params:
                     try:
-                        getattr(instance, name)[a_p] = typed_param
+                        getattr(instance, name)[p] = typed_param
                     except AttributeError:
                         raise AttributeError(
                             wrong_type_msg(
-                                name, "no", "pair", self.hoomd_class
+                                name, "default", "pair", self.hoomd_class
                             )
                         )
 
-        # Modify yes single-typed params
-        for y_t in self.yes_single_types:
-            for param_name, param_value in self.yes_params[y_t].items():
+        # Modify typed single type params
+        for t in self.interacting_types("single"):
+            for param_name, param_value in self.typed_params[t].items():
                 try:
-                    getattr(instance, param_name)[y_t] = param_value
+                    getattr(instance, param_name)[t] = param_value
                 except AttributeError:
                     raise AttributeError(
                         wrong_type_msg(
-                            param_name, "yes", "single", self.hoomd_class
+                            param_name, "typed", "single", self.hoomd_class
                         )
                     )
 
-        # Modify yes pair-typed params
-        for y_p in self.yes_pair_types:
-            for param_name, param_value in self.yes_params[y_p].items():
+        # Modify typed pair type params
+        for p in self.interacting_types("pair"):
+            for param_name, param_value in self.typed_params[p].items():
                 try:
-                    getattr(instance, param_name)[y_p] = param_value
+                    getattr(instance, param_name)[p] = param_value
                 except AttributeError:
                     raise AttributeError(
                         wrong_type_msg(
-                            param_name, "yes", "pair", self.hoomd_class
+                            param_name, "typed", "pair", self.hoomd_class
                         )
                     )
 
@@ -370,13 +375,14 @@ class Interaction:
         pair : hoomd.md.pair.Pair
             The hoomd pairwise force instance.
         """
-        def get_particle_types(typeparam_dict, yes_or_all):
+        def get_particle_types(typeparam_dict, interacting_or_all):
             """Return a list of particle type names in a typeparameter dictionary.
             
-            'yes' types are defined as having non-zero r_cut values and are
-            returned in pairs. 'all' types are returned as a flat list of names.
+            'interacting' types are defined as having non-zero r_cut values and
+            are returned in pairs. 'all' types are returned as a flat list of
+            names.
             """
-            if yes_or_all == "yes":
+            if interacting_or_all == "interacting":
                 particle_types = []
                 for type_pair, value in typeparam_dict["r_cut"].items():
                     if value != 0:
@@ -417,37 +423,35 @@ class Interaction:
             del initial_args["mode"]
         
         # Params
-        all_types = get_particle_types(tpd, "all")  # includes ONLY singles
-        yes_types = get_particle_types(tpd, "yes")  # includes singles AND pairs
+        specific_types = get_particle_types(tpd, "interacting")  # includes singles AND pairs
 
-        no_params = {}
-        yes_params = {}
+        default_params = {}
+        typed_params = {}
 
         for param_name, typeparam in tpd.items():
             for type_name, param_value in typeparam.items():
-                # Yes params
-                if type_name in yes_types:
-                    if type_name not in yes_params:
-                        yes_params[type_name] = {}
+                # Typed params
+                if type_name in specific_types:
+                    if type_name not in typed_params:
+                        typed_params[type_name] = {}
                     if hasattr(param_value, "to_base"):
-                        yes_params[type_name][param_name] = param_value.to_base()
+                        typed_params[type_name][param_name] = param_value.to_base()
                     else:
-                        yes_params[type_name][param_name] = param_value
+                        typed_params[type_name][param_name] = param_value
 
-                # No params
+                # Default params
                 else:
-                    if param_name not in no_params:
+                    if param_name not in default_params:
                         if hasattr(param_value, "to_base"):
-                            no_params[param_name] = param_value.to_base()
+                            default_params[param_name] = param_value.to_base()
                         else:
-                            no_params[param_name] = param_value
+                            default_params[param_name] = param_value
 
         kwargs=dict(
             hoomd_class=hoomd_class,
             initial_args=initial_args,
-            no_params=no_params,
-            all_types=all_types,
-            yes_params=yes_params,
+            default_params=default_params,
+            typed_params=typed_params,
         )
 
         return cls(**kwargs)
@@ -623,10 +627,8 @@ class Interaction:
             return False
         
         same_initial_args = self.initial_args == other.initial_args
-        same_no_params = self.no_params == other.no_params
-        same_all_types = self.all_types == other.all_types
-        equivalent_all_types = set(self.all_types) == set(other.all_types)
-        same_yes_params = self.yes_params == other.yes_params
+        same_default_params = self.default_params == other.default_params
+        same_typed_params = self.typed_params == other.typed_params
 
         def without_keys(d, keys):
             """Return a copy of a dict without items specified by keys."""
@@ -635,7 +637,7 @@ class Interaction:
         # If initial_args are different, they should be considered equivalent if
         # the only differences are between
         #   - `default_r_cut` or `default_r_on` parameters that are
-        #     superceded by equivalent values in no_params
+        #     superceded by equivalent values in default_params
         #   - the presence of optional parameters that are set to their default
         #     values
         equivalent_initial_args = same_initial_args
@@ -658,11 +660,11 @@ class Interaction:
             rs_equivalent = [True] if not different_rs else []
             for r in different_rs:
                 # For r_cut, there MUST be a value in either initial_args or
-                # no_params, otherwise the hoomd pair cannot be parameterized.
+                # default_params, otherwise the hoomd pair cannot be parameterized.
                 # For r_on, there does not need to be a value, and if this is
                 # the case then hoomd defaults the parameter to zero.
-                if r in self.no_params:
-                    self_dominant_r = self.no_params[r]
+                if r in self.default_params:
+                    self_dominant_r = self.default_params[r]
                 elif f"default_{r}" in self.initial_args:
                     self_dominant_r = self.initial_args[f"default_{r}"]
                 else:
@@ -673,12 +675,12 @@ class Interaction:
                             "During equivalence comparison, encountered a "
                             + "problem: can find neither 'default_r_cut' in "
                             + "`self.initial_args` nor 'r_cut' in "
-                            + "`self.no_params`. This is undefined behavior."
+                            + "`self.default_params`. This is undefined behavior."
                         )
                         raise ValueError(msg)
                 
-                if r in other.no_params:
-                    other_dominant_r = other.no_params[r]
+                if r in other.default_params:
+                    other_dominant_r = other.default_params[r]
                 elif f"default_{r}" in other.initial_args:
                     other_dominant_r = other.initial_args[f"default_{r}"]
                 else:
@@ -689,7 +691,7 @@ class Interaction:
                             "During equivalence comparison, encountered a "
                             + "problem: can find neither 'default_r_cut' in "
                             + "`other.initial_args` nor 'r_cut' in "
-                            + "`other.no_params`. This is undefined behavior."
+                            + "`other.default_params`. This is undefined behavior."
                         )
                         raise ValueError(msg)
 
@@ -738,33 +740,33 @@ class Interaction:
                 )
             )
         
-        # If no_params are different, they should be considered equivalent if
+        # If default_params are different, they should be considered equivalent if
         # the only differences are between
         #   - the absence of `r_cut` or `r_on` parameters that are covered by
         #     equivalent default values in initial_args
         #   - the presence of optional parameters that are set to their default
         #     values
         #   - the presence of the same parameter value for every single or pair
-        equivalent_no_params = same_no_params
-        if not same_no_params:
+        equivalent_default_params = same_default_params
+        if not same_default_params:
             # Check for equivalence based on r_cut and/or r_on values
             same_without_rs = (
-                without_keys(self.no_params, ["r_cut", "r_on"])
-                == without_keys(other.no_params, ["r_cut", "r_on"])
+                without_keys(self.default_params, ["r_cut", "r_on"])
+                == without_keys(other.default_params, ["r_cut", "r_on"])
             )
 
             different_rs = [
                 r
                 for r in ["r_cut", "r_on"]
-                if self.no_params.get(r) != other.no_params.get(r)
+                if self.default_params.get(r) != other.default_params.get(r)
             ]
             rs_equivalent = [True] if not different_rs else []
             for r in different_rs:
                 # For r_cut, there MUST be a value in either initial_args or
-                # no_params, otherwise the hoomd pair cannot be parameterized.
+                # default_params, otherwise the hoomd pair cannot be parameterized.
                 # For r_on, there does not need to be a value, and if this is
                 # the case then hoomd defaults the parameter to zero.
-                if r not in self.no_params:
+                if r not in self.default_params:
                     if f"default_{r}" in self.initial_args:
                         self_dominant_r = self.initial_args[f"default_{r}"]
                     else:
@@ -775,14 +777,14 @@ class Interaction:
                                 "During equivalence comparison, encountered a "
                                 + "problem: can find neither 'default_r_cut' "
                                 + "in `self.initial_args` nor 'r_cut' in "
-                                + "`self.no_params`. This is undefined "
+                                + "`self.default_params`. This is undefined "
                                 + "behavior."
                             )
                             raise ValueError(msg)
                 else:
-                    self_dominant_r = self.no_params[r]
+                    self_dominant_r = self.default_params[r]
                 
-                if r not in other.no_params:
+                if r not in other.default_params:
                     if f"default_{r}" in other.initial_args:
                         other_dominant_r = other.initial_args[f"default_{r}"]
                     else:
@@ -793,12 +795,12 @@ class Interaction:
                                 "During equivalence comparison, encountered a "
                                 + "problem: can find neither 'default_r_cut' "
                                 + "in `other.initial_args` nor 'r_cut' in "
-                                + "`other.no_params`. This is undefined "
+                                + "`other.default_params`. This is undefined "
                                 + "behavior."
                             )
                             raise ValueError(msg)
                 else:
-                    other_dominant_r = other.no_params[r]
+                    other_dominant_r = other.default_params[r]
 
                 rs_equivalent.append(self_dominant_r == other_dominant_r)
             
@@ -821,71 +823,71 @@ class Interaction:
                                         for ssk, ssv in sv.items():
                                             # Check self
                                             if (
-                                                name in self.no_params
-                                                and isinstance(self.no_params[name], dict)
-                                                and k in self.no_params[name]
-                                                and isinstance(self.no_params[name][k], dict)
-                                                and sk in self.no_params[name][k]
-                                                and isinstance(self.no_params[name][k][sk], dict)
-                                                and ssk in self.no_params[name][k][sk]
+                                                name in self.default_params
+                                                and isinstance(self.default_params[name], dict)
+                                                and k in self.default_params[name]
+                                                and isinstance(self.default_params[name][k], dict)
+                                                and sk in self.default_params[name][k]
+                                                and isinstance(self.default_params[name][k][sk], dict)
+                                                and ssk in self.default_params[name][k][sk]
                                             ):
                                                 optional_params_equivalent.append(
-                                                    ssv == self.no_params[name][k][sk][ssk]
+                                                    ssv == self.default_params[name][k][sk][ssk]
                                                 )
                                             # Check other
                                             if (
-                                                name in other.no_params
-                                                and isinstance(other.no_params[name], dict)
-                                                and k in other.no_params[name]
-                                                and isinstance(other.no_params[name][k], dict)
-                                                and sk in other.no_params[name][k]
-                                                and isinstance(other.no_params[name][k][sk], dict)
-                                                and ssk in other.no_params[name][k][sk]
+                                                name in other.default_params
+                                                and isinstance(other.default_params[name], dict)
+                                                and k in other.default_params[name]
+                                                and isinstance(other.default_params[name][k], dict)
+                                                and sk in other.default_params[name][k]
+                                                and isinstance(other.default_params[name][k][sk], dict)
+                                                and ssk in other.default_params[name][k][sk]
                                             ):
                                                 optional_params_equivalent.append(
-                                                    sv == other.no_params[name][k][sk][ssk]
+                                                    sv == other.default_params[name][k][sk][ssk]
                                                 )
                                     else:
                                         # Check self
                                         if (
-                                            name in self.no_params
-                                            and isinstance(self.no_params[name], dict)
-                                            and k in self.no_params[name]
-                                            and isinstance(self.no_params[name][k], dict)
-                                            and sk in self.no_params[name][k]
+                                            name in self.default_params
+                                            and isinstance(self.default_params[name], dict)
+                                            and k in self.default_params[name]
+                                            and isinstance(self.default_params[name][k], dict)
+                                            and sk in self.default_params[name][k]
                                         ):
                                             optional_params_equivalent.append(
-                                                sv == self.no_params[name][k][sk]
+                                                sv == self.default_params[name][k][sk]
                                             )
                                         # Check other
                                         if (
-                                            name in other.no_params
-                                            and isinstance(other.no_params[name], dict)
-                                            and k in other.no_params[name]
-                                            and isinstance(other.no_params[name][k], dict)
-                                            and sk in other.no_params[name][k]
+                                            name in other.default_params
+                                            and isinstance(other.default_params[name], dict)
+                                            and k in other.default_params[name]
+                                            and isinstance(other.default_params[name][k], dict)
+                                            and sk in other.default_params[name][k]
                                         ):
                                             optional_params_equivalent.append(
-                                                sv == other.no_params[name][k][sk]
+                                                sv == other.default_params[name][k][sk]
                                             )
                             else:
                                 # Check self
                                 if (
-                                    name in self.no_params
-                                    and isinstance(self.no_params[name], dict)
-                                    and k in self.no_params[name]
+                                    name in self.default_params
+                                    and isinstance(self.default_params[name], dict)
+                                    and k in self.default_params[name]
                                 ):
                                     optional_params_equivalent.append(
-                                        v == self.no_params[name][k]
+                                        v == self.default_params[name][k]
                                     )
                                 # Check other
                                 if (
-                                    name in other.no_params
-                                    and isinstance(other.no_params[name], dict)
-                                    and k in other.no_params[name]
+                                    name in other.default_params
+                                    and isinstance(other.default_params[name], dict)
+                                    and k in other.default_params[name]
                                 ):
                                     optional_params_equivalent.append(
-                                        v == other.no_params[name][k]
+                                        v == other.default_params[name][k]
                                     )
                                 
 
@@ -894,23 +896,23 @@ class Interaction:
                         # Loop over all optional params
                         if typeparam.default is not hoomd.data.typeconverter.RequiredArg:
                             # Check self
-                            if name in self.no_params:
+                            if name in self.default_params:
                                 optional_params_equivalent.append(
-                                    typeparam.default == self.no_params[name]
+                                    typeparam.default == self.default_params[name]
                                 )
                             # Check other
-                            if name in other.no_params:
+                            if name in other.default_params:
                                 optional_params_equivalent.append(
-                                    typeparam.default == other.no_params[name]
+                                    typeparam.default == other.default_params[name]
                                 )
 
-            equivalent_no_params = (
+            equivalent_default_params = (
                 (same_without_rs and all(rs_equivalent))
                 or (all(optional_params_equivalent) and all(rs_equivalent))
             )
 
-        # If yes and/or no_params are different, they should be considered
-        # equivalent if the only differences are between
+        # If typed and/or default_params are different, they should be
+        # considered equivalent if the only differences are between
         #   - the absence of `r_cut` or `r_on` parameters that are covered by
         #     equivalent default values in initial_args
         #   - the presence of optional parameters that are set to their default
@@ -918,28 +920,28 @@ class Interaction:
         #   - the presence of the same parameter value for every single or pair
         #   - TODO: add support for type pairs that are tuples in a different
         #     order (Review: consider changing tuples to sets)
-        equivalent_yes_params = same_yes_params
-        if not same_yes_params:
+        equivalent_typed_params = same_typed_params
+        if not same_typed_params:
             # Check for equivalence based on r_cut and/or r_on values
             same_without_rs = (
-                without_keys(self.yes_params, ["r_cut", "r_on"])
-                == without_keys(other.yes_params, ["r_cut", "r_on"])
+                without_keys(self.typed_params, ["r_cut", "r_on"])
+                == without_keys(other.typed_params, ["r_cut", "r_on"])
             )
 
             different_rs = [
                 r
                 for r in ["r_cut", "r_on"]
-                if self.yes_params.get(r) != other.no_params.get(r)
+                if self.typed_params.get(r) != other.default_params.get(r)
             ]
             rs_equivalent = [True] if not different_rs else []
             for r in different_rs:
                 # For r_cut, there MUST be a value in either initial_args or
-                # no_params, otherwise the hoomd pair cannot be parameterized.
+                # default_params, otherwise the hoomd pair cannot be parameterized.
                 # For r_on, there does not need to be a value, and if this is
                 # the case then hoomd defaults the parameter to zero.
-                if r not in self.yes_params:
-                    if r in self.no_params:
-                        self_dominant_r = self.no_params[r]
+                if r not in self.typed_params:
+                    if r in self.default_params:
+                        self_dominant_r = self.default_params[r]
                     elif f"default_{r}" in self.initial_args:
                         self_dominant_r = self.initial_args[f"default_{r}"]
                     else:
@@ -950,16 +952,16 @@ class Interaction:
                                 "During equivalence comparison, encountered a "
                                 + "problem: can find neither 'default_r_cut' "
                                 + "in `self.initial_args` nor 'r_cut' in "
-                                + "`self.no_params`. This is undefined "
+                                + "`self.default_params`. This is undefined "
                                 + "behavior."
                             )
                             raise ValueError(msg)
                 else:
-                    self_dominant_r = self.yes_params[r]
+                    self_dominant_r = self.typed_params[r]
                 
-                if r not in other.yes_params:
-                    if r in other.no_params:
-                        other_dominant_r = other.no_params[r]
+                if r not in other.typed_params:
+                    if r in other.default_params:
+                        other_dominant_r = other.default_params[r]
                     elif f"default_{r}" in other.initial_args:
                         other_dominant_r = other.initial_args[f"default_{r}"]
                     else:
@@ -970,12 +972,12 @@ class Interaction:
                                 "During equivalence comparison, encountered a "
                                 + "problem: can find neither 'default_r_cut' "
                                 + "in `other.initial_args` nor 'r_cut' in "
-                                + "`other.no_params`. This is undefined "
+                                + "`other.default_params`. This is undefined "
                                 + "behavior."
                             )
                             raise ValueError(msg)
                 else:
-                    other_dominant_r = other.yes_params[r]
+                    other_dominant_r = other.typed_params[r]
 
                 rs_equivalent.append(self_dominant_r == other_dominant_r)
             
@@ -998,71 +1000,71 @@ class Interaction:
                                         for ssk, ssv in sv.items():
                                             # Check self
                                             if (
-                                                name in self.yes_params
-                                                and isinstance(self.yes_params[name], dict)
-                                                and k in self.yes_params[name]
-                                                and isinstance(self.yes_params[name][k], dict)
-                                                and sk in self.yes_params[name][k]
-                                                and isinstance(self.yes_params[name][k][sk], dict)
-                                                and ssk in self.yes_params[name][k][sk]
+                                                name in self.typed_params
+                                                and isinstance(self.typed_params[name], dict)
+                                                and k in self.typed_params[name]
+                                                and isinstance(self.typed_params[name][k], dict)
+                                                and sk in self.typed_params[name][k]
+                                                and isinstance(self.typed_params[name][k][sk], dict)
+                                                and ssk in self.typed_params[name][k][sk]
                                             ):
                                                 optional_params_equivalent.append(
-                                                    ssv == self.yes_params[name][k][sk][ssk]
+                                                    ssv == self.typed_params[name][k][sk][ssk]
                                                 )
                                             # Check other
                                             if (
-                                                name in other.yes_params
-                                                and isinstance(other.yes_params[name], dict)
-                                                and k in other.yes_params[name]
-                                                and isinstance(other.yes_params[name][k], dict)
-                                                and sk in other.yes_params[name][k]
-                                                and isinstance(other.yes_params[name][k][sk], dict)
-                                                and ssk in other.yes_params[name][k][sk]
+                                                name in other.typed_params
+                                                and isinstance(other.typed_params[name], dict)
+                                                and k in other.typed_params[name]
+                                                and isinstance(other.typed_params[name][k], dict)
+                                                and sk in other.typed_params[name][k]
+                                                and isinstance(other.typed_params[name][k][sk], dict)
+                                                and ssk in other.typed_params[name][k][sk]
                                             ):
                                                 optional_params_equivalent.append(
-                                                    sv == other.yes_params[name][k][sk][ssk]
+                                                    sv == other.typed_params[name][k][sk][ssk]
                                                 )
                                     else:
                                         # Check self
                                         if (
-                                            name in self.yes_params
-                                            and isinstance(self.yes_params[name], dict)
-                                            and k in self.yes_params[name]
-                                            and isinstance(self.yes_params[name][k], dict)
-                                            and sk in self.yes_params[name][k]
+                                            name in self.typed_params
+                                            and isinstance(self.typed_params[name], dict)
+                                            and k in self.typed_params[name]
+                                            and isinstance(self.typed_params[name][k], dict)
+                                            and sk in self.typed_params[name][k]
                                         ):
                                             optional_params_equivalent.append(
-                                                sv == self.yes_params[name][k][sk]
+                                                sv == self.typed_params[name][k][sk]
                                             )
                                         # Check other
                                         if (
-                                            name in other.yes_params
-                                            and isinstance(other.yes_params[name], dict)
-                                            and k in other.yes_params[name]
-                                            and isinstance(other.yes_params[name][k], dict)
-                                            and sk in other.yes_params[name][k]
+                                            name in other.typed_params
+                                            and isinstance(other.typed_params[name], dict)
+                                            and k in other.typed_params[name]
+                                            and isinstance(other.typed_params[name][k], dict)
+                                            and sk in other.typed_params[name][k]
                                         ):
                                             optional_params_equivalent.append(
-                                                sv == other.yes_params[name][k][sk]
+                                                sv == other.typed_params[name][k][sk]
                                             )
                             else:
                                 # Check self
                                 if (
-                                    name in self.yes_params
-                                    and isinstance(self.yes_params[name], dict)
-                                    and k in self.yes_params[name]
+                                    name in self.typed_params
+                                    and isinstance(self.typed_params[name], dict)
+                                    and k in self.typed_params[name]
                                 ):
                                     optional_params_equivalent.append(
-                                        v == self.yes_params[name][k]
+                                        v == self.typed_params[name][k]
                                     )
                                 # Check other
                                 if (
-                                    name in other.yes_params
-                                    and isinstance(other.yes_params[name], dict)
-                                    and k in other.yes_params[name]
+                                    name in other.typed_params
+                                    and isinstance(other.typed_params[name], dict)
+                                    and k in other.typed_params[name]
                                 ):
                                     optional_params_equivalent.append(
-                                        v == other.yes_params[name][k]
+                                        v == other.typed_params[name][k]
                                     )
                                 
 
@@ -1071,17 +1073,17 @@ class Interaction:
                         # Loop over all optional params
                         if typeparam.default is not hoomd.data.typeconverter.RequiredArg:
                             # Check self
-                            if name in self.yes_params:
+                            if name in self.typed_params:
                                 optional_params_equivalent.append(
-                                    typeparam.default == self.yes_params[name]
+                                    typeparam.default == self.typed_params[name]
                                 )
                             # Check other
-                            if name in other.yes_params:
+                            if name in other.typed_params:
                                 optional_params_equivalent.append(
-                                    typeparam.default == other.yes_params[name]
+                                    typeparam.default == other.typed_params[name]
                                 )
 
-            equivalent_yes_params = (
+            equivalent_typed_params = (
                 (same_without_rs and all(rs_equivalent))
                 or (all(optional_params_equivalent) and all(rs_equivalent))
             )
@@ -1089,9 +1091,8 @@ class Interaction:
         return (
             same_type
             and (same_initial_args or equivalent_initial_args)
-            and (same_no_params or equivalent_no_params)
-            and (same_all_types or equivalent_all_types)
-            and (same_yes_params or equivalent_yes_params)
+            and (same_default_params or equivalent_default_params)
+            and (same_typed_params or equivalent_typed_params)
         )
 
     def __repr__(self):
@@ -1099,8 +1100,7 @@ class Interaction:
             "Interaction ("
             + f"\n\thoomd_class={self.hoomd_class},"
             + f"\n\tinitial_args={self.initial_args},"
-            + f"\n\tno_params={self.no_params},"
-            + f"\n\tall_types={self.all_types},"
-            + f"\n\tyes_params={self.yes_params}"
+            + f"\n\tdefault_params={self.default_params},"
+            + f"\n\ttyped_params={self.typed_params}"
             + "\n)"
         )

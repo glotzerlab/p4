@@ -54,15 +54,14 @@ def test_lj_sphere():
         p4.Interaction(
             hoomd_class=hoomd.md.pair.LJ,
             initial_args=dict(),
-            no_params=dict(
+            default_params=dict(
                 r_cut=0,
                 params=dict(
                     epsilon=0,
                     sigma=1
                 )
             ),
-            all_types=["A"],
-            yes_params={
+            typed_params={
                 ("A", "A"): dict(
                     r_cut=5,
                     params=dict(
@@ -96,7 +95,7 @@ def test_alj_cube():
         p4.Interaction(
             hoomd_class=hoomd.md.pair.aniso.ALJ,
             initial_args=dict(),
-            no_params=dict(
+            default_params=dict(
                 r_cut=0,
                 params=dict(
                     epsilon=0,
@@ -109,8 +108,7 @@ def test_alj_cube():
                     faces=[]
                 )
             ),
-            all_types=["A"],
-            yes_params={
+            typed_params={
                 ("A", "A"): dict(
                     r_cut=5,
                     params=dict(
@@ -161,7 +159,7 @@ def test_alj_cube_with_lj_sites(n_processes=-1):
         p4.Interaction(
             hoomd_class=hoomd.md.pair.aniso.ALJ,
             initial_args=dict(),
-            no_params=dict(
+            default_params=dict(
                 r_cut=0,
                 params=dict(
                     epsilon=0,
@@ -174,8 +172,7 @@ def test_alj_cube_with_lj_sites(n_processes=-1):
                     faces=[]
                 )
             ),
-            all_types=["A", "B", "C", "D"],
-            yes_params={
+            typed_params={
                 ("A", "C"): dict(
                     r_cut=5,
                     params=dict(
@@ -202,15 +199,14 @@ def test_alj_cube_with_lj_sites(n_processes=-1):
         p4.Interaction(
             hoomd_class=hoomd.md.pair.Gaussian,
             initial_args=dict(),
-            no_params=dict(
+            default_params=dict(
                 r_cut=0,
                 params=dict(
                     epsilon=0,
                     sigma=1,
                 )
             ),
-            all_types=["A", "B", "C", "D"],
-            yes_params={
+            typed_params={
                 ("B", "D"): dict(
                     r_cut=5,
                     params=dict(

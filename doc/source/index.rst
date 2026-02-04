@@ -175,7 +175,7 @@ Probe the potential around an attractive and repulsive ALJ cube
     field = p4.Field.from_csv("alj-cube.csv", "mean")
     field.plot(fill_nan_with_inf=True)
 
-.. image:: /doc/assets/alj-cube-plot.png
+.. image:: ../assets/alj-cube-plot.png
 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Probe the potential around a repulsive ALJ cube with attractive gaussian sites

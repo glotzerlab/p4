@@ -12,3 +12,5 @@ __all__ = [
     "System",
     "Field"
 ]
+
+__version__ = "0.0.1"

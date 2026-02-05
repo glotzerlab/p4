@@ -10,7 +10,7 @@ version = "0.0.1"
 [dependencies]
 coxeter = "*"
 gsd = "*"
-hoomd = "6.0.0"
+hoomd == "6.0.0"
 matplotlib = "*"
 numpy = "*"
 pandas = "*"

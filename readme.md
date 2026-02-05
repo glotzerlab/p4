@@ -9,7 +9,7 @@ analyzed, sliced, and plotted using **p4**'s [Field](doc/source/api/field.rst) A
 
 ### Install p4
 
-1. Using your environment manager, create a new environment with ``python==3.14`` and ``hoomd==5.4.0``.
+1. Using your environment manager, activate or create an environment with `python>=3.11` and `hoomd>=5.0.0`.
 2. Clone the repository.
 3. Install the other dependencies:
 
@@ -58,10 +58,10 @@ interactions = [
         hoomd_class=hoomd.md.pair.LJ,
         initial_args=dict(),
         default_params=dict(
-            r_cut=0,
+            r_cut=5,
             params=dict(
-                epsilon=0,
-                sigma=1
+                epsilon=1,
+                sigma=0.5
             )
         ),
         typed_params={

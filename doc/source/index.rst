@@ -21,7 +21,7 @@ Setup
 Install p4
 ^^^^^^^^^^
 
-1. Using your environment manager, create a new environment with ``python==3.14`` and ``hoomd==5.4.0``.
+1. Using your environment manager, activate or create an environment with ``python>=3.11`` and ``hoomd>=5.0.0``.
 2. Clone the repository.
 3. Install the other dependencies:
 

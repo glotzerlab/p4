@@ -45,3 +45,6 @@ platforms=["osx-arm64", "linux-64"]
 
 [tool.conda-lock.dependencies]
 hoomd = ">=5.4.0"       # core
+
+[tool.uv.extra-build-dependencies]
+p4 = ["setuptools"]

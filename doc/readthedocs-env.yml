@@ -13,5 +13,6 @@ dependencies:
   - matplotlib==3.10.8
   - sphinx==9.1.0
   - nbsphinx==0.9.8
+  - furo==2024.8.6
   - sphinx-copybutton==0.5.2
   - sphinx-autodoc-typehints==3.5.2

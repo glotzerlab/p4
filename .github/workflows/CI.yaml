@@ -28,7 +28,7 @@ jobs:
   tests_complete:
     name: Unit test
     if: always()
-    needs: [run-tests-modern-python, run-tests-windows]
+    needs: [run-tests-modern-python]
     runs-on: ubuntu-24.04
 
     steps:

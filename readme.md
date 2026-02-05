@@ -13,11 +13,19 @@ To install **p4**, clone the repository, navigate to the package's root director
 pip install .
 ```
 
-To build the documentation, install the requirements, navigate to the package's `doc` directory, and run
+To build the documentation, first install the requirements by navigating to the package's root directory and running
+
+```bash
+pip install .[docs]
+```
+
+Next, navigate to the package's `doc` directory, and run
 
 ```bash
 make html
 ```
+
+Once the docs finish building, you can find them at `doc/build/html/index.html`.
 
 ## Example usage
 

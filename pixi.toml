@@ -8,20 +8,18 @@ version = "0.0.1"
 [tasks]
 
 [dependencies]
+coxeter = "*"
 gsd = "*"
 matplotlib = "*"
 numpy = "*"
-vtk = "*"
-rowan = "*"
-coxeter = "*"
 pytest = "*"
 pandas = "*"
 rowan = "*"
 scikit-build-core = "*"
 scipy = "*"
-gsd = "*"
-uv = "*"
 sphinx-inline-tabs = "*"
+uv = "*"
+vtk = "*"
 bump-my-version = "*"
 
 [feature.py312.dependencies]

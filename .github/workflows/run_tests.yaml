@@ -22,7 +22,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04]
-        python: ['314']
+        python: ['313']
 
     steps:
       - name: Checkout Code

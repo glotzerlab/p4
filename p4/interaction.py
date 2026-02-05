@@ -1,6 +1,8 @@
 # Copyright (c) 2025-2026, The Regents of the University of Michigan
 # This file is from the p4 project, released under the BSD 3-Clause License.
 
+from __future__ import annotations
+
 from copy import deepcopy
 import inspect
 import itertools

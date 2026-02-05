@@ -1,37 +1,69 @@
-name: Run tests
+name: test
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 on:
-  workflow_call:
-    inputs:
-      python-version:
-        required: true
-        type: string
-      runs-on:
-        required: true
-        type: string
-      requirements-file:
-        required: true
-        type: string
+  pull_request:
+
+  push:
+    branches:
+      - "main"
+      - "next"
+
+  workflow_dispatch:
 
 jobs:
-  run_test:
-    runs-on: ${{ inputs.runs-on }}
+  run_tests:
+    name: Unit test [py${{ matrix.python }} ${{ matrix.os }}]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04]
+        python: ['312', '313', '314']
+        include:
+          # Test macOS, windows, and ARM Linux on oldest and latest versions.
+          - os: 'ubuntu-24.04-arm'
+            python: '314'
+          - os: 'macos-15'
+            python: '314'
+          - os: 'windows-2025'
+            python: '314'
+          - os: 'windows-2025'
+            python: '312'
+          - os: 'macos-14'
+            python: '312'
+
     steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-    - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-      with:
-        python-version: ${{ inputs.python-version }}
-    - name: Install uv
-      uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
-      with:
-        version: "0.9.26"
+      - name: Checkout Code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          submodules: true
 
-    - name: Install package
-      run: |
-        which python
-        python --version
-        uv pip install . -r ${{ inputs.requirements-file }} -v --reinstall --system
-        python -c "import p4; print('p4', p4.__version__)"
+      - name: Create Python Environment
+        uses: prefix-dev/setup-pixi@82d477f15f3a381dbcc8adc1206ce643fe110fb7 # v0.9.3
+        with:
+          pixi-version: v0.54.1
+          cache: false
+          environments: py${{ matrix.python }}
+          activate-environment: true
 
-    - name: Test with pytest
-      run: python -m ${{ runner.os != 'Windows' && 'pytest' || 'pytest test' }} -v -n auto
+      - name: Build and Install p4
+        run: |
+          uv pip install . --no-build-isolation --no-deps -v --system
+
+      - name: Run Tests
+        run: pytest tests/ -v
+
+  tests_complete:
+    name: All tests
+    if: always()
+    needs: [run_tests]
+    runs-on: ubuntu-latest
+
+    steps:
+    - run: jq --exit-status 'all(.result == "success")' <<< '${{ toJson(needs) }}'
+    - name: Done
+      run: echo "Done."

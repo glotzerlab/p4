@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "p4"
 version = "0.0.1"
-requires-python = ">=3.14"
+requires-python = ">=3.11"
 description = "Probe the effective potential landscape around an analyte using HOOMD-blue."
 readme = "readme.md"
 license-files = ["LICENSE"]
@@ -44,4 +44,4 @@ channels=["conda-forge"]
 platforms=["osx-arm64", "linux-64"]
 
 [tool.conda-lock.dependencies]
-hoomd = ">=5.4.0"       # core
+hoomd = ">=5.0.0"       # core

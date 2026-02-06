@@ -1,7 +1,7 @@
 # Copyright (c) 2025-2026, The Regents of the University of Michigan
 # This file is from the p4 project, released under the BSD 3-Clause License.
 
-from p4 import Interaction
+from __future__ import annotations
 import hoomd
 
 
@@ -84,7 +84,7 @@ class Body:
         ):
             self._validate_secondary_orientations_and_positions_match()
     
-    def is_rigid(self, interactions: list[Interaction]) -> bool:
+    def is_rigid(self, interactions: list["Interaction"]) -> bool:
         """Whether the body must represent a rigid body for some interactions."""
         common_single_types = any(
             t in self.secondary_types

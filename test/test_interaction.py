@@ -392,6 +392,9 @@ DEFAULT_PARAMS_REQUIRED = dict(
         nu=1,
         kf=1,
         B=1,
+        kT=1,
+        kappa_f=1,
+        gamma_f=1,
     )
 )
 DEFAULT_PARAMS_OPTIONAL = dict( # different from API's default values
@@ -431,19 +434,19 @@ def get_types_with_param(classes, param_path, single_or_pair, required_or_option
     if isinstance(param_path, str):
         if required_or_optional == "all":
             required_results = [
-                cls
+                cls.__module__ + "." + cls.__qualname__
                 for cls in classes
                 if param_path in parse_params(cls, single_or_pair, "required")
             ]
             optional_results = [
-                cls
+                cls.__module__ + "." + cls.__qualname__
                 for cls in classes
                 if param_path in parse_params(cls, single_or_pair, "optional")
             ]
             positive_results = list(set(required_results + optional_results))
         else:
             positive_results = [
-                cls
+                cls.__module__ + "." + cls.__qualname__
                 for cls in classes
                 if param_path in parse_params(cls, single_or_pair, required_or_optional)
             ]
@@ -459,7 +462,7 @@ def get_types_with_param(classes, param_path, single_or_pair, required_or_option
                     current_level_dict = current_level_dict[level_name]
                     levels_searched += 1
             if levels_searched == len(param_path):
-                positive_results.append(cls)
+                positive_results.append(cls.__module__ + "." + cls.__qualname__)
         return positive_results
 
 APPROVED_PARAM_CLASHES = dict(
@@ -467,54 +470,54 @@ APPROVED_PARAM_CLASHES = dict(
     r_on=get_types_with_param(CLASSES_TO_TEST, "r_on", "all", "all"),           # always positive float
     directors=get_types_with_param(CLASSES_TO_TEST, "directors", "all", "all"), # always N-list of 3-tuples of floats
     mu=[
-        hoomd.md.pair.aniso.Dipole, # 3-tuple of floats
-        hoomd.md.pair.aniso.YLZ,    # 3-tuple of floats
+        "hoomd.md.pair.aniso.Dipole", # 3-tuple of floats
+        "hoomd.md.pair.aniso.YLZ",    # 3-tuple of floats
     ],
     params=dict(
         epsilon=get_types_with_param(CLASSES_TO_TEST, ["params", "epsilon"], "all", "all"), # always float
         sigma=get_types_with_param(CLASSES_TO_TEST, ["params", "sigma"], "all", "all"),     # always positive non-zero float
         delta=get_types_with_param(CLASSES_TO_TEST, ["params", "delta"], "all", "all"),     # always positive float
         alpha=[
-            hoomd.md.pair.aniso.ALJ,    # int 0-3
-            hoomd.md.pair.Morse,        # positive non-zero float
-            hoomd.md.pair.TWF,          # positive non-zero float
-            hoomd.md.pair.Zetterling,   # positive float
-            hoomd.md.pair.Ewald,        # positive float
+            "hoomd.md.pair.aniso.ALJ",    # int 0-3
+            "hoomd.md.pair.pair.Morse",        # positive non-zero float
+            "hoomd.md.pair.pair.TWF",          # positive non-zero float
+            "hoomd.md.pair.pair.Zetterling",   # positive float
+            "hoomd.md.pair.pair.Ewald",        # positive float
         ],
         gamma=[
-            hoomd.md.pair.DPD,  # positive float
-            hoomd.md.pair.DPDLJ,# positive float
+            "hoomd.md.pair.pair.DPD",  # positive float
+            "hoomd.md.pair.pair.DPDLJ",# positive float
         ],
         kappa=[
-            hoomd.md.pair.aniso.Dipole, # positive non-zero float
-            hoomd.md.pair.DLVO,    # positive non-zero float
-            hoomd.md.pair.Ewald,   # positive non-zero float
-            hoomd.md.pair.Yukawa,  # float
+            "hoomd.md.pair.aniso.Dipole", # positive non-zero float
+            "hoomd.md.pair.pair.DLVO",    # positive non-zero float
+            "hoomd.md.pair.pair.Ewald",   # positive non-zero float
+            "hoomd.md.pair.pair.Yukawa",  # float
         ],
         phi=[
-            hoomd.md.pair.aniso.YLZ,    # float
-            hoomd.md.pair.pair.OPP,     # float
+            "hoomd.md.pair.aniso.YLZ",    # float
+            "hoomd.md.pair.pair.OPP",     # float
         ],
         A=[
-            hoomd.md.pair.aniso.Dipole,     # float
-            hoomd.md.pair.Buckingham,       # float
-            hoomd.md.pair.DLVO,             # float
-            hoomd.md.pair.DPD,              # float
-            hoomd.md.pair.DPDConservative,  # float
-            hoomd.md.pair.Zetterling,       # float
+            "hoomd.md.pair.aniso.Dipole",     # float
+            "hoomd.md.pair.pair.Buckingham",       # float
+            "hoomd.md.pair.pair.DLVO",             # float
+            "hoomd.md.pair.pair.DPD",              # float
+            "hoomd.md.pair.pair.DPDConservative",  # float
+            "hoomd.md.pair.pair.Zetterling",       # float
         ],
         m=[
-            hoomd.md.pair.ExpandedMie,  # float, cannot equal n
-            hoomd.md.pair.Mie,          # float, cannot equal n
+            "hoomd.md.pair.pair.ExpandedMie",  # float, cannot equal n
+            "hoomd.md.pair.pair.Mie",          # float, cannot equal n
         ],
         n=[
-            hoomd.md.pair.ExpandedMie,  # float, cannot equal m
-            hoomd.md.pair.Mie,          # float, cannot equal m
-            hoomd.md.pair.Zetterling,   # float
+            "hoomd.md.pair.pair.ExpandedMie",  # float, cannot equal m
+            "hoomd.md.pair.pair.Mie",          # float, cannot equal m
+            "hoomd.md.pair.pair.Zetterling",   # float
         ],
         r0=[
-            hoomd.md.pair.pair.LJGauss, # float
-            hoomd.md.pair.pair.Morse,   # float
+            "hoomd.md.pair.pair.LJGauss", # float
+            "hoomd.md.pair.pair.Morse",   # float
         ],
         qi=get_types_with_param(CLASSES_TO_TEST, ["params", "qi"], "all", "all"),   # always float
         qj=get_types_with_param(CLASSES_TO_TEST, ["params", "qj"], "all", "all"),   # always float
@@ -528,14 +531,17 @@ APPROVED_PARAM_CLASHES = dict(
             sigma=get_types_with_param(CLASSES_TO_TEST, ["params", "pair_params", "sigma"], "pair", "required"),    # always float
             delta=get_types_with_param(CLASSES_TO_TEST, ["params", "pair_params", "delta"], "pair", "required"),    # always float
             m=[
-                hoomd.md.pair.aniso.PatchyExpandedMie,  # float, cannot equal n
-                hoomd.md.pair.aniso.PatchyMie,          # float, cannot equal n
+                "hoomd.md.pair.aniso.PatchyExpandedMie",  # float, cannot equal n
+                "hoomd.md.pair.aniso.PatchyMie",          # float, cannot equal n
             ],
             n=[
-                hoomd.md.pair.aniso.PatchyExpandedMie,  # float, cannot equal m
-                hoomd.md.pair.aniso.PatchyMie,          # float, cannot equal m
+                "hoomd.md.pair.aniso.PatchyExpandedMie",  # float, cannot equal m
+                "hoomd.md.pair.aniso.PatchyMie",          # float, cannot equal m
             ],
         ),
+        kappa_f=get_types_with_param(CLASSES_TO_TEST, ["params", "kappa_f"], "all", "all"),   # always float
+        gamma_f=get_types_with_param(CLASSES_TO_TEST, ["params", "gamma_f"], "all", "all"),   # always float
+        kT=get_types_with_param(CLASSES_TO_TEST, ["params", "kT"], "all", "all"),   # always float
     )
 )
 
@@ -723,6 +729,9 @@ TYPED_PARAMS_REQUIRED = dict(
         nu=2,
         kf=2,
         B=2,
+        kT=2,
+        kappa_f=2,
+        gamma_f=2,
     )
 )
 TYPED_PARAMS_OPTIONAL = dict( # different from API's default values

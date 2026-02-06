@@ -18,9 +18,6 @@ import hoomd
 import numpy as np
 import rowan
 
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from p4 import Interaction, System, Body
 
 def get_cube(side_length: float):
     """Return a coxeter cube with a given side length."""
@@ -137,8 +134,8 @@ def get_probe_orientations(
     return rowan.from_euler(angles[:,0], angles[:,1], angles[:,2])
 
 def get_initial_frame(
-    probe_body: Body,
-    analyte_body: Body,
+    probe_body: "Body",
+    analyte_body: "Body",
     included_types: list[str],
     probe_box: list[float],
     simulation_box: list[float],
@@ -198,7 +195,7 @@ def get_initial_frame(
 
 def add_rigid_constraint(
     simulation: hoomd.Simulation,
-    body: Body,
+    body: "Body",
     create_bodies: bool,
     included_secondary_types: list[str] | None = None,
     rigid: hoomd.md.constrain.Rigid | None = None,
@@ -374,7 +371,7 @@ def add_table_writer(
 def add_interaction(
     simulation: hoomd.Simulation,
     nlist: hoomd.md.nlist.NeighborList,
-    interaction: Interaction,
+    interaction: "Interaction",
     all_types: list[str]
 ) -> hoomd.Simulation:
     """Add an interaction to the simulation.
@@ -443,8 +440,8 @@ def find_nearest(array, value):
     return array[idx]
 
 def get_simulation(
-    system: System,
-    included_interactions: list[Interaction],
+    system: "System",
+    included_interactions: list["Interaction"],
     nlist: hoomd.md.nlist.NeighborList,
     probe_box: list[float],
     simulation_box: list[float]
@@ -522,10 +519,10 @@ def get_simulation(
     return simulation
 
 def run_probe(
-    system: System,
+    system: "System",
     probe_positions: list[list[float]],
     probe_orientations: list[list[float]],
-    included_interactions: list[Interaction],
+    included_interactions: list["Interaction"],
     nlist: hoomd.md.nlist.NeighborList,
     probe_box: list[float],
     simulation_box: list[float],

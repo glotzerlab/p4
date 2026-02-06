@@ -13,29 +13,50 @@ then to probe the corresponding `system's <doc/source/api/system.rst>`_ potentia
 energy landscape. The corresponding potential energy distribution can then be
 analyzed, sliced, and plotted using **p4**'s `Field <doc/source/api/field.rst>`_ API.
 
-++++++++++++
-Installation
-++++++++++++
++++++
+Setup
++++++
 
-To install **p4**, clone the repository, navigate to the package's root directory, and run
+^^^^^^^^^^
+Install p4
+^^^^^^^^^^
+
+1. Using your environment manager, activate or create an environment with ``python>=3.11`` and ``hoomd>=5.0.0``.
+2. Clone the repository.
+3. Install the other dependencies:
 
 .. code-block::
 
-    pip install .
+    pip install <path_to_p4>
 
-To build the documentation, first install the requirements by navigating to the package's root directory and running
+^^^^^^^^^^^^^^
+Run unit tests
+^^^^^^^^^^^^^^
+
+1. Using your environment manager, install ``pytest``.
+2. Run pytest:
 
 .. code-block::
 
-    pip install .[docs]
+    pytest <path_to_p4>/test
 
-Next, navigate to the package's ``doc`` directory, and run
+^^^^^^^^^^^^^^^^^^^
+Build Documentation
+^^^^^^^^^^^^^^^^^^^
+
+1. Install documentation requirements:
+
+.. code-block::
+
+    pip install <path_to_p4>[docs]
+
+2. Navigate to p4's ``doc`` directory and run
 
 .. code-block::
 
     make html
 
-Once the docs finish building, you can find them at ``doc/build/html/index.html``.
+Once the docs finish building, the homepage can be found at ``<path_to_p4>/doc/build/html/index.html``.
 
 +++++++++++++
 Example usage

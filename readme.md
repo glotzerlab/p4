@@ -5,27 +5,42 @@ Probe the effective potential landscape around a rigid body of particles using [
 **p4** provides declarative wrappers around [hoomd.md.constrain.Rigid](https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/constrain/rigid.html) and subclasses of [hoomd.md.pair.Pair](https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/pair/pair.html), making it easy to define *analyte* and *probe* [bodies](doc/source/api/body.rst) governed by one or more [interactions](doc/source/api/interaction.rst), and then to probe the corresponding [system's](doc/source/api/system.rst) potential energy landscape. The corresponding potential energy distribution can then be
 analyzed, sliced, and plotted using **p4**'s [Field](doc/source/api/field.rst) API.
 
-## Instalation
+## Setup
 
-To install **p4**, clone the repository, navigate to the package's root directory, and run
+### Install p4
 
-```bash
-pip install .
+1. Using your environment manager, activate or create an environment with `python>=3.11` and `hoomd>=5.0.0`.
+2. Clone the repository.
+3. Install the other dependencies:
+
+```
+pip install <path_to_p4>
 ```
 
-To build the documentation, first install the requirements by navigating to the package's root directory and running
+### Run unit tests
 
-```bash
-pip install .[docs]
+1. Using your environment manager, install `pytest`.
+2. Run pytest:
+
+```
+pytest <path_to_p4>/test
 ```
 
-Next, navigate to the package's `doc` directory, and run
+### Build Documentation
 
-```bash
+1. Install documentation requirements:
+
+```
+pip install <path_to_p4>[docs]
+```
+
+2. Navigate to p4's `doc` directory and run
+
+```
 make html
 ```
 
-Once the docs finish building, you can find them at `doc/build/html/index.html`.
+Once the docs finish building, the homepage can be found at `<path_to_p4>/doc/build/html/index.html`.
 
 ## Example usage
 
@@ -33,6 +48,7 @@ Probe the potential around a LJ sphere
 
 ```python
 import p4
+import hoomd
 
 probe = p4.Body("A")
 analyte = p4.Body("A")
@@ -42,10 +58,10 @@ interactions = [
         hoomd_class=hoomd.md.pair.LJ,
         initial_args=dict(),
         default_params=dict(
-            r_cut=0,
+            r_cut=5,
             params=dict(
-                epsilon=0,
-                sigma=1
+                epsilon=1,
+                sigma=0.5
             )
         ),
         typed_params={
@@ -82,6 +98,7 @@ Probe the potential around an attractive and repulsive ALJ cube
 
 ```python
 import p4
+import hoomd
 
 def cube_vertices(side_length):
     s = side_length
@@ -171,6 +188,7 @@ field.plot(fill_nan_with_inf=True)
 Probe the potential around a repulsive ALJ cube with attractive gaussian sites
 ```python
 import p4
+import hoomd
 
 probe = p4.Body(
     primary_type="A",

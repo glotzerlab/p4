@@ -26,8 +26,6 @@ analyzed, sliced, and plotted using **p4**'s `Field <doc/source/api/field.rst>`_
    :caption: Getting Started
 
    installation
-   quickstart
-   user-guide
    examples
 
 .. toctree::

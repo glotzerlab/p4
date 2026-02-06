@@ -5,6 +5,7 @@ Probe an ALJ cube
 .. code-block:: python
 
     import p4
+    import hoomd
 
     def cube_vertices(side_length):
         s = side_length

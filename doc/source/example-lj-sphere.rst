@@ -5,6 +5,7 @@ Probe a LJ sphere
 .. code-block:: python
 
     import p4
+    import hoomd
 
     probe = p4.Body("A")
     analyte = p4.Body("A")

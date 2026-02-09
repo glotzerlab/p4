@@ -3,7 +3,11 @@
 
 from __future__ import annotations
 import hoomd
+import numpy as np
+import plotly
+from copy import copy
 
+import rowan
 
 class Body:
     """The names and spatial data for a body's primary and secondary types.
@@ -104,6 +108,152 @@ class Body:
             for interaction in interactions
         )
         return common_single_types or common_pair_types or nonzero_default_r_cut
+
+    def plot(
+        self,
+        type_shapes: dict={},
+        type_colors: dict={},
+        ignore_types: list[str]=[]
+    ):
+        """Interactively plot the body's primary and secondary types.
+        
+        Parameters
+        ----------
+        type_shapes : dict, default={}
+            A dictionary mapping particle types to
+            coxeter.shapes.ConvexPolyhedron. If no shape is provided for a type,
+            it will be plotted as a sphere.
+        type_colors : dict, default={}
+            A dictionary mapping particle types to colors. A color must satisfy
+            Plotly's color formatting requirements.
+        ignore_types : list[str], default=[]
+            Types to not include in the final plot.
+        """
+        # https://davidmathlogic.com/colorblind
+        # (original source https://doi.org/10.1038/nmeth.1618)
+        default_colors=[
+            "#000000",
+            "#E69F00",
+            "#56B4E9",
+            "#009E73",
+            "#F0E442",
+            "#0072B2",
+            "#D55E00",
+            "#CC79A7",
+        ]
+
+        # Make a list of all types that will be plotted
+        all_types = copy(self.secondary_types)
+        all_types.append(self.primary_type)
+        all_types = [t for t in all_types if t not in ignore_types]
+
+        # Construct an array that stores each particle's type, position, and
+        # orientation)
+        particle_data = []
+        for t in all_types:
+            # only primary type should be at [0, 0, 0]
+            for i, p in enumerate(self.positions_by_type.get(t, [[0, 0, 0]])):
+                if t in self.orientations_by_type:
+                    o = self.orientations_by_type[t][i]
+                else:
+                    o = [1, 0, 0, 0]
+
+                particle_data.append([t,p[0],p[1],p[2],o[0],o[1],o[2],o[3]])
+        
+        particle_data = np.array(particle_data, dtype=object)
+
+        # Construct the figure type-by-type
+        figure = plotly.graph_objects.Figure()
+        traces = []
+
+        for t in all_types:
+            type_data = particle_data[particle_data[:,0] == t]
+
+            # Unless user specifies a type's color, color markers by index from
+            # the default colors list
+            trace_color = type_colors.get(t, default_colors[all_types.index(t)])
+            
+            # Use Scatter3d when a shape is not specified
+            if t not in type_shapes:
+                figure.add_trace(
+                    plotly.graph_objects.Scatter3d(
+                        name=t,
+                        x=type_data[:,1],
+                        y=type_data[:,2],
+                        z=type_data[:,3],
+                        customdata=type_data[:,4:],
+                        mode="markers",
+                        marker=dict(
+                            size=10,
+                            color=trace_color,
+                            line=dict(width=2, color="DarkSlateGrey")
+                        ),
+                        hovertemplate=
+                            "<b>r</b> (%{x:.0f}, %{y:.0f}, %{z:.0f})<br>" +
+                            "<b>q</b> (%{customdata[0]}, %{customdata[1]}, " +
+                            "%{customdata[2]}, %{customdata[3]})"
+                    )
+                )
+            
+            # Use Mesh3d when a shape is specified
+            else:
+                vertices = type_shapes[t].vertices
+                faces = type_shapes[t].faces
+
+                def triangulate(vertices, faces):
+                    """Indices for triangles in the vertices based on the faces.
+                    """
+                    ts = []
+                    for face in faces:
+                        # If face is already a triangle, just use it
+                        if len(face) == 3:
+                            ts.append(face)
+                        
+                        # otherwise, use naive triangulation algorithm that
+                        # assumes the face is a convex polygon
+                        else:
+                            for i in range(len(face) - 2):
+                                ts.append([face[0], face[i+1], face[i+2]])
+                    
+                    return ts
+
+                for row in type_data:
+                    # Rotate shape vertices to the specified orientation
+                    row_vertices = rowan.rotate(
+                        q=np.repeat([row[4:]], len(vertices), axis=0),
+                        v=np.array(copy(vertices))
+                    )
+
+                    # Translate shape vertices to the specified position
+                    row_vertices += np.array(row[1:4]).astype(float)
+
+                    # Get triangle indices
+                    triangle_indices = np.array(triangulate(row_vertices, faces))
+                    
+                    # Construct trace
+                    traces.append(
+                        plotly.graph_objects.Mesh3d(
+                            name=t,
+                            x=row_vertices[:,0],
+                            y=row_vertices[:,1],
+                            z=row_vertices[:,2],
+                            color=trace_color,
+                            i=triangle_indices[:,0],
+                            j=triangle_indices[:,1],
+                            k=triangle_indices[:,2],
+                            flatshading=True,
+                            showlegend=True
+                        )
+                    )
+        
+        for trace in traces:
+            figure.add_trace(trace)
+
+        figure.update_layout(showlegend=True)
+
+        return figure, traces
+
+
 
     def _validate_secondary_positions(self):
         """Ensure that the provided callable works for all secondary types."""

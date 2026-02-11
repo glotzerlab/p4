@@ -2,6 +2,7 @@
 # This file is from the p4 project, released under the BSD 3-Clause License.
 
 from __future__ import annotations
+import coxeter
 import hoomd
 import numpy as np
 import plotly
@@ -200,35 +201,28 @@ class Body:
                 vertices = type_shapes[t].vertices
                 faces = type_shapes[t].faces
 
-                def triangulate(vertices, faces):
-                    """Indices for triangles in the vertices based on the faces.
-                    """
-                    ts = []
-                    for face in faces:
-                        # If face is already a triangle, just use it
-                        if len(face) == 3:
-                            ts.append(face)
-                        
-                        # otherwise, use naive triangulation algorithm that
-                        # assumes the face is a convex polygon
-                        else:
-                            for i in range(len(face) - 2):
-                                ts.append([face[0], face[i+1], face[i+2]])
-                    
-                    return ts
+            for row in type_data:
+                # Rotate shape vertices to the specified orientation
+                row_vertices = rowan.rotate(
+                    q=np.repeat([row[4:]], len(vertices), axis=0),
+                    v=np.array(copy(vertices))
+                )
 
-                for row in type_data:
-                    # Rotate shape vertices to the specified orientation
-                    row_vertices = rowan.rotate(
-                        q=np.repeat([row[4:]], len(vertices), axis=0),
-                        v=np.array(copy(vertices))
-                    )
+                # Translate shape vertices to the specified position
+                row_vertices += np.array(row[1:4]).astype(float)
 
-                    # Translate shape vertices to the specified position
-                    row_vertices += np.array(row[1:4]).astype(float)
-
-                    # Get triangle indices
-                    triangle_indices = np.array(triangulate(row_vertices, faces))
+                # Get triangle indices
+                row_shape = coxeter.shapes.Polyhedron(row_vertices, faces)
+                
+                triangle_faces = np.empty((0,3), dtype=int)
+                for t_verts in row_shape._surface_triangulation():
+                    face = np.array(
+                        [
+                            np.where(np.all(t_vert == row_vertices, axis=1))
+                            for t_vert in t_verts
+                        ]
+                    ).flatten()
+                    triangle_faces = np.vstack((triangle_faces, face))
                     
                     # Construct trace
                     traces.append(
@@ -238,9 +232,9 @@ class Body:
                             y=row_vertices[:,1],
                             z=row_vertices[:,2],
                             color=trace_color,
-                            i=triangle_indices[:,0],
-                            j=triangle_indices[:,1],
-                            k=triangle_indices[:,2],
+                            i=triangle_faces[:,0],
+                            j=triangle_faces[:,1],
+                            k=triangle_faces[:,2],
                             flatshading=True,
                             showlegend=True
                         )

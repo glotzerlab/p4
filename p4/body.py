@@ -133,7 +133,7 @@ class Body:
         dictionary which may have the following keys and values:
 
         - **color**: A string representing the color for the symbol of the
-        specified type. Must satisfy plotly's color formatting conventions.
+        specified type. Must satisfy plotly's color name/formatting conventions.
         - **opacity**: A float between 0 and 1, where 0 represents fully
         transparent and 1 represents fully opaque.
         - **size**: A positive float representing the size of the symbol for the

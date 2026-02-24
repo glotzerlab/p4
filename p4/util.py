@@ -7,7 +7,6 @@ In general, these functions have no defaults and do not protect themselves
 from wrong/fallible inputs.
 """
 
-from copy import deepcopy
 import csv
 from io import StringIO, TextIOWrapper
 import itertools

@@ -120,30 +120,49 @@ class Body:
 
     def plot(
         self,
-        type_shapes: dict={},
-        type_styles: dict={},
-        ignore_types: list[str]=[],
-        slice={}
+        type_shapes: dict[str, coxeter.shapes.Polyhedron] = {},
+        type_styles: dict[str, dict] = {},
+        ignore_types: list[str] = [],
+        slice: dict[str, float] = {},
+        schematic_slice = False
     ):
-        """Interactively plot the body's primary and secondary types.
+        """Interactively plot the body using plotly.
+
+        Shapes and styles may be specified for specific types. A shape must be
+        specified as a coxeter Polyhedron. A style must specified as a
+        dictionary which may have the following keys and values:
+
+        - **color**: A string representing the color for the symbol of the
+        specified type. Must satisfy plotly's color formatting conventions.
+        - **opacity**: A float between 0 and 1, where 0 represents fully
+        transparent and 1 represents fully opaque.
+        - **size**: A positive float representing the size of the symbol for the
+        specified type. When the type is represented by a point, this setting
+        corresponds to the point's ``size`` attribute. When the type is
+        represented by a line, this setting corresponds to the line's ``width``
+        attribute. When the type is represented by a polygon or Mesh/Polyhedron,
+        this setting is ignored.
         
         Parameters
         ----------
         type_shapes : dict, default={}
-            A dictionary mapping particle types to
+            A dictionary mapping particle type names to
             coxeter.shapes.ConvexPolyhedron. If no shape is provided for a type,
             it will be plotted as a sphere.
         type_styles : dict, default={}
-            A dictionary mapping particle types to colors. A color must satisfy
-            Plotly's color formatting requirements. [TODO: elaborate]
+            A dictionary mapping particle type names to styles. A style is a
+            dictionary which may have the following keys: 'color', 'opacity',
+            and 'size'. See above for more information.
         ignore_types : list[str], default=[]
-            Types to not include in the final plot.
+            The names of the particle types to exclude from the plot.
         slice : dict, default={}
-            Axes and positions along which to slice. Keys are limited to 'x', 'y',
-            and 'z'. There can be at most two keys.
+            Axes and positions along which to slice. Keys are limited to 'x',
+            'y', and 'z'. There can be at most two keys.
+        schematic_slice : bool, default=False
+            If True, the slice is shown schematically in a 3D view. A 2D slice
+            appears like a plane intersecting with the body, while a 1D slice
+            appears like a line intersecting with the body.
         """
-        # https://davidmathlogic.com/colorblind
-        # (original source https://doi.org/10.1038/nmeth.1618)
         default_colors = WONG_COLORS
 
         # Make a list of all types that will be plotted
@@ -257,12 +276,39 @@ class Body:
 
     def _plot_traces_3d(
         self,
-        particle_data,
-        type_shapes,
-        type_styles,
-        default_colors
-    ):
-        """TODO"""
+        particle_data: np.ndarray,
+        type_shapes: dict[str, coxeter.shapes.Polyhedron],
+        type_styles: dict[str, dict],
+        default_colors: list[str],
+    ) -> list[dict]:
+        """Return plotly plot traces for body plotting in 3D.
+        
+        This function requires pre-calculated particle data. It should only be
+        called from ``Body.plot``.
+
+        Parameters
+        ----------
+        particle_data : np.array
+            Type, position, and orientation data for all of the particles in the
+            body. Must be formatted as a (N, 8) numpy array with the following
+            columnsL type name, position x, position y, position z, q0, q1, q2,
+            q3.
+        type_shapes : dict
+            A dictionary mapping particle type names to
+            coxeter.shapes.ConvexPolyhedron. If no shape is provided for a type,
+            it will be plotted as a sphere.
+        type_styles : dict
+            A dictionary mapping particle type names to styles. A style is a
+            dictionary which may have the following keys: 'color', 'opacity',
+            and 'size'. See ``Body.plot`` for more information.
+        default_colors : list of strings
+            The default list of colors to use if no color is specified for a
+            type in ``type_styles``.
+
+        Returns
+        -------
+        A list of dictionaries representing plotly traces.
+        """
 
         # TODO: merge duplicate symbols
 
@@ -353,14 +399,47 @@ class Body:
 
     def _plot_traces_2d(
         self,
-        particle_data,
-        type_shapes,
-        type_styles,
-        slice,
-        default_colors,
-        point_size_for_slice=1e-6
-    ):
-        """TODO"""
+        particle_data: np.ndarray,
+        type_shapes: dict[str, coxeter.shapes.Polyhedron],
+        type_styles: dict[str, dict],
+        slice: dict[str, float],
+        default_colors: list[str],
+        point_size_for_slice: float = 1e-6
+    ) -> list[dict]:
+        """Return plotly plot traces for body plotting in 2D.
+        
+        This function requires pre-calculated particle data and assumes that
+        ``slice`` has 1 key. It should only be called from ``Body.plot``.
+
+        Parameters
+        ----------
+        particle_data : np.array
+            Type, position, and orientation data for all of the particles in the
+            body. Must be formatted as a (N, 8) numpy array with the following
+            columnsL type name, position x, position y, position z, q0, q1, q2,
+            q3.
+        type_shapes : dict
+            A dictionary mapping particle type names to
+            coxeter.shapes.ConvexPolyhedron. If no shape is provided for a type,
+            it will be plotted as a sphere.
+        type_styles : dict
+            A dictionary mapping particle type names to styles. A style is a
+            dictionary which may have the following keys: 'color', 'opacity',
+            and 'size'. See ``Body.plot`` for more information.
+        slice : dict
+            Axes and positions along which to slice. Keys are limited to 'x',
+            'y', and 'z'. There can be at most two keys.
+        default_colors : list of strings
+            The default list of colors to use if no color is specified for a
+            type in ``type_styles``.
+        point_size_for_slice : float, default=1e-6
+            The distance within which a point is considered to be contained by
+            a plane.
+
+        Returns
+        -------
+        A list of dictionaries representing plotly traces.
+        """
         all_particle_types = list(np.unique([row[0] for row in particle_data])[::-1])
 
         # Calculate plane from slice
@@ -561,14 +640,47 @@ class Body:
 
     def _plot_traces_1d(
         self,
-        particle_data,
-        type_shapes,
-        type_styles,
-        slice,
-        default_colors,
-        point_size_for_slice=1e-6
-    ):
-        """TODO"""
+        particle_data: np.ndarray,
+        type_shapes: dict[str, coxeter.shapes.Polyhedron],
+        type_styles: dict[str, dict],
+        slice: dict[str, float],
+        default_colors: list[str],
+        point_size_for_slice: float = 1e-6
+    ) -> list[dict]:
+        """Return plotly plot traces for body plotting in 1D.
+        
+        This function requires pre-calculated particle data and assumes that
+        ``slice`` has 2 keys. It should only be called from ``Body.plot``.
+
+        Parameters
+        ----------
+        particle_data : np.array
+            Type, position, and orientation data for all of the particles in the
+            body. Must be formatted as a (N, 8) numpy array with the following
+            columnsL type name, position x, position y, position z, q0, q1, q2,
+            q3.
+        type_shapes : dict
+            A dictionary mapping particle type names to
+            coxeter.shapes.ConvexPolyhedron. If no shape is provided for a type,
+            it will be plotted as a sphere.
+        type_styles : dict
+            A dictionary mapping particle type names to styles. A style is a
+            dictionary which may have the following keys: 'color', 'opacity',
+            and 'size'. See ``Body.plot`` for more information.
+        slice : dict
+            Axes and positions along which to slice. Keys are limited to 'x',
+            'y', and 'z'. There can be at most two keys.
+        default_colors : list of strings
+            The default list of colors to use if no color is specified for a
+            type in ``type_styles``.
+        point_size_for_slice : float, default=1e-6
+            The distance within which a point is considered to be contained by
+            a plane.
+
+        Returns
+        -------
+        A list of dictionaries representing plotly traces.
+        """
         all_particle_types = list(np.unique([row[0] for row in particle_data])[::-1])
 
         # Calculate line from slice (assume that slice has exactly 2 keys)
@@ -596,7 +708,7 @@ class Body:
             # Types without shapes must be within the distance tolerance to be
             # included
             if t not in type_shapes:
-                if point_line_distance([px, py, pz], line) < point_size_for_slice:
+                if point_segment_distance([px, py, pz], line) < point_size_for_slice:
                     slice_data.append((t, np.array([[px, py, pz]]), np.array([[q0, q1, q2, q3]]), np.array([[px, py, pz]]), "point"))
 
             # Types with shapes must be sliced
@@ -625,7 +737,7 @@ class Body:
                     # Points must be within the distance tolerance
                     if np.array(geometry).shape[0] == 1:
                         px, py, pz = geometry
-                        if point_line_distance([px, py, pz], line) < point_size_for_slice:
+                        if point_segment_distance([px, py, pz], line) < point_size_for_slice:
                             slice_geometries2.append(geometry)
                     
                     # Segments must pass the intersection test

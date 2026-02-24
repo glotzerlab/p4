@@ -9,6 +9,14 @@ import plotly
 from copy import copy
 
 import rowan
+from .util import (
+    WONG_COLORS,
+    point_line_distance,
+    point_plane_distance,
+    intersection_of_polygon_with_plane,
+    intersection_of_polyhedron_with_plane,
+    intersection_of_segment_with_plane
+)
 
 class Body:
     """The names and spatial data for a body's primary and secondary types.
@@ -113,8 +121,9 @@ class Body:
     def plot(
         self,
         type_shapes: dict={},
-        type_colors: dict={},
-        ignore_types: list[str]=[]
+        type_styles: dict={},
+        ignore_types: list[str]=[],
+        slice={}
     ):
         """Interactively plot the body's primary and secondary types.
         
@@ -124,24 +133,18 @@ class Body:
             A dictionary mapping particle types to
             coxeter.shapes.ConvexPolyhedron. If no shape is provided for a type,
             it will be plotted as a sphere.
-        type_colors : dict, default={}
+        type_styles : dict, default={}
             A dictionary mapping particle types to colors. A color must satisfy
-            Plotly's color formatting requirements.
+            Plotly's color formatting requirements. [TODO: elaborate]
         ignore_types : list[str], default=[]
             Types to not include in the final plot.
+        slice : dict, default={}
+            Axes and positions along which to slice. Keys are limited to 'x', 'y',
+            and 'z'. There can be at most two keys.
         """
         # https://davidmathlogic.com/colorblind
         # (original source https://doi.org/10.1038/nmeth.1618)
-        default_colors=[
-            "#000000",
-            "#E69F00",
-            "#56B4E9",
-            "#009E73",
-            "#F0E442",
-            "#0072B2",
-            "#D55E00",
-            "#CC79A7",
-        ]
+        default_colors = WONG_COLORS
 
         # Make a list of all types that will be plotted
         all_types = copy(self.secondary_types)
@@ -165,18 +168,122 @@ class Body:
 
         # Construct the figure type-by-type
         figure = plotly.graph_objects.Figure()
-        traces = []
+        
+        if len(slice) == 0:
+            traces = self._plot_traces_3d(
+                particle_data, type_shapes, type_styles, default_colors
+            )
+        
+        elif len(slice) == 1:
+            traces = self._plot_traces_2d(
+                particle_data, type_shapes, type_styles, slice, default_colors
+            )
+        
+        elif len(slice) == 2:
+            traces = self._plot_traces_1d(
+                particle_data, type_shapes, type_styles, slice, default_colors
+            )
 
-        for t in all_types:
+        for trace in traces:
+            figure.add_trace(trace)
+
+        figure.update_layout(showlegend=True)
+
+        # Ensure that 2D plots have correct axis titles, figure title, and aspect ratio
+        if len(slice) == 1:
+            if "x" in slice:
+                x_title = "y"
+                y_title = "z"
+                fig_title = f"x = {slice["x"]}"
+            elif "y" in slice:
+                x_title = "x"
+                y_title = "z"
+                fig_title = f"y = {slice["y"]}"
+            elif "z" in slice:
+                x_title = "x"
+                y_title = "y"
+                fig_title = f"z = {slice["z"]}"
+            figure.update_layout(
+                    xaxis=dict(
+                        scaleanchor="y",
+                        scaleratio=1,
+                        constrain='domain',
+                        title=dict(text=x_title, font=dict(weight=1000, size=16))
+                    ),
+                    yaxis=dict(
+                        scaleanchor="x",
+                        scaleratio=1,
+                        constrain='domain',
+                        title=dict(text=y_title, font=dict(weight=1000, size=16))
+                    ),
+                    # plot_bgcolor="rgba(0,0,0,0)"
+                    title=dict(
+                        text=fig_title,
+                        font=dict(style="italic", size=16),
+                        xanchor="center",
+                        yanchor="top",
+                        x=0.5
+                    )
+                )
+        
+        # Ensure that 1D plots have correct axis titles and caption
+        if len(slice) == 2:
+            if "x" in slice:
+                if "y" in slice:
+                    x_title = "z"
+                    fig_title = f"x = {slice["x"]}, y = {slice["y"]}"
+                else:
+                    x_title = "y"
+                    fig_title = f"x = {slice["x"]}, z = {slice["z"]}"
+            else:
+                x_title = "x"
+                fig_title = f"y = {slice["y"]}, z = {slice["z"]}"
+
+            figure.update_layout(
+                    xaxis=dict(
+                        title=dict(text=x_title, font=dict(weight=1000, size=16))
+                    ),
+                    # plot_bgcolor="rgba(0,0,0,0)"
+                    title=dict(
+                        text=fig_title,
+                        font=dict(style="italic", size=16),
+                        xanchor="center",
+                        yanchor="top",
+                        x=0.5
+                    )
+                )
+
+        return figure, traces
+
+    def _plot_traces_3d(
+        self,
+        particle_data,
+        type_shapes,
+        type_styles,
+        default_colors
+    ):
+        """TODO"""
+
+        # TODO: merge duplicate symbols
+
+        traces = []
+        all_particle_types = list(np.unique([row[0] for row in particle_data])[::-1])
+        for t in all_particle_types:
             type_data = particle_data[particle_data[:,0] == t]
 
-            # Unless user specifies a type's color, color markers by index from
-            # the default colors list
-            trace_color = type_colors.get(t, default_colors[all_types.index(t)])
+            # Get user-provided style information. Unless user specifies a type's
+            # color, color markers by index from the default colors list.
+            trace_style = type_styles.get(t, {})
+            trace_color = trace_style.get("color", default_colors[all_particle_types.index(t)])
+            trace_opacity = trace_style.get("opacity", 1.0)
+            trace_size = trace_style.get("size")
+
+            default_line_width = 10
+            default_point_size = 10
             
             # Use Scatter3d when a shape is not specified
             if t not in type_shapes:
-                figure.add_trace(
+                traces.append(
                     plotly.graph_objects.Scatter3d(
                         name=t,
                         x=type_data[:,1],
@@ -185,8 +292,9 @@ class Body:
                         customdata=type_data[:,4:],
                         mode="markers",
                         marker=dict(
-                            size=10,
+                            size=default_point_size if trace_size is None else trace_size,
                             color=trace_color,
+                            opacity=trace_opacity,
                             line=dict(width=2, color="DarkSlateGrey")
                         ),
                         hovertemplate=
@@ -201,29 +309,29 @@ class Body:
                 vertices = type_shapes[t].vertices
                 faces = type_shapes[t].faces
 
-            for row in type_data:
-                # Rotate shape vertices to the specified orientation
-                row_vertices = rowan.rotate(
-                    q=np.repeat([row[4:]], len(vertices), axis=0),
-                    v=np.array(copy(vertices))
-                )
+                for row in type_data:
+                    # Rotate shape vertices to the specified orientation
+                    row_vertices = rowan.rotate(
+                        q=np.repeat([row[4:]], len(vertices), axis=0),
+                        v=np.array(copy(vertices))
+                    )
 
-                # Translate shape vertices to the specified position
-                row_vertices += np.array(row[1:4]).astype(float)
+                    # Translate shape vertices to the specified position
+                    row_vertices += np.array(row[1:4]).astype(float)
 
-                # Get triangle indices
-                row_shape = coxeter.shapes.Polyhedron(row_vertices, faces)
-                
-                triangle_faces = np.empty((0,3), dtype=int)
-                for t_verts in row_shape._surface_triangulation():
-                    face = np.array(
-                        [
-                            np.where(np.all(t_vert == row_vertices, axis=1))
-                            for t_vert in t_verts
-                        ]
-                    ).flatten()
-                    triangle_faces = np.vstack((triangle_faces, face))
+                    # Get triangle indices
+                    row_shape = coxeter.shapes.Polyhedron(row_vertices, faces)
                     
+                    triangle_faces = np.empty((0,3), dtype=int)
+                    for t_verts in row_shape._surface_triangulation():
+                        face = np.array(
+                            [
+                                np.where(np.all(t_vert == row_vertices, axis=1))
+                                for t_vert in t_verts
+                            ]
+                        ).flatten()
+                        triangle_faces = np.vstack((triangle_faces, face))
+
                     # Construct trace
                     traces.append(
                         plotly.graph_objects.Mesh3d(
@@ -236,18 +344,432 @@ class Body:
                             j=triangle_faces[:,1],
                             k=triangle_faces[:,2],
                             flatshading=True,
-                            showlegend=True
+                            showlegend=True,
+                            opacity=trace_opacity
                         )
                     )
+
+        return traces
+
+    def _plot_traces_2d(
+        self,
+        particle_data,
+        type_shapes,
+        type_styles,
+        slice,
+        default_colors,
+        point_size_for_slice=1e-6
+    ):
+        """TODO"""
+        all_particle_types = list(np.unique([row[0] for row in particle_data])[::-1])
+
+        # Calculate plane from slice
+        slice_axis, slice_value = list(slice.items())[0]
+        if slice_axis == "x":
+            plane = [1, 0, 0, slice_value]
+        elif slice_axis == "y":
+            plane = [0, 1, 0, slice_value]
+        elif slice_axis == "z":
+            plane = [0, 0, 1, slice_value]
+
+        # Construct the particle data for the slice. The row is included only if
+        # points are returned for the slice
+        slice_data = []
+        for (t, px, py, pz, q0, q1, q2, q3) in particle_data:
+            # Types without shapes must be within the distance tolerance to be
+            # included
+            if t not in type_shapes:
+                if point_plane_distance([px, py, pz], plane) < point_size_for_slice:
+                    slice_data.append((t, np.array([[px, py, pz]]), np.array([[q0, q1, q2, q3]]), np.array([[px, py, pz]]), "point"))
+
+            # Types with shapes must be sliced
+            else:
+                vertices = type_shapes[t].vertices
+                faces = type_shapes[t].faces
+
+                # Rotate shape vertices to the specified orientation
+                row_vertices = rowan.rotate(
+                    q=np.repeat([[q0, q1, q2, q3]], len(vertices), axis=0),
+                    v=np.array(copy(vertices))
+                )
+
+                # Translate shape vertices to the specified position
+                row_vertices += np.array([px, py, pz]).astype(float)
+
+                # Create shape and slice it
+                row_shape = coxeter.shapes.Polyhedron(row_vertices, faces)            
+                slice_geometries = intersection_of_polyhedron_with_plane(
+                    row_shape, plane
+                )
+
+                # Slice geometries are packaged in a new data structure that
+                # formats data for easier passing to the plotly constructors.
+                for geometry in slice_geometries:
+                    geometry = np.array(geometry)
+                    # Point
+                    if geometry.shape[0] == 1:
+                        slice_data.append([t, np.array([[px, py, pz]]), np.array([[q0, q1, q2, q3]]), geometry, "point"])
+                    
+                    # Single segment
+                    elif geometry.shape[0] == 2:
+                        slice_data.append([t, np.array([[px, py, pz]]), np.array([[q0, q1, q2, q3]]), geometry, "line"])
+                    
+                    # Polygon
+                    elif geometry.shape[0] > 2:
+                        slice_data.append([t, np.array([[px, py, pz]]), np.array([[q0, q1, q2, q3]]), geometry, "polygon"])
+
+
+        # Merge identical symbols
+        merged_slice_data = []
+        merged_row_indices = []
+        for i, current_row in enumerate(slice_data):
+            rows_to_merge = []
+            for j, other_row in enumerate(slice_data):
+                if j != i and j not in merged_row_indices:
+                    rows_are_equivalent = (
+                        current_row[0] == other_row[0]
+                        and current_row[4] == other_row[4]
+                    )
+                    if rows_are_equivalent: # TODO: check this doesn't break for lines
+                        rows_to_merge.append(other_row)
+                        merged_row_indices.append(j)
+            
+            if len(rows_to_merge) > 0:
+                rows_to_merge = [current_row] + rows_to_merge
+                merged_row_indices.append(i)
+
+                m_t = rows_to_merge[0][0]
+                m_p = np.vstack([row[1] for row in rows_to_merge])
+                m_q = np.vstack([row[2] for row in rows_to_merge])
+                m_geometry = np.vstack([    # note the need for breaking rows
+                    np.vstack([row[3], np.array([[None, None, None]])])
+                    for row in rows_to_merge
+                ])
+                m_trace_type = rows_to_merge[0][4]
+                merged_slice_data.append((m_t, m_p, m_q, m_geometry, m_trace_type))
+            
+            elif i not in merged_row_indices:
+                merged_slice_data.append(current_row)
+
+        # Sort the merged slice data so that polygons are under lines and lines
+        # are under points
+        draw_order = ["polygon", "line", "point"]
+        merged_slice_data = sorted(
+            merged_slice_data,
+            key=lambda row: draw_order.index(row[4])
+        )
+
+        # Build trace from slice data
+        traces = []
+        for (t, p, q, geometry, trace_type) in merged_slice_data:
+            # For polygons, sometimes the circuit/loop is not actually closed. If
+            # this is the case, close it.
+            if trace_type == "polygon":
+                if not np.array_equal(geometry[0, :], geometry[-1, :]):
+                    geometry = np.vstack((geometry, np.atleast_2d(geometry[0, :])))
+
+            # Transform geometry's point coordinates to match the plotting axis,
+            # assuming that geometry is a 2D array with 3 columns and a row for each
+            # point
+            x = geometry[:,0]
+            y = geometry[:,1]
+            z = geometry[:,2]
+
+            if slice_axis == "x":
+                trace_x = y
+                trace_y = z
+
+            elif slice_axis == "y":
+                trace_x = x
+                trace_y = z
+
+            elif slice_axis == "z":
+                trace_x = x
+                trace_y = y
+            
+            # Get user-provided style information. Unless user specifies a type's
+            # color, color markers by index from the default colors list.
+            trace_style = type_styles.get(t, {})
+            trace_color = trace_style.get("color", default_colors[all_particle_types.index(t)])
+            trace_opacity = trace_style.get("opacity", 1.0)
+            trace_size = trace_style.get("size")
+
+            default_line_width = 10
+            default_point_size = 10
+            
+            # Construct traces by symbol type     
+            if trace_type == "polygon":
+                traces.append(
+                    plotly.graph_objects.Scatter(
+                        x=trace_x,
+                        y=trace_y,
+                        name=t,
+                        mode="lines",
+                        fill="toself",
+                        fillcolor=trace_color,
+                        opacity=trace_opacity,
+                        # hoveron="points+fills",
+                        line=dict(
+                            color=trace_color,
+                            width=2
+                        ),
+                    #     hovertemplate=
+                    #         f"<b>r</b> ({p[0,0]}, {p[0,1]}, {p[0,2]})<br>" +        # TODO: this text does not show up
+                    #         f"<b>q</b> ({q[0,0]}, {q[0,1]}, {q[0,2]}, {q[0,3]})"                        
+                    )
+                )
+
+            elif trace_type == "line":  # TODO: check that this works
+                traces.append(
+                    plotly.graph_objects.Scatter(
+                        x=trace_x,
+                        y=trace_y,
+                        mode="lines",
+                        name=t,
+                        line=dict(
+                            color=trace_color,
+                            opacity=trace_opacity,
+                            width=default_line_width if trace_size is None else trace_size
+                        ),
+                    #     hovertemplate=
+                    #         f"<b>r</b> ({p[0,0]}, {p[0,1]}, {p[0,2]})<br>" +        # TODO: this text does not show up
+                    #         f"<b>q</b> ({q[0,0]}, {q[0,1]}, {q[0,2]}, {q[0,3]})"                        
+                    )
+                )
+
+            elif trace_type == "point":
+                traces.append(
+                    plotly.graph_objects.Scatter(
+                        x=trace_x,
+                        y=trace_y,
+                        mode="markers",
+                        name=t,
+                        marker=dict(
+                            size=default_point_size if trace_size is None else trace_size,
+                            color=trace_color,
+                            opacity=trace_opacity,
+                            line=dict(width=2, color="DarkSlateGrey")
+                        ),
+                        customdata=np.hstack((p, q)),
+                        hovertemplate=
+                            "<b>r</b> (%{customdata[0]}, %{customdata[1]}, %{customdata[2]})<br>" +
+                            "<b>q</b> (%{customdata[3]}, %{customdata[4]}, %{customdata[5]}, %{customdata[6]})"                        
+                    )
+                )
+
+        return traces
+
+    def _plot_traces_1d(
+        self,
+        particle_data,
+        type_shapes,
+        type_styles,
+        slice,
+        default_colors,
+        point_size_for_slice=1e-6
+    ):
+        """TODO"""
+        all_particle_types = list(np.unique([row[0] for row in particle_data])[::-1])
+
+        # Calculate line from slice (assume that slice has exactly 2 keys)
+        slice_x = slice.get("x")
+        slice_y = slice.get("y")
+        slice_z = slice.get("z")
+        if slice_x is not None:
+            plane1 = [1, 0, 0, slice_x]
+            if slice_y is not None:
+                plane2 = [0, 1, 0, slice_y]
+                # line is defined by 2 end points
+                line = [[slice_x, slice_y, -1e9], [slice_x, slice_y, 1e9]]  # Review: there must be a better way...
+            else:
+                plane2 = [0, 0, 1, slice_z]
+                line = [[slice_x, -1e9, slice_z], [slice_x, 1e9, slice_z]]
+        else:
+            plane1 = [0, 1, 0, slice_y]
+            plane2 = [0, 0, 1, slice_z]
+            line = [[-1e9, slice_y, slice_z], [1e9, slice_y, slice_z]]    
+
+        # Construct the particle data for the first slice. The row is included only
+        # if points are returned for the slice
+        slice_data = []
+        for (t, px, py, pz, q0, q1, q2, q3) in particle_data:
+            # Types without shapes must be within the distance tolerance to be
+            # included
+            if t not in type_shapes:
+                if point_line_distance([px, py, pz], line) < point_size_for_slice:
+                    slice_data.append((t, np.array([[px, py, pz]]), np.array([[q0, q1, q2, q3]]), np.array([[px, py, pz]]), "point"))
+
+            # Types with shapes must be sliced
+            else:
+                vertices = type_shapes[t].vertices
+                faces = type_shapes[t].faces
+
+                # Rotate shape vertices to the specified orientation
+                row_vertices = rowan.rotate(
+                    q=np.repeat([[q0, q1, q2, q3]], len(vertices), axis=0),
+                    v=np.array(copy(vertices))
+                )
+
+                # Translate shape vertices to the specified position
+                row_vertices += np.array([px, py, pz]).astype(float)
+
+                # Create shape and slice it
+                row_shape = coxeter.shapes.Polyhedron(row_vertices, faces)            
+                slice_geometries = intersection_of_polyhedron_with_plane(
+                    row_shape, plane1
+                )
+
+                # Slice the current slice with the second plane
+                slice_geometries2 = []
+                for geometry in slice_geometries:
+                    # Points must be within the distance tolerance
+                    if np.array(geometry).shape[0] == 1:
+                        px, py, pz = geometry
+                        if point_line_distance([px, py, pz], line) < point_size_for_slice:
+                            slice_geometries2.append(geometry)
+                    
+                    # Segments must pass the intersection test
+                    if np.array(geometry).shape[0] == 2:
+                        segment_is_intersected = (
+                            (
+                                plane2[1] == 1
+                                and slice["y"] >= np.array(geometry)[:,1].min()
+                                and slice["y"] <= np.array(geometry)[:,1].max()
+                            )
+                            or
+                            (
+                                plane2[2] == 1
+                                and slice["z"] >= np.array(geometry)[:,2].min()
+                                and slice["z"] <= np.array(geometry)[:,2].max()
+                            )
+                        )
+                        if segment_is_intersected:
+                            slice_geometries2.append(
+                                intersection_of_segment_with_plane(geometry, plane2)
+                            )
+
+                    # Polygons are sliced like in 2D plotting
+                    if np.array(geometry).shape[0] > 2:
+                        geometries = intersection_of_polygon_with_plane(geometry, plane2)
+                        slice_geometries2.extend(geometries)
+
+                # Slice geometries are packaged in a new data structure that
+                # formats data for easier passing to the plotly constructors.
+                for geometry in slice_geometries2:
+                    geometry = np.array(geometry)
+                    # Point
+                    if geometry.shape[0] == 1:
+                        slice_data.append([t, np.array([[px, py, pz]]), np.array([[q0, q1, q2, q3]]), geometry, "point"])
+                    
+                    # Single segment
+                    elif geometry.shape[0] == 2:
+                        slice_data.append([t, np.array([[px, py, pz]]), np.array([[q0, q1, q2, q3]]), geometry, "line"])
+                    
+                    # Polygons should not be possible
+                    elif geometry.shape[0] > 2:
+                        raise Exception("Uh oh! Found polygons when plotting in 1D. Check the code for the second slice...")
+
+        # Merge identical symbols
+        merged_slice_data = []
+        merged_row_indices = []
+        for i, current_row in enumerate(slice_data):
+            rows_to_merge = []
+            for j, other_row in enumerate(slice_data):
+                if j != i and j not in merged_row_indices:
+                    if current_row[0] == other_row[0] and current_row[4] == other_row[4]:
+                        rows_to_merge.append(other_row)
+                        merged_row_indices.append(j)
+            
+            if len(rows_to_merge) > 0:
+                rows_to_merge = [current_row] + rows_to_merge
+                merged_row_indices.append(i)
+
+                m_t = rows_to_merge[0][0]
+                m_p = np.vstack([row[1] for row in rows_to_merge])
+                m_q = np.vstack([row[2] for row in rows_to_merge])
+                m_geometry = np.vstack([np.vstack([row[3], np.array([[None, None, None]])]) for row in rows_to_merge])
+                m_trace_type = rows_to_merge[0][4]
+                merged_slice_data.append((m_t, m_p, m_q, m_geometry, m_trace_type))
+            
+            elif i not in merged_row_indices:
+                merged_slice_data.append(current_row)
+
+        # Sort the merged slice data so that polygons are under lines and lines
+        # are under points
+        draw_order = ["line", "point"]
+        merged_slice_data = sorted(
+            merged_slice_data,
+            key=lambda row: draw_order.index(row[4])
+        )
+
+        # Build trace from slice data
+        traces = []
+        for (t, p, q, geometry, trace_type) in merged_slice_data:
+            # Transform geometry's point coordinates to match the plotting axis,
+            # assuming that geometry is a 2D array with 3 columns and a row for each
+            # point
+            x = geometry[:,0]
+            y = geometry[:,1]
+            z = geometry[:,2]
+
+            if slice_x is not None:
+                if slice_y is not None:
+                    trace_x = z
+                else:
+                    trace_x = y
+            else:
+                trace_x = x
+            
+            # Get user-provided style information. Unless user specifies a type's
+            # style, color markers by index from the default colors list.
+            trace_style = type_styles.get(t, {})
+            trace_color = trace_style.get("color", default_colors[all_particle_types.index(t)])
+            trace_opacity = trace_style.get("opacity", 1.0)
+            trace_size = trace_style.get("size")
+
+            default_line_width = 10
+            default_point_size = 10
+
+            # Construct traces by symbol type     
+            if trace_type == "line":
+                traces.append(
+                    plotly.graph_objects.Scatter(
+                        x=trace_x,
+                        y=[0 for _ in trace_x],
+                        mode="lines",
+                        name=t,
+                        opacity=trace_opacity,
+                        line=dict(
+                            color=trace_color,
+                            width=default_line_width if trace_size is None else trace_size
+                        ),
+                    #     hovertemplate=
+                    #         f"<b>r</b> ({p[0,0]}, {p[0,1]}, {p[0,2]})<br>" +        # TODO: this text does not show up
+                    #         f"<b>q</b> ({q[0,0]}, {q[0,1]}, {q[0,2]}, {q[0,3]})"                        
+                    )
+                )
+
+            if trace_type == "point":
+                traces.append(
+                    plotly.graph_objects.Scatter(
+                        x=trace_x,
+                        y=[0 for _ in trace_x],
+                        mode="markers",
+                        name=t,
+                        marker=dict(
+                            size=default_point_size if trace_size is None else trace_size,
+                            color=trace_color,
+                            opacity=trace_opacity,
+                            line=dict(width=2, color="DarkSlateGrey")
+                        ),
+                        customdata=np.hstack((p, q)),
+                        hovertemplate=
+                            "<b>r</b> (%{customdata[0]}, %{customdata[1]}, %{customdata[2]})<br>" +
+                            "<b>q</b> (%{customdata[3]}, %{customdata[4]}, %{customdata[5]}, %{customdata[6]})"                        
+                    )
+                )
         
-        for trace in traces:
-            figure.add_trace(trace)
-
-        figure.update_layout(showlegend=True)
-
-        return figure, traces
-
-
+        return traces
 
     def _validate_secondary_positions(self):
         """Ensure that the provided callable works for all secondary types."""

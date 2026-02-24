@@ -78,12 +78,13 @@ def test_lj_sphere():
     nlist = hoomd.md.nlist.Cell(10)
 
     system.probe_potential(
-        position_resolutions=[30, 30, 1],
+        position_resolutions=[50, 50, 50],
         orientation_resolutions=[1, 1, 1],
         symmetries=[1, 1, 1],
         nlist=nlist,
         csv_filename="lj-sphere.csv",
         outside_cutoff=2.0,
+        n_processes=-1
     )
 
 def test_alj_cube():
@@ -244,8 +245,8 @@ if __name__ == "__main__":
     #     test_alj_cube_with_eg_sites(n_processes)
     #     print(f"{n_processes} processes completed in {round(time.perf_counter() - start_time, 2)} s.")
     test_lj_sphere()
-    test_alj_cube()
-    test_alj_cube_with_g_sites()
+    # test_alj_cube()
+    # test_alj_cube_with_g_sites()
     # test_lj_sphere_3d()
 
     # f = p4.Field.from_csv("test-lj-sphere-3d.csv", "mean")

@@ -124,7 +124,11 @@ class Body:
         type_styles: dict[str, dict] = {},
         ignore_types: list[str] = [],
         slice: dict[str, float] = {},
-        schematic_slice = False
+        schematic_slice: bool = False,
+        schematic_slice_scale: float = 1,
+        schematic_slice_color: str = "red",
+        schematic_slice_opacity: float = 1,
+        schematic_slice_line_width: float = 10
     ):
         """Interactively plot the body using plotly.
 
@@ -162,6 +166,18 @@ class Body:
             If True, the slice is shown schematically in a 3D view. A 2D slice
             appears like a plane intersecting with the body, while a 1D slice
             appears like a line intersecting with the body.
+        schematic_slice_scale : float, default=1
+            The scale of the schematic slice. Defaults to 1, which is to-scale.
+            Increase this number if the schematic slice is fully contained by
+            the body geometry and the true slice scale is not essential.
+        schematic_slice_color : float, default='red'
+            The color of the schematic slice. Must satisfy plotly's color
+            name/formatting conventions.
+        schematic_slice_opacity : float, default=1
+            The opacity of the schematic slice.
+        schematic_slice_line_width : float, default=10
+            The width of the schematic slice if it is a line. Ignored if the
+            slice is a plane.
         """
         default_colors = WONG_COLORS
 
@@ -188,17 +204,29 @@ class Body:
         # Construct the figure type-by-type
         figure = plotly.graph_objects.Figure()
         
-        if len(slice) == 0:
+        if len(slice) == 0 or schematic_slice:
             traces = self._plot_traces_3d(
                 particle_data, type_shapes, type_styles, default_colors
             )
+
+            if schematic_slice:
+                traces.append(
+                    self._plot_traces_schematic_slice(
+                        particle_data,
+                        slice,
+                        schematic_slice_scale,
+                        schematic_slice_color,
+                        schematic_slice_opacity,
+                        schematic_slice_line_width
+                    )
+                )
         
-        elif len(slice) == 1:
+        elif len(slice) == 1 and not schematic_slice:
             traces = self._plot_traces_2d(
                 particle_data, type_shapes, type_styles, slice, default_colors
             )
         
-        elif len(slice) == 2:
+        elif len(slice) == 2 and not schematic_slice:
             traces = self._plot_traces_1d(
                 particle_data, type_shapes, type_styles, slice, default_colors
             )
@@ -273,6 +301,126 @@ class Body:
                 )
 
         return figure, traces
+
+    def _plot_traces_schematic_slice(
+        self,
+        particle_data: list,
+        slice: dict[str, int],
+        scale: float,
+        color: str,
+        opacity: float,
+        line_width: float
+    ) -> dict:
+        """Return plotly plot traces for schematic slice in 3D.
+
+        A slice with 1 key is represented as a plane, while a slice with 2 keys
+        is represented as a line.
+        
+        Parameters
+        ----------
+        particle_data : np.array
+            Type, position, and orientation data for all of the particles in the
+            body. Must be formatted as a (N, 8) numpy array with the following
+            columnsL type name, position x, position y, position z, q0, q1, q2,
+            q3. This parameter is only needed to determine the extents of the
+            schematic.
+        slice : dict
+            Axes and positions along which to slice. Keys are limited to 'x',
+            'y', and 'z'. There can be at most two keys.
+        scale : float
+            The scale of the schematic slice.
+        color : str
+            The color of the schematic slice. Must satisfy plotly's color
+            naming/formatting conventions.
+        opacity : float
+            The opacity of the schematic slice. Must be between 0 and 1.
+        line_width : float
+            The width of the schematic slice if it is a line. Ignored if the
+            slice is a plane.
+        
+        Returns
+        -------
+        A dictionary representing the plotly trace.
+        """
+        positions = particle_data[:,1:4]
+        xmin, xmax = positions[:,0].min(), positions[:,0].max()
+        ymin, ymax = positions[:,1].min(), positions[:,1].max()
+        zmin, zmax = positions[:,2].min(), positions[:,2].max()
+
+        # A slice with 1 key is represented as a plane
+        if len(slice) == 1:
+            if "x" in slice:
+                x = slice["x"]
+                x = np.array([x, x, x, x])
+                y = np.array([ymin, ymax, ymax, ymin]) * scale
+                z = np.array([zmin, zmin, zmax, zmax]) * scale
+
+            elif "y" in slice:
+                y = slice["y"]
+                x = np.array([xmin, xmax, xmax, xmin]) * scale
+                y = np.array([y, y, y, y])
+                z = np.array([zmin, zmin, zmax, zmax]) * scale
+
+            elif "z" in slice:
+                z = slice["z"]
+                x = np.array([xmin, xmax, xmax, xmin]) * scale
+                y = np.array([ymin, ymin, ymax, ymax]) * scale
+                z = np.array([z, z, z, z])
+            
+            i = [0, 0]
+            j = [1, 2]
+            k = [2, 3]
+
+            return plotly.graph_objects.Mesh3d(
+                x=x,
+                y=y,
+                z=z,
+                i=i,
+                j=j,
+                k=k,
+                name="slice",
+                color=color,
+                opacity=opacity,
+                flatshading=True,
+                showlegend=True
+            )
+
+        # A slice with 2 keys is represented as a line
+        if len(slice) == 2:
+            if "x" in slice:
+                x = slice["x"]
+                if "y" in slice:
+                    y = slice["y"]
+                    x = np.array([x, x])
+                    y = np.array([y, y])
+                    z = np.array([zmin, zmax]) * scale
+                
+                else:
+                    z = slice["z"]
+                    x = np.array([x, x])
+                    y = np.array([ymin, ymax]) * scale
+                    z = np.array([z, z])
+            
+            else:
+                y = slice["y"]
+                z = slice["z"]
+                x = np.array([xmin, xmax]) * scale
+                y = np.array([y, y])
+                z = np.array([z, z])
+            
+            return plotly.graph_objects.Scatter3d(
+                x=x,
+                y=y,
+                z=z,
+                name="slice",
+                opacity=opacity,
+                line=dict(color=color, width=line_width),
+                mode="lines",
+                showlegend=True
+            )
+
+    
+
 
     def _plot_traces_3d(
         self,

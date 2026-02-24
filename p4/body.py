@@ -419,9 +419,6 @@ class Body:
                 showlegend=True
             )
 
-    
-
-
     def _plot_traces_3d(
         self,
         particle_data: np.ndarray,

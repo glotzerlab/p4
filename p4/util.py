@@ -19,7 +19,8 @@ import rowan
 from collections import defaultdict
 
 
-# https://davidmathlogic.com/colorblind (original source IBM Design Library)
+# https://davidmathlogic.com/colorblind
+# (original source IBM Design Library)
 IBM_COLORS = [
     "#5b8efd",
     "#725def",
@@ -28,7 +29,8 @@ IBM_COLORS = [
     "#ffb00d",
 ]
 
-# https://davidmathlogic.com/colorblind (original source https://doi.org/10.1038/nmeth.1618)
+# https://davidmathlogic.com/colorblind
+# (original source https://doi.org/10.1038/nmeth.1618)
 WONG_COLORS = [
     "#000000",
     "#E69F00",
@@ -40,7 +42,8 @@ WONG_COLORS = [
     "#CC79A7",
 ]
 
-# https://davidmathlogic.com/colorblind (original source Paul Tol)
+# https://davidmathlogic.com/colorblind
+# (original source Paul Tol)
 TOL_COLORS = [
     "#332288",
     "#117733",
@@ -56,7 +59,7 @@ TOL_COLORS = [
 # ---------------------------------- GEOMETRY ----------------------------------
 
 
-def get_cube(side_length: float):
+def get_cube(side_length: float) -> coxeter.shapes.ConvexPolyhedron:
     """Return a coxeter cube with a given side length."""
     s = side_length/2
     vertices = [
@@ -71,40 +74,67 @@ def get_cube(side_length: float):
     ]
     return coxeter.shapes.ConvexPolyhedron(vertices)
 
-def angle_between_vectors(a, b):
+def angle_between_vectors(a: list[float], b: list[float]) -> float:
     """Return the smallest angle between vectors a and b in radians."""
     return np.arccos(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
-def point_plane_distance(point, plane):
-    """The distance of a point from a plane.
+def point_plane_distance(point: list[float], plane: list[float]) -> float:
+    """Return the smallest distance between a point and a plane.
+
     Ref: https://mathinsight.org/distance_point_plane
+    
+    Parameters
+    ----------
+    point : (1, 3) or (3,) array of floats
+        The 3D point.
+    plane : (4,) array of floats
+        The linear coefficients of the plane, corresponding to [a, b, c, d],
+        where the coefficients satisfy the conventional plane equation
+        a*x + b*y + c*z = d.
     """
     x, y, z, = point
     a, b, c, d = plane
     return np.abs(a*x + b*y + c*z - d)/(np.sqrt((a**2 + b**2 + c**2)))
 
-def point_line_distance(point, line):
-    """Return the distance of a point from a line.
+def point_segment_distance(
+    point:list[float],
+    segment: list[list[float]]
+) -> float:
+    """Return the smallest distance between a point and a line segment.
+
     Ref: https://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
+
+    Parameters
+    ----------
+    point : (1, 3) or (3,) array of floats
+        The 3D point.
+    segment : (2, 3) array of floats
+        Two points in 3D space that define a line segment.
     """
     x0 = point
-    x1, x2 = line
+    x1, x2 = segment
     x0, x1, x2 = np.array(x0), np.array(x1), np.array(x2)
     d = np.linalg.norm(np.cross(x0 - x1, x0 - x2)) / np.linalg.norm(x2 - x1)
     return d
 
-def intersection_of_segment_with_plane(segment, plane):
+def intersection_of_segment_with_plane(
+    segment: list[list[float]],
+    plane: list[float]
+) -> list[list[float]]:
     """Return the intersection of a line segment with a plane in 3D.
-    
-    The segment is defined by a pair of points with coordinates in X, Y, Z order.
-
-    The plane is provided as an array of floats [a, b, c, d], which correspond
-    to the equation of a plane
-
-    a*x + b*y + c*z = d
 
     This function only works if the plane has a normal with one non-zero
     component.
+
+    Parameters
+    ----------
+    segment : (2, 3) array of floats
+        Two points in 3D space that define a line segment.
+    plane : (4,) array of floats
+        The linear coefficients of the plane, corresponding to [a, b, c, d],
+        where the coefficients satisfy the conventional plane equation
+        a*x + b*y + c*z = d. Only one of a, b, or c may be non-zero.
+    
     """
     p1, p2 = segment
     if plane[0] == 1:
@@ -127,28 +157,37 @@ def intersection_of_segment_with_plane(segment, plane):
 
     return [px, py, pz]
 
-def intersection_of_polygon_with_plane(polygon, plane):
+def intersection_of_polygon_with_plane(
+    polygon: list[list[float]],
+    plane: list[float]
+) -> list[list[list[float]]]:
     """Return the intersection of a polygon with a plane in 3D.
     
     The polygon is provided as an ordered list of consecutive (i.e., connected)
-    points. Each point has coordinates in X, Y, Z order. It is assumed that
+    points. It is assumed that
         
         - the points are co-planar with each other
         - the points are in CCW order
+        - the first point is not repeated as the last point
 
-    The plane is provided as an array of floats [a, b, c, d], which correspond
-    to the equation of a plane
+    Because this function relies on ``intersection_of_segment_with_plane``,
+    it requires that the plane normal has only one non-zero component.
 
-    a*x + b*y + c*z = d
+    Parameters
+    ----------
+    polygon : (N, 3) array of floats
+        The points in 3D space that consecutively define the vertices of a
+        polygon.
+    plane : (4,) array of floats
+        The linear coefficients of the plane, corresponding to [a, b, c, d],
+        where the coefficients satisfy the conventional plane equation
+        a*x + b*y + c*z = d. Only one of a, b, or c may be non-zero.
 
-    This function only works if the plane has a normal with one non-zero
-    component.
-
-    The intersection is returned as a ...
-    
-    TODO: can't be a (N, 3) numpy array, where N is the number of intersection
-    points. Have to return *segments*, not points.
-
+    Returns
+    -------
+    A (N,) array of (M, 3) subarrays, where each subarray represents a set of M
+    points. For M = 1, the subarray represents a single point; for M = 2, a
+    line segment. In the case of no intersection, an empty list is returned.
     """
     polygon = np.array(polygon)
 
@@ -303,9 +342,29 @@ def intersection_of_polygon_with_plane(polygon, plane):
     else:
         return []
 
-def joinable_segments_to_polygon(segments):
-    """Take a list of pairs of points and return a list of single points that
-    define a non-self-intersecting polygon.
+def joinable_segments_to_polygon(
+    segments: list[list[list[float]]]
+) -> list[list[float]]:
+    """Convert mutually overlapping line segments into a polygon.
+
+    Line segments, which are represented by their start and end points, are
+    flipped and shuffled around so that they form a consecutively overlapping
+    loop. This loop of segments is then collapsed: duplicate points are merged
+    together, and the resulting (N, 1, 3) array is flattened into a (N, 3) array
+    of consecutive points that define a polygon.
+
+    It is assumed that the segments already form a consecutively overlapping
+    loop - no checks are performed to ensure that the segments all overlap and
+    form a perfect loop.
+
+    Parameters
+    ----------
+    segments : (N,) array of (2, 3) arrays of floats
+        The line segments that overlap with one another.
+    
+    Returns
+    -------
+    A (N, 3) array of floats representing the vertices of the resulting polygon.
     """
     # Start by converting all segments into native python data structures
     segments = [[[float(i) for i in p] for p in s] for s in segments]
@@ -337,35 +396,28 @@ def joinable_segments_to_polygon(segments):
 
     return np.array(points)
 
-def geometry_contains_point(geometry, point):
-    """geometry and point are 2D arrays of row-wise vertices."""
-    return (geometry == point).all(axis=1).any()
-
-def geometry_contains_segment(geometry, segment):
-    """geometry and segment are 2D arrays of row-wise vertices."""
-    # This function was written with assistance from GPT-4.1
-    pairs = np.stack([geometry[:-1], geometry[1:]], axis=1)
-    wrap_pair = np.stack(
-        [geometry[-1], geometry[0]],
-        axis=0
-    ).reshape(1, 2, np.array(geometry).shape[1])
-    geometry_segments = np.concatenate([pairs, wrap_pair], axis=0)
-    return (
-        np.any(np.all(geometry_segments == segment, axis=(1,2)))
-        or
-        np.any(np.all(geometry_segments == segment[::-1], axis=(1,2)))
-    )
-
-def find_loop(start, adj, visited):
+def find_loop(
+    start: Tuple[float, float, float],
+    adj: dict[Tuple[float, float, float], list[Tuple[float, float, float]]],
+    visited: set[Tuple[float, float, float]]
+) -> list[list[float]]:
     """Find and return a loop of connected points that are not already visited.
-
-    Requires an adjacency dictionary whose keys are points and whose values are
-    points that neighbor that point.
 
     If there is no loop containing both the start point and at least 2 other
     non-visited points, an empty list is returned.
-    
+
+    This function is not pure - it mutates the provided ``visited`` set.
+
     This function was written with assistance from GPT-4.1.
+
+    Parameters
+    ----------
+    start : (3,) tuple of floats
+        The starting point.
+    adj : dict (keys: (3,) tuples of floats; values: lists of the same)
+        An adjacency dictionary that maps each point to its neighbors.
+    visited : set of (3,) tuples of floats
+        The previously visited points.
     """
     loop = []
     current = start
@@ -393,17 +445,44 @@ def find_loop(start, adj, visited):
     else:
         return loop
 
-def pairs_into_polygons(pairs):
-    """Join pairs of points into point-arrays representing polygons.
+def segments_to_polygons(
+    segments: list[list[list[float]]]
+) -> Tuple[list[list[float]], list[list[list[float]]]]:
+    """Convert overlapping line segments into a polygon, returning others as-is.
+
+    Line segments, which are represented by their start and end points, are
+    effectively flipped and shuffled around so that they form a consecutively
+    overlapping loop, which is then collapsed: duplicate points are merged
+    together, and the resulting (N, 1, 3) array is flattened into a (N, 3) array
+    of consecutive points that define a polygon.
+
+    Segments that don't form polygonal (length > 2) loops are returned as-is
+    separately.
+
+    This function relies on ``find_loop``, which implements loop-finding as a
+    graph-traversal algorithm.
     
-    pairs that cannot be joined together are returned as-is.
+    Parameters
+    ----------
+    segments : (N,) array of (2, 3) arrays of floats
+        The line segments that overlap with one another.
+    
+    Returns
+    -------
+    A tuple of 2 arrays. The first is a (N,) array of (M, 3) subarrays of floats
+    that each represent the M vertices of a loop, i.e., a polygon. The second is
+    a (P,) array of (2, 3) subarrays of floats that each represent a line
+    segment that could not be used to form a polygonal (length > 2) loop.
     """
-    # Points must be tuples so they can be used as keys
-    pairs = tuple((tuple(point1), tuple(point2)) for point1, point2 in pairs)
+    # Points must be tuples so they can be used as keys in the adjacency dict
+    segments = tuple(
+        (tuple(point1), tuple(point2))
+        for point1, point2 in segments
+    )
     
     # Adjacency dictionary
     adj = defaultdict(list)
-    for p1, p2 in pairs:
+    for p1, p2 in segments:
         adj[p1].append(p2)
         adj[p2].append(p1)
     
@@ -428,16 +507,69 @@ def pairs_into_polygons(pairs):
 
     return loops, isolated_pairs
 
-def intersection_of_polyhedron_with_plane(polyhedron, plane):
-    """Return an array of point-sets corresponding to the intersection of a
-    polyhedron with a plane.
+def pointset_contains_point(
+    pointset: list[list[float]],
+    point: list[float]
+) -> bool:
+    """Whether a pointset contains a point.
     
-    The polyhedron must be given as a coxeter.shapes.Polyhedron instance. It does
-    not need to be convex.
+    Parameters
+    ----------
+    pointset : (N, 3) array of floats
+        The points to check. For N = 1, the pointset represents a single point;
+        for N = 2, a line segment; for N > 2, a polygon.
+    point : (3,) array of floats
+        The point that may be contained.
+    """
+    return (pointset == np.atleast_2d(point)).all(axis=1).any()
 
-    The returned point-sets are all (N, 3) numpy arrays. When N = 1 (1 row), the
-    point-set represents a single tangent point. When N = 2, it is a single
-    tangent edge. When N = 3, it is a polygon.
+def pointset_contains_segment(
+    pointset: list[list[float]],
+    segment: list[list[float]]
+) -> bool:
+    """Whether a pointset contains a line segment.
+    
+    Parameters
+    ----------
+    pointset : (N, 3) array of floats
+        The points to check. For N = 1, the pointset represents a single point;
+        for N = 2, a line segment; for N > 2, a polygon.
+    segment : (2, 3) array of floats
+        The line segment that may be contained.
+    """
+    pairs = np.stack([pointset[:-1], pointset[1:]], axis=1)
+    wrap_pair = np.stack(
+        [pointset[-1], pointset[0]],
+        axis=0
+    ).reshape(1, 2, np.array(pointset).shape[1])
+    pointset_segments = np.concatenate([pairs, wrap_pair], axis=0)
+    return (
+        np.any(np.all(pointset_segments == segment, axis=(1,2)))
+        or
+        np.any(np.all(pointset_segments == segment[::-1], axis=(1,2)))
+    )
+
+def intersection_of_polyhedron_with_plane(
+    polyhedron: coxeter.shapes.Polyhedron,
+    plane: list[float]
+) -> list[list[list[float]]]:
+    """Return the intersection of a polyhedron with a plane.
+
+    Parameters
+    ----------
+    polyhedron : coxeter.shapes.Polyhedron
+        The polyhedron to slice with the plane.
+    plane : (4,) array of floats
+        The linear coefficients of the plane, corresponding to [a, b, c, d],
+        where the coefficients satisfy the conventional plane equation
+        a*x + b*y + c*z = d. Only one of a, b, or c may be non-zero.
+
+    Returns
+    -------
+    A (N,) array of (M, 3) subarrays, where each subarray represents a set of M
+    points. For M = 1, the subarray represents a single point; for M = 2, a
+    line segment; for M > 2, a polygon. In the case of no intersection, an empty
+    list is returned.
     """
     # Slice each of the faces as a polygon in 3D
     slice_geometries = []
@@ -468,12 +600,12 @@ def intersection_of_polyhedron_with_plane(polyhedron, plane):
                 if i not in clean_indices and i not in removed_indices:
                     # Points
                     if np.array(nonpolygon).shape[0] == 1:
-                        is_duplicate = geometry_contains_point(
+                        is_duplicate = pointset_contains_point(
                             polygon, nonpolygon
                         )
                     # Line segments
                     else:
-                        is_duplicate = geometry_contains_segment(
+                        is_duplicate = pointset_contains_segment(
                             polygon, nonpolygon
                         )
 
@@ -499,7 +631,7 @@ def intersection_of_polyhedron_with_plane(polyhedron, plane):
     
     # Remove points contained by line segments
     for i, p in enumerate(points):
-        if any(geometry_contains_point(g, p) for g in segments):
+        if any(pointset_contains_point(g, p) for g in segments):
             removed_point_indices.append(i)
         else:
             clean_points.append(p)
@@ -521,7 +653,7 @@ def intersection_of_polyhedron_with_plane(polyhedron, plane):
             clean_segments.append(s)
 
     # Join line segments into polygons
-    polygons_from_segments, isolated_segments = pairs_into_polygons(
+    polygons_from_segments, isolated_segments = segments_to_polygons(
         clean_segments
     )
     

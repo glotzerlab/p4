@@ -19,6 +19,9 @@ import numpy as np
 import rowan
 
 
+# ---------------------------------- GEOMETRY ----------------------------------
+
+
 def get_cube(side_length: float):
     """Return a coxeter cube with a given side length."""
     s = side_length/2
@@ -33,6 +36,10 @@ def get_cube(side_length: float):
         [ s,  s,  s]
     ]
     return coxeter.shapes.ConvexPolyhedron(vertices)
+
+
+# ---------------------------------- SAMPLING ----------------------------------
+
 
 def get_probe_positions(
     box: list[float],
@@ -63,6 +70,26 @@ def get_probe_positions(
     positions[:,2] += (box[2]/resolutions[2])/2
 
     return positions
+
+def subdivide(array: list, n: int):
+    """Subdivide an array into some number of chunks of consecutive items.
+
+    Disclaimer: the body of this function was written by ChatGPT.
+
+    Parameters
+    ----------
+    array : list
+        The array to subdivide
+    n : int
+        The number of chunks to subdivide the array into.
+
+    Returns
+    -------
+    subarrays
+        An array of sections of the input array.
+    """
+    k, m = divmod(len(array), n)
+    return [array[i*k + min(i, m):(i+1)*k + min(i+1, m)] for i in range(n)]
 
 def exclude_positions_by_shape(
     positions: list[list[float]],
@@ -132,6 +159,17 @@ def get_probe_orientations(
         np.linspace(0, 2*np.pi/symmetries[0], resolutions[0], endpoint=False),
     )))
     return rowan.from_euler(angles[:,0], angles[:,1], angles[:,2])
+
+def find_nearest(array, value):
+    """Find the item nearest to a given value in an array."""
+    # Ref: https://stackoverflow.com/a/2566508/15426433
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return array[idx]
+
+
+# --------------------------------- SIMULATION ---------------------------------
+
 
 def get_initial_frame(
     probe_body: "Body",
@@ -432,13 +470,6 @@ def add_integrator(
     
     return simulation
 
-def find_nearest(array, value):
-    """Find the item nearest to a given value in an array."""
-    # Ref: https://stackoverflow.com/a/2566508/15426433
-    array = np.asarray(array)
-    idx = (np.abs(array - value)).argmin()
-    return array[idx]
-
 def get_simulation(
     system: "System",
     included_interactions: list["Interaction"],
@@ -607,25 +638,9 @@ def run_probe(
 
     return table
 
-def subdivide(array: list, n: int):
-    """Subdivide an array into some number of chunks of consecutive items.
 
-    Disclaimer: the body of this function was written by ChatGPT.
+# ----------------------------------- TABLES -----------------------------------
 
-    Parameters
-    ----------
-    array : list
-        The array to subdivide
-    n : int
-        The number of chunks to subdivide the array into.
-
-    Returns
-    -------
-    subarrays
-        An array of sections of the input array.
-    """
-    k, m = divmod(len(array), n)
-    return [array[i*k + min(i, m):(i+1)*k + min(i+1, m)] for i in range(n)]
 
 def merge_tables(table_csvs: list[StringIO]):
     """Combine an array of tables stored in string buffers.

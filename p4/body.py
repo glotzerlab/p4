@@ -11,7 +11,7 @@ from copy import copy
 import rowan
 from .util import (
     WONG_COLORS,
-    point_line_distance,
+    point_segment_distance,
     point_plane_distance,
     intersection_of_polygon_with_plane,
     intersection_of_polyhedron_with_plane,

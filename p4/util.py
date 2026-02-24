@@ -16,6 +16,7 @@ import gsd.hoomd
 import hoomd
 import numpy as np
 import rowan
+from collections import defaultdict
 
 
 # https://davidmathlogic.com/colorblind (original source IBM Design Library)

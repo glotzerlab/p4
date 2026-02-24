@@ -19,6 +19,40 @@ import numpy as np
 import rowan
 
 
+# https://davidmathlogic.com/colorblind (original source IBM Design Library)
+IBM_COLORS = [
+    "#5b8efd",
+    "#725def",
+    "#dd217d",
+    "#ff5f00",
+    "#ffb00d",
+]
+
+# https://davidmathlogic.com/colorblind (original source https://doi.org/10.1038/nmeth.1618)
+WONG_COLORS = [
+    "#000000",
+    "#E69F00",
+    "#56B4E9",
+    "#009E73",
+    "#F0E442",
+    "#0072B2",
+    "#D55E00",
+    "#CC79A7",
+]
+
+# https://davidmathlogic.com/colorblind (original source Paul Tol)
+TOL_COLORS = [
+    "#332288",
+    "#117733",
+    "#44AA99",
+    "#88CCEE",
+    "#DDCC77",
+    "#CC6677",
+    "#AA4499",
+    "#882255",
+]
+
+
 # ---------------------------------- GEOMETRY ----------------------------------
 
 

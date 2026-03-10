@@ -91,8 +91,11 @@ class Interaction:
         
         # Ensure the parameterized hoomd class can be used in a simulation
         nlist = hoomd.md.nlist.Cell(2)
+        test_types = self.interacting_types("all")
+        if not test_types:
+            test_types = ["A", "B"] # catch case with no typed params
         simulation = hoomd.util.make_example_simulation(
-            particle_types=self.interacting_types("all")
+            particle_types=test_types
         )
         if not any("params" in v for v in self.typed_params.values()):
             max_r_cut = self.default_params["r_cut"]
@@ -102,7 +105,7 @@ class Interaction:
             ])
         
         simulation = self._get_test_simulation(
-            particle_types=self.interacting_types("all"),
+            particle_types=test_types,
             max_r_cut=max_r_cut,
             nlist=hoomd.md.nlist.Cell(2),
             interaction=self
@@ -114,7 +117,7 @@ class Interaction:
             simulation=simulation,
             nlist=nlist,
             interaction=self,
-            all_types=self.interacting_types("all")
+            all_types=test_types
         )
 
         try:
@@ -210,7 +213,7 @@ class Interaction:
             simulation=simulation,
             nlist=nlist,
             interaction=interaction,
-            all_types=interaction.interacting_types("all")
+            all_types=particle_types
         )
         
         return simulation

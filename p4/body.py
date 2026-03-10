@@ -1022,7 +1022,7 @@ class Body:
                         customdata=np.hstack((p, q)),
                         hovertemplate=
                             "<b>r</b> (%{customdata[0]}, %{customdata[1]}, %{customdata[2]})<br>" +
-                            "<b>q</b> (%{customdata[3]}, %{customdata[4]}, %{customdata[5]}, %{customdata[6]})"                        
+                            "<b>q</b> (%{customdata[3]}, %{customdata[4]}, %{customdata[5]}, %{customdata[6]})"
                     )
                 )
         

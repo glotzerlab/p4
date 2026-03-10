@@ -737,6 +737,7 @@ class Body:
                             color=trace_color,
                             width=2
                         ),
+                        cliponaxis=False,
                     #     hovertemplate=
                     #         f"<b>r</b> ({p[0,0]}, {p[0,1]}, {p[0,2]})<br>" +        # TODO: this text does not show up
                     #         f"<b>q</b> ({q[0,0]}, {q[0,1]}, {q[0,2]}, {q[0,3]})"                        
@@ -755,6 +756,7 @@ class Body:
                             opacity=trace_opacity,
                             width=default_line_width if trace_size is None else trace_size
                         ),
+                        cliponaxis=False,
                     #     hovertemplate=
                     #         f"<b>r</b> ({p[0,0]}, {p[0,1]}, {p[0,2]})<br>" +        # TODO: this text does not show up
                     #         f"<b>q</b> ({q[0,0]}, {q[0,1]}, {q[0,2]}, {q[0,3]})"                        
@@ -774,6 +776,7 @@ class Body:
                             opacity=trace_opacity,
                             line=dict(width=2, color="DarkSlateGrey")
                         ),
+                        cliponaxis=False,
                         customdata=np.hstack((p, q)),
                         hovertemplate=
                             "<b>r</b> (%{customdata[0]}, %{customdata[1]}, %{customdata[2]})<br>" +
@@ -1000,6 +1003,7 @@ class Body:
                             color=trace_color,
                             width=default_line_width if trace_size is None else trace_size
                         ),
+                        cliponaxis=False
                     #     hovertemplate=
                     #         f"<b>r</b> ({p[0,0]}, {p[0,1]}, {p[0,2]})<br>" +        # TODO: this text does not show up
                     #         f"<b>q</b> ({q[0,0]}, {q[0,1]}, {q[0,2]}, {q[0,3]})"                        
@@ -1019,6 +1023,7 @@ class Body:
                             opacity=trace_opacity,
                             line=dict(width=2, color="DarkSlateGrey")
                         ),
+                        cliponaxis=False,
                         customdata=np.hstack((p, q)),
                         hovertemplate=
                             "<b>r</b> (%{customdata[0]}, %{customdata[1]}, %{customdata[2]})<br>" +

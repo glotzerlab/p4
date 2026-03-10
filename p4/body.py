@@ -128,7 +128,8 @@ class Body:
         schematic_slice_scale: float = 1,
         schematic_slice_color: str = "red",
         schematic_slice_opacity: float = 1,
-        schematic_slice_line_width: float = 10
+        schematic_slice_line_width: float = 10,
+        show_legend: bool = True,
     ):
         """Interactively plot the body using plotly.
 
@@ -178,6 +179,8 @@ class Body:
         schematic_slice_line_width : float, default=10
             The width of the schematic slice if it is a line. Ignored if the
             slice is a plane.
+        show_legend : bool, default=True
+            Whether to show the legend.
         """
         default_colors = WONG_COLORS
 
@@ -234,7 +237,7 @@ class Body:
         for trace in traces:
             figure.add_trace(trace)
 
-        figure.update_layout(showlegend=True)
+        figure.update_layout(showlegend=show_legend)
 
         # Ensure that 2D plots have correct axis titles, figure title, and aspect ratio
         if len(slice) == 1:

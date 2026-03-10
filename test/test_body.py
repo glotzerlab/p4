@@ -318,3 +318,8 @@ def test_from_hoomd_simulation(kwargs):
         body = Body(**kwargs)
         simulation = make_simulation(**kwargs)
         assert body == Body.from_hoomd_simulation(simulation, body.primary_type)
+
+
+def test_plot(type_shapes, type_colors, ignore_types):
+    """Ensure that plotting does not error for sets of valid kwargs."""
+    # TODO

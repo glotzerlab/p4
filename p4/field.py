@@ -7,16 +7,11 @@ from typing import Literal
 import warnings
 import PIL
 import coxeter
-import matplotlib
+import plotly
 import numpy as np
-from matplotlib import pyplot as plt
-from matplotlib import colormaps
-from matplotlib.patches import Polygon
-from matplotlib.colors import TwoSlopeNorm
-from matplotlib.transforms import Affine2D
 import pandas as pd
 import vtk.util.numpy_support   # type: ignore
-
+from copy import copy, deepcopy
 
 class Field:
     """A Field is defined by an array of values and an array of extents.
@@ -340,127 +335,338 @@ class Field:
                     "To save a 3D array, `filename` must end in '.vti'."
                 )
             self._save_3d_array_to_vti(self.array, self.extents, filename)
-        
+
     def plot(
         self,
-        core_shape: coxeter.shapes.ConvexPolygon | coxeter.shapes.ConvexPolyhedron | None = None,
-        rotate_core_deg: float = 90.0,
-        vmin: float = -1.0,
-        vmax: float = 10.0,
-        # slice_x: float | None = None,         # TODO: decide whether to allow slice
-        # slice_y: float | None = None,
-        # slice_lim: list[float] | None = None,
-        show_cbar: bool = True,
-        show_axes: bool = True, # TODO
-        core_scale_factor: float = 1.0,
-        cmap_name: str = "RdYlBu_r",
-        core_color: str = "#FFCF00",
-        fill_nan_with_inf: bool = False
+        clim=[-1,10],               # [vmin, vmax, (colorbar_midpoint)]
+        slice={},                   # {'x'=something, and/or 'y'=something, etc}
+        isosurfaces=10,             # 3D, int: volume; 3D, list: isosurface; 2D, int: contour; 2D, list: contour; 2D, None: heatmap; 1D: ignored
+        cmap="RdYlBu_r",
+        show_cbar=True,
+        show_axes=True,
+        fill_nan_with_inf=False
     ):
         """TODO"""
-        # In 2D, use matplotlib
-        if self.n_dimensions == 2:
-            mpl_extents = [
-                self.extents[0][0],
-                self.extents[0][1],
-                self.extents[1][0],
-                self.extents[1][1]
+        # Calculate color axis limits
+        cmin = min(clim)
+        cmax = max(clim)
+        if len(clim) == 2:
+            cmid = (cmax + cmin) / 2
+        elif len(clim) == 3:
+            cmid = [i for i in clim if i not in (min(clim), max(clim))][0]
+        else:
+            raise ValueError("`clim` must be of length 2 or 3.")
+
+        # If 2 slice dimensions are provided, plot will be 1D
+        if len(slice) == 2:
+            # Calculate the sliced array (use nearest values to the ones provided)
+            dimensions, values = list(slice.keys()), list(slice.values())
+            d_indices = [["z", "y", "x"].index(d) for d in dimensions]
+            d_values = [
+                np.linspace(
+                    self.extents[d_index][0],
+                    self.extents[d_index][1],
+                    self.array.shape[d_index]
+                )
+                for d_index in d_indices
             ]
-            
-            # Initialize empty axes
-            # if slice_x is not None or slice_y is not None:
-            #     if show_cbar:
-            #         fig, ax = plt.subplots(1, 3, width_ratios=[1.0, 1.0, 0.1])
-            #         sl_ax = ax[0]
-            #         im_ax = ax[1]
-            #         cbar_ax = ax[2]
-            #     else:
-            #         fig, ax = plt.subplots(1, 3, width_ratios=[1.0, 1.0, 0.1])
-            #         sl_ax = ax[0]
-            #         im_ax = ax[1]
-            # else:
-            if show_cbar:
-                fig, ax = plt.subplots(1, 2, width_ratios=[1.0, 0.05])
-                im_ax = ax[0]
-                cbar_ax = ax[1]
-            else:
-                fig, ax = plt.subplots(1)
-                im_ax = ax
+            v_indices = [
+                (np.abs(d_values[i] - v)).argmin()
+                for i, v in enumerate(values)
+            ]
 
-            # Configure figure
-            fig.set_size_inches(14, 6)
-            fig.set_dpi(300)
+            array = self.array[v_indices[0], v_indices[1], :]
+            x_axis_dim = [i for i in [0, 1, 2] if i not in d_indices][0]
 
-            # Configure colormap
-            cmap = colormaps[cmap_name]
-            # cmap = cmap.set_over(cmap(1.0))
-
-            # Plot image and outline
-            if fill_nan_with_inf:
-                array = np.nan_to_num(self.array, nan=1e99)
-            else:
-                array = self.array
-            im = im_ax.imshow(
-                array,
-                extent=mpl_extents,
-                cmap=cmap,
-                norm=TwoSlopeNorm(vcenter=0.0, vmin=vmin, vmax=vmax)
+            x = np.linspace(
+                self.extents[x_axis_dim][0],
+                self.extents[x_axis_dim][1],
+                self.array.shape[x_axis_dim]
             )
 
-            # Plot core if necessary
-            if core_shape is not None:
-                # Construct particle outline polygon
-                if core_scale_factor != 1.0:
-                    core_shape = coxeter.shapes.ConvexPolygon(
-                        core_shape.vertices * core_scale_factor
+            traces = [
+                plotly.graph_objects.Scatter(
+                    x=x,
+                    y=array,
+                    name="PE",
+                    mode="lines+markers",
+                    cliponaxis=False
+                )
+            ]
+
+        # If 1 slice dimension is provided, plot will be 2D
+        elif len(slice) == 1:
+            # Calculate the sliced array (use nearest value to the one provided)
+            dimension, value = list(slice.items())[0]
+            d_index = ["z", "y", "x"].index(dimension)
+            d_values = np.linspace(
+                self.extents[d_index][0],
+                self.extents[d_index][1],
+                self.array.shape[d_index]
+            )
+            v_index = (np.abs(d_values - value)).argmin()
+            
+            if d_index == 0:
+                array = self.array[v_index, :, :]
+                x_axis_dim = 2
+                y_axis_dim = 1
+            elif d_index == 1:
+                array = self.array[:, v_index, :]
+                x_axis_dim = 2
+                y_axis_dim = 0
+            elif d_index == 2:
+                array = self.array[:, :, v_index]
+                x_axis_dim = 1
+                y_axis_dim = 0
+            
+            else:
+                raise ValueError("`slice` can only contain the keys 'x', 'y', or 'z'.")
+            
+            if fill_nan_with_inf:
+                array = np.nan_to_num(copy(array), nan=1e99)
+            
+            # Calculate plot data
+            x = np.linspace(
+                self.extents[x_axis_dim][0],
+                self.extents[x_axis_dim][1],
+                self.array.shape[x_axis_dim]
+            )
+            y = np.linspace(
+                self.extents[y_axis_dim][0],
+                self.extents[y_axis_dim][1],
+                self.array.shape[y_axis_dim]
+            )
+
+            traces = []
+
+            # Contour plot
+            if isinstance(isosurfaces, (int, list)):
+                # if isinstance(isosurfaces, int):
+                    # isosurfaces = np.linspace(cmin, cmax, isosurfaces)
+                if isinstance(isosurfaces, list):
+                    raise NotImplementedError("In 2D, specific isosurface values cannot yet be provided.")
+
+                # for value in isosurfaces:
+                #     color = plotly.express.colors.sample_colorscale(
+                #         cmap,
+                #         (value - min(clim)) / (max(clim) - min(clim)),
+                #         0,
+                #         1
+                #     )
+                traces.append(
+                    plotly.graph_objects.Contour(
+                        x=x,
+                        y=y,
+                        z=array,
+                        colorscale=cmap,
+                        opacity=1,
+                        contours=dict(
+                            start=cmin,
+                            end=cmax,
+                            size=(cmax - cmin) / isosurfaces,
+                            # type="constraint",
+                            # operation=">=",
+                            # value=isosurfaces,
+                            # showlabels=True,
+                            coloring="fill"
+                        ),
+                        zmin=cmin,
+                        zmax=cmax
                     )
-                particle_outline = Polygon(
-                    xy=core_shape.vertices[:,:2],
-                    fill=True,
-                    facecolor=core_color,
-                    edgecolor="black",
-                    linestyle="-",
-                    linewidth=2.0
                 )
 
-                # Rotate if necessary
-                if rotate_core_deg is not None:
-                    particle_outline.set_transform(
-                        Affine2D().rotate(math.radians(rotate_core_deg))
-                        + im_ax.transData
+
+            # heatmap
+            elif not isosurfaces:
+                traces.append(
+                    plotly.graph_objects.Heatmap(
+                        x=x,
+                        y=y,
+                        z=array,
+                        colorscale=cmap,
+                        zmax=cmax,
+                        zmin=cmin
                     )
-                im_ax.add_patch(particle_outline)
+                )
 
-            # # If necessary, plot slice
-            # if slice_x is not None:
-            #     nearest_x = util.find_nearest(np.array(df.index), slice_x)
-            #     slice_path = Path([[nearest_x, mpl_extents[2]], [nearest_x, mpl_extents[3]]])
-            #     slice_domain = df.columns
-            #     slice_range = np.array(df.loc[nearest_x])
-            #     # if slice_zmax is not None:
-            #     #     slice_range[slice_range > slice_zmax] = slice_zmax
-            
-            # elif slice_y is not None:
-            #     nearest_y = util.find_nearest(df.columns, slice_y)
-            #     slice_path = Path([[mpl_extents[0], nearest_y], [mpl_extents[1], nearest_y]])
-            #     slice_domain = np.array(df.index)
-            #     slice_range = df[nearest_y]
-            #     # if slice_zmax is not None:
-            #     #     slice_range[slice_range > slice_zmax] = slice_zmax
-            
-            # if slice_x is not None or slice_y is not None:
-            #     im_ax.add_patch(PathPatch(path=slice_path, linestyle="-.", edgecolor="black", linewidth=2.0))
-            #     sl_ax.plot(slice_domain, slice_range, c="red")
-            #     sl_ax.scatter(slice_domain, slice_range, c="red", )
-            #     if slice_lim is not None:
-            #         sl_ax.set_ylim(slice_lim)
-            
-            if show_cbar:
-                cbar = fig.colorbar(im, cax=cbar_ax)
-                cbar.set_ticks([vmin, 0, vmax])
+            else:
+                raise ValueError("In 2D, `isosurfaces` must be an integer, list of floats, or None.")
+        
+        # If 0 slice dimensions are provided, plot will be 3D
+        elif len(slice) == 0:
+            array = deepcopy(self.array)
 
-            return fig, ax
+            array = np.rot90(array, 1, axes=(0, 2))
+            array = np.flip(array, axis=0)
 
-        # In 3D, use plotly
-        elif self.n_dimensions == 3:
-            raise NotImplementedError("3D plotting is currently not supported.")
+            if fill_nan_with_inf:
+                array = np.nan_to_num(array, nan=1e99)
+            
+            traces = []
+
+            x, y, z = np.mgrid[
+                self.extents[0][0]:self.extents[0][1]:complex(0, array.shape[2]),    # TODO: check indexing
+                self.extents[1][0]:self.extents[1][1]:complex(0, array.shape[1]),
+                self.extents[2][0]:self.extents[2][1]:complex(0, array.shape[0]),
+            ]
+            
+            # Volume plot
+            if isinstance(isosurfaces, int):
+                traces.append(
+                    plotly.graph_objects.Volume(
+                        x=x.flatten(),
+                        y=y.flatten(),
+                        z=z.flatten(),
+                        value=array.flatten(),
+                        isomin=cmin,
+                        isomax=cmax,
+                        cmid=cmid,
+                        opacity=0.1,
+                        surface_count=isosurfaces,
+                        colorscale=cmap
+                    )
+                )
+
+            # Isosurface plot (vlim still used for coloring)
+            elif isinstance(isosurfaces, list):
+                for value in sorted(isosurfaces, reverse=True):
+                    color = plotly.express.colors.sample_colorscale(
+                        cmap,
+                        (value - min(clim)) / (max(clim) - min(clim)),
+                        0,
+                        1
+                    )
+                    traces.append(
+                        plotly.graph_objects.Isosurface(
+                            x=x.flatten(),
+                            y=y.flatten(),
+                            z=z.flatten(),
+                            value=array.flatten(),
+                            isomin=value,
+                            isomax=value,
+                            colorscale=color * 2,   # must be of length 2
+                            showscale=False
+                        )
+                    )
+                
+                # Create a dummy trace so that a colorbar shows up
+                tickvalues = copy(clim)
+                tickvalues.extend(isosurfaces)
+
+                traces.append(
+                    plotly.graph_objects.Scatter3d(
+                        name="",
+                        x=[None],
+                        y=[None],
+                        z=[None],
+                        mode="markers",
+                        marker=dict(
+                            colorscale=cmap,
+                            showscale=True,
+                            cmin=min(clim),
+                            cmax=max(clim),
+                            colorbar=dict(
+                                tickmode="array",
+                                tickvals=tickvalues,
+                                # ticks="outside"
+
+                            )
+                        ),
+                        showlegend=False,
+                    )
+                )
+
+        else:
+            raise ValueError("`slice` can only specify up to 2 dimensions.")
+        
+        # Create figure and add traces one by one
+        figure = plotly.graph_objects.Figure()
+        for trace in traces:
+            figure.add_trace(trace)
+
+        # # Move legend if necessary
+        # if len(slice) == 0 and body_traces:
+        #     figure.update_layout(
+        #         legend=dict(yanchor="top", xanchor="left", x=0, y=1)
+        #     )
+        
+        # Set aspect ratio if necessary
+        if len(slice) == 1:
+            figure.update_layout(
+                xaxis=dict(scaleanchor="y", scaleratio=1, constrain='domain'),
+                yaxis=dict(scaleanchor="x", scaleratio=1, constrain='domain'),
+                plot_bgcolor="rgba(0,0,0,0)"
+            )
+
+        # Ensure that 2D plots have correct axis titles, figure title, and aspect ratio
+        if len(slice) == 1:
+            if "x" in slice:
+                x_title = "y"
+                y_title = "z"
+                fig_title = f"x = {slice["x"]}"
+            elif "y" in slice:
+                x_title = "x"
+                y_title = "z"
+                fig_title = f"y = {slice["y"]}"
+            elif "z" in slice:
+                x_title = "x"
+                y_title = "y"
+                fig_title = f"z = {slice["z"]}"
+            figure.update_layout(
+                    xaxis=dict(
+                        scaleanchor="y",
+                        scaleratio=1,
+                        constrain='domain',
+                        title=dict(text=x_title, font=dict(weight=1000, size=16))
+                    ),
+                    yaxis=dict(
+                        scaleanchor="x",
+                        scaleratio=1,
+                        constrain='domain',
+                        title=dict(text=y_title, font=dict(weight=1000, size=16))
+                    ),
+                    # plot_bgcolor="rgba(0,0,0,0)"
+                    title=dict(
+                        text=fig_title,
+                        font=dict(style="italic", size=16),
+                        xanchor="center",
+                        yanchor="top",
+                        x=0.5
+                    )
+                )
+        
+        # Ensure that 1D plots have correct axis titles and caption
+        if len(slice) == 2:
+            if "x" in slice:
+                if "y" in slice:
+                    x_title = "z"
+                    fig_title = f"x = {slice["x"]}, y = {slice["y"]}"
+                else:
+                    x_title = "y"
+                    fig_title = f"x = {slice["x"]}, z = {slice["z"]}"
+            else:
+                x_title = "x"
+                fig_title = f"y = {slice["y"]}, z = {slice["z"]}"
+
+            figure.update_layout(
+                    xaxis=dict(
+                        title=dict(text=x_title, font=dict(weight=1000, size=16))
+                    ),
+                    yaxis=dict(
+                        title=dict(text="Potential Energy (k<sub>b</sub>T)", font=dict(weight=1000, size=16))
+                    ),
+                    # plot_bgcolor="rgba(0,0,0,0)"
+                    title=dict(
+                        text=fig_title,
+                        font=dict(style="italic", size=16),
+                        xanchor="center",
+                        yanchor="top",
+                        x=0.5
+                    )
+                )
+
+        # Set y axis range if necessary
+        if len(slice) == 2:
+            figure.update_layout(yaxis_range=[cmin, cmax])
+
+        return figure, traces

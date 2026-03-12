@@ -2,11 +2,9 @@
 # This file is from the p4 project, released under the BSD 3-Clause License.
 
 import json
-import math
 from typing import Literal
 import warnings
 import PIL
-import coxeter
 import plotly
 import numpy as np
 import pandas as pd
@@ -338,15 +336,51 @@ class Field:
 
     def plot(
         self,
-        clim=[-1,10],               # [vmin, vmax, (colorbar_midpoint)]
-        slice={},                   # {'x'=something, and/or 'y'=something, etc}
-        isosurfaces=10,             # 3D, int: volume; 3D, list: isosurface; 2D, int: contour; 2D, list: contour; 2D, None: heatmap; 1D: ignored
+        slice: dict[str, float] = {},
+        clim: list[float] = [-1,10],
+        contours: int | None = 10,
         cmap="RdYlBu_r",
         show_cbar=True,
         show_axes=True,
+        show_title=True,
         fill_nan_with_inf=False
     ):
-        """TODO"""
+        """Interactively plot the field using plotly.
+        
+        Slicing is supported along the X, Y, and Z axes via the ``slice``
+        parameter. A slice along one axis (e.g., ``slice={"x": 1}``) is 2D,
+        while a slice along two axes (e.g., ``slice={"x": 1, "y": 1}``) is 1D.
+
+        Parameters
+        ----------
+        slice : dict, default={}
+            Axes and positions along which to slice. Keys are limited to 'x',
+            'y', and 'z'. There can be at most two keys.
+        clim : list of floats, default=[-1, 10]
+            The limits of the colorscale, expressed as an array of 2 or 3
+            numbers. The lowest value is used as the colorscale's minimum,
+            while the highest is used for the colorscale's maximum. If a 3rd
+            number is provided, it is used as the colorscale's midpoint.
+        contours : int, default=10
+            The number of values to draw contours around. In 3D, this parameter
+            must be a positive integer. In 2D, None may be passed to use a
+            continuous colorscale. In 1D, this parameter is ignored.
+        cmap : str, default='RdYlBu_r'
+            The name of the plotly colormap to use.
+        show_cbar : bool, default=True
+            Whether to show the colorbar.
+        show_axes : bool, default=True
+            Whether to show the axes.
+        show_title : bool, default=True
+            Whether to show the title.
+        fill_nan_with_inf : bool, default=False
+            Whether to plot NaN values as though they were very large values.
+        
+        Returns
+        -------
+        figure, traces
+            The plotly figure and associated traces.
+        """
         # Calculate color axis limits
         cmin = min(clim)
         cmax = max(clim)
@@ -440,19 +474,7 @@ class Field:
             traces = []
 
             # Contour plot
-            if isinstance(isosurfaces, (int, list)):
-                # if isinstance(isosurfaces, int):
-                    # isosurfaces = np.linspace(cmin, cmax, isosurfaces)
-                if isinstance(isosurfaces, list):
-                    raise NotImplementedError("In 2D, specific isosurface values cannot yet be provided.")
-
-                # for value in isosurfaces:
-                #     color = plotly.express.colors.sample_colorscale(
-                #         cmap,
-                #         (value - min(clim)) / (max(clim) - min(clim)),
-                #         0,
-                #         1
-                #     )
+            if isinstance(contours, int):
                 traces.append(
                     plotly.graph_objects.Contour(
                         x=x,
@@ -463,7 +485,7 @@ class Field:
                         contours=dict(
                             start=cmin,
                             end=cmax,
-                            size=(cmax - cmin) / isosurfaces,
+                            size=(cmax - cmin) / contours,
                             # type="constraint",
                             # operation=">=",
                             # value=isosurfaces,
@@ -471,13 +493,13 @@ class Field:
                             coloring="fill"
                         ),
                         zmin=cmin,
-                        zmax=cmax
+                        zmax=cmax,
+                        showscale=show_cbar,
                     )
                 )
 
-
             # heatmap
-            elif not isosurfaces:
+            elif contours is None:
                 traces.append(
                     plotly.graph_objects.Heatmap(
                         x=x,
@@ -490,7 +512,7 @@ class Field:
                 )
 
             else:
-                raise ValueError("In 2D, `isosurfaces` must be an integer, list of floats, or None.")
+                raise ValueError("In 2D, `contours` must be an int or None.")
         
         # If 0 slice dimensions are provided, plot will be 3D
         elif len(slice) == 0:
@@ -505,13 +527,13 @@ class Field:
             traces = []
 
             x, y, z = np.mgrid[
-                self.extents[0][0]:self.extents[0][1]:complex(0, array.shape[2]),    # TODO: check indexing
+                self.extents[0][0]:self.extents[0][1]:complex(0, array.shape[2]),
                 self.extents[1][0]:self.extents[1][1]:complex(0, array.shape[1]),
                 self.extents[2][0]:self.extents[2][1]:complex(0, array.shape[0]),
             ]
             
             # Volume plot
-            if isinstance(isosurfaces, int):
+            if isinstance(contours, int):
                 traces.append(
                     plotly.graph_objects.Volume(
                         x=x.flatten(),
@@ -522,59 +544,14 @@ class Field:
                         isomax=cmax,
                         cmid=cmid,
                         opacity=0.1,
-                        surface_count=isosurfaces,
-                        colorscale=cmap
+                        surface_count=contours,
+                        colorscale=cmap,
+                        showscale=show_cbar,
                     )
                 )
 
-            # Isosurface plot (vlim still used for coloring)
-            elif isinstance(isosurfaces, list):
-                for value in sorted(isosurfaces, reverse=True):
-                    color = plotly.express.colors.sample_colorscale(
-                        cmap,
-                        (value - min(clim)) / (max(clim) - min(clim)),
-                        0,
-                        1
-                    )
-                    traces.append(
-                        plotly.graph_objects.Isosurface(
-                            x=x.flatten(),
-                            y=y.flatten(),
-                            z=z.flatten(),
-                            value=array.flatten(),
-                            isomin=value,
-                            isomax=value,
-                            colorscale=color * 2,   # must be of length 2
-                            showscale=False
-                        )
-                    )
-                
-                # Create a dummy trace so that a colorbar shows up
-                tickvalues = copy(clim)
-                tickvalues.extend(isosurfaces)
-
-                traces.append(
-                    plotly.graph_objects.Scatter3d(
-                        name="",
-                        x=[None],
-                        y=[None],
-                        z=[None],
-                        mode="markers",
-                        marker=dict(
-                            colorscale=cmap,
-                            showscale=True,
-                            cmin=min(clim),
-                            cmax=max(clim),
-                            colorbar=dict(
-                                tickmode="array",
-                                tickvals=tickvalues,
-                                # ticks="outside"
-
-                            )
-                        ),
-                        showlegend=False,
-                    )
-                )
+            else:
+                raise ValueError("In 3D, `contours` must be an int.")
 
         else:
             raise ValueError("`slice` can only specify up to 2 dimensions.")
@@ -590,6 +567,16 @@ class Field:
         #         legend=dict(yanchor="top", xanchor="left", x=0, y=1)
         #     )
         
+        # Ensure that 3D plots have correctly visible axes
+        if len(slice) == 0:
+            figure.update_layout(
+                scene=dict(
+                    xaxis=dict(visible=show_axes),
+                    yaxis=dict(visible=show_axes),
+                    zaxis=dict(visible=show_axes),
+                )
+            )
+
         # Set aspect ratio if necessary
         if len(slice) == 1:
             figure.update_layout(
@@ -617,22 +604,24 @@ class Field:
                         scaleanchor="y",
                         scaleratio=1,
                         constrain='domain',
-                        title=dict(text=x_title, font=dict(weight=1000, size=16))
+                        title=dict(text=x_title, font=dict(weight=1000, size=16)),
+                        visible=show_axes,
                     ),
                     yaxis=dict(
                         scaleanchor="x",
                         scaleratio=1,
                         constrain='domain',
-                        title=dict(text=y_title, font=dict(weight=1000, size=16))
+                        title=dict(text=y_title, font=dict(weight=1000, size=16)),
+                        visible=show_axes,
                     ),
                     # plot_bgcolor="rgba(0,0,0,0)"
                     title=dict(
-                        text=fig_title,
+                        text=fig_title if show_title else "",
                         font=dict(style="italic", size=16),
                         xanchor="center",
                         yanchor="top",
-                        x=0.5
-                    )
+                        x=0.5,
+                    ),
                 )
         
         # Ensure that 1D plots have correct axis titles and caption
@@ -650,19 +639,21 @@ class Field:
 
             figure.update_layout(
                     xaxis=dict(
-                        title=dict(text=x_title, font=dict(weight=1000, size=16))
+                        title=dict(text=x_title, font=dict(weight=1000, size=16)),
+                        visible=show_axes
                     ),
                     yaxis=dict(
-                        title=dict(text="Potential Energy (k<sub>b</sub>T)", font=dict(weight=1000, size=16))
+                        title=dict(text="Potential Energy (k<sub>b</sub>T)", font=dict(weight=1000, size=16)),
+                        visible=show_axes
                     ),
                     # plot_bgcolor="rgba(0,0,0,0)"
                     title=dict(
-                        text=fig_title,
+                        text=fig_title if show_title else "",
                         font=dict(style="italic", size=16),
                         xanchor="center",
                         yanchor="top",
-                        x=0.5
-                    )
+                        x=0.5,
+                    ),
                 )
 
         # Set y axis range if necessary

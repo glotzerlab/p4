@@ -133,6 +133,10 @@ class Body:
     ):
         """Interactively plot the body using plotly.
 
+        Slicing is supported along the X, Y, and Z axes via the ``slice``
+        parameter. A slice along one axis (e.g., ``slice={"x": 1}``) is 2D,
+        while a slice along two axes (e.g., ``slice={"x": 1, "y": 1}``) is 1D.
+
         Shapes and styles may be specified for specific types. A shape must be
         specified as a coxeter Polyhedron. A style must specified as a
         dictionary which may have the following keys and values:

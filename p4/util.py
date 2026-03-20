@@ -10,7 +10,7 @@ from wrong/fallible inputs.
 import csv
 from io import StringIO, TextIOWrapper
 import itertools
-from typing import Tuple
+from typing import Literal, Tuple
 import coxeter
 import gsd.hoomd
 import hoomd
@@ -972,9 +972,11 @@ def add_gsd_writer(
 def add_table_writer(
     simulation: hoomd.Simulation,
     csv_file: TextIOWrapper,
+    quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
+    probe_is_rigid: bool,
     compute: hoomd.md.compute.ThermodynamicQuantities | None = None
 ) -> Tuple[hoomd.Simulation, hoomd.logging.Logger]:
-    """Add a table writer that logs potential energy to the simulation.
+    """Add a table writer that logs named quantities to the simulation.
 
     Parameters
     ----------
@@ -982,7 +984,14 @@ def add_table_writer(
         The simulation to modify.
     csv_file : TextIOWrapper
         The file object to which the table will be written.
-    compute : hoomd.logging.Logger, optional
+    quantities : one or more of 'U', 'F', 'T'
+        The quantities to measure. 'U' is the potential energy measured for
+        the entire system. 'F' and 'T' are the net Force and Torque experienced
+        by the probe.
+    probe_is_rigid : bool
+        Whether the probe is a rigid body. Required for proper summing of forces
+        and torques.
+    compute : hoomd.md.compute.ThermodynamicQuantities, optional
         An existing thermodynamic computer instance to use. If not provided, a
         new one is created.
 
@@ -992,10 +1001,8 @@ def add_table_writer(
         The modified simulation and its thermodynamic computer.
     """
     logger = hoomd.logging.Logger(categories=["scalar", "string"])
-    logger.add(simulation, quantities=["timestep"])
 
-    snapshot = simulation.state.get_snapshot()
-    probe_index = 1
+    probe_index = 1 # index of the central/primary particle for the probe
 
     def probe_position():
         with simulation.state.cpu_local_snapshot as snapshot:
@@ -1008,6 +1015,24 @@ def add_table_writer(
             return np.array(snapshot.particles.orientation[
                 snapshot.particles.rtag[probe_index]
             ])
+    
+    def probe_net_force():
+        if probe_is_rigid:
+            return simulation.operations.integrator.rigid.forces[probe_index]
+        else:
+            net_force = np.array([0.0, 0.0, 0.0])
+            for f in simulation.operations.integrator.forces:
+                net_force += f.forces[probe_index]
+            return net_force
+
+    def probe_net_torque():
+        if probe_is_rigid:
+            return simulation.operations.integrator.rigid.torques[probe_index]
+        else:
+            net_torque = np.array([0.0, 0.0, 0.0])
+            for f in simulation.operations.integrator.torques:
+                net_torque += f.torques[probe_index]
+            return net_torque
 
     logger["x"] = (lambda: probe_position()[0], "scalar")
     logger["y"] = (lambda: probe_position()[1], "scalar")
@@ -1023,7 +1048,21 @@ def add_table_writer(
         )
         simulation.operations.computes.append(compute)
     
-    logger.add(compute, quantities=["potential_energy"])
+    if isinstance(quantities, str):
+        quantities = [quantities]
+    
+    if "U" in quantities:
+        logger.add(compute, quantities=["potential_energy"])
+    
+    if "F" in quantities:
+        logger["Fx"] = (lambda: probe_net_force()[0], "scalar")
+        logger["Fy"] = (lambda: probe_net_force()[1], "scalar")
+        logger["Fz"] = (lambda: probe_net_force()[2], "scalar")
+
+    if "T" in quantities:
+        logger["Tx"] = (lambda: probe_net_torque()[0], "scalar")
+        logger["Ty"] = (lambda: probe_net_torque()[1], "scalar")
+        logger["Tz"] = (lambda: probe_net_torque()[2], "scalar")
 
     table_writer = hoomd.write.Table(
         trigger=1,
@@ -1105,7 +1144,7 @@ def get_simulation(
     system: "System",
     included_interactions: list["Interaction"],
     nlist: hoomd.md.nlist.NeighborList,
-    probe_box: list[float],
+    measurement_box: list[float],
     simulation_box: list[float]
 ) -> hoomd.Simulation:
     """Return a simulation for a System with specified boxes and interactions.
@@ -1119,9 +1158,9 @@ def get_simulation(
         The interactions to include in the simulation.
     nlist : hoomd.md.nlist.NeighborList
         The neighbor list to use for the interactions in the simulation.
-    probe_box : list[float]
+    measurement_box : list[float]
         The side lengths $[Lx, Ly, Lz]$ of the box containing the positions to
-        be probed.
+        measure at.
     simulation_box : list[float]
         The simulation's box in HOOMD notation. $[Lx, Ly, Lz, xy, xz, yz]$
 
@@ -1141,7 +1180,7 @@ def get_simulation(
         system.probe,
         system.analyte,
         included_secondary_types,
-        probe_box,
+        measurement_box,
         simulation_box
     )
 
@@ -1180,26 +1219,32 @@ def get_simulation(
     
     return simulation
 
-def run_probe(
+def measure(
     system: "System",
-    probe_positions: list[list[float]],
-    probe_orientations: list[list[float]],
+    quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
+    positions: list[list[float]],
+    orientations: list[list[float]],
     included_interactions: list["Interaction"],
     nlist: hoomd.md.nlist.NeighborList,
-    probe_box: list[float],
+    measurement_box: list[float],
     simulation_box: list[float],
     gsd_filename: str | None = None,
 ) -> StringIO:
-    """Return the probe data table for a system.
+    """Measure named quantities for a system.
 
     Parameters
     ----------
     system : System
-        The System to probe.
-    probe_positions : list[list[float]]
-        The positions to probe at.
-    probe_orientations : list[list[float]]
-        The orientations to probe at each position (in quaternion form).
+        The System to measure.
+    quantities : one or more of 'U', 'F', 'T'
+        The quantities to measure. 'U' is the potential energy measured for
+        the entire system, and is saved as a single scalar quantity. 'F' and
+        'T' are the net Force and Torque experienced by the probe, and are
+        saved as vector quantities.
+    positions : list[list[float]]
+        The positions to measure at.
+    orientations : list[list[float]]
+        The orientations (in quaternion form) to measure at for each position.
     included_interactions : list[Interactions]
         The Interactions to include in the simulation.
     gsd_filename : str
@@ -1207,9 +1252,9 @@ def run_probe(
         write 
     nlist : hoomd.md.nlist.NeighborList
         The neighbor list to use for the interactions.
-    probe_box : list[float]
+    measurement_box : list[float]
         The side lengths $[Lx, Ly, Lz]$ of the box containing the positions to
-        be probed.
+        measure at.
     simulation_box : list[float]
         The simulation's box in HOOMD notation. $[Lx, Ly, Lz, xy, xz, yz]$
     gsd_filename : str, optional
@@ -1219,15 +1264,15 @@ def run_probe(
     Returns
     -------
     table
-        The tabular results of the probe simulation, formatted as a CSV and
-        stored in a string buffer.
+        The tabular results of the measurement simulation, formatted as a CSV
+        and stored in a string buffer.
     """
     # Create simulation
     simulation = get_simulation(
         system,
         included_interactions,
         nlist,
-        probe_box,
+        measurement_box,
         simulation_box
     )
 
@@ -1239,14 +1284,16 @@ def run_probe(
     simulation, _ = add_table_writer(
         simulation=simulation,
         csv_file=table,
-        compute=None if gsd_filename is None else compute
+        quantities=quantities,
+        probe_is_rigid=system.probe.is_rigid(included_interactions),
+        compute=None if gsd_filename is None else compute,
     )
     
     probe_index = 1
 
     # Iterate over positions
-    for p in probe_positions:
-        for o in probe_orientations:
+    for p in positions:
+        for o in orientations:
             with simulation.state.cpu_local_snapshot as state:
 
                 # Note: only probe position and orientation need to be
@@ -1309,31 +1356,9 @@ def merge_tables(table_csvs: list[StringIO]):
 def clean_header(table: StringIO):
     """Simplify the header of a table string buffer.
 
-    This function is not robust. It does not search for expected column
-    names and modify them in place. It requires a CSV-formatted string buffer
-    with the following columns (in order):
-    
-    1. 'Simulation.timestep'
-    2. '       x        '
-    3. '       y        '
-    4. '       z        '
-    5. '       q0       '
-    6. '       q1       '
-    7. '       q2       '
-    8. '       q3       '
-    9. 'md.compute.ThermodynamicQuantities.potential_energy'
-    
-    This function replaces the header row with a new row with these columns:
-
-    1. 't'
-    2. 'x'
-    3. 'y'
-    4. 'z'
-    5. 'q0'
-    6. 'q1'
-    7. 'q2'
-    8. 'q3'
-    9. 'PE'
+    This function strips whitespace from column names and if a column named 
+    'md.compute.ThermodynamicQuantities.potential_energy' is present, it is
+    rebnamed to 'U'.
 
     Parameters
     ----------
@@ -1344,10 +1369,22 @@ def clean_header(table: StringIO):
     -------
     cleaned_table
     """
+    # Calculate the clean column names
+    table.seek(0)
+    raw_header = table.readline()
+
+    raw_columns = raw_header.split(",")
+    clean_columns = []
+    for c in raw_columns:
+        if c == "md.compute.ThermodynamicQuantities.potential_energy":
+            clean_columns.append("U")
+        else:
+            clean_columns.append(c.strip())
+
+    # Build the clean table
     cleaned_table = StringIO()
     writer = csv.writer(cleaned_table)
-
-    writer.writerow(["t","x","y","z","q0","q1","q2","q3","PE"])
+    writer.writerow(clean_columns)
 
     table.seek(0)
     next(table)

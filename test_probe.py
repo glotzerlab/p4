@@ -77,7 +77,7 @@ def test_lj_sphere():
 
     nlist = hoomd.md.nlist.Cell(10)
 
-    system.probe_potential(
+    system.measure(
         position_resolutions=[50, 50, 50],
         orientation_resolutions=[1, 1, 1],
         symmetries=[1, 1, 1],
@@ -135,7 +135,7 @@ def test_alj_cube():
 
     nlist = hoomd.md.nlist.Cell(10)
 
-    system.probe_potential(
+    system.measure(
         position_resolutions=[50, 50, 1],
         orientation_resolutions=[1, 1, 10],
         symmetries=[1, 1, 4],
@@ -225,14 +225,15 @@ def test_alj_cube_with_g_sites(n_processes=-1):
 
     nlist = hoomd.md.nlist.Cell(10)
 
-    system.probe_potential(
-        position_resolutions=[100, 100, 1],
-        orientation_resolutions=[1, 1, 10],
+    system.measure(
+        quantities=["U", "F", "T"],
+        position_resolutions=[10, 10, 1],
+        orientation_resolutions=[1, 1, 2],
         symmetries=[1, 1, 4],
         nlist=nlist,
         csv_filename="alj-cube-with-gauss-sites.csv",
         outside_cutoff=10,
-        n_processes=-1,
+        n_processes=n_processes,
     )
 
 if __name__ == "__main__":
@@ -244,9 +245,9 @@ if __name__ == "__main__":
     #     start_time = time.perf_counter()
     #     test_alj_cube_with_eg_sites(n_processes)
     #     print(f"{n_processes} processes completed in {round(time.perf_counter() - start_time, 2)} s.")
-    test_lj_sphere()
+    # test_lj_sphere()
     # test_alj_cube()
-    # test_alj_cube_with_g_sites()
+    test_alj_cube_with_g_sites(1)
     # test_lj_sphere_3d()
 
     # f = p4.Field.from_csv("test-lj-sphere-3d.csv", "mean")

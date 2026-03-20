@@ -3,7 +3,7 @@
 
 from copy import deepcopy
 import os
-from typing import TYPE_CHECKING, Callable, Iterable
+from typing import TYPE_CHECKING, Callable, Iterable, Literal
 import multiprocessing
 
 import coxeter
@@ -156,6 +156,7 @@ class System:
 
     def measure(
         self,
+        quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
         position_resolutions: list[list[float]],    # TODO: sampling_strategy: 'grid' with p_res and o_res, 'dynamic' with ???
         orientation_resolutions: list[list[float]],
         symmetries: list[int],
@@ -172,6 +173,11 @@ class System:
 
         Parameters
         ----------
+        quantities : one or more of 'U', 'F', 'T'
+            The quantities to measure. 'U' is the potential energy measured for
+            the entire system, and is saved as a single scalar quantity. 'F' and
+            'T' are the net Force and Torque experienced by the probe, and are
+            saved as vector quantities.
         position_resolutions : list[list[float]]
             The number of samples along each dimension of the position grid.
             $[X, Y, Z]$
@@ -298,6 +304,7 @@ class System:
 
                 args = zip(
                     [deepcopy(self) for _ in range(n_processes)],
+                    [quantities for _ in range(n_processes)],
                     p4.util.subdivide(probe_positions, n_processes),
                     [probe_orientations for _ in range(n_processes)],
                     [self.active_interactions for _ in range(n_processes)],
@@ -327,6 +334,7 @@ class System:
                 simulation_box=simulation_box,
                 gsd_filename=gsd_filename
             )
+            breakpoint()
 
             table = p4.util.clean_header(table)
 

@@ -10,7 +10,7 @@ from wrong/fallible inputs.
 import csv
 from io import StringIO, TextIOWrapper
 import itertools
-from typing import Tuple
+from typing import Literal, Tuple
 import coxeter
 import gsd.hoomd
 import hoomd
@@ -972,6 +972,8 @@ def add_gsd_writer(
 def add_table_writer(
     simulation: hoomd.Simulation,
     csv_file: TextIOWrapper,
+    quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
+    probe_is_rigid: bool,
     compute: hoomd.md.compute.ThermodynamicQuantities | None = None
 ) -> Tuple[hoomd.Simulation, hoomd.logging.Logger]:
     """Add a table writer that logs potential energy to the simulation.
@@ -982,7 +984,14 @@ def add_table_writer(
         The simulation to modify.
     csv_file : TextIOWrapper
         The file object to which the table will be written.
-    compute : hoomd.logging.Logger, optional
+    quantities : one or more of 'U', 'F', 'T'
+        The quantities to measure. 'U' is the potential energy measured for
+        the entire system. 'F' and 'T' are the net Force and Torque experienced
+        by the probe.
+    probe_is_rigid : bool
+        Whether the probe is a rigid body. Required for proper summing of forces
+        and torques.
+    compute : hoomd.md.compute.ThermodynamicQuantities, optional
         An existing thermodynamic computer instance to use. If not provided, a
         new one is created.
 
@@ -992,10 +1001,8 @@ def add_table_writer(
         The modified simulation and its thermodynamic computer.
     """
     logger = hoomd.logging.Logger(categories=["scalar", "string"])
-    logger.add(simulation, quantities=["timestep"])
 
-    snapshot = simulation.state.get_snapshot()
-    probe_index = 1
+    probe_index = 1 # index of the central/primary particle for the probe
 
     def probe_position():
         with simulation.state.cpu_local_snapshot as snapshot:
@@ -1008,6 +1015,24 @@ def add_table_writer(
             return np.array(snapshot.particles.orientation[
                 snapshot.particles.rtag[probe_index]
             ])
+    
+    def probe_net_force():
+        if probe_is_rigid:
+            return simulation.operations.integrator.rigid.forces[probe_index]
+        else:
+            net_force = np.array([0.0, 0.0, 0.0])
+            for f in simulation.operations.integrator.forces:
+                net_force += f.forces[probe_index]
+            return net_force
+
+    def probe_net_torque():
+        if probe_is_rigid:
+            return simulation.operations.integrator.rigid.torques[probe_index]
+        else:
+            net_torque = np.array([0.0, 0.0, 0.0])
+            for f in simulation.operations.integrator.torques:
+                net_torque += f.torques[probe_index]
+            return net_torque
 
     logger["x"] = (lambda: probe_position()[0], "scalar")
     logger["y"] = (lambda: probe_position()[1], "scalar")
@@ -1023,7 +1048,18 @@ def add_table_writer(
         )
         simulation.operations.computes.append(compute)
     
-    logger.add(compute, quantities=["potential_energy"])
+    if "U" in quantities:
+        logger.add(compute, quantities=["potential_energy"], user_name="U")
+    
+    if "F" in quantities:
+        logger["Fx"] = (lambda: probe_net_force()[0], "scalar")
+        logger["Fy"] = (lambda: probe_net_force()[1], "scalar")
+        logger["Fz"] = (lambda: probe_net_force()[2], "scalar")
+
+    if "T" in quantities:
+        logger["Tx"] = (lambda: probe_net_torque()[0], "scalar")
+        logger["Ty"] = (lambda: probe_net_torque()[1], "scalar")
+        logger["Tz"] = (lambda: probe_net_torque()[2], "scalar")
 
     table_writer = hoomd.write.Table(
         trigger=1,
@@ -1182,7 +1218,8 @@ def get_simulation(
 
 def measure(
     system: "System",
-    probe_positions: list[list[float]],
+    quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
+    positions: list[list[float]],
     orientations: list[list[float]],
     included_interactions: list["Interaction"],
     nlist: hoomd.md.nlist.NeighborList,
@@ -1244,14 +1281,16 @@ def measure(
     simulation, _ = add_table_writer(
         simulation=simulation,
         csv_file=table,
-        compute=None if gsd_filename is None else compute
+        quantities=quantities,
+        probe_is_rigid=system.probe.is_rigid(included_interactions),
+        compute=None if gsd_filename is None else compute,
     )
     
     probe_index = 1
 
     # Iterate over positions
-    for p in probe_positions:
-        for o in probe_orientations:
+    for p in positions:
+        for o in orientations:
             with simulation.state.cpu_local_snapshot as state:
 
                 # Note: only probe position and orientation need to be

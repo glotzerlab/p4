@@ -1105,7 +1105,7 @@ def get_simulation(
     system: "System",
     included_interactions: list["Interaction"],
     nlist: hoomd.md.nlist.NeighborList,
-    probe_box: list[float],
+    measurement_box: list[float],
     simulation_box: list[float]
 ) -> hoomd.Simulation:
     """Return a simulation for a System with specified boxes and interactions.
@@ -1119,9 +1119,9 @@ def get_simulation(
         The interactions to include in the simulation.
     nlist : hoomd.md.nlist.NeighborList
         The neighbor list to use for the interactions in the simulation.
-    probe_box : list[float]
+    measurement_box : list[float]
         The side lengths $[Lx, Ly, Lz]$ of the box containing the positions to
-        be probed.
+        measure at.
     simulation_box : list[float]
         The simulation's box in HOOMD notation. $[Lx, Ly, Lz, xy, xz, yz]$
 
@@ -1141,7 +1141,7 @@ def get_simulation(
         system.probe,
         system.analyte,
         included_secondary_types,
-        probe_box,
+        measurement_box,
         simulation_box
     )
 
@@ -1180,26 +1180,31 @@ def get_simulation(
     
     return simulation
 
-def run_probe(
+def measure(
     system: "System",
     probe_positions: list[list[float]],
-    probe_orientations: list[list[float]],
+    orientations: list[list[float]],
     included_interactions: list["Interaction"],
     nlist: hoomd.md.nlist.NeighborList,
-    probe_box: list[float],
+    measurement_box: list[float],
     simulation_box: list[float],
     gsd_filename: str | None = None,
 ) -> StringIO:
-    """Return the probe data table for a system.
+    """Measure named quantities for a system.
 
     Parameters
     ----------
     system : System
-        The System to probe.
-    probe_positions : list[list[float]]
-        The positions to probe at.
-    probe_orientations : list[list[float]]
-        The orientations to probe at each position (in quaternion form).
+        The System to measure.
+    quantities : one or more of 'U', 'F', 'T'
+            The quantities to measure. 'U' is the potential energy measured for
+            the entire system, and is saved as a single scalar quantity. 'F' and
+            'T' are the net Force and Torque experienced by the probe, and are
+            saved as vector quantities.
+    positions : list[list[float]]
+        The positions to measure at.
+    orientations : list[list[float]]
+        The orientations (in quaternion form) to measure at for each position.
     included_interactions : list[Interactions]
         The Interactions to include in the simulation.
     gsd_filename : str
@@ -1207,9 +1212,9 @@ def run_probe(
         write 
     nlist : hoomd.md.nlist.NeighborList
         The neighbor list to use for the interactions.
-    probe_box : list[float]
+    measurement_box : list[float]
         The side lengths $[Lx, Ly, Lz]$ of the box containing the positions to
-        be probed.
+        measure at.
     simulation_box : list[float]
         The simulation's box in HOOMD notation. $[Lx, Ly, Lz, xy, xz, yz]$
     gsd_filename : str, optional
@@ -1219,15 +1224,15 @@ def run_probe(
     Returns
     -------
     table
-        The tabular results of the probe simulation, formatted as a CSV and
-        stored in a string buffer.
+        The tabular results of the measurement simulation, formatted as a CSV
+        and stored in a string buffer.
     """
     # Create simulation
     simulation = get_simulation(
         system,
         included_interactions,
         nlist,
-        probe_box,
+        measurement_box,
         simulation_box
     )
 

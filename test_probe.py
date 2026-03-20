@@ -77,7 +77,7 @@ def test_lj_sphere():
 
     nlist = hoomd.md.nlist.Cell(10)
 
-    system.probe_potential(
+    system.measure(
         position_resolutions=[50, 50, 50],
         orientation_resolutions=[1, 1, 1],
         symmetries=[1, 1, 1],
@@ -135,7 +135,7 @@ def test_alj_cube():
 
     nlist = hoomd.md.nlist.Cell(10)
 
-    system.probe_potential(
+    system.measure(
         position_resolutions=[50, 50, 1],
         orientation_resolutions=[1, 1, 10],
         symmetries=[1, 1, 4],
@@ -225,8 +225,9 @@ def test_alj_cube_with_g_sites(n_processes=-1):
 
     nlist = hoomd.md.nlist.Cell(10)
 
-    system.probe_potential(
-        position_resolutions=[100, 100, 1],
+    system.measure(
+        quantities=["U", "F", "T"],
+        position_resolutions=[10, 10, 1],
         orientation_resolutions=[1, 1, 10],
         symmetries=[1, 1, 4],
         nlist=nlist,

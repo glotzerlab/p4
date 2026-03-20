@@ -154,7 +154,7 @@ class System:
         all_types.extend(self.analyte.secondary_types)
         return list(set(all_types))
 
-    def probe_potential(
+    def measure(
         self,
         position_resolutions: list[list[float]],    # TODO: sampling_strategy: 'grid' with p_res and o_res, 'dynamic' with ???
         orientation_resolutions: list[list[float]],
@@ -168,7 +168,7 @@ class System:
         n_processes: int = 1,
         save_gsd: bool = False,
     ):
-        """Probe the potential energy landscape of the system.
+        """Measure named quantities for the system.
 
         Parameters
         ----------
@@ -306,7 +306,7 @@ class System:
                     [simulation_box for _ in range(n_processes)],
                     gsd_filenames,
                 )
-                tables = pool.starmap(p4.util.run_probe, args)
+                tables = pool.starmap(p4.util.measure, args)
             
             table = p4.util.clean_header(p4.util.merge_tables(tables))
         
@@ -316,13 +316,14 @@ class System:
                 gsd_filename = csv_filename.split(".")[-2] + ".gsd"
             else:
                 gsd_filename = None
-            table = p4.util.run_probe(
+            table = p4.util.measure(
                 system=self,
-                probe_positions=probe_positions,
-                probe_orientations=probe_orientations,
+                quantities=quantities,
+                positions=probe_positions,
+                orientations=probe_orientations,
                 included_interactions=self.active_interactions,
                 nlist=nlist,
-                probe_box=probe_box,
+                measurement_box=probe_box,
                 simulation_box=simulation_box,
                 gsd_filename=gsd_filename
             )

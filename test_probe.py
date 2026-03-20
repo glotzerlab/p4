@@ -226,7 +226,6 @@ def test_alj_cube_with_g_sites(n_processes=-1):
     nlist = hoomd.md.nlist.Cell(10)
 
     system.measure(
-        quantities=["U", "F", "T"],
         position_resolutions=[10, 10, 1],
         orientation_resolutions=[1, 1, 2],
         symmetries=[1, 1, 4],

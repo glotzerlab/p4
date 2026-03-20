@@ -156,7 +156,6 @@ class System:
 
     def measure(
         self,
-        quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
         position_resolutions: list[list[float]],    # TODO: sampling_strategy: 'grid' with p_res and o_res, 'dynamic' with ???
         orientation_resolutions: list[list[float]],
         symmetries: list[int],
@@ -169,15 +168,10 @@ class System:
         n_processes: int = 1,
         save_gsd: bool = False,
     ):
-        """Measure named quantities for the system.
+        """Measure potential energy, force, and torque across the system.
 
         Parameters
         ----------
-        quantities : one or more of 'U', 'F', 'T'
-            The quantities to measure. 'U' is the potential energy measured for
-            the entire system, and is saved as a single scalar quantity. 'F' and
-            'T' are the net Force and Torque experienced by the probe, and are
-            saved as vector quantities.
         position_resolutions : list[list[float]]
             The number of samples along each dimension of the position grid.
             $[X, Y, Z]$
@@ -304,7 +298,6 @@ class System:
 
                 args = zip(
                     [deepcopy(self) for _ in range(n_processes)],
-                    [quantities for _ in range(n_processes)],
                     p4.util.subdivide(probe_positions, n_processes),
                     [probe_orientations for _ in range(n_processes)],
                     [self.active_interactions for _ in range(n_processes)],
@@ -325,7 +318,6 @@ class System:
                 gsd_filename = None
             table = p4.util.measure(
                 system=self,
-                quantities=quantities,
                 positions=probe_positions,
                 orientations=probe_orientations,
                 included_interactions=self.active_interactions,

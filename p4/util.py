@@ -972,10 +972,11 @@ def add_gsd_writer(
 def add_table_writer(
     simulation: hoomd.Simulation,
     csv_file: TextIOWrapper,
+    quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
     probe_is_rigid: bool,
     compute: hoomd.md.compute.ThermodynamicQuantities | None = None
 ) -> Tuple[hoomd.Simulation, hoomd.logging.Logger]:
-    """Add a table writer that logs PE, F, and T to the simulation.
+    """Add a table writer that logs named quantities to the simulation.
 
     Parameters
     ----------
@@ -983,6 +984,10 @@ def add_table_writer(
         The simulation to modify.
     csv_file : TextIOWrapper
         The file object to which the table will be written.
+    quantities : one or more of 'U', 'F', 'T'
+        The quantities to measure. 'U' is the potential energy measured for
+        the entire system. 'F' and 'T' are the net Force and Torque experienced
+        by the probe.
     probe_is_rigid : bool
         Whether the probe is a rigid body. Required for proper summing of forces
         and torques.
@@ -1043,15 +1048,21 @@ def add_table_writer(
         )
         simulation.operations.computes.append(compute)
     
-    logger.add(compute, quantities=["potential_energy"])
+    if isinstance(quantities, str):
+        quantities = [quantities]
     
-    logger["Fx"] = (lambda: probe_net_force()[0], "scalar")
-    logger["Fy"] = (lambda: probe_net_force()[1], "scalar")
-    logger["Fz"] = (lambda: probe_net_force()[2], "scalar")
+    if "U" in quantities:
+        logger.add(compute, quantities=["potential_energy"])
+    
+    if "F" in quantities:
+        logger["Fx"] = (lambda: probe_net_force()[0], "scalar")
+        logger["Fy"] = (lambda: probe_net_force()[1], "scalar")
+        logger["Fz"] = (lambda: probe_net_force()[2], "scalar")
 
-    logger["Tx"] = (lambda: probe_net_torque()[0], "scalar")
-    logger["Ty"] = (lambda: probe_net_torque()[1], "scalar")
-    logger["Tz"] = (lambda: probe_net_torque()[2], "scalar")
+    if "T" in quantities:
+        logger["Tx"] = (lambda: probe_net_torque()[0], "scalar")
+        logger["Ty"] = (lambda: probe_net_torque()[1], "scalar")
+        logger["Tz"] = (lambda: probe_net_torque()[2], "scalar")
 
     table_writer = hoomd.write.Table(
         trigger=1,
@@ -1210,6 +1221,7 @@ def get_simulation(
 
 def measure(
     system: "System",
+    quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
     positions: list[list[float]],
     orientations: list[list[float]],
     included_interactions: list["Interaction"],
@@ -1218,12 +1230,17 @@ def measure(
     simulation_box: list[float],
     gsd_filename: str | None = None,
 ) -> StringIO:
-    """Measure potential energy, force, and torque across a system.
+    """Measure named quantities for a system.
 
     Parameters
     ----------
     system : System
         The System to measure.
+    quantities : one or more of 'U', 'F', 'T'
+        The quantities to measure. 'U' is the potential energy measured for
+        the entire system, and is saved as a single scalar quantity. 'F' and
+        'T' are the net Force and Torque experienced by the probe, and are
+        saved as vector quantities.
     positions : list[list[float]]
         The positions to measure at.
     orientations : list[list[float]]
@@ -1267,6 +1284,7 @@ def measure(
     simulation, _ = add_table_writer(
         simulation=simulation,
         csv_file=table,
+        quantities=quantities,
         probe_is_rigid=system.probe.is_rigid(included_interactions),
         compute=None if gsd_filename is None else compute,
     )
@@ -1338,41 +1356,9 @@ def merge_tables(table_csvs: list[StringIO]):
 def clean_header(table: StringIO):
     """Simplify the header of a table string buffer.
 
-    This function is not robust. It does not search for expected column
-    names and modify them in place. It requires a CSV-formatted string buffer
-    with the following columns (in order):
-    
-    1. '       x        '
-    2. '       y        '
-    3. '       z        '
-    4. '       q0       '
-    5. '       q1       '
-    6. '       q2       '
-    7. '       q3       '
-    8. 'md.compute.ThermodynamicQuantities.potential_energy'
-    9. '       Fx       '
-    10. '       Fy       '
-    11. '       Fz       '
-    12. '       Tx       '
-    13. '       Ty       '
-    14. '       Tz       '
-    
-    This function replaces the header row with a new row with these columns:
-
-    1. 'x'
-    2. 'y'
-    3. 'z'
-    4. 'q0'
-    5. 'q1'
-    6. 'q2'
-    7. 'q3'
-    8. 'U'
-    9. 'Fx'
-    10. 'Fy'
-    11. 'Fz'
-    12. 'Tx'
-    13. 'Ty'
-    14. 'Tz'
+    This function strips whitespace from column names and if a column named 
+    'md.compute.ThermodynamicQuantities.potential_energy' is present, it is
+    rebnamed to 'U'.
 
     Parameters
     ----------
@@ -1383,17 +1369,22 @@ def clean_header(table: StringIO):
     -------
     cleaned_table
     """
+    # Calculate the clean column names
+    table.seek(0)
+    raw_header = table.readline()
+
+    raw_columns = raw_header.split(",")
+    clean_columns = []
+    for c in raw_columns:
+        if c == "md.compute.ThermodynamicQuantities.potential_energy":
+            clean_columns.append("U")
+        else:
+            clean_columns.append(c.strip())
+
+    # Build the clean table
     cleaned_table = StringIO()
     writer = csv.writer(cleaned_table)
-
-    writer.writerow(
-        [
-            "x", "y", "z", "q0", "q1", "q2", "q3", "U", "Fx", "Fy", "Fz", "Tx",
-            "Ty", "Tz",
-        ]
-    )
-
-
+    writer.writerow(clean_columns)
 
     table.seek(0)
     next(table)

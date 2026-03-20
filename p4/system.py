@@ -290,7 +290,7 @@ class System:
             with multiprocessing.Pool(processes=n_processes) as pool:
                 if save_gsd:
                     gsd_filenames = [
-                        csv_filename.split(".")[-2] + f"_{i}.gsd"
+                        csv_filename.rsplit(".", 1)[0] + f"_{i}.gsd"
                         for i in range(n_processes)
                     ]
                 else:
@@ -313,7 +313,7 @@ class System:
         # If not multiprocessing, don't initialize a pool (easier for debugging)
         else:
             if save_gsd:
-                gsd_filename = csv_filename.split(".")[-2] + ".gsd"
+                gsd_filename = csv_filename.rsplit(".", 1)[0] + ".gsd"
             else:
                 gsd_filename = None
             table = p4.util.run_probe(

@@ -1342,27 +1342,37 @@ def clean_header(table: StringIO):
     names and modify them in place. It requires a CSV-formatted string buffer
     with the following columns (in order):
     
-    1. 'Simulation.timestep'
-    2. '       x        '
-    3. '       y        '
-    4. '       z        '
-    5. '       q0       '
-    6. '       q1       '
-    7. '       q2       '
-    8. '       q3       '
-    9. 'md.compute.ThermodynamicQuantities.potential_energy'
+    1. '       x        '
+    2. '       y        '
+    3. '       z        '
+    4. '       q0       '
+    5. '       q1       '
+    6. '       q2       '
+    7. '       q3       '
+    8. 'md.compute.ThermodynamicQuantities.potential_energy'
+    9. '       Fx       '
+    10. '       Fy       '
+    11. '       Fz       '
+    12. '       Tx       '
+    13. '       Ty       '
+    14. '       Tz       '
     
     This function replaces the header row with a new row with these columns:
 
-    1. 't'
-    2. 'x'
-    3. 'y'
-    4. 'z'
-    5. 'q0'
-    6. 'q1'
-    7. 'q2'
-    8. 'q3'
-    9. 'PE'
+    1. 'x'
+    2. 'y'
+    3. 'z'
+    4. 'q0'
+    5. 'q1'
+    6. 'q2'
+    7. 'q3'
+    8. 'U'
+    9. 'Fx'
+    10. 'Fy'
+    11. 'Fz'
+    12. 'Tx'
+    13. 'Ty'
+    14. 'Tz'
 
     Parameters
     ----------
@@ -1376,7 +1386,14 @@ def clean_header(table: StringIO):
     cleaned_table = StringIO()
     writer = csv.writer(cleaned_table)
 
-    writer.writerow(["t","x","y","z","q0","q1","q2","q3","PE"])
+    writer.writerow(
+        [
+            "x", "y", "z", "q0", "q1", "q2", "q3", "U", "Fx", "Fy", "Fz", "Tx",
+            "Ty", "Tz",
+        ]
+    )
+
+
 
     table.seek(0)
     next(table)

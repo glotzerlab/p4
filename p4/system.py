@@ -334,7 +334,6 @@ class System:
                 simulation_box=simulation_box,
                 gsd_filename=gsd_filename
             )
-            breakpoint()
 
             table = p4.util.clean_header(table)
 

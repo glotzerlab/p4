@@ -4,7 +4,7 @@
 # TODO: Add file output methods
 # TODO: Add IO support for VTK
 # TODO: add support for irregular grids
-# TODO: Consider removing orientations on aggregation (significant refactoring)
+# [Review] Consider removing orientations on aggregation (significant refactoring)
 
 from copy import copy
 from types import NoneType

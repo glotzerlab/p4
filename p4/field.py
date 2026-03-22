@@ -615,7 +615,7 @@ class Field:
     def _plot_trace_scalar_3d(
         self,
         quantity: Literal["U", "F", "T", "Fx", "Fy", "Fz", "Tx", "Ty", "Tz"],
-        clim: list[float],
+        clim: list[float] | None,
         contours: int,
         cmap: str,
         fill_nan_with_inf: bool,
@@ -628,7 +628,9 @@ class Field:
         quantity : 'U', 'F', 'T', 'Fx', 'Fy', 'Fz', 'Tx', 'Ty', or 'Tz'
             The name of the quantity to plot.
         clim : list of floats
-            The lower and upper limits of the colorscale.
+            The lower and upper limits of the colorscale. If None, then
+            the lower and upper limits will be set to the 10th and 90th
+            percentile values, respectively.
         contours : int
             The number of values to draw contours around. Only uesd in 3D and
             2D scalar plots. In 2D, pass None to instead use a continuous
@@ -666,6 +668,9 @@ class Field:
             extents["y"][0]:extents["y"][1]:complex(0, array.shape[1]),
             extents["z"][0]:extents["z"][1]:complex(0, array.shape[0]),
         ]
+
+        if clim is None:
+            clim = [np.percentile(array, 10), np.percentile(array, 90)]
         
         return plotly.graph_objects.Volume(
             x=x.flatten(),
@@ -690,7 +695,7 @@ class Field:
         self,
         quantity: Literal["U", "F", "T", "Fx", "Fy", "Fz", "Tx", "Ty", "Tz"],
         slice: dict[str, float],
-        clim: list[float],
+        clim: list[float] | None,
         contours: int | None,
         cmap: str,
         fill_nan_with_inf: bool,
@@ -706,7 +711,9 @@ class Field:
             Axes and positions along which to slice. Keys are limited to 'x',
             'y', and 'z'. There can be at most two keys.
         clim : list of floats
-            The lower and upper limits of the colorscale.
+            The lower and upper limits of the colorscale. If None, then
+            the lower and upper limits will be set to the 10th and 90th
+            percentile values, respectively.
         contours : int or None
             The number of values to draw contours around. Only uesd in 3D and
             2D scalar plots. In 2D, pass None to instead use a continuous
@@ -742,6 +749,9 @@ class Field:
         
         if fill_nan_with_inf:
             array = np.nan_to_num(array, nan=1e99)
+
+        if clim is None:
+            clim = [np.percentile(array, 10), np.percentile(array, 90)]
 
         cmin, cmax = min(clim), max(clim)
 
@@ -854,7 +864,9 @@ class Field:
         quantity : 'F' or 'T'
             The name of the quantity to plot.
         clim : list of floats
-            The lower and upper limits of the colorscale.
+            The lower and upper limits of the colorscale. If None, then
+            the lower and upper limits will be set to the 10th and 90th
+            percentile of the magnitudes, respectively.
         cmap : str
             The name of the plotly colormap to use. Only used in 3D and 2D
             scalar plots and 3D vector plots.
@@ -866,6 +878,15 @@ class Field:
         plotly.graph_objs._cone.Cone
             The plotly trace.
         """
+        if clim is None:
+            components = np.column_stack((
+                self.tall_array[f"{quantity}z"],
+                self.tall_array[f"{quantity}z"],
+                self.tall_array[f"{quantity}z"],
+            ))
+            magnitudes = np.sqrt(np.sum(np.square(components), axis=1))
+            clim = [np.percentile(magnitudes, 10), np.percentile(magnitudes, 90)]
+
         return plotly.graph_objects.Cone(
             x=self.tall_array["x"],
             y=self.tall_array["y"],
@@ -877,6 +898,7 @@ class Field:
             cmin=min(clim),
             cmax=max(clim),
             showscale=show_cbar,
+            # sizemode="raw",   # TODO: add customdata 
         )
 
     def _plot_trace_vector_2d(
@@ -1067,7 +1089,7 @@ class Field:
         quantity: Literal["U", "F", "T", "Fx", "Fy", "Fz", "Tx", "Ty", "Tz"] | None = None,
         vectors: bool = False,
         slice: dict[str, float] = {},
-        clim: list[float] = [-1,10],
+        clim: list[float] | None = None,
         contours: int | None = 10,
         cmap: str = "RdYlBu_r",
         fill_nan_with_inf: bool = False,
@@ -1102,9 +1124,13 @@ class Field:
             not 'F' or 'T', this is always ``False``.
         slice : dict, default={}
             Axes and positions along which to slice. Keys are limited to 'x',
-            'y', and 'z'. There can be at most two keys.
-        clim : list of floats, default=[-1, 10]
-            The lower and upper limits of the colorscale.
+            'y', and 'z'. There can be at most two keys. If the slice contains
+            a position that does not exactly match the grid, the nearest grid
+            position will be used.
+        clim : list of floats, optional
+            The lower and upper limits of the colorscale. If not provided,
+            the lower and upper limits will be set to the 10th and 90th
+            percentile values, respectively.
         contours : int or None, default=10
             The number of values to draw contours around. Only uesd in 3D and
             2D scalar plots. In 2D, pass None to instead use a continuous

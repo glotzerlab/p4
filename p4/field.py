@@ -15,6 +15,8 @@ from numpy.lib import recfunctions
 import plotly
 import plotly.figure_factory
 
+from . import util
+
 
 AXIS_TITLE_FONT = dict(weight=1000, size=16)
 FIG_TITLE_FONT = dict(style="italic", size=16)
@@ -1196,8 +1198,13 @@ class Field:
                 quantity = "F"
             elif set(self.quantities) == {"T", "Tx", "Ty", "Tz"}:
                 quantity = "T"
-        
-        # TODO: change slice to have values that are CLOSEST to the user-provided
+
+        # Set slice values to the closest values in the tall array
+        for dimension, value in slice.items():
+            if value not in self.tall_array[dimension]:
+                slice[dimension] = util.find_nearest(
+                    self.tall_array[dimension], value
+                )
 
         # If the array only has one value along any of the dimensions, treat
         # that dimension and value as part of the provided slice

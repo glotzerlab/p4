@@ -1030,7 +1030,7 @@ def add_table_writer(
             return simulation.operations.integrator.rigid.torques[probe_index]
         else:
             net_torque = np.array([0.0, 0.0, 0.0])
-            for f in simulation.operations.integrator.torques:
+            for f in simulation.operations.integrator.forces:
                 net_torque += f.torques[probe_index]
             return net_torque
 

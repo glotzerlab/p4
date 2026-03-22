@@ -651,8 +651,8 @@ class Field:
         """
         array = self.gridded_array(quantity=quantity, vectors=False)
 
-        # array = np.rot90(array, 1, axes=(0, 2))
-        # array = np.flip(array, axis=0)
+        array = np.rot90(array, 1, axes=(0, 2))   # TODO: check if this should be in gridded_array
+        array = np.flip(array, axis=0)
 
         if fill_nan_with_inf:
             array = np.nan_to_num(array, nan=1e99)
@@ -878,27 +878,82 @@ class Field:
         plotly.graph_objs._cone.Cone
             The plotly trace.
         """
+        # Calculate scaled vectors to ensure that the cones all fit on the plot.
+        # The smallest scaled magnitude is 0.05 * the longest dimension.
+        # The largest scaled magnitude is 0.15 * the longest dimension.
+        # The low end of the scale is mapped to the 10th percentile magnitude,
+        # with all smaller magnitudes clamped to it. Likewise for the high
+        # end of the scale and the 90th percentile magnitude.
+        # The scale is linear.
+        components = np.column_stack((
+            self.tall_array[f"{quantity}x"],
+            self.tall_array[f"{quantity}y"],
+            self.tall_array[f"{quantity}z"],
+        ))
+        magnitudes = np.sqrt(np.sum(np.square(components), axis=1))
+
+        m_10 = np.percentile(magnitudes, 10)
+        m_90 = np.percentile(magnitudes, 90)
+        m_min = magnitudes.min()
+        m_max = magnitudes.max()
+
+        longest_side = max([
+            self.tall_array["x"].max(),
+            self.tall_array["y"].max(),
+            self.tall_array["z"].max(),
+        ])
+        s_min = longest_side * 0.05
+        s_max = longest_side * 0.15
+
+        scale_factors = (
+            (
+                (((magnitudes - m_min) / (m_max - m_min)) * (s_max - s_min))
+                + s_min
+            ) / magnitudes
+        )
+        
+        for i, m in enumerate(magnitudes):
+            if m < m_10:
+                scale_factors[i] = s_min / m
+            elif m > m_90:
+                scale_factors[i] = s_max / m
+
         if clim is None:
-            components = np.column_stack((
-                self.tall_array[f"{quantity}z"],
-                self.tall_array[f"{quantity}z"],
-                self.tall_array[f"{quantity}z"],
-            ))
-            magnitudes = np.sqrt(np.sum(np.square(components), axis=1))
-            clim = [np.percentile(magnitudes, 10), np.percentile(magnitudes, 90)]
+            clim = [m_10, m_90]
+
+        customdata = np.column_stack((
+            self.tall_array[f"{quantity}x"],
+            self.tall_array[f"{quantity}y"],
+            self.tall_array[f"{quantity}z"],
+            magnitudes
+        ))
 
         return plotly.graph_objects.Cone(
             x=self.tall_array["x"],
             y=self.tall_array["y"],
             z=self.tall_array["z"],
-            u=self.tall_array[f"{quantity}z"],
-            v=self.tall_array[f"{quantity}z"],
-            w=self.tall_array[f"{quantity}z"],
+            u=self.tall_array[f"{quantity}x"] * scale_factors,
+            v=self.tall_array[f"{quantity}y"] * scale_factors,
+            w=self.tall_array[f"{quantity}z"] * scale_factors,
             colorscale=cmap,
-            cmin=min(clim),
-            cmax=max(clim),
+            cmin=s_min,#min(clim),
+            cmax=s_max,#max(clim),
             showscale=show_cbar,
-            # sizemode="raw",   # TODO: add customdata 
+            colorbar=dict(
+                tickvals=[
+                    s_min + (s_max - s_min) * i
+                    for i in np.linspace(0, 1, 5)
+                ],
+                ticktext=[
+                    f"{(m_10 + (m_90 - m_10) * i):.2e}"
+                    for i in np.linspace(0, 1, 5)
+                ]
+            ),
+            sizemode="raw",   # TODO: add customdata 
+            customdata=customdata,
+            hovertemplate=
+                f"<b>|{quantity}|</b> " + "(%{customdata[3]:.2e})<br>"
+                + "(%{customdata[0]:.2e}, %{customdata[1]:.2e}, %{customdata[2]:.2e})"
         )
 
     def _plot_trace_vector_2d(
@@ -930,26 +985,66 @@ class Field:
         if "z" in slice:
             x = slice_tall_array["x"]
             y = slice_tall_array["y"]
-            u = slice_tall_array[f"{quantity}x"]
-            v = slice_tall_array[f"{quantity}y"]
+            vec_x = slice_tall_array[f"{quantity}x"]
+            vec_y = slice_tall_array[f"{quantity}y"]
         elif "y" in slice:
             x = slice_tall_array["x"]
             y = slice_tall_array["z"]
-            u = slice_tall_array[f"{quantity}x"]
-            v = slice_tall_array[f"{quantity}z"]
+            vec_x = slice_tall_array[f"{quantity}x"]
+            vec_y = slice_tall_array[f"{quantity}z"]
         elif "x" in slice:
             x = slice_tall_array["y"]
             y = slice_tall_array["z"]
-            u = slice_tall_array[f"{quantity}y"]
-            v = slice_tall_array[f"{quantity}z"]
+            vec_x = slice_tall_array[f"{quantity}y"]
+            vec_y = slice_tall_array[f"{quantity}z"]
+
+        # Calculate scaled vectors to ensure that the cones all fit on the plot.
+        # The smallest scaled magnitude is 0.05 * the longest dimension.
+        # The largest scaled magnitude is 0.15 * the longest dimension.
+        # The low end of the scale is mapped to the 10th percentile magnitude,
+        # with all smaller magnitudes clamped to it. Likewise for the high
+        # end of the scale and the 90th percentile magnitude.
+        # The scale is linear.
+        components = np.column_stack((vec_x, vec_y))
+        magnitudes = np.sqrt(np.sum(np.square(components), axis=1))
+
+        m_10 = np.percentile(magnitudes, 10)
+        m_90 = np.percentile(magnitudes, 90)
+        m_min = magnitudes.min()
+        m_max = magnitudes.max()
+
+        longest_side = max([x.max(), y.max()])
+        s_min = longest_side * 0.05
+        s_max = longest_side * 0.15
+
+        scale_factors = (
+            (
+                (((magnitudes - m_min) / (m_max - m_min)) * (s_max - s_min))
+                + s_min
+            ) / magnitudes
+        )
+        
+        for i, m in enumerate(magnitudes):
+            if m < m_10:
+                scale_factors[i] = s_min / m
+            elif m > m_90:
+                scale_factors[i] = s_max / m
+
+        customdata = np.column_stack((vec_x, vec_y, magnitudes))
 
         fig = plotly.figure_factory.create_quiver(
             x=x,
             y=y,
-            u=u,
-            v=v,
+            u=vec_x * scale_factors,
+            v=vec_y * scale_factors,
+            scale=1,
+            arrow_scale=0.4,
             marker_color=marker_color,
             name=quantity,
+            customdata=customdata,
+            hovertemplate=
+                f"<b>|{quantity}|</b> " + "(%{customdata[2]:.2e})<br>"
+                + "(%{customdata[0]:.2e}, %{customdata[1]:.2e})"
         )
 
         return fig.data[0]
@@ -1041,7 +1136,8 @@ class Field:
                 yaxis=copy(axis_style),
                 plot_bgcolor="rgba(0,0,0,0)"
             )
-            layout["yaxis_range"] = [min(clim), max(clim)]
+            if clim is not None:
+                layout["yaxis_range"] = [min(clim), max(clim)]
 
         # Update layout dictionary with axis and figure titles (only 1D and 2D)
         if len(slice) == 1:

@@ -46,10 +46,6 @@ class Field:
         
         return cls(tall_array)
 
-    @classmethod
-    def from_vtk(cls, filename):
-        pass
-
     # ------------------------------- PROPERTIES -------------------------------
 
     @property
@@ -95,7 +91,6 @@ class Field:
         
         return quantities
 
-    # @property
     # def has_regular_grid(self) -> bool:
     #     #Whether this Field's grid has constant intervals along each axis.
     #     positions = self.positions

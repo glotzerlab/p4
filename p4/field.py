@@ -95,7 +95,7 @@ class Field:
 
     # @property
     # def has_regular_grid(self) -> bool:
-    #     """Whether this Field's grid has constant intervals along each axis."""
+    #     #Whether this Field's grid has constant intervals along each axis.
     #     positions = self.positions
         
     #     x = np.unique(positions[:,0])
@@ -1062,7 +1062,7 @@ class Field:
 
     def plot(
         self,
-        quantity: Literal["U", "F", "T", "Fx", "Fy", "Fz", "Tx", "Ty", "Tz"],
+        quantity: Literal["U", "F", "T", "Fx", "Fy", "Fz", "Tx", "Ty", "Tz"] | None = None,
         vectors: bool = False,
         slice: dict[str, float] = {},
         clim: list[float] = [-1,10],
@@ -1093,7 +1093,8 @@ class Field:
         Parameters
         ----------
         quantity : 'U', 'F', 'T', 'Fx', 'Fy', 'Fz', 'Tx', 'Ty', or 'Tz'
-            The name of the quantity to plot.
+            The name of the quantity to plot. If this field only contains 'U',
+            'F', or 'T' quantities, this parameter is optional.
         vectors : bool, default=False
             Whether to plot the quantity as a scalar or vector. If `quantity` is
             not 'F' or 'T', this is always ``False``.
@@ -1143,8 +1144,22 @@ class Field:
                 + "Aggregate over orientations."
             )
         
+        # Ensure that there is no ambguity around quantity
+        if (
+            quantity is None
+            and (
+                set(self.quantities) != {"U"}
+                and set(self.quantities) != {"F", "Fx", "Fy", "Fz"}
+                and set(self.quantities) != {"T", "Tx", "Ty", "Tz"}
+            )
+        ):
+            raise ValueError(
+                "Plot quantity is not inferrable. Specify one of the "
+                + f"following: {self.quantities}"
+            )
+        
         # Ensure that the requested quantity is actually present
-        if quantity not in self.quantities:
+        if (quantity is not None) and (quantity not in self.quantities):
             raise ValueError(
                 "`quantity` is not one of this field's quantities "
                 f"({self.quantities})."
@@ -1172,6 +1187,15 @@ class Field:
             raise ValueError("In 3D, `contours` must be an integer.")
         if len(slice) == 1 and not isinstance(contours, (int, NoneType)):
             raise ValueError("In 2D, `contours` must be an integer or None.")
+        
+        # Infer quantity if necessary
+        if quantity is None:
+            if set(self.quantities) == {"U"}:
+                quantity = "U"
+            elif set(self.quantities) == {"F", "Fx", "Fy", "Fz"}:
+                quantity = "F"
+            elif set(self.quantities) == {"T", "Tx", "Ty", "Tz"}:
+                quantity = "T"
         
         # TODO: change slice to have values that are CLOSEST to the user-provided
 

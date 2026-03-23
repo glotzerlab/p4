@@ -78,13 +78,14 @@ def test_lj_sphere():
     nlist = hoomd.md.nlist.Cell(10)
 
     system.measure(
-        position_resolutions=[50, 50, 50],
+        quantities=["U", "F", "T"],
+        position_resolutions=[10, 10, 10],
         orientation_resolutions=[1, 1, 1],
         symmetries=[1, 1, 1],
         nlist=nlist,
-        csv_filename="lj-sphere.csv",
+        csv_filename="lj-sphere-uft.csv",
         outside_cutoff=2.0,
-        n_processes=-1
+        n_processes=1
     )
 
 def test_alj_cube():
@@ -227,8 +228,8 @@ def test_alj_cube_with_g_sites(n_processes=-1):
 
     system.measure(
         quantities=["U", "F", "T"],
-        position_resolutions=[10, 10, 1],
-        orientation_resolutions=[1, 1, 2],
+        position_resolutions=[10, 10, 10],
+        orientation_resolutions=[1, 1, 5],
         symmetries=[1, 1, 4],
         nlist=nlist,
         csv_filename="alj-cube-with-gauss-sites.csv",
@@ -245,9 +246,9 @@ if __name__ == "__main__":
     #     start_time = time.perf_counter()
     #     test_alj_cube_with_eg_sites(n_processes)
     #     print(f"{n_processes} processes completed in {round(time.perf_counter() - start_time, 2)} s.")
-    # test_lj_sphere()
+    test_lj_sphere()
     # test_alj_cube()
-    test_alj_cube_with_g_sites(1)
+    # test_alj_cube_with_g_sites(-1)
     # test_lj_sphere_3d()
 
     # f = p4.Field.from_csv("test-lj-sphere-3d.csv", "mean")

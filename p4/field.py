@@ -23,7 +23,9 @@ FIG_TITLE_FONT = dict(style="italic", size=16)
 
 class Field:
     def __init__(self, tall_array):
-        self.tall_array = tall_array
+        self._positions = None
+        self._orientations = None
+        self._tall_array = tall_array
 
     # ----------------------------------- IO -----------------------------------
 
@@ -48,6 +50,36 @@ class Field:
     # ------------------------------- PROPERTIES -------------------------------
 
     @property
+    def tall_array(self) -> np.rec.recarray:
+        """The tabular dataset, returned as a record array."""
+        return self._tall_array
+    
+    @tall_array.setter
+    def tall_array(self, array: np.rec.recarray):
+        """Set the tall array equal to a new record array."""
+        if type(array) != np.rec.recarray:
+            raise TypeError("The array must be an instance of np.rec.recarray.")
+        
+        columns = set(list(self.tall_array.dtype.fields.keys()))
+        if {"x", "y", "z"} - columns != set():
+            raise ValueError("The array must have columns 'x', 'y', and 'z'.")
+        
+        if (
+            ("U" not in columns)
+            and ({"Fx", "Fy", "Fz"} - columns != set())
+            and ({"Tx", "Ty", "Tz"} - columns != set())
+        ):
+            raise ValueError(
+                "The array must have columns that contain either "
+                + "'U', or all of 'Fx', 'Fy', and 'Fz', or all of 'Tx', 'Ty', "
+                + "and 'Tz'."
+            )
+        
+        self._positions = None
+        self._orientations = None
+        self._tall_array = self.tall_array
+
+    @property
     def columns(self) -> list[str]:
         """The names of the columns in the tall array."""
         return list(self.tall_array.dtype.fields.keys())
@@ -55,14 +87,17 @@ class Field:
     @property
     def positions(self) -> np.ndarray:
         """The unique positions."""
-        return np.unique(
-            np.column_stack((
-                self.tall_array["x"],
-                self.tall_array["y"],
-                self.tall_array["z"]
-            )),
-            axis=0
-        )
+        if self._positions is None:
+            self._positions = np.unique(
+                np.column_stack((
+                    self.tall_array["x"],
+                    self.tall_array["y"],
+                    self.tall_array["z"]
+                )),
+                axis=0
+            )
+        
+        return self._positions
 
     @property
     def orientations(self) -> np.ndarray | None:

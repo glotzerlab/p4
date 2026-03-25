@@ -1,13 +1,13 @@
 # Copyright (c) 2025-2026, The Regents of the University of Michigan
 # This file is from the p4 project, released under the BSD 3-Clause License.
 
-# TODO: Add file output methods
 # TODO: Add IO support for VTK
 # TODO: add support for irregular grids
 
 from copy import copy
 from types import NoneType
 from typing import Iterable, Literal
+import csv
 
 import numpy as np
 from numpy.lib import recfunctions
@@ -46,6 +46,13 @@ class Field:
         )
         
         return cls(tall_array)
+
+    def to_csv(self, filename):
+        """Save this field to CSV."""
+        with open(filename, "w") as f:
+            writer = csv.writer(f)
+            writer.writerow(self.tall_array.dtype.names)
+            writer.writerows(self.tall_array.tolist())
 
     # ------------------------------- PROPERTIES -------------------------------
 

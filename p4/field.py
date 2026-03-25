@@ -103,7 +103,7 @@ class Field:
     def orientations(self) -> np.ndarray | None:
         """The unique orientations.
         
-        If the columns do not include 'q0', 'q1', 'q2', and 'q3', None is
+        If the columns do not include all of 'q0', 'q1', 'q2', and 'q3', None is
         returned.
         """
         columns = set(self.tall_array.dtype.fields.keys())

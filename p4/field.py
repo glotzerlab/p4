@@ -22,6 +22,49 @@ FIG_TITLE_FONT = dict(style="italic", size=16)
 
 
 class Field:
+    """Analyze and plot scalar and vector fields in 3D, 2D, and 1D.
+    
+    Field is built around NumPy's recarray class, which is a lightweight tabular
+    data structure similar to the Pandas DataFrame.
+
+    Access a Field's tabular data using the ``table`` property, which returns
+    the underlying recarray.
+    
+    Instantiate a Field directly from a recarray (``np.rec.recarray``), or from
+    CSV using the ``from_csv`` method. In order for instantiation to work, the
+    tabular data must have at least 'x', 'y', and 'z' columns to indicate
+    position, and at least one of the following sets of columns to indicate
+    measured quantities:
+
+    * 'U' - potential energy
+    * 'Fx', 'Fy', and 'Fz' - force
+    * 'Tx', 'Ty', and 'Tz' - torque
+
+    Optionally, the tabular data may also include orientation columns; if
+    included, these must be exactly 'q0', 'q1', 'q2', and 'q3', which
+    correspond to the components of a quaternion.
+
+    If there are no orientation columns, or if there is only one orientation
+    across the dataset, then the measured quantities may be plotted immediately,
+    otherwise it is necessary to first call ``aggregate_over_orientations``.
+
+    Plotting is done using the Plotly API, and the ``plot`` method returns
+    both figure and trace so that the trace may be added manually to other
+    figures. Orthogonal slicing in 2D and 1D is supported for scalar plots,
+    and for 2D in vector plots.
+
+    Parameters
+    ----------
+    recarray : np.rec.recarray
+        The underlying recarray.
+    
+    Raises
+    ------
+    TypeError
+        If the provided array of an incorrect type
+    ValueError
+        If the columns do not contain the required names.
+    """
     def __init__(self, recarray: np.rec.recarray):
         if type(recarray) != np.rec.recarray:
             raise TypeError("The array must be an instance of np.rec.recarray.")

@@ -4,7 +4,6 @@
 # TODO: Add file output methods
 # TODO: Add IO support for VTK
 # TODO: add support for irregular grids
-# [Review] Consider removing orientations on aggregation (significant refactoring)
 
 from copy import copy
 from types import NoneType
@@ -66,17 +65,26 @@ class Field:
         )
 
     @property
-    def orientations(self) -> np.ndarray:
-        """The unique orientations."""
-        return np.unique(
-            np.column_stack((
-                self.tall_array["q0"],
-                self.tall_array["q1"],
-                self.tall_array["q2"],
-                self.tall_array["q3"]
-            )),
-            axis=0
-        )
+    def orientations(self) -> np.ndarray | None:
+        """The unique orientations.
+        
+        If the columns do not include 'q0', 'q1', 'q2', and 'q3', None is
+        returned.
+        """
+        columns = set(self.tall_array.dtype.fields.keys())
+        if {"q0", "q1", "q2", "q3"} - columns != set():
+            return None
+        
+        else:
+            return np.unique(
+                np.column_stack((
+                    self.tall_array["q0"],
+                    self.tall_array["q1"],
+                    self.tall_array["q2"],
+                    self.tall_array["q3"]
+                )),
+                axis=0
+            )
     
     @property
     def quantities(self) -> list[str]:
@@ -463,10 +471,6 @@ class Field:
             self.tall_array["x"][starts],
             self.tall_array["y"][starts],
             self.tall_array["z"][starts],
-            self.tall_array["q0"][starts],
-            self.tall_array["q1"][starts],
-            self.tall_array["q2"][starts],
-            self.tall_array["q3"][starts],
         ))
         agg_tall = np.hstack((locations, agg_values))
 
@@ -503,24 +507,23 @@ class Field:
         ValueError
             If the other Field has a different sampling grid.
         """
-        self_locations = np.column_stack((
-            self.tall_array["x"],
-            self.tall_array["y"],
-            self.tall_array["z"],
-            self.tall_array["q0"],
-            self.tall_array["q1"],
-            self.tall_array["q2"],
-            self.tall_array["q3"],
-        ))
-        other_locations = np.column_stack((
-            other.tall_array["x"],
-            other.tall_array["y"],
-            other.tall_array["z"],
-            other.tall_array["q0"],
-            other.tall_array["q1"],
-            other.tall_array["q2"],
-            other.tall_array["q3"],
-        ))
+        if set(self.columns) != set(other.columns):
+            raise ValueError(
+                "Cannot calculate difference between two Fields with different "
+                + "columns."
+            )
+
+        if self.orientations is not None:
+            location_columns = ["x", "y", "z", "q0", "q1", "q2", "q3"]
+        else:
+            location_columns = ["x", "y", "z"]
+
+        self_locations = np.column_stack([
+            self.tall_array[name] for name in location_columns
+        ])
+        other_locations = np.column_stack([
+            other.tall_array[name] for name in location_columns
+        ])
 
         if not np.array_equal(self_locations, other_locations):
             raise ValueError(
@@ -540,24 +543,23 @@ class Field:
         ValueError
             If the other Field has a different sampling grid.
         """
-        self_locations = np.column_stack((
-            self.tall_array["x"],
-            self.tall_array["y"],
-            self.tall_array["z"],
-            self.tall_array["q0"],
-            self.tall_array["q1"],
-            self.tall_array["q2"],
-            self.tall_array["q3"],
-        ))
-        other_locations = np.column_stack((
-            other.tall_array["x"],
-            other.tall_array["y"],
-            other.tall_array["z"],
-            other.tall_array["q0"],
-            other.tall_array["q1"],
-            other.tall_array["q2"],
-            other.tall_array["q3"],
-        ))
+        if set(self.columns) != set(other.columns):
+            raise ValueError(
+                "Cannot calculate difference between two Fields with different "
+                + "columns."
+            )
+
+        if self.orientations is not None:
+            location_columns = ["x", "y", "z", "q0", "q1", "q2", "q3"]
+        else:
+            location_columns = ["x", "y", "z"]
+
+        self_locations = np.column_stack([
+            self.tall_array[name] for name in location_columns
+        ])
+        other_locations = np.column_stack([
+            other.tall_array[name] for name in location_columns
+        ])
 
         if not np.array_equal(self_locations, other_locations):
             raise ValueError(
@@ -1260,7 +1262,7 @@ class Field:
             The plotly figure and associated traces.
         """
         # Ensure there is no ambiguity around orientations
-        if self.orientations.shape[0] > 1:
+        if self.orientations is not None and self.orientations.shape[0] > 1:
             raise ValueError(
                 "Cannot plot field with more than one orientation. "
                 + "Aggregate over orientations."

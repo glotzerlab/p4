@@ -393,10 +393,6 @@ class Field:
         if quantity not in ["U", "F", "T"]:
             raise ValueError("`quantity` must be 'U', 'F', or 'T'.")
 
-        # If the quantity is U, scalars are always used
-        if quantity == "U":
-            vectors = False
-
         # Unique positions serve as group keys
         positions = np.column_stack((
             self.tall_array["x"],

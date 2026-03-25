@@ -69,7 +69,7 @@ class Field:
         if type(recarray) != np.rec.recarray:
             raise TypeError("The array must be an instance of np.rec.recarray.")
         
-        columns = set(list(self.table.dtype.fields.keys()))
+        columns = set(list(recarray.dtype.fields.keys()))
         if {"x", "y", "z"} - columns != set():
             raise ValueError("The array must have columns 'x', 'y', and 'z'.")
         
@@ -271,14 +271,14 @@ class Field:
             If `quantity` is not recognized.
         """
         # Input Validation
-        if self.orientations.shape[0] > 1 and q is None:
+        if self.orientations is not None and self.orientations.shape[0] > 1 and q is None:
             raise ValueError(
                 "The tall array has more than one orientation. Choose one "
                 + "using `q` or call `aggregate_over_orientations()`."
             )
         
         if (
-            self.orientations.shape[0] > 1
+            self.orientations is not None and self.orientations.shape[0] > 1
             and (
                 not isinstance(q, Iterable)
                 or len(q) != 4
@@ -419,7 +419,8 @@ class Field:
             If `recarray` neither 1 nor 3 measured quantities.
         """
         location_columns = ["x", "y", "z", "q0", "q1", "q2", "q3"]
-        measured_quantities = [f for f in self.columns if f not in location_columns]
+        columns = recarray.dtype.names
+        measured_quantities = [f for f in columns if f not in location_columns]
 
         x_values, x_indices = np.unique(recarray["x"], return_inverse=True)
         y_values, y_indices = np.unique(recarray["y"], return_inverse=True)
@@ -434,6 +435,7 @@ class Field:
         elif len(measured_quantities) == 3:
             shape = (len(z_values), len(y_values), len(x_values), 3)
             gridded_array = np.full(shape, np.nan)
+            breakpoint()
             components = np.column_stack(
                 [recarray[q] for q in measured_quantities]
             )
@@ -586,7 +588,7 @@ class Field:
             names=new_columns
         )
 
-        return Field(agg_tall)
+        return Field(agg_tall.view(np.recarray))
 
     # def resample(
     #     self,

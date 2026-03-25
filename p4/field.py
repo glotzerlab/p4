@@ -22,7 +22,25 @@ FIG_TITLE_FONT = dict(style="italic", size=16)
 
 
 class Field:
-    def __init__(self, tall_array):
+    def __init__(self, recarray: np.rec.recarray):
+        if type(recarray) != np.rec.recarray:
+            raise TypeError("The array must be an instance of np.rec.recarray.")
+        
+        columns = set(list(self.table.dtype.fields.keys()))
+        if {"x", "y", "z"} - columns != set():
+            raise ValueError("The array must have columns 'x', 'y', and 'z'.")
+        
+        if (
+            ("U" not in columns)
+            and ({"Fx", "Fy", "Fz"} - columns != set())
+            and ({"Tx", "Ty", "Tz"} - columns != set())
+        ):
+            raise ValueError(
+                "The array must have columns that contain either "
+                + "'U', or all of 'Fx', 'Fy', and 'Fz', or all of 'Tx', 'Ty', "
+                + "and 'Tz'."
+            )
+        
         self._positions = None
         self._orientations = None
         self._table = recarray

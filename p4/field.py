@@ -32,12 +32,12 @@ class Field:
     def from_csv(cls, filename):
         """Create a Field from a CSV file."""
         with open(filename) as f:
-            column_names = f.readline().strip("\n").split(",")
+            columns = f.readline().strip("\n").split(",")
 
         tall_array = np.rec.array(
             np.genfromtxt(
                 filename,
-                names=column_names,
+                names=columns,
                 skip_header=1,
                 dtype=None,
                 delimiter=","
@@ -47,6 +47,11 @@ class Field:
         return cls(tall_array)
 
     # ------------------------------- PROPERTIES -------------------------------
+
+    @property
+    def columns(self) -> list[str]:
+        """The names of the columns in the tall array."""
+        return list(self.tall_array.dtype.fields.keys())
 
     @property
     def positions(self) -> np.ndarray:
@@ -76,9 +81,8 @@ class Field:
     @property
     def quantities(self) -> list[str]:
         """The measured quantities."""
-        fields = list(self.tall_array.dtype.fields.keys())
-        location_fields = ["x", "y", "z", "q0", "q1", "q2", "q3"]
-        quantities = [f for f in fields if f not in location_fields]
+        location_columns = ["x", "y", "z", "q0", "q1", "q2", "q3"]
+        quantities = [f for f in self.columns if f not in location_columns]
         
         # Include F and T shorthand names
         force_names = ["Fx", "Fy", "Fz"]
@@ -187,34 +191,34 @@ class Field:
             tall_array = self._subset_of_tall_array(x=x, y=y, z=z)
 
         if quantity == "U":
-            fields_to_drop = [f for f in self.quantities if f != "U"]
+            columns_to_drop = [f for f in self.quantities if f != "U"]
         elif quantity == "F":
-            fields_to_drop = [f for f in self.quantities if "F" not in f]
+            columns_to_drop = [f for f in self.quantities if "F" not in f]
         elif quantity == "T":
-            fields_to_drop = [f for f in self.quantities if "T" not in f]
+            columns_to_drop = [f for f in self.quantities if "T" not in f]
         else:
-            fields_to_drop = [f for f in self.quantities if f != quantity]
+            columns_to_drop = [f for f in self.quantities if f != quantity]
         
         tall_array = recfunctions.drop_fields(
-            tall_array, fields_to_drop, asrecarray=True
+            tall_array, columns_to_drop, asrecarray=True
         )
 
         # If vectors is False, convert F and T components into magnitudes
         if not vectors:
             if quantity in ("F", "T"):
-                component_fields = [
+                component_columns = [
                     f"{quantity}x",
                     f"{quantity}y",
                     f"{quantity}z",
                 ]
                 components = np.column_stack(
-                    [tall_array[f] for f in component_fields]
+                    [tall_array[f] for f in component_columns]
                 )
                 magnitudes = np.sqrt(np.sum(np.square(components), axis=1))
 
-                fields_to_drop = [f for f in self.quantities if f != quantity]
+                columns_to_drop = [f for f in self.quantities if f != quantity]
                 tall_array = recfunctions.drop_fields(
-                    tall_array, fields_to_drop, asrecarray=True
+                    tall_array, columns_to_drop, asrecarray=True
                 )
                 tall_array = recfunctions.append_fields(
                     tall_array, quantity, magnitudes
@@ -255,17 +259,17 @@ class Field:
         recognized = {"x", "y", "z", "q0", "q1", "q2", "q3"}
         unrecognized = set(kwargs) - recognized
         if unrecognized:
-            raise ValueError(f"Unrecognized fields: {unrecognized}.")
+            raise ValueError(f"Unrecognized columns: {unrecognized}.")
         
         conditions = []
-        for field, values in kwargs.items():
+        for column, values in kwargs.items():
             if values is None:
                 continue
             if not isinstance(values, Iterable):
                 values = [values]
             subconditions = []
             for v in values:
-                subconditions.append(self.tall_array[field] == v)
+                subconditions.append(self.tall_array[column] == v)
             
             conditions.append(np.logical_or.reduce(subconditions))
         
@@ -303,9 +307,8 @@ class Field:
         ValueError
             If `tall_array` neither 1 nor 3 measured quantities.
         """
-        location_fields = ["x", "y", "z", "q0", "q1", "q2", "q3"]
-        fields = list(tall_array.dtype.fields.keys())
-        measured_quantities = [f for f in fields if f not in location_fields]
+        location_columns = ["x", "y", "z", "q0", "q1", "q2", "q3"]
+        measured_quantities = [f for f in self.columns if f not in location_columns]
 
         x_values, x_indices = np.unique(tall_array["x"], return_inverse=True)
         y_values, y_indices = np.unique(tall_array["y"], return_inverse=True)
@@ -467,13 +470,13 @@ class Field:
         ))
         agg_tall = np.hstack((locations, agg_values))
 
-        location_fields = ["x", "y", "z", "q0", "q1", "q2", "q3", ]
+        location_columns = ["x", "y", "z"]
         if quantity == "U":
-            new_columns = location_fields + ["U"]
+            new_columns = location_columns + ["U"]
         elif quantity == "F":
-            new_columns = location_fields + ["Fx", "Fy", "Fz"]
+            new_columns = location_columns + ["Fx", "Fy", "Fz"]
         elif quantity == "T":
-            new_columns = location_fields + ["Tx", "Ty", "Tz"]
+            new_columns = location_columns + ["Tx", "Ty", "Tz"]
         
         agg_tall = recfunctions.unstructured_to_structured(
             agg_tall,
@@ -599,7 +602,7 @@ class Field:
         recognized = {"x", "y", "z", "q0", "q1", "q2", "q3"}
         unrecognized = set(kwargs) - recognized
         if unrecognized:
-            raise ValueError(f"Unrecognized fields: {unrecognized}.")
+            raise ValueError(f"Unrecognized columns: {unrecognized}.")
         
         tall_array = self._subset_of_tall_array(**kwargs)
 

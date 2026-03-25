@@ -25,7 +25,7 @@ class Field:
     def __init__(self, tall_array):
         self._positions = None
         self._orientations = None
-        self._tall_array = tall_array
+        self._table = recarray
 
     # ----------------------------------- IO -----------------------------------
 
@@ -35,39 +35,39 @@ class Field:
         with open(filename) as f:
             columns = f.readline().strip("\n").split(",")
 
-        tall_array = np.rec.array(
-            np.genfromtxt(
-                filename,
-                names=columns,
-                skip_header=1,
-                dtype=None,
-                delimiter=","
+        return cls(
+            np.rec.array(
+                np.genfromtxt(
+                    filename,
+                    names=columns,
+                    skip_header=1,
+                    dtype=None,
+                    delimiter=","
+                )
             )
         )
-        
-        return cls(tall_array)
 
     def to_csv(self, filename):
         """Save this field to CSV."""
         with open(filename, "w") as f:
             writer = csv.writer(f)
-            writer.writerow(self.tall_array.dtype.names)
-            writer.writerows(self.tall_array.tolist())
+            writer.writerow(self.table.dtype.names)
+            writer.writerows(self.table.tolist())
 
     # ------------------------------- PROPERTIES -------------------------------
 
     @property
-    def tall_array(self) -> np.rec.recarray:
+    def table(self) -> np.rec.recarray:
         """The tabular dataset, returned as a record array."""
-        return self._tall_array
+        return self._table
     
-    @tall_array.setter
-    def tall_array(self, array: np.rec.recarray):
+    @table.setter
+    def table(self, recarray: np.rec.recarray):
         """Set the tall array equal to a new record array."""
-        if type(array) != np.rec.recarray:
+        if type(recarray) != np.rec.recarray:
             raise TypeError("The array must be an instance of np.rec.recarray.")
         
-        columns = set(list(self.tall_array.dtype.fields.keys()))
+        columns = set(list(self.table.dtype.fields.keys()))
         if {"x", "y", "z"} - columns != set():
             raise ValueError("The array must have columns 'x', 'y', and 'z'.")
         
@@ -84,12 +84,12 @@ class Field:
         
         self._positions = None
         self._orientations = None
-        self._tall_array = self.tall_array
+        self._table = self.table
 
     @property
     def columns(self) -> list[str]:
         """The names of the columns in the tall array."""
-        return list(self.tall_array.dtype.fields.keys())
+        return list(self.table.dtype.fields.keys())
 
     @property
     def positions(self) -> np.ndarray:
@@ -97,9 +97,9 @@ class Field:
         if self._positions is None:
             self._positions = np.unique(
                 np.column_stack((
-                    self.tall_array["x"],
-                    self.tall_array["y"],
-                    self.tall_array["z"]
+                    self.table["x"],
+                    self.table["y"],
+                    self.table["z"]
                 )),
                 axis=0
             )
@@ -113,17 +113,17 @@ class Field:
         If the columns do not include all of 'q0', 'q1', 'q2', and 'q3', None is
         returned.
         """
-        columns = set(self.tall_array.dtype.fields.keys())
+        columns = set(self.table.dtype.fields.keys())
         if {"q0", "q1", "q2", "q3"} - columns != set():
             return None
         
         else:
             return np.unique(
                 np.column_stack((
-                    self.tall_array["q0"],
-                    self.tall_array["q1"],
-                    self.tall_array["q2"],
-                    self.tall_array["q3"]
+                    self.table["q0"],
+                    self.table["q1"],
+                    self.table["q2"],
+                    self.table["q3"]
                 )),
                 axis=0
             )
@@ -184,7 +184,7 @@ class Field:
         q : tuple of 4 floats
             If provided, only rows with the corresponding q0, q1, q2, and q3
             values will be used to create the gridded array. Required if
-            ``tall_array`` includes multiple orientations.
+            ``table`` includes multiple orientations.
         x : float, optional
             If provided, only rows with the corresponding x values will be used
             to create the gridded array.
@@ -234,11 +234,11 @@ class Field:
         
         # Build the tall array
         if q is not None:
-            tall_array = self._subset_of_tall_array(
+            table = self._subset_of_recarray(
                 x=x, y=y, z=z, q0=q[0], q1=q[1], q2=q[2], q3=q[3]
             )
         else:
-            tall_array = self._subset_of_tall_array(x=x, y=y, z=z)
+            table = self._subset_of_recarray(x=x, y=y, z=z)
 
         if quantity == "U":
             columns_to_drop = [f for f in self.quantities if f != "U"]
@@ -249,8 +249,8 @@ class Field:
         else:
             columns_to_drop = [f for f in self.quantities if f != quantity]
         
-        tall_array = recfunctions.drop_fields(
-            tall_array, columns_to_drop, asrecarray=True
+        table = recfunctions.drop_fields(
+            table, columns_to_drop, asrecarray=True
         )
 
         # If vectors is False, convert F and T components into magnitudes
@@ -262,21 +262,21 @@ class Field:
                     f"{quantity}z",
                 ]
                 components = np.column_stack(
-                    [tall_array[f] for f in component_columns]
+                    [table[f] for f in component_columns]
                 )
                 magnitudes = np.sqrt(np.sum(np.square(components), axis=1))
 
                 columns_to_drop = [f for f in self.quantities if f != quantity]
-                tall_array = recfunctions.drop_fields(
-                    tall_array, columns_to_drop, asrecarray=True
+                table = recfunctions.drop_fields(
+                    table, columns_to_drop, asrecarray=True
                 )
-                tall_array = recfunctions.append_fields(
-                    tall_array, quantity, magnitudes
+                table = recfunctions.append_fields(
+                    table, quantity, magnitudes
                 )
 
-        return self._tall_to_gridded_array(tall_array)
+        return self._recarray_to_gridded_array(table)
 
-    def _subset_of_tall_array(self, **kwargs) -> np.recarray:
+    def _subset_of_recarray(self, **kwargs) -> np.rec.recarray:
         """Return a new tall array that is a subset of the current one.
         
         Kwargs
@@ -319,15 +319,15 @@ class Field:
                 values = [values]
             subconditions = []
             for v in values:
-                subconditions.append(self.tall_array[column] == v)
+                subconditions.append(self.table[column] == v)
             
             conditions.append(np.logical_or.reduce(subconditions))
         
         results = np.logical_and.reduce(conditions)
 
-        return self.tall_array[results]
+        return self.table[results]
     
-    def _tall_to_gridded_array(self, tall_array) -> np.ndarray:
+    def _recarray_to_gridded_array(self, recarray: np.rec.recarray) -> np.ndarray:
         """Convert a tall array like a table into a gridded array for plotting.
         
         It is assumed that either the tall array has a 1 measured quantity,
@@ -344,8 +344,8 @@ class Field:
 
         Parameters
         ----------
-        tall_array : np.recarray
-            The tall array to convert.
+        table : np.recarray
+            The recarray to convert.
         
         Returns
         -------
@@ -355,32 +355,32 @@ class Field:
         Raises
         ------
         ValueError
-            If `tall_array` neither 1 nor 3 measured quantities.
+            If `recarray` neither 1 nor 3 measured quantities.
         """
         location_columns = ["x", "y", "z", "q0", "q1", "q2", "q3"]
         measured_quantities = [f for f in self.columns if f not in location_columns]
 
-        x_values, x_indices = np.unique(tall_array["x"], return_inverse=True)
-        y_values, y_indices = np.unique(tall_array["y"], return_inverse=True)
-        z_values, z_indices = np.unique(tall_array["z"], return_inverse=True)
+        x_values, x_indices = np.unique(recarray["x"], return_inverse=True)
+        y_values, y_indices = np.unique(recarray["y"], return_inverse=True)
+        z_values, z_indices = np.unique(recarray["z"], return_inverse=True)
         
         if len(measured_quantities) == 1:
             q = measured_quantities[0]
             shape = (len(z_values), len(y_values), len(x_values))
             gridded_array = np.full(shape, np.nan)
-            gridded_array[z_indices, y_indices, x_indices] = tall_array[q]
+            gridded_array[z_indices, y_indices, x_indices] = recarray[q]
 
         elif len(measured_quantities) == 3:
             shape = (len(z_values), len(y_values), len(x_values), 3)
             gridded_array = np.full(shape, np.nan)
             components = np.column_stack(
-                [tall_array[q] for q in measured_quantities]
+                [recarray[q] for q in measured_quantities]
             )
             gridded_array[z_indices, y_indices, x_indices] = components
 
         else:
             raise ValueError(
-                "`tall_array` must have either 1 or 3 measured quantities."
+                "`recarray` must have either 1 or 3 measured quantities."
             )
 
         return gridded_array
@@ -437,9 +437,9 @@ class Field:
 
         # Unique positions serve as group keys
         positions = np.column_stack((
-            self.tall_array["x"],
-            self.tall_array["y"],
-            self.tall_array["z"]
+            self.table["x"],
+            self.table["y"],
+            self.table["z"]
         ))
         positions, group_ids = np.unique(positions, axis=0, return_inverse=True)
 
@@ -452,22 +452,22 @@ class Field:
 
         # Values are chosen by the user
         if quantity == "U":
-            values = self.tall_array["U"]
+            values = self.table["U"]
         
         elif quantity == "F":
             components = np.column_stack((
-                self.tall_array["Fx"],
-                self.tall_array["Fy"],
-                self.tall_array["Fz"]
+                self.table["Fx"],
+                self.table["Fy"],
+                self.table["Fz"]
             ))
             magnitudes = np.sqrt(np.sum(np.square(components), axis=1))
             values = np.hstack((components, magnitudes[:, np.newaxis]))
         
         elif quantity == "T":
             components = np.column_stack((
-                self.tall_array["Tx"],
-                self.tall_array["Ty"],
-                self.tall_array["Tz"]
+                self.table["Tx"],
+                self.table["Ty"],
+                self.table["Tz"]
             ))
             magnitudes = np.sqrt(np.sum(np.square(components), axis=1))
             values = np.hstack((components, magnitudes[:, np.newaxis]))
@@ -506,9 +506,9 @@ class Field:
                     agg_values[i, :] = mean_components
 
         locations = np.column_stack((
-            self.tall_array["x"][starts],
-            self.tall_array["y"][starts],
-            self.tall_array["z"][starts],
+            self.table["x"][starts],
+            self.table["y"][starts],
+            self.table["z"][starts],
         ))
         agg_tall = np.hstack((locations, agg_values))
 
@@ -557,10 +557,10 @@ class Field:
             location_columns = ["x", "y", "z"]
 
         self_locations = np.column_stack([
-            self.tall_array[name] for name in location_columns
+            self.table[name] for name in location_columns
         ])
         other_locations = np.column_stack([
-            other.tall_array[name] for name in location_columns
+            other.table[name] for name in location_columns
         ])
 
         if not np.array_equal(self_locations, other_locations):
@@ -569,9 +569,9 @@ class Field:
                 + "measurement locations."
             )
         
-        new_tall_array = self.tall_array - other.tall_array
+        new_recarray = self.table - other.table
 
-        return Field(new_tall_array)
+        return Field(new_recarray)
 
     def __add__(self, other: Field) -> Field:
         """Calculate the sum of two fields' measured quantities.
@@ -593,10 +593,10 @@ class Field:
             location_columns = ["x", "y", "z"]
 
         self_locations = np.column_stack([
-            self.tall_array[name] for name in location_columns
+            self.table[name] for name in location_columns
         ])
         other_locations = np.column_stack([
-            other.tall_array[name] for name in location_columns
+            other.table[name] for name in location_columns
         ])
 
         if not np.array_equal(self_locations, other_locations):
@@ -605,9 +605,9 @@ class Field:
                 + "measurement locations."
             )
         
-        new_tall_array = self.tall_array + other.tall_array
+        new_recarray = self.table + other.table
 
-        return Field(new_tall_array)
+        return Field(new_recarray)
 
     def __get_item__(self, **kwargs) -> Field:
         """Return a new Field that is a subset of the current one.
@@ -644,9 +644,9 @@ class Field:
         if unrecognized:
             raise ValueError(f"Unrecognized columns: {unrecognized}.")
         
-        tall_array = self._subset_of_tall_array(**kwargs)
+        recarray = self._subset_of_recarray(**kwargs)
 
-        return Field(tall_array)
+        return Field(recarray)
 
     # -------------------------------- PLOTTING --------------------------------
 
@@ -697,7 +697,7 @@ class Field:
 
         # [TODO: this is duplicated in private methods]
         extents = {
-            d: [self.tall_array[d].min(), self.tall_array[d].max()]
+            d: [self.table[d].min(), self.table[d].max()]
             for d in ["x", "y", "z"]
         }
 
@@ -772,18 +772,18 @@ class Field:
         """
         array = self.gridded_array(quantity=quantity, vectors=False, **slice)
 
-        slice_tall_array = self._subset_of_tall_array(**slice)
+        slice_recarray = self._subset_of_recarray(**slice)
 
         # [Review: sorting necessary?]
         if "z" in slice:
-            x = np.unique(slice_tall_array["x"])
-            y = np.unique(slice_tall_array["y"])
+            x = np.unique(slice_recarray["x"])
+            y = np.unique(slice_recarray["y"])
         elif "y" in slice:
-            x = np.unique(slice_tall_array["x"])
-            y = np.unique(slice_tall_array["z"])
+            x = np.unique(slice_recarray["x"])
+            y = np.unique(slice_recarray["z"])
         elif "x" in slice:
-            x = np.unique(slice_tall_array["y"])
-            y = np.unique(slice_tall_array["z"])
+            x = np.unique(slice_recarray["y"])
+            y = np.unique(slice_recarray["z"])
         
         if fill_nan_with_inf:
             array = np.nan_to_num(array, nan=1e99)
@@ -868,16 +868,16 @@ class Field:
         """
         array = self.gridded_array(quantity=quantity, vectors=False, **slice)
 
-        slice_tall_array = self._subset_of_tall_array(**slice)
+        slice_recarray = self._subset_of_recarray(**slice)
 
         # [Review: sorting necessary?]
         x_dim = [i for i in ["x", "y", "z"] if i not in slice][0]
         if "z" in slice:
-            x = slice_tall_array[x_dim]
+            x = slice_recarray[x_dim]
         elif "y" in slice:
-            x = slice_tall_array[x_dim]
+            x = slice_recarray[x_dim]
         elif "x" in slice:
-            x = slice_tall_array[x_dim]
+            x = slice_recarray[x_dim]
 
         return plotly.graph_objects.Scatter(
             x=x,
@@ -924,9 +924,9 @@ class Field:
         # end of the scale and the 90th percentile magnitude.
         # The scale is linear.
         components = np.column_stack((
-            self.tall_array[f"{quantity}x"],
-            self.tall_array[f"{quantity}y"],
-            self.tall_array[f"{quantity}z"],
+            self.table[f"{quantity}x"],
+            self.table[f"{quantity}y"],
+            self.table[f"{quantity}z"],
         ))
         magnitudes = np.sqrt(np.sum(np.square(components), axis=1))
 
@@ -936,9 +936,9 @@ class Field:
         m_max = magnitudes.max()
 
         longest_side = max([
-            self.tall_array["x"].max(),
-            self.tall_array["y"].max(),
-            self.tall_array["z"].max(),
+            self.table["x"].max(),
+            self.table["y"].max(),
+            self.table["z"].max(),
         ])
         s_min = longest_side * 0.05
         s_max = longest_side * 0.15
@@ -960,19 +960,19 @@ class Field:
             clim = [m_10, m_90]
 
         customdata = np.column_stack((
-            self.tall_array[f"{quantity}x"],
-            self.tall_array[f"{quantity}y"],
-            self.tall_array[f"{quantity}z"],
+            self.table[f"{quantity}x"],
+            self.table[f"{quantity}y"],
+            self.table[f"{quantity}z"],
             magnitudes
         ))
 
         return plotly.graph_objects.Cone(
-            x=self.tall_array["x"],
-            y=self.tall_array["y"],
-            z=self.tall_array["z"],
-            u=self.tall_array[f"{quantity}x"] * scale_factors,
-            v=self.tall_array[f"{quantity}y"] * scale_factors,
-            w=self.tall_array[f"{quantity}z"] * scale_factors,
+            x=self.table["x"],
+            y=self.table["y"],
+            z=self.table["z"],
+            u=self.table[f"{quantity}x"] * scale_factors,
+            v=self.table[f"{quantity}y"] * scale_factors,
+            w=self.table[f"{quantity}z"] * scale_factors,
             colorscale=cmap,
             cmin=s_min,#min(clim),
             cmax=s_max,#max(clim),
@@ -1018,23 +1018,23 @@ class Field:
         plotly.graph_objs._scatter.Scatter
             The plotly trace.
         """
-        slice_tall_array = self._subset_of_tall_array(**slice)
+        slice_recarray = self._subset_of_recarray(**slice)
         
         if "z" in slice:
-            x = slice_tall_array["x"]
-            y = slice_tall_array["y"]
-            vec_x = slice_tall_array[f"{quantity}x"]
-            vec_y = slice_tall_array[f"{quantity}y"]
+            x = slice_recarray["x"]
+            y = slice_recarray["y"]
+            vec_x = slice_recarray[f"{quantity}x"]
+            vec_y = slice_recarray[f"{quantity}y"]
         elif "y" in slice:
-            x = slice_tall_array["x"]
-            y = slice_tall_array["z"]
-            vec_x = slice_tall_array[f"{quantity}x"]
-            vec_y = slice_tall_array[f"{quantity}z"]
+            x = slice_recarray["x"]
+            y = slice_recarray["z"]
+            vec_x = slice_recarray[f"{quantity}x"]
+            vec_y = slice_recarray[f"{quantity}z"]
         elif "x" in slice:
-            x = slice_tall_array["y"]
-            y = slice_tall_array["z"]
-            vec_x = slice_tall_array[f"{quantity}y"]
-            vec_y = slice_tall_array[f"{quantity}z"]
+            x = slice_recarray["y"]
+            y = slice_recarray["z"]
+            vec_x = slice_recarray[f"{quantity}y"]
+            vec_y = slice_recarray[f"{quantity}z"]
 
         # Calculate scaled vectors to ensure that the cones all fit on the plot.
         # The smallest scaled magnitude is 0.05 * the longest dimension.
@@ -1361,17 +1361,17 @@ class Field:
 
         # Set slice values to the closest values in the tall array
         for dimension, value in slice.items():
-            if value not in self.tall_array[dimension]:
+            if value not in self.table[dimension]:
                 slice[dimension] = util.find_nearest(
-                    self.tall_array[dimension], value
+                    self.table[dimension], value
                 )
 
         # If the array only has one value along any of the dimensions, treat
         # that dimension and value as part of the provided slice
         # [TODO: this is duplicated in private methods]
-        slice_tall_array = self._subset_of_tall_array(**slice)
+        slice_recarray = self._subset_of_recarray(**slice)
         extents = {
-            d: [slice_tall_array[d].min(), slice_tall_array[d].max()]
+            d: [slice_recarray[d].min(), slice_recarray[d].max()]
             for d in ["x", "y", "z"]
         }
         for dimension, limits in extents.items():

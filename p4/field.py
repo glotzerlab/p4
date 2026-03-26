@@ -1041,6 +1041,10 @@ class Field:
             cmax=s_max,#max(clim),
             showscale=show_cbar,
             colorbar=dict(
+                title=dict(
+                    text=f"<b>{quantity}</b>",
+                    font=AXIS_TITLE_FONT
+                ),
                 tickvals=[
                     s_min + (s_max - s_min) * i
                     for i in np.linspace(0, 1, 5)

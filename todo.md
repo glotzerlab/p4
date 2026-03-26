@@ -17,7 +17,7 @@
 - [ ] write tests
 
 `util`
-  - [ ] functions for saving/creating interaction models to/from json
+- [ ] functions for saving/creating interaction models to/from json
 
 
 Other

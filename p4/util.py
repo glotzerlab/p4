@@ -17,7 +17,8 @@ import hoomd
 import numpy as np
 import rowan
 from collections import defaultdict
-
+from copy import copy
+from scipy.spatial import Delaunay
 
 # https://davidmathlogic.com/colorblind
 # (original source IBM Design Library)
@@ -117,7 +118,7 @@ def point_segment_distance(
     d = np.linalg.norm(np.cross(x0 - x1, x0 - x2)) / np.linalg.norm(x2 - x1)
     return d
 
-def intersection_of_segment_with_plane(
+def segment_plane_intersection(
     segment: list[list[float]],
     plane: list[float]
 ) -> list[list[float]]:
@@ -157,7 +158,7 @@ def intersection_of_segment_with_plane(
 
     return [px, py, pz]
 
-def intersection_of_polygon_with_plane(
+def polygon_plane_intersection(
     polygon: list[list[float]],
     plane: list[float]
 ) -> list[list[list[float]]]:
@@ -234,7 +235,7 @@ def intersection_of_polygon_with_plane(
     if intersected_segments: # TODO: return here to fix tangent points problem: add `or coplanar_points`
         intersection_points = []
         for segment in intersected_segments:
-            intersection_point = intersection_of_segment_with_plane(segment, plane)
+            intersection_point = segment_plane_intersection(segment, plane)
             intersection_points.append(intersection_point)
 
         # # If the polygon is convex, there will only be 2 intersection points.
@@ -490,14 +491,14 @@ def segments_to_polygons(
     isolated_pairs = []
     for k, v in adj.items():
         if len(v) == 1:
-            isolated_pairs.append([k, v])
+            isolated_pairs.append([k, v[0]])
     for p1, p2 in isolated_pairs:
         del adj[p1]
 
     visited = set()
     loops = []
     
-    for pt in adj:
+    for pt in copy(adj):
         if pt not in visited:
             loop = find_loop(pt, adj, visited)
             if loop == []:
@@ -549,7 +550,159 @@ def pointset_contains_segment(
         np.any(np.all(pointset_segments == segment[::-1], axis=(1,2)))
     )
 
-def intersection_of_polyhedron_with_plane(
+def segment_segment_intersection(segment1, segment2) -> list[float] | None:
+    """Return the intersection point between two segments.
+    
+    None is returned in the following cases:
+    
+    * when the segments are colinear, even if they partially overlap,
+    * if the segments do not intersect at all
+
+    If the segments are colinear but share a single point, or if they are not
+    colinear and intersect at a single point, that point is returned.
+    
+    Ref: https://math.stackexchange.com/a/271366
+    """
+    # Check first if the segments share a single endpoint. If so, that is the
+    # intersection point.
+    if (
+        (
+            np.array_equal(segment1[0], segment2[0])
+            and not np.array_equal(segment1[0], segment2[0])
+        )
+        or
+        (
+            np.array_equal(segment1[0], segment2[1])
+            and not np.array_equal(segment1[1], segment2[0])
+        )
+    ):
+        return segment1[0]
+    
+    if (
+        (
+            np.array_equal(segment1[1], segment2[1])
+            and not np.array_equal(segment1[0], segment2[0])
+        )
+        or
+        (
+            np.array_equal(segment1[1], segment2[0])
+            and not np.array_equal(segment1[0], segment2[1])
+        )
+    ):
+        return segment1[1]
+    
+
+    c = np.array(segment1[0])
+    d = np.array(segment2[0])
+    g = d - c   # guaranteed not to have magnitude zero
+    e = np.array(segment1[1] - segment1[0])
+    f = np.array(segment2[1] - segment2[0])
+    
+    h = np.cross(f, g)
+    k = np.cross(f, e)
+
+    # If k has magnitude zero, the lines are parallel, so the only way for the
+    # segments to intersect is if they share one set of endpoints. We already
+    # checked for that, so we can conclude they either do not intersect at all
+    # or that they partially overlap. Either way, we return None.
+    if np.linalg.norm(k) == 0:
+        return
+
+    # If h has magnitude zero but g does not, then both d and c lie on the same
+    # line that passes through segment2. Since k is nonzero we know that the
+    # segments are not colinear. And we've already checked to make sure
+    # that the two segments do not share endpoints. The only other option then
+    # is for there to be no intersection.
+    elif np.linalg.norm(h) == 0:
+        return
+    
+    # At this point, we know that the lines passing through the two segments
+    # must intersect at a single point. The question is whether that point lies
+    # on one of (and hence both of) the segments. The position of the
+    # intersection point p is given by the following relation.
+    if np.dot(h, k) > 0:
+        p = c + (e * np.linalg.norm(h) / np.linalg.norm(k))
+    else:
+        p = c - (e * np.linalg.norm(h) / np.linalg.norm(k))
+    
+    s1 = segment1
+    s2 = segment2
+    if (
+        (   # Check for x
+            (segment1[0][0] < p[0] and p[0] < segment1[1][0])
+            or (segment1[1][0] < p[0] and p[0] < segment1[0][0])
+        )
+        and
+        (   # Check for y
+            (segment1[0][1] < p[0] and p[0] < segment1[1][1])
+            or (segment1[1][1] < p[0] and p[0] < segment1[0][1])
+        )
+        and
+        (   # Check for z
+            (segment1[0][2] < p[0] and p[0] < segment1[1][2])
+            or (segment1[1][2] < p[0] and p[0] < segment1[0][2])
+        )
+    ):
+        return p
+    
+    else:
+        return None
+
+def polygon_to_segments(polygon) -> list[list[float]]:
+    """Convert a polygon into an array of segments.
+    
+    The polygon is given as a pointset without duplicates, i.e., an (N,3) array
+    of floats representing an N-vertex polygon.
+
+    The returned segments are each (2,3) arrays of floats, where each row
+    represents a point.
+    """
+    polygon = list(polygon)
+    segments = []
+    for i in range(len(polygon)):
+        segments.append([polygon[i], polygon[(i+1) % len(polygon)]])
+    return segments
+
+def point_in_polygon(point, polygon) -> bool:
+    """Check if a polygon contains a point.
+    
+    Ref: https://stackoverflow.com/a/60672266/15426433
+    """
+    return Delaunay(polygon).find_simplex(point) >= 0
+
+def polygon_contains_polygon(polygon1, polygon2) -> int:
+    """Check if polygon1 fully contains polygon2.
+    
+    Check for intersections between all pairs of polygon sides. If there are no
+    intersections and one of the points in polygon1 is inside polygon2, then
+    polygon1 is fully contained by polygon2.
+
+    The result of the contains check is returned as an integer. The values mean
+    the following:
+    
+    * 0 - neither polygon contains the other
+    * 1 - polygon1 contains polygon2
+    * 2 - polygon2 contains polygon1
+    """
+    segments1 = polygon_to_segments(polygon1)
+    segments2 = polygon_to_segments(polygon2)
+
+    for s1, s2 in itertools.product(segments1, segments2):
+        if segment_segment_intersection(s1, s2) is not None:
+            return 0
+    
+    else:
+        for point in polygon1:
+            if point_in_polygon(point, polygon2):
+                return 2
+        for point in polygon2:
+            if point_in_polygon(point, polygon1):
+                return 1
+    
+    return 0
+
+
+def polyhedron_plane_intersection(
     polyhedron: coxeter.shapes.Polyhedron,
     plane: list[float]
 ) -> list[list[list[float]]]:
@@ -575,7 +728,7 @@ def intersection_of_polyhedron_with_plane(
     slice_geometries = []
     for face in polyhedron.faces:
         polygon = polyhedron.vertices[face]
-        intersection = intersection_of_polygon_with_plane(
+        intersection = polygon_plane_intersection(
             polygon,
             plane
         )
@@ -585,17 +738,41 @@ def intersection_of_polyhedron_with_plane(
             )
 
     # If any of the faces were co-planar with the slice, then they
-    # were returned as polygons and that might contain other segments
-    # or points that were returned from intersections of other faces.
-    # Remove those duplicate points and segments.
-    polygons = [g for g in slice_geometries if np.array(g).shape[0] > 2]
-    nonpolygons = [g for g in slice_geometries if np.array(g).shape[0] <= 2]
+    # were returned as polygons that might contain other polygons.
+    # Remove polygons that are contained by other polygons.
+    polygons = [g for g in slice_geometries if np.atleast_2d(g).shape[0] > 2]
+    uncontained_polygons = []
+    contained_indices = []
+    for i, polygon in enumerate(polygons):
+        indices_to_check = [
+            j
+            for j in range(len(polygons))
+            if j != i and j not in contained_indices
+        ]
+
+        for j in indices_to_check:
+            other_polygon = polygons[j]
+            contains_result = polygon_contains_polygon(
+                polygon, other_polygon
+            )
+
+            if contains_result == 1:
+                contained_indices.append(j)
+
+            elif contains_result == 2:
+                contained_indices.append(i)
+
+    uncontained_polygons = [polygons[i] for i in contained_indices]
+
+    # Remove points and segments that are contained by polygons. These were
+    # formed from intersections with other faces.
+    nonpolygons = [g for g in slice_geometries if np.atleast_2d(g).shape[0] <= 2]
     clean_nonpolygons = []
     clean_indices = []
     removed_indices = []
 
-    if polygons:
-        for polygon in polygons:
+    if uncontained_polygons:
+        for polygon in uncontained_polygons:
             for i, nonpolygon in enumerate(nonpolygons):
                 if i not in clean_indices and i not in removed_indices:
                     # Points
@@ -619,31 +796,61 @@ def intersection_of_polyhedron_with_plane(
     
     # The remaining nonpolygon geometries must be checked to see if they
     # can be merged together:
+    #   - segments consisting of the same point (revealed by rounding) should be
+    #   - converted into points
     #   - points contained by line segments should be removed
+    #   - points that are equivalent should be merged
     #   - line segments that are equivalent should be merged
     #   - line segments that connect should be joined into polygons
-    points = [g for g in clean_nonpolygons if np.array(g).shape[0] == 1]
-    segments = [g for g in clean_nonpolygons if np.array(g).shape[0] == 2]
+    points = [g for g in clean_nonpolygons if np.atleast_2d(g).shape[0] == 1]
+    segments = [g for g in clean_nonpolygons if np.atleast_2d(g).shape[0] == 2]
     clean_points = []
     clean_segments = []
     removed_point_indices = []
     removed_segment_indices = []
+
+    # Round all segments and points to resolve floating math conversion issues
+    rounded_segments = []
+    for g in segments:
+        g2 = []
+        for p in g:
+            g2.append([round(i, 15) for i in p])
+        rounded_segments.append(g2)
     
-    # Remove points contained by line segments
-    for i, p in enumerate(points):
-        if any(pointset_contains_point(g, p) for g in segments):
+    rounded_points = [[round(i, 15) for i in p] for p in points]
+    
+    # Convert segments consisting of the same point into points
+    removed_indices = []
+    for i, segment in enumerate(rounded_segments):
+        if segment[0] == segment[1]:
+            rounded_points.append(segment[0])
+            removed_indices.append(i)
+    
+    rounded_segments = [
+        s for i, s in enumerate(rounded_segments) if i not in removed_indices
+    ]
+
+    # Remove points contained by line segments and points that are equivalent
+    for i, p in enumerate(rounded_points):
+        other_points = [
+            o
+            for j, o in enumerate(rounded_points)
+            if j != i and j not in removed_point_indices
+        ]
+        if any(pointset_contains_point(g, p) for g in rounded_segments):
+            removed_point_indices.append(i)
+        elif any(np.array_equal(p, o) for o in other_points):
             removed_point_indices.append(i)
         else:
-            clean_points.append(p)
-    
+            clean_points.append([tuple(p)])
+
     # Remove equivalent line segments
-    for i, s in enumerate(segments):
+    for i, s in enumerate(rounded_segments):
         other_segments = [
             o
-            for j, o in enumerate(segments)
+            for j, o in enumerate(rounded_segments)
             if j != i and j not in removed_segment_indices
         ]
-        # if any(geometry_contains_segment(g, s) for g in other_segments):
         if any(
             (o[0] == s[0] and o[1] == s[1]) or (o[1] == s[0] and o[0] == s[1])
             for o in other_segments
@@ -656,13 +863,30 @@ def intersection_of_polyhedron_with_plane(
     polygons_from_segments, isolated_segments = segments_to_polygons(
         clean_segments
     )
+
+    # One last pass for removing equivalent line segments
+    clean_isolated_segments = []
+    removed_isolated_segment_indices = []
+    for i, s in enumerate(isolated_segments):
+        other_segments = [
+            o
+            for j, o in enumerate(isolated_segments)
+            if j != i and j not in removed_isolated_segment_indices
+        ]
+        if any(
+            (o[0] == s[0] and o[1] == s[1]) or (o[1] == s[0] and o[0] == s[1])
+            for o in other_segments
+        ):
+            removed_isolated_segment_indices.append(i)
+        else:
+            clean_isolated_segments.append(s)
     
     # The geometries for this slice now consist of polygons from
     # co-planar faces, polygons created from line segments, line
     # segments that could not be connected together, and points not
     # contained by other polygons or line segments.
     slice_geometries = (
-        polygons + polygons_from_segments + isolated_segments
+        uncontained_polygons + polygons_from_segments + clean_isolated_segments
         + clean_points
     )
 
@@ -835,6 +1059,8 @@ def get_initial_frame(
     frame
         The initial frame.
     """
+    # TODO: remove the dependency on GSD - I can create this simulation state
+    # using just the HOOMD API
     frame = gsd.hoomd.Frame()
 
     all_types = list(

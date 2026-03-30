@@ -1304,8 +1304,9 @@ def add_interaction(
     simulation
         The modified simulation.
     """
-    force = interaction.to_parameterized_hoomd_instance(
+    force = interaction.to_hoomd_pair(
         nlist=nlist,
+        parameterize=True,
         all_types=all_types
     )
 

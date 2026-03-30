@@ -72,7 +72,7 @@ class Interaction:
         # Ensure the hoomd class can be instantiated
         nlist = hoomd.md.nlist.Cell(2)
         try:
-            _ = self.to_hoomd_instance(nlist)
+            _ = self.to_hoomd_pair(nlist, parameterize=False)
         except ValueError as e:
             msg = "Validation failed: the HOOMD class cannot be instantiated."
             raise ValueError(msg) from e
@@ -81,8 +81,9 @@ class Interaction:
         nlist = hoomd.md.nlist.Cell(2)
         test_all_types = self.interacting_types("all")
         try:
-            _ = self.to_parameterized_hoomd_instance(
+            _ = self.to_hoomd_pair(
                 nlist=nlist,
+                parameterize=True,
                 all_types=test_all_types
             )
         except (AttributeError, KeyError) as e:
@@ -249,45 +250,31 @@ class Interaction:
                         types.append(t)
             return types
 
-    def to_hoomd_instance(
-        self,
-        nlist: hoomd.md.nlist.NeighborList
-    ) -> hoomd.md.pair.Pair:
-        """Return an unparameterized instance of the HOOMD class.
-
-        Parameters
-        ----------
-        nlist : hoomd.md.nlist.NeighborList
-            The neighbor list to use.
-
-        Raises
-        ------
-        ValueError
-            If the initial inputs are wrong.
-        """
-        try:
-            return self.hoomd_class(nlist, **self.initial_args)
-        except (TypeError, hoomd.error.TypeConversionError) as e:
-            msg = "'initial_args' are wrong. See traceback for details."
-            raise ValueError(msg) from e
-
-    def to_parameterized_hoomd_instance(
+    def to_hoomd_pair(
         self,
         nlist: hoomd.md.nlist.NeighborList,
-        all_types: list[str]
+        parameterize: bool,
+        all_types: list[str] | None = None,
     ) -> hoomd.md.pair.Pair:
-        """Return a parameterized instance of the HOOMD class.
+        """Return an instance of the hoomd-blue class.
         
         Parameters
         ----------
         nlist : hoomd.md.nlist.NeighborList
             The neighbor list to use.
+        parameterize : bool
+            Whether to parameterize the hoomd-blue ``pair`` instance. If False,
+            then the class is merely instantiated with ``initial_args`` and
+            returned as-is.
         all_types : list[str]
             The names of all the particle types for which the instance should be
-            parameterized.
+            parameterized. Required if ``parameterize`` is True, otherwise
+            ignored.
 
         Raises
         ------
+        ValueError
+            If the ``initial_args`` are wrong.
         AttributeError
             If the typed params are wrong.
         """
@@ -298,7 +285,15 @@ class Interaction:
                 f"hoomd class '{hoomd_class}'."
             )
 
-        instance = self.to_hoomd_instance(nlist)
+        try:
+            instance = self.hoomd_class(nlist, **self.initial_args)
+        
+        except (TypeError, hoomd.error.TypeConversionError) as e:
+            msg = "'initial_args' are wrong. See traceback for details."
+            raise ValueError(msg) from e
+        
+        if not parameterize:
+            return instance
         
         # Calculate the pairwise combinations of all types and interacting types
         all_type_pairs = list(
@@ -804,7 +799,10 @@ class Interaction:
             # Check for equivalence based on optional parameters
             optional_params_equivalent = []
             if not same_without_rs:
-                instance = self.to_hoomd_instance(hoomd.md.nlist.Cell(0))
+                instance = self.to_hoomd_pair(
+                    hoomd.md.nlist.Cell(0),
+                    parameterize=False
+                )
                 tpd = instance._typeparam_dict
                 for name, typeparam in tpd.items():
                     # If the typeparam is a dictionary mapping names to some
@@ -981,7 +979,10 @@ class Interaction:
             # Check for equivalence based on optional parameters
             optional_params_equivalent = []
             if not same_without_rs:
-                instance = self.to_hoomd_instance(hoomd.md.nlist.Cell(0))
+                instance = self.to_hoomd_pair(
+                    hoomd.md.nlist.Cell(0),
+                    parameterize=False
+                )
                 tpd = instance._typeparam_dict
                 for name, typeparam in tpd.items():
                     # If the typeparam is a dictionary mapping names to some

@@ -1330,17 +1330,17 @@ def test_type_properties(kwargs, expected_singles, expected_pairs):
 
 @pytest.mark.parametrize("cls", CLASSES_TO_TEST)
 @pytest.mark.parametrize("required_or_all", ["required", "all"])
-def test_to_hoomd_instance(cls, required_or_all):
+def test_to_hoomd_pair_not_parameterized(cls, required_or_all):
     """Ensure for every coverted hoomd class an Interaction can be converted to an unparameterized hoomd instance."""
     kwargs = get_kwargs(cls, required_or_all)
     interaction = Interaction(**kwargs)
 
     pair = cls(nlist=NLIST, **kwargs["initial_args"])
-    assert pairs_are_equivalent(pair, interaction.to_hoomd_instance(NLIST))
+    assert pairs_are_equivalent(pair, interaction.to_hoomd_pair(NLIST, parameterize=False))
 
 @pytest.mark.parametrize("cls", CLASSES_TO_TEST)
 @pytest.mark.parametrize("required_or_all", ["required", "all"])
-def test_to_parameterized_hoomd_instance(cls, required_or_all):
+def test_to_hoomd_pair_parameterized(cls, required_or_all):
     """Ensure for every coverted hoomd class an Interaction can be converted to a parameterized hoomd instance."""
     # Review: is there a better way to test this? I'm basically just copying the
     # actual implementation...
@@ -1377,14 +1377,14 @@ def test_to_parameterized_hoomd_instance(cls, required_or_all):
         for param_name, param_value in kwargs["typed_params"][y_p].items():
             getattr(pair, param_name)[y_p] = param_value
     
-    assert pairs_are_equivalent(pair, interaction.to_parameterized_hoomd_instance(nlist=NLIST, all_types=all_types))
+    assert pairs_are_equivalent(pair, interaction.to_hoomd_pair(nlist=NLIST, parameterize=True, all_types=all_types))
 
 @pytest.mark.parametrize("cls", [hoomd.md.pair.LJ, hoomd.md.pair.ExpandedGaussian]) # [Review: test aniso?]
 def test_from_hoomd_pair_valid(cls):
     """Ensure every covered hoomd class can be parsed into an Interaction."""
     kwargs = get_kwargs(cls, "all")
     interaction = Interaction(**kwargs)
-    pair = interaction.to_parameterized_hoomd_instance(nlist=hoomd.md.nlist.Cell(0), all_types=interaction.interacting_types("all"))
+    pair = interaction.to_hoomd_pair(nlist=hoomd.md.nlist.Cell(0), parameterize=True, all_types=interaction.interacting_types("all"))
     other = Interaction.from_hoomd_pair(pair)
     assert interaction == other
 
@@ -1397,14 +1397,14 @@ def test_from_hoomd_integrator_valid(cls, multiple_forces):
 
     kwargs = get_kwargs(cls, "required")
     interaction = Interaction(**kwargs)
-    pair = interaction.to_parameterized_hoomd_instance(nlist=NLIST, all_types=interaction.interacting_types("all"))
+    pair = interaction.to_hoomd_pair(nlist=NLIST, parameterize=True, all_types=interaction.interacting_types("all"))
     
     forces.append(pair)
 
     if multiple_forces:
         kwargs = get_kwargs(hoomd.md.pair.DPD, "required")
         interaction = Interaction(**kwargs)
-        pair = interaction.to_parameterized_hoomd_instance(nlist=NLIST, all_types=interaction.interacting_types("all"))
+        pair = interaction.to_hoomd_pair(nlist=NLIST, parameterize=True, all_types=interaction.interacting_types("all"))
         forces.append(pair)
     
     integrator.forces = forces
@@ -1424,14 +1424,14 @@ def test_from_hoomd_simulation_valid(cls, multiple_forces):
 
     kwargs = get_kwargs(cls, "required")
     interaction = Interaction(**kwargs)
-    pair = interaction.to_parameterized_hoomd_instance(nlist=NLIST, all_types=interaction.interacting_types("all"))
+    pair = interaction.to_hoomd_pair(nlist=NLIST, parameterize=True, all_types=interaction.interacting_types("all"))
     
     forces.append(pair)
 
     if multiple_forces:
         kwargs = get_kwargs(hoomd.md.pair.DPD, "required")
         interaction = Interaction(**kwargs)
-        pair = interaction.to_parameterized_hoomd_instance(nlist=NLIST, all_types=interaction.interacting_types("all"))
+        pair = interaction.to_hoomd_pair(nlist=NLIST, parameterize=True, all_types=interaction.interacting_types("all"))
         forces.append(pair)
     
     integrator.forces = forces

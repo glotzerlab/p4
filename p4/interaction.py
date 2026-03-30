@@ -6,6 +6,8 @@ from __future__ import annotations
 from copy import deepcopy
 import inspect
 import itertools
+import importlib
+import json
 from typing import Iterable, Literal
 import hoomd
 
@@ -609,6 +611,72 @@ class Interaction:
                     )
         
         return params
+
+    def _to_json_dict(self):
+        """Return a JSON-compliant dictionary representing this interaction."""
+        data = self.__dict__
+
+        # The hoomd class must be a string
+        data["hoomd_class"] = (
+            f"{data["hoomd_class"].__module__}.{data["hoomd_class"].__name__}"
+        )
+
+        # The typed params must not have tuples for keys
+        typed_params = []
+        for k, v in data["typed_params"].items():
+            typed_params.append({
+                "types": k,
+                "params": v
+            })
+        data["typed_params"] = typed_params
+
+        return data
+
+    def to_json(self, filename: str):
+        """Export the interaction to JSON.
+        
+        Parameters
+        ----------
+        filename : str
+            The name of the JSON file.
+        """
+        with open(filename, "w") as f:
+            json.dump(self._to_json_dict(), f, indent=2)
+    
+    @classmethod
+    def _from_json_dict(cls, data: dict):
+        """Convert a JSON-compliant dict into an instantiation-ready dict."""
+        # Convert hoomd class path from string to type
+        class_path = data["hoomd_class"]
+        module_name, class_name = class_path.rsplit(".", 1)
+        hoomd_class = getattr(importlib.import_module(module_name), class_name)
+        data["hoomd_class"] = hoomd_class
+
+        # Convert typed params back into a dict with tuples and strings as keys
+        typed_params = {}
+        for item in data["typed_params"]:
+            if isinstance(item["types"], str):
+                key = item["types"]
+            elif isinstance(item["types"], list):
+                key = tuple(item["types"])
+            typed_params[key] = item["params"]
+        
+        data["typed_params"] = typed_params
+        
+        return data
+
+    @classmethod
+    def from_json(cls, filename: str):
+        """Create a interaction from JSON.
+        
+        Parameters
+        ----------
+        filename : str
+            The name of the JSON file.
+        """
+        with open(filename, "r") as f:
+            data = cls._from_json_dict(json.load(f))
+        return cls(**data)
 
     def __eq__(self, other):
         """Interactions are equal if they have equivalent properties."""

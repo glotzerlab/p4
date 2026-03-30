@@ -697,3 +697,11 @@ def test_from_hoomd_simulation_invalid(variant):
         simulation = hoomd.util.make_example_simulation(particle_types=["A", "X"])
         with pytest.raises(ValueError):
             _ = System.from_hoomd_simulation(simulation, "A", "B")
+
+def test_to_json():
+    # TODO
+    pass
+
+def test_from_json():
+    # TODO
+    pass

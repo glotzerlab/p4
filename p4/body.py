@@ -2,6 +2,7 @@
 # This file is from the p4 project, released under the BSD 3-Clause License.
 
 from __future__ import annotations
+import json
 import coxeter
 import hoomd
 import numpy as np
@@ -1235,6 +1236,39 @@ class Body:
         return cls.from_hoomd_rigid(
             simulation.operations.integrator.rigid, primary_type
         )
+
+    def _to_json_dict(self):
+        """Return a JSON-compliant dictionary representing this body."""
+        return self.__dict__
+
+    def to_json(self, filename: str):
+        """Export the body to JSON.
+        
+        Parameters
+        ----------
+        filename : str, optional
+            The name of the JSON file.
+        """
+        with open(filename, "w") as f:
+            json.dump(self._to_json_dict(), f, indent=2)
+    
+    @classmethod
+    def _from_json_dict(cls, json_dict: dict):
+        """Convert a JSON-compliant dict into an instantiation-ready dict."""
+        return json_dict
+
+    @classmethod
+    def from_json(cls, filename: str):
+        """Create a body from JSON.
+        
+        Parameters
+        ----------
+        filename : str
+            The name of the JSON file.
+        """
+        with open(filename, "r") as f:
+            data = cls._from_json_dict(json.load(f))
+        return cls(**data)
 
     def __eq__(self, other):
         """Bodies are equal if their attributes are the same or equivalent."""

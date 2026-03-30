@@ -323,3 +323,15 @@ def test_from_hoomd_simulation(kwargs):
 def test_plot(type_shapes, type_colors, ignore_types):
     """Ensure that plotting does not error for sets of valid kwargs."""
     # TODO
+
+def test_to_hoomd_rigid():
+    # TODO
+    pass
+
+def test_to_json():
+    # TODO
+    pass
+
+def test_from_json():
+    # TODO
+    pass

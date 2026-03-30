@@ -2,6 +2,7 @@
 # This file is from the p4 project, released under the BSD 3-Clause License.
 
 from copy import deepcopy
+import json
 import os
 from typing import TYPE_CHECKING, Callable, Iterable, Literal
 import multiprocessing
@@ -403,7 +404,62 @@ class System:
             analyte=analyte,
             interactions=interactions
         )
+
+    def _to_json_dict(self):
+        """Convert the system to a JSON-compliant dictionary."""
+        data = {}
+
+        data["probe"] = self.probe._to_json_dict()
+        data["analyte"] = self.probe._to_json_dict()
+        data["interactions"] = [
+            i._to_json_dict() for i in self.interactions
+        ]
+
+        return data
+
+    def to_json(self, filename: str):
+        """Export the system to JSON.
+        
+        Parameters
+        ----------
+        filename : str
+            The name of the JSON file.
+        """
+        with open(filename, "w") as f:
+            json.dump(self._to_json_dict(), f, indent=2)
     
+    @classmethod
+    def _from_json_dict(cls, data: dict):
+        """Convert a JSON-compliant dict into an instantiation-ready dict."""
+        data["probe"] = p4.Body._from_json_dict(data["probe"])
+        data["analyte"] = p4.Body._from_json_dict(data["analyte"])
+        data["interactions"] = [
+            p4.Interaction._from_json_dict(i_dict)
+            for i_dict in data["interactions"]
+        ]
+        return data
+
+    @classmethod
+    def from_json(cls, filename: str):
+        """Create a system from JSON.
+        
+        Parameters
+        ----------
+        filename : str
+            The name of the JSON file.
+        """
+        with open(filename, "r") as f:
+            data = cls._from_json_dict(json.load(f))
+        
+        data["probe"] = p4.Body(**data["probe"])
+        data["analyte"] = p4.Body(**data["analyte"])
+        interactions = [
+            p4.Interaction(**i_dict) for i_dict in data["interactions"]
+        ]
+        data["interactions"] = interactions
+        
+        return cls(**data)
+
     def __eq__(self, other):
         """Two Systems are equivalent if their settable properties are, too."""
         return (

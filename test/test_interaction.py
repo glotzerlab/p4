@@ -1452,3 +1452,11 @@ def test_from_hoomd_simulation_invalid():
     simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
     with pytest.raises(ValueError):
         _ = Interaction.from_hoomd_simulation(simulation)
+
+def test_to_json():
+    # TODO
+    pass
+
+def test_from_json():
+    # TODO
+    pass

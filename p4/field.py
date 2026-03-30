@@ -24,15 +24,18 @@ FIG_TITLE_FONT = dict(style="italic", size=16)
 class Field:
     """Analyze and plot scalar and vector fields in 3D, 2D, and 1D.
     
-    Field is built around NumPy's recarray class, which is a lightweight tabular
-    data structure similar to the Pandas DataFrame.
+    This class is built around `NumPy's recarray`_, which is a lightweight
+    tabular data structure similar to the `Pandas DataFrame`_.
+
+    .. _NumPy's recarray: https://numpy.org/doc/stable/reference/generated/numpy.recarray.html
+    .. _Pandas DataFrame: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
 
     Access a Field's tabular data using the ``table`` property, which returns
-    the underlying recarray.
+    the underlying ``recarray``.
     
-    Instantiate a Field directly from a recarray (``np.rec.recarray``), or from
-    CSV using the ``from_csv`` method. In order for instantiation to work, the
-    tabular data must have at least 'x', 'y', and 'z' columns to indicate
+    Instantiate a Field directly from a NumPy recarray, or build one from
+    CSV using :meth:`~p4.Field.from_csv`. In order for instantiation to work,
+    the tabular data must have at least 'x', 'y', and 'z' columns to indicate
     position, and at least one of the following sets of columns to indicate
     measured quantities:
 
@@ -46,12 +49,15 @@ class Field:
 
     If there are no orientation columns, or if there is only one orientation
     across the dataset, then the measured quantities may be plotted immediately,
-    otherwise it is necessary to first call ``aggregate_over_orientations``.
+    otherwise it is necessary to first call
+    :meth:`~p4.Field.aggregate_over_orientations`.
 
-    Plotting is done using the Plotly API, and the ``plot`` method returns
-    both figure and trace so that the trace may be added manually to other
-    figures. Orthogonal slicing in 2D and 1D is supported for scalar plots,
-    and for 2D in vector plots.
+    Plotting is done using `Plotly`_, and the :meth:`~p4.Field.plot` method
+    returns both figure and trace so that the trace may be added manually to
+    other figures. Orthogonal slicing in 2D and 1D is supported for scalar
+    plots, and for 2D in vector plots.
+
+    .. _Plotly: https://plotly.com/
 
     Parameters
     ----------
@@ -124,7 +130,7 @@ class Field:
     
     @table.setter
     def table(self, recarray: np.rec.recarray):
-        """Set the tall array equal to a new record array."""
+        """Set the table equal to a new record array."""
         if type(recarray) != np.rec.recarray:
             raise TypeError("The array must be an instance of np.rec.recarray.")
         
@@ -149,7 +155,7 @@ class Field:
 
     @property
     def columns(self) -> list[str]:
-        """The names of the columns in the tall array."""
+        """The names of the columns in the table."""
         return list(self.table.dtype.fields.keys())
 
     @property
@@ -273,7 +279,7 @@ class Field:
         # Input Validation
         if self.orientations is not None and self.orientations.shape[0] > 1 and q is None:
             raise ValueError(
-                "The tall array has more than one orientation. Choose one "
+                "The table has more than one orientation. Choose one "
                 + "using `q` or call `aggregate_over_orientations()`."
             )
         
@@ -293,7 +299,7 @@ class Field:
                 f"({self.quantities})."
             )
         
-        # Build the tall array
+        # Build the recarray
         if q is not None:
             table = self._subset_of_recarray(
                 x=x, y=y, z=z, q0=q[0], q1=q[1], q2=q[2], q3=q[3]
@@ -338,29 +344,29 @@ class Field:
         return self._recarray_to_gridded_array(table)
 
     def _subset_of_recarray(self, **kwargs) -> np.rec.recarray:
-        """Return a new tall array that is a subset of the current one.
+        """Return a new recarray that is a subset of the current one.
         
         Kwargs
         ------
         x : float or array of floats
-            Limit the new tall array to rows with this x value or values.
+            Limit the new recarray to rows with this x value or values.
         y : float or array of floats
-            Limit the new tall array to rows with this y value or values.
+            Limit the new recarray to rows with this y value or values.
         z : float or array of floats
-            Limit the new tall array to rows with this z value or values.
+            Limit the new recarray to rows with this z value or values.
         q0 : float or array of floats
-            Limit the new tall array to rows with this q0 value or values.
+            Limit the new recarray to rows with this q0 value or values.
         q1 : float or array of floats
-            Limit the new tall array to rows with this q1 value or values.
+            Limit the new recarray to rows with this q1 value or values.
         q2 : float or array of floats
-            Limit the new tall array to rows with this q2 value or values.
+            Limit the new recarray to rows with this q2 value or values.
         q3 : float or array of floats
-            Limit the new tall array to rows with this q3 value or values.
+            Limit the new recarray to rows with this q3 value or values.
         
         Returns
         -------
         np.recarray
-            The new tall array.
+            The new recarray.
 
         Raises
         ------
@@ -389,17 +395,17 @@ class Field:
         return self.table[results]
     
     def _recarray_to_gridded_array(self, recarray: np.rec.recarray) -> np.ndarray:
-        """Convert a tall array like a table into a gridded array for plotting.
+        """Convert a recarray like a table into a gridded array for plotting.
         
-        It is assumed that either the tall array has a 1 measured quantity,
+        It is assumed that either the recarray has a 1 measured quantity,
         or that it has 3 with that correspond to qx, qy, qz, where q is either
         F or T.
         
-        If the tall array has a single measured quantity, the gridded array will
+        If the recarray has a single measured quantity, the gridded array will
         be a 3D array of scalars (Z along axis 0, Y along axis 1, X along axis
         2).
 
-        If the tall array has three measured quantities, the gridded array will
+        If the recarray has three measured quantities, the gridded array will
         be 4D (Z along axis 0, Y along axis 1, X along axis 2, q-components
         along axis 3 in qx, qy, qz order).
 
@@ -678,19 +684,19 @@ class Field:
         Kwargs
         ------
         x : float or array of floats
-            Limit the new tall array to rows with this x value or values.
+            Limit the new recarray to rows with this x value or values.
         y : float or array of floats
-            Limit the new tall array to rows with this y value or values.
+            Limit the new recarray to rows with this y value or values.
         z : float or array of floats
-            Limit the new tall array to rows with this z value or values.
+            Limit the new recarray to rows with this z value or values.
         q0 : float or array of floats
-            Limit the new tall array to rows with this q0 value or values.
+            Limit the new recarray to rows with this q0 value or values.
         q1 : float or array of floats
-            Limit the new tall array to rows with this q1 value or values.
+            Limit the new recarray to rows with this q1 value or values.
         q2 : float or array of floats
-            Limit the new tall array to rows with this q2 value or values.
+            Limit the new recarray to rows with this q2 value or values.
         q3 : float or array of floats
-            Limit the new tall array to rows with this q3 value or values.
+            Limit the new recarray to rows with this q3 value or values.
         
         Returns
         -------
@@ -1303,7 +1309,9 @@ class Field:
         marker_mode: Literal["lines+markers", "lines", "markers"] = "lines",
         marker_color: str = "black",
     ):
-        """Interactively plot the field using plotly.
+        """Interactively plot the field using `Plotly`_.
+
+        .. _Plotly: https://plotly.com
         
         Slicing is supported along the X, Y, and Z axes via the ``slice``
         parameter. A slice along one axis (e.g., ``slice={"x": 1}``) is 2D,
@@ -1426,7 +1434,7 @@ class Field:
             elif set(self.quantities) == {"T", "Tx", "Ty", "Tz"}:
                 quantity = "T"
 
-        # Set slice values to the closest values in the tall array
+        # Set slice values to the closest values in the recarray
         for dimension, value in slice.items():
             if value not in self.table[dimension]:
                 slice[dimension] = util.find_nearest(

@@ -468,15 +468,20 @@ class Field:
 
         Methods:
 
-        - **min**:
-            - U: take the minimum value
-            - F or T: take the components with the minimum magnitude
-        - **max**
-            - U: take the maximum value
-            - F or T: take the components with the maximum magnitude
-        - **mean**
-            - U: calculate the mean value
-            - F or T: calculate the mean of each component
+        * **min**
+
+          * **U**: take the minimum value
+          * **F** or **T**: take the components with the minimum magnitude
+
+        * **max**
+        
+          * **U**: take the maximum value
+          * **F** or **T**: take the components with the maximum magnitude
+
+        * **mean**
+        
+          * **U**: calculate the mean value
+          * **F** or **T**: calculate the mean of each component
 
         Parameters
         ----------
@@ -486,8 +491,6 @@ class Field:
             The method to use when aggregating the quantity. At each position,
             the values of the quantity are grouped together and this method is
             used to calculate a new value for that position.
-        vectors : bool, default=False
-            Whether to aggregate the quantity's values as scalars or vectors.
         """
         # Ensure the quantity is represented in this field
         if quantity not in self.quantities:
@@ -1327,8 +1330,8 @@ class Field:
             The name of the quantity to plot. If this field only contains 'U',
             'F', or 'T' quantities, this parameter is optional.
         vectors : bool, default=False
-            Whether to plot the quantity as a scalar or vector. If `quantity` is
-            not 'F' or 'T', this is always ``False``.
+            Whether to plot the quantity as a scalar or vector. If ``quantity``
+            is not 'F' or 'T', this is always False.
         slice : dict, default={}
             Axes and positions along which to slice. Keys are limited to 'x',
             'y', and 'z'. There can be at most two keys. If the slice contains

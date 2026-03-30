@@ -57,7 +57,7 @@ class Field:
     other figures. Orthogonal slicing in 2D and 1D is supported for scalar
     plots, and in 2D for vector plots.
 
-    .. _Plotly: https://plotly.com/
+    .. _Plotly: https://plotly.com
 
     Parameters
     ----------
@@ -728,7 +728,7 @@ class Field:
         fill_nan_with_inf: bool,
         show_cbar: bool,
     ) -> plotly.graph_objs._volume.Volume:
-        """Return the plotly trace for a 3D scalar (Volume) plot.
+        """Return the Plotly trace for a 3D scalar (Volume) plot.
         
         Parameters
         ----------
@@ -743,7 +743,7 @@ class Field:
             2D scalar plots. In 2D, pass None to instead use a continuous
             colorscale.
         cmap : str
-            The name of the plotly colormap to use. Only used in 3D and 2D
+            The name of the Plotly colormap to use. Only used in 3D and 2D
             scalar plots and 3D vector plots.
         fill_nan_with_inf : bool
             Whether to plot NaN values as though they were very large values.
@@ -754,7 +754,7 @@ class Field:
         Returns
         -------
         plotly.graph_objs._volume.Volume
-            The plotly trace.
+            The trace.
         """
         array = self.gridded_array(quantity=quantity, vectors=False)
 
@@ -808,7 +808,7 @@ class Field:
         fill_nan_with_inf: bool,
         show_cbar: bool
     ) -> plotly.graph_objs._contour.Contour | plotly.graph_objs._heatmap.Heatmap:
-        """Return the plotly trace for a 2D scalar (Heatmap or Contour) plot.
+        """Return the Plotly trace for a 2D scalar (Heatmap or Contour) plot.
 
         Parameters
         ----------
@@ -826,7 +826,7 @@ class Field:
             2D scalar plots. In 2D, pass None to instead use a continuous
             colorscale.
         cmap : str
-            The name of the plotly colormap to use. Only used in 3D and 2D
+            The name of the Plotly colormap to use. Only used in 3D and 2D
             scalar plots and 3D vector plots.
         fill_nan_with_inf : bool
             Whether to plot NaN values as though they were very large values.
@@ -837,7 +837,7 @@ class Field:
         Returns
         -------
         plotly.graph_objs._contour.Contour | plotly.graph_objs._heatmap.Heatmap
-            The plotly trace.
+            The trace.
         """
         array = self.gridded_array(quantity=quantity, vectors=False, **slice)
 
@@ -914,7 +914,7 @@ class Field:
         marker_mode: Literal["lines+markers", "lines", "markers"],
         marker_color: str,
     ) -> plotly.graph_objs._scatter.Scatter:
-        """Return the plotly trace for a 1D scalar (Scatter) plot.
+        """Return the Plotly trace for a 1D scalar (Scatter) plot.
 
         Parameters
         ----------
@@ -933,7 +933,7 @@ class Field:
         Returns
         -------
         plotly.graph_objs._scatter.Scatter
-            The plotly trace.
+            The trace.
         """
         array = self.gridded_array(quantity=quantity, vectors=False, **slice)
 
@@ -964,7 +964,7 @@ class Field:
         cmap: str,
         show_cbar: bool,
     ) -> plotly.graph_objs._cone.Cone:
-        """Return the plotly trace for a 3D vector (Cone) plot.
+        """Return the Plotly trace for a 3D vector (Cone) plot.
 
         Parameters
         ----------
@@ -975,7 +975,7 @@ class Field:
             the lower and upper limits will be set to the 10th and 90th
             percentile of the magnitudes, respectively.
         cmap : str
-            The name of the plotly colormap to use. Only used in 3D and 2D
+            The name of the Plotly colormap to use. Only used in 3D and 2D
             scalar plots and 3D vector plots.
         show_cbar : bool
             Whether to show the colorbar.
@@ -983,7 +983,7 @@ class Field:
         Returns
         -------
         plotly.graph_objs._cone.Cone
-            The plotly trace.
+            The trace.
         """
         # Calculate scaled vectors to ensure that the cones all fit on the plot.
         # The smallest scaled magnitude is 0.05 * the longest dimension.
@@ -1073,7 +1073,7 @@ class Field:
         slice: dict[str, float],
         marker_color: str,
     ) -> plotly.graph_objs._scatter.Scatter:
-        """Return the plotly trace for a 2D vector (Quiver) plot.
+        """Return the Plotly trace for a 2D vector (Quiver) plot.
 
         Parameters
         ----------
@@ -1089,7 +1089,7 @@ class Field:
         Returns
         -------
         plotly.graph_objs._scatter.Scatter
-            The plotly trace.
+            The trace.
         """
         slice_recarray = self._subset_of_recarray(**slice)
         
@@ -1171,7 +1171,7 @@ class Field:
         show_grid: bool,
         show_border: bool,
     ) -> dict:
-        """Return a plotly layout dictionary customized for a given slice.
+        """Return a Plotly layout dictionary customized for a given slice.
         
         Note that ``show_cbar`` is not used here, but rather in the
         corresponding plot trace method.
@@ -1310,8 +1310,6 @@ class Field:
         marker_color: str = "black",
     ):
         """Interactively plot the field using `Plotly`_.
-
-        .. _Plotly: https://plotly.com
         
         Slicing is supported along the X, Y, and Z axes via the ``slice``
         parameter. A slice along one axis (e.g., ``slice={"x": 1}``) is 2D,
@@ -1345,7 +1343,7 @@ class Field:
             2D scalar plots. In 2D, pass None to instead use a continuous
             colorscale.
         cmap : str, default='RdYlBu_r'
-            The name of the plotly colormap to use. Only used in 3D and 2D
+            The name of the Plotly colormap to use. Only used in 3D and 2D
             scalar plots and 3D vector plots.
         fill_nan_with_inf : bool, default=False
             Whether to plot NaN values as though they were very large values.
@@ -1372,7 +1370,7 @@ class Field:
         Returns
         -------
         figure, traces
-            The plotly figure and associated traces.
+            The Plotly figure and associated traces.
         """
         # Ensure there is no ambiguity around orientations
         if self.orientations is not None and self.orientations.shape[0] > 1:

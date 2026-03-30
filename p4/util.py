@@ -1121,32 +1121,10 @@ def add_rigid_constraint(
     simulation, rigid
         The modified simulation and its rigid constraint.
     """
-    if rigid is None:
-        rigid = hoomd.md.constrain.Rigid()
-    
-    if included_secondary_types is None:
-        included_secondary_types = body.secondary_types
-    
-    types_and_positions = [
-        [t, position]
-        for t in included_secondary_types
-        for position in body.positions_by_type[t]
-    ]
-
-    if body.orientations_by_type:
-        orientations = [
-            orientation
-            for t in included_secondary_types
-            for orientation in body.orientations_by_type[t]
-        ]
-    else:
-        orientations = [(1.0, 0.0, 0.0, 0.0) for _ in types_and_positions]
-
-    rigid.body[body.primary_type] = {
-        "constituent_types": [t for (t, p) in types_and_positions],
-        "positions": [p for (t, p) in types_and_positions],
-        "orientations": [o for o in orientations]
-    }
+    rigid = body.to_hoomd_rigid(
+        rigid=rigid,
+        included_secondary_types=included_secondary_types
+    )
 
     if create_bodies:
         rigid.create_bodies(simulation.state)

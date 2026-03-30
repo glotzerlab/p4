@@ -1070,6 +1070,59 @@ class Body:
                     + f"type {t} do not match."
                 )
 
+    def to_hoomd_rigid(
+        self,
+        rigid: hoomd.md.constrain.Rigid | None = None,
+        included_secondary_types: list[str] | None = None,
+    ) -> hoomd.md.constrain.Rigid:
+        """Convert the body to a hoomd-blue rigid constraint.
+
+        An existing rigid constraint may be passed to this method, in which case
+        this body is merely added to it.
+
+        Parameters
+        ----------
+        rigid : hoomd.md.constrain.Rigid, optional
+            An existing constraint instance to use. If not provided, a new one is
+            created.
+        included_secondary_types : list[str], optional
+            The names of the secondary types to include in the rigid body. If not
+            provided, all secondary types are included.
+
+        Returns
+        -------
+        rigid
+            The rigid constraint.
+        """
+        if rigid is None:
+            rigid = hoomd.md.constrain.Rigid()
+    
+        if included_secondary_types is None:
+            included_secondary_types = self.secondary_types
+        
+        types_and_positions = [
+            [t, position]
+            for t in included_secondary_types
+            for position in self.positions_by_type[t]
+        ]
+
+        if self.orientations_by_type:
+            orientations = [
+                orientation
+                for t in included_secondary_types
+                for orientation in self.orientations_by_type[t]
+            ]
+        else:
+            orientations = [(1, 0, 0, 0) for _ in types_and_positions]
+
+        rigid.body[self.primary_type] = {
+            "constituent_types": [t for (t, p) in types_and_positions],
+            "positions": [p for (t, p) in types_and_positions],
+            "orientations": [o for o in orientations]
+        }
+
+        return rigid
+
     @classmethod
     def from_hoomd_rigid(
         cls,

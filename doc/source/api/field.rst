@@ -1,8 +1,7 @@
 Field
 =====
 
-Read a saved CSV, TIFF, or VTI file to create a Field, which can then be sliced
-or plotted like a NumPy array.
+Analyze spatial distributions of potential energy, force, and torque.
 
 
 .. py:currentmodule:: p4

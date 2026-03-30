@@ -23,16 +23,13 @@ from .util import (
 
 class Body:
     """The names and spatial data for a body's primary and secondary types.
-
-    Every body must have a primary particle type, but secondary types are
-    optional.
-    
+   
     When secondary types **are not** provided, the body represents a
-    simple particle with a single type and no further information is needed.
+    simple particle with a single type.
     
     When secondary types **are** provided, the body represents a rigid body
-    with a central particle (`primary_type`) and one or more constituent
-    particles (`secondary_types`). In this case, the body needs a way to
+    with a central particle (``primary_type``) and one or more constituent
+    particles (``secondary_types``). In this case, the body needs a way to
     determine the position(s) of each type of constituent particle, and the user
     must provide a function that does so.
 
@@ -56,7 +53,6 @@ class Body:
                 ]
             )
         )
-
 
     Parameters
     ----------
@@ -134,37 +130,48 @@ class Body:
         schematic_slice_line_width: float = 10,
         show_legend: bool = True,
     ):
-        """Interactively plot the body using plotly.
+        """Interactively plot the body using `Plotly`_.
 
         Slicing is supported along the X, Y, and Z axes via the ``slice``
         parameter. A slice along one axis (e.g., ``slice={"x": 1}``) is 2D,
         while a slice along two axes (e.g., ``slice={"x": 1, "y": 1}``) is 1D.
 
         Shapes and styles may be specified for specific types. A shape must be
-        specified as a coxeter Polyhedron. A style must specified as a
+        specified as a coxeter `Polyhedron`_. A style must specified as a
         dictionary which may have the following keys and values:
 
-        - **color**: A string representing the color for the symbol of the
-        specified type. Must satisfy plotly's color name/formatting conventions.
-        - **opacity**: A float between 0 and 1, where 0 represents fully
-        transparent and 1 represents fully opaque.
-        - **size**: A positive float representing the size of the symbol for the
-        specified type. When the type is represented by a point, this setting
-        corresponds to the point's ``size`` attribute. When the type is
-        represented by a line, this setting corresponds to the line's ``width``
-        attribute. When the type is represented by a polygon or Mesh/Polyhedron,
-        this setting is ignored.
+        * ``color`` [``str``] - The symbol's color. Plotly accepts color strings
+          in `standard HTML/CSS formats`_ (for example, `rgb`_), as well as
+          `many named colors`_.
         
+        * ``opacity`` [``float`` 0 to 1] - The symbol's opacity.
+        
+        * ``size`` [``float`` > 0]- The symbol's size. When the type is
+          represented by a point, this corresponds to the symbol's ``size``
+          attribute (see Plotly docs for `2D`_ and `3D`_). When the type is
+          represented by a line, this setting corresponds to the line's
+          ``width`` `attribute`_. When the type is represented by a polygon or
+          polyhedron, this setting is ignored.
+
+        .. _Plotly: https://plotly.com/
+        .. _Polyhedron: https://coxeter.readthedocs.io/en/latest/package-shapes.html#coxeter.shapes.Polyhedron
+        .. _standard HTML/CSS formats: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/color
+        .. _rgb: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/color_value/rgb
+        .. _many named colors: https://plotly.com/python/css-colors/
+        .. _2d: https://plotly.com/python/reference/scatter/#scatter-marker-size
+        .. _3d: https://plotly.com/python/reference/scatter3d/#scatter3d-marker-size
+        .. _attribute: https://plotly.com/python/reference/scatter/#scatter-line-width
+
         Parameters
         ----------
         type_shapes : dict, default={}
-            A dictionary mapping particle type names to
-            coxeter.shapes.ConvexPolyhedron. If no shape is provided for a type,
+            A mapping from particle type name [``str``] to shape
+            [``coxeter.shapes.Polyhedron``]. If no shape is provided for a type,
             it will be plotted as a sphere.
         type_styles : dict, default={}
-            A dictionary mapping particle type names to styles. A style is a
-            dictionary which may have the following keys: 'color', 'opacity',
-            and 'size'. See above for more information.
+            A mapping from particle type name to style, where style is given as
+            a dictionary which may have the keys 'color', 'opacity', and 'size'.
+            See above for more information.
         ignore_types : list[str], default=[]
             The names of the particle types to exclude from the plot.
         slice : dict, default={}
@@ -1078,10 +1085,12 @@ class Body:
         rigid: hoomd.md.constrain.Rigid | None = None,
         included_secondary_types: list[str] | None = None,
     ) -> hoomd.md.constrain.Rigid:
-        """Convert the body to a hoomd-blue rigid constraint.
+        """Convert the body to a HOOMD-blue `rigid constraint`_.
 
         An existing rigid constraint may be passed to this method, in which case
         this body is merely added to it.
+
+        .. _rigid constraint: https://hoomd-blue.readthedocs.io/en/stable/hoomd/md/constrain/rigid.html
 
         Parameters
         ----------
@@ -1091,11 +1100,6 @@ class Body:
         included_secondary_types : list[str], optional
             The names of the secondary types to include in the rigid body. If not
             provided, all secondary types are included.
-
-        Returns
-        -------
-        rigid
-            The rigid constraint.
         """
         if rigid is None:
             rigid = hoomd.md.constrain.Rigid()
@@ -1132,7 +1136,9 @@ class Body:
         rigid: hoomd.md.constrain.Rigid,
         primary_type: str | None = None
     ) -> list[Body] | Body:
-        """Parse a `hoomd.md.constrain.Rigid <https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/constrain/rigid.html>`_ to create one or more :class:`~p4.Body`.
+        """Parse a HOOMD-blue `rigid constraint`_ to create one or more bodies.
+
+        .. _rigid constraint: https://hoomd-blue.readthedocs.io/en/stable/hoomd/md/constrain/rigid.html
         
         Parameters
         ----------
@@ -1209,7 +1215,9 @@ class Body:
         simulation: hoomd.Simulation,
         primary_type: str | None = None
     ) -> list[Body] | Body:
-        """Parse a `hoomd.Simulation <https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html>`_ to create one or more :class:`~p4.Body`.
+        """Parse a HOOMD-blue `Simulation`_ to create one or more bodies.
+
+        .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
 
         This is a convenience method that is equivalent to
         
@@ -1246,14 +1254,11 @@ class Body:
     def to_json(self, filename: os.PathLike, json_path: str | None = None):
         """Export the body to JSON.
         
-        If ``filename`` points to an existing file, a JSON path may be specified
+        If ``filename`` points to an existing file, a JSON path may be provided
         to ensure the body data does not clash with existing data in the file.
 
-        A JSON path that looks like this
-
-        ``'parent.object.subobject'``
-
-        represents a location that looks like this
+        A JSON path that looks like ``'parent.object.subobject'`` represents the
+        following location:
 
         .. code-block::
 

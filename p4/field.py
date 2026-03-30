@@ -55,7 +55,7 @@ class Field:
     Plotting is done using `Plotly`_, and the :meth:`~p4.Field.plot` method
     returns both figure and trace so that the trace may be added manually to
     other figures. Orthogonal slicing in 2D and 1D is supported for scalar
-    plots, and for 2D in vector plots.
+    plots, and in 2D for vector plots.
 
     .. _Plotly: https://plotly.com/
 

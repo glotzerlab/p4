@@ -15,10 +15,10 @@ import p4.util
 from p4 import Body, Interaction
 
 class System:
-    """A System is defined by two bodies and a set of interactions.
+    """A System is defined by a probe, an analyte, and their interactions.
     
-    Once the system is instantiated, its potential energy landscape can be
-    measured using :meth:`~p4.System.probe_potential`.
+    Measure a system's spatial distributions of potential energy, force, and
+    torque using :meth:`~p4.System.measure`.
 
     .. code-block::
         :caption: A system composed of a probe that is a point body 'A' and an
@@ -159,7 +159,7 @@ class System:
     def measure(
         self,
         quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
-        position_resolutions: list[list[float]],    # TODO: sampling_strategy: 'grid' with p_res and o_res, 'dynamic' with ???
+        position_resolutions: list[float],    # TODO: sampling_strategy: 'grid' with p_res and o_res, 'dynamic' with ???
         orientation_resolutions: list[list[float]],
         symmetries: list[int],
         csv_filename: str,
@@ -180,15 +180,15 @@ class System:
             the entire system, and is saved as a single scalar quantity. 'F' and
             'T' are the net Force and Torque experienced by the probe, and are
             saved as vector quantities.
-        position_resolutions : list[list[float]]
-            The number of samples along each dimension of the position grid.
-            $[X, Y, Z]$
-        orientation_resolutions : list[list[float]]
-            The number of samples along each dimension of the orientation grid.
-            $[X, Y, Z]$
+        position_resolutions : list[float]
+            The number of samples along each dimension :math:`[X, Y, Z]` of the
+            position grid.
+        orientation_resolutions : list[float]
+            The number of samples along each dimension :math:`[X, Y, Z]` of the
+            axis-angle orientation grid.
         orientation_symmetries : list[int]
-            The rotational symmetry for each axis. If not provided, C1 symmetry
-            is assumed for every axis. $[X, Y, Z]$
+            The rotational symmetry for each axis $[X, Y, Z]$. If not provided,
+            C1 symmetry is assumed for every axis. 
         csv_filename : str
             The name of the CSV file to save.
         nlist : hoomd.md.nlist.NeighborList
@@ -216,10 +216,10 @@ class System:
             The number of processes to distribute the probe operation between.
             Parallelization is implemented at the Python level, so each process
             creates and runs its own simulation and then the table results are
-            combined in the output CSV. Note that if save_gsd is set to True,
-            each simulation will produce a separate GSD file. Set this parameter
-            to -1 to use the maximum allowed number of processes for your
-            machine.
+            combined in the output CSV. Note that if ``save_gsd`` is set to
+            True, each simulation will produce a separate GSD file. Set this
+            parameter to -1 to use the maximum allowed number of processes for
+            your machine.
         save_gsd : bool, default=False
             Whether to save a GSD file alongside the output CSV file. If True,
             the GSD has the same name as the CSV. The name of the GSD file will
@@ -350,14 +350,16 @@ class System:
         probe_primary_type: str,
         analyte_primary_type: str
     ):
-        """Parse a `hoomd.Simulation <https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html>`_ to create a :class:`~p4.System`.
+        """Parse a HOOMD-blue `Simulation`_ to create a system.
+
+        .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
 
         The simulation must have an integrator, and the integrator must have one
         or more forces. Optionally, the integrator may also have a rigid
         constraint. If it does have one, and if this constraint's keys
         include ``probe_primary_type`` or ``analyte_primary_type``, then the
         constraint is parsed to determine secondary types, positions, and
-        orientations for the resulting probe and/or analyte :class:`~p4.Body`.
+        orientations for the resulting probe and/or analyte.
 
         Parameters
         ----------
@@ -425,11 +427,8 @@ class System:
         to ensure the system data does not clash with existing data in the
         file.
 
-        A JSON path that looks like this
-
-        ``'parent.object.subobject'``
-
-        represents a location that looks like this
+        A JSON path that looks like ``'parent.object.subobject'`` represents the
+        following location:
 
         .. code-block::
 

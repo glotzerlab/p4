@@ -17,10 +17,13 @@ import p4.util
 
 
 class Interaction:
-    """The data for instantiating and parameterizing a hoomd.md.pair potential.
+    """The data for making and parameterizing a `HOOMD-blue MD pair potential`_.
 
-    `Interaction` is self-validating, i.e., every instance is guaranteed to
-    successfully create and parameterize its provided HOOMD pair potential.
+    .. _HOOMD-blue MD pair potential: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/pair/pair.html
+
+    This class is self-validating: when it is successfully instantiated, it is
+    guaranteed that it can successfully instantiate and parameterize its
+    HOOM-blue potential.
       
     .. code-block::
         :caption: A Lennard-Jones potential that allows A-B interactions but
@@ -44,17 +47,19 @@ class Interaction:
     Parameters
     ----------
     hoomd_class : hoomd.md.pair.Pair
-        The constructor for the HOOMD class. Must be in `hoomd.md.pair`.
+        The constructor for the HOOMD class. Must be in the ``hoomd.md.pair``
+        module or one of its submodules.
     initial_args : dict[str, float | str]
-        All parameters (that aren't `nlist`) that are needed for instantiating
+        All parameters (that aren't ``nlist``) needed for instantiating
         the class from its constructor.
     default_params : dict
         The names and values of parameters that will be set by default for
-        **all** single and pair types. To determine the params for
-        your `hoomd_class`, consult the HOOMD docs.
+        all single and pair types. To determine the params for a given
+        class, consult the `HOOMD-blue documentation
+        <https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/module-pair.html>`__.
     typed_params : dict
         A mapping of single and pair types to parameter names and values. These
-        names and values will override those from `default_params`.
+        names and values will override those from ``default_params``.
     """
     def __init__(
         self,
@@ -224,7 +229,7 @@ class Interaction:
         return simulation
 
     def interacting_types(self, category=Literal["single", "pair", "all"]):
-        """A list of particle types from `typed_params`.
+        """A list of particle types from ``typed_params``.
         
         Parameters
         ----------
@@ -260,7 +265,7 @@ class Interaction:
         parameterize: bool,
         all_types: list[str] | None = None,
     ) -> hoomd.md.pair.Pair:
-        """Return an instance of the hoomd-blue class.
+        """Return an instance of the HOOMD-blue class.
         
         Parameters
         ----------
@@ -278,9 +283,9 @@ class Interaction:
         Raises
         ------
         ValueError
-            If the ``initial_args`` are wrong.
+            If the ``initial_args`` is wrong.
         AttributeError
-            If the typed params are wrong.
+            If the ``typed_params`` is wrong.
         """
         def wrong_type_msg(param, default_or_typed, single_or_pair, hoomd_class):
             return (
@@ -364,12 +369,14 @@ class Interaction:
         cls,
         pair: hoomd.md.pair.Pair
     ) -> list[Interaction] | Interaction:
-        """Parse a `hoomd.md.pair.Pair <https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/pair/pair.html>`_ to create an :class:`~p4.Interaction`.
+        """Parse a `HOOMD-blue MD pair potential`_ to create an interaction.
+
+        .. _HOOMD-blue MD pair potential: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/pair/pair.html
         
         Parameters
         ----------
         pair : hoomd.md.pair.Pair
-            The hoomd pairwise force instance.
+            The pair potential.
         """
         def get_particle_types(typeparam_dict, interacting_or_all):
             """Return a list of particle type names in a typeparameter dictionary.
@@ -457,7 +464,9 @@ class Interaction:
         cls,
         integrator: hoomd.md.Integrator
     ) -> list[Interaction] | Interaction:
-        """Parse a `hoomd.md.Integrator <https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/integrator.html#hoomd.md.Integrator>`_ to create 1 or more :class:`~p4.Interaction`.
+        """Parse a `HOOMD-blue MD Integrator`_ to create interactions.
+
+        .. _HOOMD-blue MD Integrator: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/integrator.html#hoomd.md.Integrator
         
         This is a convenience method that is equivalent to
 
@@ -468,7 +477,7 @@ class Interaction:
         Parameters
         ----------
         integrator : hoomd.md.Integrator
-            The integrator that contains the pairwise forces.
+            The integrator that contains the pair potentials.
         """
         if not integrator.forces:
             raise ValueError("`integrator` must have forces")
@@ -479,7 +488,9 @@ class Interaction:
         cls,
         simulation: hoomd.Simulation,
     ) -> list[Interaction] | Interaction:
-        """Parse a `hoomd.Simulation <https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html>`_ to create one or more :class:`~p4.Interaction`.
+        """Parse a HOOMD-blue `Simulation`_ to create interactions.
+
+        .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
 
         This is a convenience method that is equivalent to
         
@@ -490,7 +501,7 @@ class Interaction:
         Parameters
         ----------
         simulation : hoomd.Simulation
-            The simulation whose integrator contains the pairwise forces.
+            The simulation whose integrator contains the pair potentials.
         """
         if simulation.operations.integrator is None:
             raise ValueError("`simulation` must have an integrator")
@@ -635,17 +646,14 @@ class Interaction:
         return data
 
     def to_json(self, filename: os.PathLike, json_path: str | None = None):
-        """Export the body to JSON.
+        """Export the interaction to JSON.
         
         If ``filename`` points to an existing file, a JSON path may be specified
         to ensure the interaction data does not clash with existing data in the
         file.
 
-        A JSON path that looks like this
-
-        ``'parent.object.subobject'``
-
-        represents a location that looks like this
+        A JSON path that looks like ``'parent.object.subobject'`` represents the
+        following location:
 
         .. code-block::
 

@@ -3,11 +3,13 @@
 
 from __future__ import annotations
 import json
+import os
 import coxeter
 import hoomd
 import numpy as np
 import plotly
 from copy import copy
+from pathlib import Path
 
 import rowan
 from .util import (
@@ -1241,33 +1243,124 @@ class Body:
         """Return a JSON-compliant dictionary representing this body."""
         return self.__dict__
 
-    def to_json(self, filename: str):
+    def to_json(self, filename: os.PathLike, json_path: str | None = None):
         """Export the body to JSON.
         
+        If ``filename`` points to an existing file, a JSON path may be specified
+        to ensure the body data does not clash with existing data in the file.
+
+        A JSON path that looks like this
+
+        ``'parent.object.subobject'``
+
+        represents a location that looks like this
+
+        .. code-block::
+
+            <root>
+            └─ parent
+               └─ object
+                  └─ subobject
+                     └─ <data will go here>
+
+        If the path specifies a location that already contains data, the
+        contents of that location may be overwritten.
+                     
         Parameters
         ----------
-        filename : str, optional
-            The name of the JSON file.
+        filename : os.PathLike
+            The name or path of the JSON file.
+        json_path : str, optional
+            The location within the JSON file to put the body's representation
+            in. Only used if ``filename`` already exists.
         """
-        with open(filename, "w") as f:
-            json.dump(self._to_json_dict(), f, indent=2)
+        path = Path(filename)
+        data = self._to_json_dict()
+
+        if path.exists():
+            with open(path, "r") as f:
+                existing_data = json.load(f)
+            
+            if json_path is None:
+                for k, v in data:
+                    existing_data[k] = v
+            
+            else:
+                names = json_path.split(".")
+                current_container = existing_data
+                for i, name in enumerate(names):
+                    if i < (len(names) - 1):
+                        if name not in current_container:
+                            current_container[name] = {}
+                        current_container = current_container[name]
+                    else:
+                        if isinstance(current_container[name], dict):
+                            current_container[name].update(data)
+                        else:
+                            current_container[name] = data
+
+            with open(path, "w") as f:
+                json.dump(existing_data, f)
+
+        else:
+            with open(filename, "w") as f:
+                json.dump(data, f)
     
     @classmethod
-    def _from_json_dict(cls, json_dict: dict):
+    def _convert_json_dict(cls, json_dict: dict):
         """Convert a JSON-compliant dict into an instantiation-ready dict."""
         return json_dict
 
     @classmethod
-    def from_json(cls, filename: str):
+    def from_json(cls, filename: os.PathLike, json_path: str | None = None):
         """Create a body from JSON.
+
+        a JSON path may be provided to control the location that the body data
+        is retrieved from. See :meth:`~p4.Body.to_json` for an explanation of
+        JSON path formatting.
         
         Parameters
         ----------
-        filename : str
-            The name of the JSON file.
+        filename : os.PathLike
+            The name or path of the JSON file.
+        json_path : str, optional
+            The location within the JSON file to retrieve the body's
+            representation from.
+        
+        Raises
+        ------
+        ValueError
+            If the JSON file does not have the keys and values required for
+            instantiating a Body.
         """
         with open(filename, "r") as f:
-            data = cls._from_json_dict(json.load(f))
+            data = json.load(f)
+
+        if json_path is None:
+            data = cls._convert_json_dict(data)            
+        
+        else:
+            current_container = data
+            for name in json_path.split("."):
+                current_container = current_container[name]
+            data = cls._convert_json_dict(current_container)
+        
+        required_args = [
+            "primary_type",
+            "secondary_types",
+            "positions_by_type",
+            "orientations_by_type"
+        ]
+        for required_arg in required_args:
+            if required_arg not in data:
+                raise ValueError(
+                    f"Required arg {required_arg} not found in '{filename}' "
+                    + f"at path '{json_path}'."
+                )
+        for key in copy(data):
+            if key not in required_args:
+                del data[key]
+
         return cls(**data)
 
     def __eq__(self, other):

@@ -332,6 +332,11 @@ Probe the potential around a repulsive ALJ cube with attractive gaussian sites
 
 
 .. toctree::
+   :caption: Examples
+
+   examples/alj-cube-gauss-sites
+
+.. toctree::
    :caption: API
 
    api/body

@@ -1,9 +1,14 @@
 ## To-do
 
 `Body`
-- [ ] add a to_rigid method
+- [x] add a to_rigid method
+- [ ] add to_rigid and json tests
+
+`Interaction`
+- [ ] add json tests
 
 `System`
+- [ ] add json tests
 - [ ] add API for sampling strategies
   - [ ] uniform grid
   - [ ] uniform grid with geometrically-defined gap
@@ -14,7 +19,7 @@
 - [ ] write tests
 
 `util`
-- [ ] functions for saving/creating interaction models to/from json
+- [x] functions for saving/creating interaction models to/from json
 
 
 Other

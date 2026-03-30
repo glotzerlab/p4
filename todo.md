@@ -1,7 +1,6 @@
 ## To-do
 
 `Body`
-- [x] add a to_rigid method
 - [ ] add to_rigid and json tests
 
 `Interaction`
@@ -18,10 +17,6 @@
 `Field`
 - [ ] write tests
 
-`util`
-- [x] functions for saving/creating interaction models to/from json
-
-
 Other
   - [ ] Add support for Frame analytes. This would require
     - [ ] Writing measurements concurrently to disk, rather than storing in StringIO
@@ -31,15 +26,8 @@ Other
 ## Roadmap
 
 ### Open to group members
-functionality
-  - [x] parse hoomd objects to create Interaction, ParticleModel, System
-  - [x] plot 1D and 2D slices of Fields
-
 tests
   - [ ] non-validation coverage 100%
-
-documentation
-  - [ ] API + 1 example
 
 ### Open to public
 TBD

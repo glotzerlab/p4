@@ -232,7 +232,7 @@ def test_alj_cube_with_g_sites(n_processes=-1):
         orientation_resolutions=[1, 1, 5],
         symmetries=[1, 1, 4],
         nlist=nlist,
-        csv_filename="alj-cube-with-gauss-sites.csv",
+        csv_filename="alj-cube-with-gauss-sites-uft.csv",
         outside_cutoff=10,
         n_processes=n_processes,
     )
@@ -246,9 +246,9 @@ if __name__ == "__main__":
     #     start_time = time.perf_counter()
     #     test_alj_cube_with_eg_sites(n_processes)
     #     print(f"{n_processes} processes completed in {round(time.perf_counter() - start_time, 2)} s.")
-    test_lj_sphere()
+    # test_lj_sphere()
     # test_alj_cube()
-    # test_alj_cube_with_g_sites(-1)
+    test_alj_cube_with_g_sites(-1)
     # test_lj_sphere_3d()
 
     # f = p4.Field.from_csv("test-lj-sphere-3d.csv", "mean")

@@ -1,13 +1,6 @@
 ## To-do
 
-`Body`
-- [ ] add to_rigid and json tests
-
-`Interaction`
-- [ ] add json tests
-
 `System`
-- [ ] add json tests
 - [ ] add API for sampling strategies
   - [ ] uniform grid
   - [ ] uniform grid with geometrically-defined gap

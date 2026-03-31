@@ -1136,7 +1136,7 @@ class Body:
         rigid: hoomd.md.constrain.Rigid,
         primary_type: str | None = None
     ) -> list[Body] | Body:
-        """Parse a HOOMD-blue `rigid constraint`_ to create one or more bodies.
+        """Parse a HOOMD-blue `rigid constraint`_ to create bodies.
 
         .. _rigid constraint: https://hoomd-blue.readthedocs.io/en/stable/hoomd/md/constrain/rigid.html
         
@@ -1215,7 +1215,7 @@ class Body:
         simulation: hoomd.Simulation,
         primary_type: str | None = None
     ) -> list[Body] | Body:
-        """Parse a HOOMD-blue `Simulation`_ to create one or more bodies.
+        """Parse a HOOMD-blue `Simulation`_ to create bodies.
 
         .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
 

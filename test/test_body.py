@@ -305,20 +305,86 @@ def make_simulation(
 def test_from_hoomd_rigid(kwargs):
     """Ensure parsing from hoomd.md.constrain.Rigid produces the expected output."""
     # Skip case when there are not secondary types
-    if "secondary_types" in kwargs.keys():
-        body = Body(**kwargs)
-        rigid = make_rigid(**kwargs)
-        assert body == Body.from_hoomd_rigid(rigid, body.primary_type)
+    if "secondary_types" not in kwargs.keys():
+        return
+    
+    body = Body(**kwargs)
+    rigid = make_rigid(**kwargs)
+    assert body == Body.from_hoomd_rigid(rigid, body.primary_type)
 
 @pytest.mark.parametrize("kwargs", VALID_KWARGS)
 def test_from_hoomd_simulation(kwargs):
     """Ensure parsing from hoomd.Simulation produces the expected output."""
     # Skip case when there are not secondary types
-    if "secondary_types" in kwargs.keys():
-        body = Body(**kwargs)
-        simulation = make_simulation(**kwargs)
-        assert body == Body.from_hoomd_simulation(simulation, body.primary_type)
+    if "secondary_types" not in kwargs.keys():
+        return
+    
+    body = Body(**kwargs)
+    simulation = make_simulation(**kwargs)
+    assert body == Body.from_hoomd_simulation(simulation, body.primary_type)
 
+
+def merge_rigids(rigid1, rigid2):
+    """Combine two rigid constraints together."""
+    merged = hoomd.md.constrain.Rigid()
+    
+    for primary_type, body_dict in rigid1.body.items():
+        merged.body[primary_type] = body_dict
+    
+    for primary_type, body_dict in rigid2.body.items():
+        merged.body[primary_type] = body_dict
+    
+    return merged
+
+def rigids_are_equal(rigid1, rigid2):
+    """Whether two rigid constraints are equivalent."""
+    r1_body = rigid1.body.to_base()
+    r2_body = rigid2.body.to_base()
+
+    return r1_body == r2_body
+
+@pytest.mark.parametrize("kwargs", VALID_KWARGS)
+def test_to_hoomd_rigid(kwargs):
+    """Ensure converting to hoomd.md.constrain.Rigid produces the expected output."""
+    body = Body(**kwargs)
+    
+    # Skip case when there are not secondary types
+    if "secondary_types" not in kwargs.keys():
+        return
+
+    # Test with all secondary types and no existing rigid constraint
+    rigid = make_rigid(**kwargs)
+    assert rigids_are_equal(rigid, body.to_hoomd_rigid())
+
+    # Test with existing rigid constraint
+    existing_rigid = make_rigid("X", ["Y"], dict(Y=[[0,0,1], [0,0,-1]]))
+    merged_rigid = merge_rigids(existing_rigid, rigid)
+    assert rigids_are_equal(merged_rigid, body.to_hoomd_rigid(rigid=existing_rigid))
+
+    # Test with partial secondary types...
+    if len(kwargs["secondary_types"]) > 1:
+        kwargs["secondary_types"] = [kwargs["secondary_types"][0]]
+        
+        # ... and no existing constraint...
+        rigid = make_rigid(**kwargs)
+        assert rigids_are_equal(
+            rigid,
+            body.to_hoomd_rigid(
+                included_secondary_types=kwargs["secondary_types"]
+            )
+        )
+
+        # .. and an existing constraint
+        merged_rigid = merge_rigids(existing_rigid, rigid)
+        assert rigids_are_equal(
+            merged_rigid,
+            body.to_hoomd_rigid(
+                rigid=existing_rigid,
+                included_secondary_types=kwargs["secondary_types"]
+            )
+        )
+
+    
 
 def test_plot(type_shapes, type_colors, ignore_types):
     """Ensure that plotting does not error for sets of valid kwargs."""

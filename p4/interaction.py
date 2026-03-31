@@ -697,9 +697,9 @@ class Interaction:
                 names = json_path.split(".")
                 current_container = existing_data
                 for i, name in enumerate(names):
+                    if name not in current_container:
+                        current_container[name] = {}
                     if i < (len(names) - 1):
-                        if name not in current_container:
-                            current_container[name] = {}
                         current_container = current_container[name]
                     else:
                         if isinstance(current_container[name], dict):
@@ -715,7 +715,7 @@ class Interaction:
                 json.dump(data, f, indent=indent)
     
     @classmethod
-    def _from_json_dict(cls, data: dict):
+    def _convert_json_dict(cls, data: dict):
         """Convert a JSON-compliant dict into an instantiation-ready dict."""
         # Convert hoomd class path from string to type
         class_path = data["hoomd_class"]

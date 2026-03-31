@@ -413,7 +413,7 @@ class System:
         data = {}
 
         data["probe"] = self.probe._to_json_dict()
-        data["analyte"] = self.probe._to_json_dict()
+        data["analyte"] = self.analyte._to_json_dict()
         data["interactions"] = [
             i._to_json_dict() for i in self.interactions
         ]
@@ -472,9 +472,9 @@ class System:
                 names = json_path.split(".")
                 current_container = existing_data
                 for i, name in enumerate(names):
+                    if name not in current_container:
+                        current_container[name] = {}
                     if i < (len(names) - 1):
-                        if name not in current_container:
-                            current_container[name] = {}
                         current_container = current_container[name]
                     else:
                         if isinstance(current_container[name], dict):
@@ -490,12 +490,12 @@ class System:
                 json.dump(data, f, indent=indent)
     
     @classmethod
-    def _from_json_dict(cls, data: dict):
+    def _convert_json_dict(cls, data: dict):
         """Convert a JSON-compliant dict into an instantiation-ready dict."""
         data["probe"] = p4.Body._convert_json_dict(data["probe"])
         data["analyte"] = p4.Body._convert_json_dict(data["analyte"])
         data["interactions"] = [
-            p4.Interaction._from_json_dict(i_dict)
+            p4.Interaction._convert_json_dict(i_dict)
             for i_dict in data["interactions"]
         ]
         return data

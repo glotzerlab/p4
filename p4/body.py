@@ -1302,9 +1302,9 @@ class Body:
                 names = json_path.split(".")
                 current_container = existing_data
                 for i, name in enumerate(names):
+                    if name not in current_container:
+                        current_container[name] = {}
                     if i < (len(names) - 1):
-                        if name not in current_container:
-                            current_container[name] = {}
                         current_container = current_container[name]
                     else:
                         if isinstance(current_container[name], dict):

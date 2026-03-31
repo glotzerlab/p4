@@ -702,8 +702,10 @@ class Interaction:
                     if i < (len(names) - 1):
                         current_container = current_container[name]
                     else:
+                        # try to write alongside existing data if possible...
                         if isinstance(current_container[name], dict):
                             current_container[name].update(data)
+                        # ... and insert or overwrite if not
                         else:
                             current_container[name] = data
 

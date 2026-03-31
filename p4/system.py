@@ -420,7 +420,12 @@ class System:
 
         return data
 
-    def to_json(self, filename: os.PathLike, json_path: str | None = None):
+    def to_json(
+        self,
+        filename: os.PathLike,
+        json_path: str | None = None,
+        indent: str | int | None = None
+    ):
         """Export the system to JSON.
         
         If ``filename`` points to an existing file, a JSON path may be specified
@@ -448,6 +453,9 @@ class System:
         json_path : str, optional
             The location within the JSON file to put the system's
             representation in. Only used if ``filename`` already exists.
+        indent : str or int, optional
+            The string or number of spaces to use when indenting newlines in the
+            JSON file. If not provided, there are no newlines.
         """
         path = Path(filename)
         data = self._to_json_dict()
@@ -475,11 +483,11 @@ class System:
                             current_container[name] = data
 
             with open(path, "w") as f:
-                json.dump(existing_data, f)
+                json.dump(existing_data, f, indent=indent)
 
         else:
             with open(filename, "w") as f:
-                json.dump(data, f)
+                json.dump(data, f, indent=indent)
     
     @classmethod
     def _from_json_dict(cls, data: dict):

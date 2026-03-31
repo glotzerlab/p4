@@ -1251,7 +1251,12 @@ class Body:
         """Return a JSON-compliant dictionary representing this body."""
         return self.__dict__
 
-    def to_json(self, filename: os.PathLike, json_path: str | None = None):
+    def to_json(
+        self,
+        filename: os.PathLike,
+        json_path: str | None = None,
+        indent: str | int | None = None
+    ):
         """Export the body to JSON.
         
         If ``filename`` points to an existing file, a JSON path may be provided
@@ -1278,6 +1283,9 @@ class Body:
         json_path : str, optional
             The location within the JSON file to put the body's representation
             in. Only used if ``filename`` already exists.
+        indent : str or int, optional
+            The string or number of spaces to use when indenting newlines in the
+            JSON file. If not provided, there are no newlines.
         """
         path = Path(filename)
         data = self._to_json_dict()
@@ -1305,11 +1313,11 @@ class Body:
                             current_container[name] = data
 
             with open(path, "w") as f:
-                json.dump(existing_data, f)
+                json.dump(existing_data, f, indent=indent)
 
         else:
             with open(filename, "w") as f:
-                json.dump(data, f)
+                json.dump(data, f, indent=indent)
     
     @classmethod
     def _convert_json_dict(cls, json_dict: dict):

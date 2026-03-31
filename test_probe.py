@@ -228,7 +228,7 @@ def test_alj_cube_with_g_sites(n_processes=-1):
 
     system.measure(
         quantities=["U", "F", "T"],
-        position_resolutions=[10, 10, 10],
+        position_resolutions=[100, 100, 1],
         orientation_resolutions=[1, 1, 5],
         symmetries=[1, 1, 4],
         nlist=nlist,
@@ -236,6 +236,21 @@ def test_alj_cube_with_g_sites(n_processes=-1):
         outside_cutoff=10,
         n_processes=n_processes,
     )
+
+    # field = p4.Field.from_csv("alj-cube-with-gauss-sites-uft.csv")
+    # aggregated_field = field.aggregate_over_orientations("U", "mean")
+
+    # # analyte_figure, analyte_trace = analyte.plot(type)
+    # figure, _ = aggregated_field.plot(
+    #     clim=[-1, 1],
+    #     slice=dict(z=0),
+    #     contours=None,
+    #     fill_nan_with_inf=True
+    # )
+    # figure.show()
+    # figure.write_html("alj-cube-with-gauss-sites-uft.html")
+
+
 
 if __name__ == "__main__":
     import signal

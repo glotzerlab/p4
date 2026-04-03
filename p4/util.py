@@ -118,10 +118,71 @@ def point_segment_distance(
     d = np.linalg.norm(np.cross(x0 - x1, x0 - x2)) / np.linalg.norm(x2 - x1)
     return d
 
+def point_in_segment(point: list[float], segment: list[list[float]]) -> bool:
+    """Return whether a 3D point is on a 3D line segment.
+    
+    Ref: https://stackoverflow.com/a/328122/15426433
+
+    Parameters
+    ----------
+    point : (3,) array of floats
+        The 3D point.
+    segment : (2, 3) array of floats
+        Two points in 3D space that define a line segment.
+    """
+    a = np.array(segment[0])
+    b = np.array(segment[1])
+    c = np.array(point)
+    return (
+        (       # c is not endpoint
+            not np.array_equal(c, a)
+            and not np.array_equal(c, b)
+        )
+        and (   # c is aligned with line segment
+            all(np.cross(b - a, c - a) == 0)
+        )
+        and (   # c is between a and b
+            np.dot(b - a, c - a) > 0
+            and np.dot(b - a, c - a) < np.linalg.norm(b - a)**2
+        )
+    )
+
+def points_straddle_plane(
+    point1: list[float],
+    point2: list[float],
+    plane: list[float]
+) -> bool:
+    """Return True if the points are on opposite sides of the plane.
+    
+    Parameters
+    ----------
+    point1 : (3,) array of floats
+        A 3D point.
+    point2 : (3,) array of floats
+        A 3D point.
+    plane : (4,) array of floats
+        The linear coefficients of the plane, corresponding to [a, b, c, d],
+        where the coefficients satisfy the conventional plane equation
+        a*x + b*y + c*z = d.
+    """
+    px, py, pz = point1
+    qx, qy, qz = point2
+    a, b, c, d = plane
+    return (
+        (
+            (px*a + py*b + pz*c < d)
+            and (qx*a + qy*b + qz*c > d)
+        )
+        or (
+            (px*a + py*b + pz*c > d)
+            and (qx*a + qy*b + qz*c < d)
+        )
+    )
+
 def segment_plane_intersection(
     segment: list[list[float]],
     plane: list[float]
-) -> list[list[float]]:
+) -> list[tuple[float]]:
     """Return the intersection of a line segment with a plane in 3D.
 
     This function only works if the plane has a normal with one non-zero
@@ -135,7 +196,6 @@ def segment_plane_intersection(
         The linear coefficients of the plane, corresponding to [a, b, c, d],
         where the coefficients satisfy the conventional plane equation
         a*x + b*y + c*z = d. Only one of a, b, or c may be non-zero.
-    
     """
     p1, p2 = segment
     if plane[0] == 1:
@@ -156,12 +216,13 @@ def segment_plane_intersection(
         px = f * (p2[0] - p1[0]) + p1[0]
         py = f * (p2[1] - p1[1]) + p1[1]
 
-    return [px, py, pz]
+    return (px, py, pz)
 
 def polygon_plane_intersection(
     polygon: list[list[float]],
-    plane: list[float]
-) -> list[list[list[float]]]:
+    plane: list[float],
+    activate_breakpoint=False
+) -> list[list[tuple[float]]]:
     """Return the intersection of a polygon with a plane in 3D.
     
     The polygon is provided as an ordered list of consecutive (i.e., connected)
@@ -190,7 +251,10 @@ def polygon_plane_intersection(
     points. For M = 1, the subarray represents a single point; for M = 2, a
     line segment. In the case of no intersection, an empty list is returned.
     """
-    polygon = np.array(polygon)
+    # if activate_breakpoint:
+    #     breakpoint()
+
+    polygon = [tuple(float(i) for i in p) for p in polygon]
 
     # If all of the polygon's vertices are co-planar, return the polygon.
     # If some of the vertices are co-planar, still proceed with the line segment
@@ -198,71 +262,126 @@ def polygon_plane_intersection(
     if len(np.array(polygon).shape) == 1: # TODO: fix this
         breakpoint()
 
-    coplanar_points = [p for p in polygon if point_plane_distance(p, plane) < 1e-6]
+    coplanar_points = [p for p in polygon if point_plane_distance(p, plane) < 1e-6] # TODO: return here
     if coplanar_points:
-        if len(coplanar_points) == polygon.shape[0]:
+        if len(coplanar_points) == len(polygon):
             return [polygon]    # note it must be in an array
 
     # Check for intersections between line segments and the plane. There can
     # only be intersections if the points on either end of a line segment
     # straddle the plane.
-    def points_straddle_plane(point1, point2, plane):
-        """Return True if the points are on opposite sides of the plane."""
-        px, py, pz = point1
-        qx, qy, qz = point2
-        a, b, c, d = plane
-        return (
-            (
-                (px*a + py*b + pz*c < d)
-                and (qx*a + qy*b + qz*c > d)
-            )
-            or (
-                (px*a + py*b + pz*c > d)
-                and (qx*a + qy*b + qz*c < d)
-            )
-        )
-
     intersected_segments = []
-    for i in range(polygon.shape[0]):
-        p1 = polygon[np.mod(i, polygon.shape[0])]
-        p2 = polygon[np.mod(i+1, polygon.shape[0])]
+    for i in range(len(polygon)):
+        p1 = polygon[np.mod(i, len(polygon))]
+        p2 = polygon[np.mod(i+1, len(polygon))]
         if points_straddle_plane(p1, p2, plane):
             intersected_segments.append([p1, p2])
     
-    # Determine the intersection point of the plane along each of the
-    # intersected line segments. This is the part that only works for planes
-    # with one non-zero normal component.
-    if intersected_segments: # TODO: return here to fix tangent points problem: add `or coplanar_points`
+    # Handle the edge case where there is a single tangent point. In this case,
+    # the intersection checks below will not work.
+    if not intersected_segments and len(coplanar_points) == 1:
+        return [coplanar_points]    # NOTE: must be in an array
+
+    # There is only an intersection if some points are co-planar or some
+    # segments are intersected.
+    if not (intersected_segments or coplanar_points):
+        return []
+    
+    else:
+        # Determine the intersection point of the plane along each of the
+        # intersected line segments. This is the part that only works for planes
+        # with one non-zero normal component.
         intersection_points = []
         for segment in intersected_segments:
             intersection_point = segment_plane_intersection(segment, plane)
             intersection_points.append(intersection_point)
-
-        # # If the polygon is convex, there will only be 2 intersection points.
-        # # In this case, simply return them. TODO: what if there are 2 intersection points for a concave shape...
-        # if len(intersection_points) == 2:
-        #     return np.vstack([[intersection_points[0]], [intersection_points[1]]])
         
-        # If the polygon is concave, there can be more than 2 intersection
-        # points. We have to determine which points connect together to form
-        # line segments that are inside the polygon.
-        potential_intersection_segments = [
-            [intersection_points[i], intersection_points[i+1]]
-            for i in range(len(intersection_points)-1)
-        ]
-        if potential_intersection_segments: # may not exist yet if only coplanar points
-            potential_intersection_segments.append( # make sure we close the loop
-                [intersection_points[-1], intersection_points[0]]
-            )
+        # Arrange the intersection points and co-planar points together in
+        # ascending order along the line formed from the intersection of the
+        # plane with the polygon.
+        merged_intersection_points = intersection_points + coplanar_points
+        
+        coplanar_point_segments = []
+        for p in coplanar_points:
+            i = polygon.index(p)
+            coplanar_point_segments.append([polygon[i], polygon[(i+1) % len(polygon)]])
+        
+        merged_intersected_segments = intersected_segments + coplanar_point_segments
 
-        # If there are no intersected segments, we still have to check
-        # the coplanar points
-        if not intersected_segments:
-            intersection_points = coplanar_points
+        direction = np.array(merged_intersection_points[1]) - np.array(merged_intersection_points[0])
+        metrics = [np.dot(direction, p) for p in merged_intersection_points]
+        sorted_merged_intersection_points = [p for _, p in sorted(zip(metrics, merged_intersection_points))]
+        sorted_merged_intersected_segments = [s for _, s in sorted(zip(metrics, merged_intersected_segments))]
 
-        # If there are previously-found coplanar points, we have to check them
-        # just like we check the segments. Treat them as intersecting the line
-        # segments that *start* at them. TODO: return here to fix tangent points problem
+        # Check each sequential pair of points to see if the segment between
+        # them is inside the polygon. If it is, then they form an intersection
+        # segment. If not, then the first one is a tangent point and the next
+        # one is checked as the start point of the next pair.
+
+        # This check consists of the following steps:
+        #   1) let *a* be a vector representing a potential intersection segment
+        #   2) let *b* be a vector from a[0] to the end of the polygon
+        #      segment that a[0] lies on
+        #   3) Take the cross product b x a = c
+        #   4) Compare the cross product *c* to the normal vector *n* for the
+        #      polygon. If the angle between *c* and *n* is approximately 0,
+        #      then the potential intersection segment is inside the polygon
+        #      and counts as a legitimate intersection.
+
+        # In order to calculate *a*, we need an array of potential intersection
+        # segments (this is what sorted_merged_points is for) and in order to
+        # calculate *b* we need an array of polygon sides that the intersection
+        # points are from.
+        normal = np.cross(
+            np.array(polygon[1]) - np.array(polygon[0]),
+            np.array(polygon[2]) - np.array(polygon[1])
+        )
+
+        intersection_segments = []
+        tangent_intersection_points = []
+
+        for i in range(len(sorted_merged_intersection_points) - 1):
+            a = np.array(sorted_merged_intersection_points[i+1]) - np.array(sorted_merged_intersection_points[i])
+            b = np.array(sorted_merged_intersected_segments[i][1]) - np.array(sorted_merged_intersection_points[i])
+            c = np.cross(b, a)
+
+            if angle_between_vectors(c, normal) < np.pi/2: # TODO: add `or np.array_equal(a, b)` to fix warning
+                # if not any(
+                #     point_in_segment(p, potential_intersection_segments[i])
+                #     for p in intersection_points
+                # ):
+                intersection_segments.append([
+                    sorted_merged_intersection_points[i],
+                    sorted_merged_intersection_points[i+1]
+                ])
+            else:
+                tangent_intersection_points.append(
+                    [sorted_merged_intersection_points[i]] # NOTE: must be in an array
+                )
+        
+        return intersection_segments + tangent_intersection_points
+
+                   
+        # # There can be more than 2 intersection points. We have to determine
+        # # which points connect together to form line segments that are inside
+        # # the polygon.
+        # potential_intersection_segments = [
+        #     [intersection_points[i], intersection_points[i+1]]
+        #     for i in range(len(intersection_points)-1)
+        # ]
+        # if potential_intersection_segments: # may not exist yet if only coplanar points
+        #     potential_intersection_segments.append( # make sure we close the loop
+        #         [intersection_points[-1], intersection_points[0]]
+        #     )
+
+        # # If there are no intersected segments, we still have to check
+        # # the coplanar points
+        # # if not intersected_segments:
+        # #     intersection_points = coplanar_points
+
+        # # If there are previously-found coplanar points, we have to check them
+        # # just like we check the segments. Treat them as intersecting the line
+        # # segments that *start* at them. TODO: return here to fix tangent points problem
         # if coplanar_points:
         #     if not intersected_segments:
         #         for cp in coplanar_points:
@@ -281,67 +400,68 @@ def polygon_plane_intersection(
         #             [coplanar_points[i], coplanar_points[i+1]]
         #         )
 
-        # If there are only 2 intersection points, either the points define a
-        # line segment (always the case for convex polygons), or the points
-        # define two tangent point intersections. 
+        # # If there are only 2 intersection points, either the points define a
+        # # line segment (always the case for convex polygons), or the points
+        # # define two tangent point intersections. 
 
-        # For every potential intersection segment, check if it is inside
-        # the polygon. This check consists of the following steps:
-        #   1) let a be a vector representing a potential intersection segment
-        #   2) let b be a vector from a[0] to the end of the polygon
-        #      segment that that point lies on
-        #   3) Take the cross product b x a = c
-        #   4) Compare the cross product c to the normal vector n for the
-        #      polygon. If the angle between c and n is approximately 0,
-        #      then the potential intersection segment is inside the polygon
-        #      and counts as a legitimate intersection.
-        normal = np.cross(
-            polygon[1] - polygon[0],
-            polygon[2] - polygon[1]
-        )
+        # # For every potential intersection segment, check if it is inside
+        # # the polygon. This check consists of the following steps:
+        # #   1) let a be a vector representing a potential intersection segment
+        # #   2) let b be a vector from a[0] to the end of the polygon
+        # #      segment that that point lies on
+        # #   3) Take the cross product b x a = c
+        # #   4) Compare the cross product c to the normal vector n for the
+        # #      polygon. If the angle between c and n is approximately 0,
+        # #      then the potential intersection segment is inside the polygon
+        # #      and counts as a legitimate intersection.
+        # normal = np.cross(
+        #     polygon[1] - polygon[0],
+        #     polygon[2] - polygon[1]
+        # )
 
-        intersection_segments = []
-        indices_of_intersection_segment_points = []
-        for i in range(len(intersection_points)):
-            a = np.array(potential_intersection_segments[i][1]) - np.array(potential_intersection_segments[i][0])
-            b = np.array(intersected_segments[i][1]) - np.array(potential_intersection_segments[i][0])
-            c = np.cross(b, a)
-            if angle_between_vectors(c, normal) < np.pi/2: # TODO: add `or np.array_equal(a, b)` to fix warning
-                # Check also if any other intersection point is on this
-                # potential segment. If so, reject the segment. This could be
-                # optimized away if the intersection points were ordered such
-                # that wrapping problems were preventable.
-                def point_in_segment(point, segment):
-                    # Ref: https://stackoverflow.com/a/328122/15426433
-                    a = np.array(segment[0])
-                    b = np.array(segment[1])
-                    c = np.array(point)
-                    return (
-                        (not np.array_equal(c, a) and not np.array_equal(c, b)) # c is not endpoint
-                        and all(np.cross(b - a, c - a) == 0)                    # c is aligned with line segment
-                        and (                                                   # c is between a and b
-                            np.dot(b - a, c - a) > 0
-                            and np.dot(b - a, c - a) < np.linalg.norm(b - a)**2
-                        )
-                    )
-                if not any(
-                    point_in_segment(p, potential_intersection_segments[i])
-                    for p in intersection_points
-                ):
-                    intersection_segments.append(potential_intersection_segments[i])
-                    indices_of_intersection_segment_points.extend([i, np.mod(i+1, len(intersection_points))])
+        # intersection_segments = []
+        # indices_of_intersection_segment_points = []
+        # for i in range(len(intersection_points)):
+        #     # TODO: this is where the problem is. because we can enter this
+        #     # branch when there are no intersected segments, it is possible for
+        #     # there to be no potential_intersection_segments, which obviously
+        #     # causes an indexing error below. What should we do about this?
+        #     a = np.array(potential_intersection_segments[i][1]) - np.array(potential_intersection_segments[i][0])
+        #     b = np.array(intersected_segments[i][1]) - np.array(potential_intersection_segments[i][0])
+        #     c = np.cross(b, a)
+        #     if angle_between_vectors(c, normal) < np.pi/2: # TODO: add `or np.array_equal(a, b)` to fix warning
+        #         # Check also if any other intersection point is on this
+        #         # potential segment. If so, reject the segment. This could be
+        #         # optimized away if the intersection points were ordered such
+        #         # that wrapping problems were preventable.
+        #         def point_in_segment(point, segment):
+        #             # Ref: https://stackoverflow.com/a/328122/15426433
+        #             a = np.array(segment[0])
+        #             b = np.array(segment[1])
+        #             c = np.array(point)
+        #             return (
+        #                 (not np.array_equal(c, a) and not np.array_equal(c, b)) # c is not endpoint
+        #                 and all(np.cross(b - a, c - a) == 0)                    # c is aligned with line segment
+        #                 and (                                                   # c is between a and b
+        #                     np.dot(b - a, c - a) > 0
+        #                     and np.dot(b - a, c - a) < np.linalg.norm(b - a)**2
+        #                 )
+        #             )
+        #         if not any(
+        #             point_in_segment(p, potential_intersection_segments[i])
+        #             for p in intersection_points
+        #         ):
+        #             intersection_segments.append(potential_intersection_segments[i])
+        #             indices_of_intersection_segment_points.extend([i, np.mod(i+1, len(intersection_points))])
         
-        # Any intersection points that are not included in the points that make
-        # up the intersection segments must be tangent point intersections
-        tangent_intersection_points = []
-        for i in range(len(intersection_points)):
-            if i not in indices_of_intersection_segment_points:
-                tangent_intersection_points.append(intersection_points[i])
+        # # Any intersection points that are not included in the points that make
+        # # up the intersection segments must be tangent point intersections
+        # tangent_intersection_points = []
+        # for i in range(len(intersection_points)):
+        #     if i not in indices_of_intersection_segment_points:
+        #         tangent_intersection_points.append(intersection_points[i])
 
-        return intersection_segments + tangent_intersection_points
-
-    else:
-        return []
+        # return intersection_segments + tangent_intersection_points
 
 def joinable_segments_to_polygon(
     segments: list[list[list[float]]]
@@ -448,7 +568,7 @@ def find_loop(
 
 def segments_to_polygons(
     segments: list[list[list[float]]]
-) -> Tuple[list[list[float]], list[list[list[float]]]]:
+) -> Tuple[list[tuple[float]], list[list[tuple[float]]]]:
     """Convert overlapping line segments into a polygon, returning others as-is.
 
     Line segments, which are represented by their start and end points, are
@@ -476,10 +596,10 @@ def segments_to_polygons(
     segment that could not be used to form a polygonal (length > 2) loop.
     """
     # Points must be tuples so they can be used as keys in the adjacency dict
-    segments = tuple(
-        (tuple(point1), tuple(point2))
+    segments = [
+        [tuple(point1), tuple(point2)]
         for point1, point2 in segments
-    )
+    ]
     
     # Adjacency dictionary
     adj = defaultdict(list)
@@ -505,7 +625,7 @@ def segments_to_polygons(
                 isolated_pairs.append([pt] + [n for n in adj[pt]])  # Review: this shouldn't be necessary
             else:
                 loops.append(loop)
-
+    breakpoint()
     return loops, isolated_pairs
 
 def pointset_contains_point(
@@ -595,8 +715,8 @@ def segment_segment_intersection(segment1, segment2) -> list[float] | None:
     c = np.array(segment1[0])
     d = np.array(segment2[0])
     g = d - c   # guaranteed not to have magnitude zero
-    e = np.array(segment1[1] - segment1[0])
-    f = np.array(segment2[1] - segment2[0])
+    e = np.array(segment1[1]) - np.array(segment1[0])
+    f = np.array(segment2[1]) - np.array(segment2[0])
     
     h = np.cross(f, g)
     k = np.cross(f, e)
@@ -701,11 +821,10 @@ def polygon_contains_polygon(polygon1, polygon2) -> int:
     
     return 0
 
-
 def polyhedron_plane_intersection(
     polyhedron: coxeter.shapes.Polyhedron,
     plane: list[float]
-) -> list[list[list[float]]]:
+) -> list[list[tuple[float]]]:
     """Return the intersection of a polyhedron with a plane.
 
     Parameters
@@ -730,17 +849,15 @@ def polyhedron_plane_intersection(
         polygon = polyhedron.vertices[face]
         intersection = polygon_plane_intersection(
             polygon,
-            plane
+            plane,
         )
         if len(intersection) > 0:
             slice_geometries.extend(
                 intersection
             )
-
-    # If any of the faces were co-planar with the slice, then they
-    # were returned as polygons that might contain other polygons.
+    
     # Remove polygons that are contained by other polygons.
-    polygons = [g for g in slice_geometries if np.atleast_2d(g).shape[0] > 2]
+    polygons = [g for g in slice_geometries if len(g) > 2]
     uncontained_polygons = []
     contained_indices = []
     for i, polygon in enumerate(polygons):
@@ -762,11 +879,15 @@ def polyhedron_plane_intersection(
             elif contains_result == 2:
                 contained_indices.append(i)
 
-    uncontained_polygons = [polygons[i] for i in contained_indices]
+    uncontained_polygons = [
+        polygon
+        for i, polygon in enumerate(polygons)
+        if i not in contained_indices
+    ]
 
     # Remove points and segments that are contained by polygons. These were
     # formed from intersections with other faces.
-    nonpolygons = [g for g in slice_geometries if np.atleast_2d(g).shape[0] <= 2]
+    nonpolygons = [g for g in slice_geometries if len(g) <= 2]
     clean_nonpolygons = []
     clean_indices = []
     removed_indices = []
@@ -802,8 +923,8 @@ def polyhedron_plane_intersection(
     #   - points that are equivalent should be merged
     #   - line segments that are equivalent should be merged
     #   - line segments that connect should be joined into polygons
-    points = [g for g in clean_nonpolygons if np.atleast_2d(g).shape[0] == 1]
-    segments = [g for g in clean_nonpolygons if np.atleast_2d(g).shape[0] == 2]
+    points = [g for g in clean_nonpolygons if len(g) == 1]
+    segments = [g for g in clean_nonpolygons if len(g) == 2]
     clean_points = []
     clean_segments = []
     removed_point_indices = []
@@ -817,7 +938,7 @@ def polyhedron_plane_intersection(
             g2.append([round(i, 15) for i in p])
         rounded_segments.append(g2)
     
-    rounded_points = [[round(i, 15) for i in p] for p in points]
+    rounded_points = [[round(i, 15) for i in g[0]] for g in points]
     
     # Convert segments consisting of the same point into points
     removed_indices = []
@@ -880,11 +1001,12 @@ def polyhedron_plane_intersection(
             removed_isolated_segment_indices.append(i)
         else:
             clean_isolated_segments.append(s)
-    
+
     # The geometries for this slice now consist of polygons from
     # co-planar faces, polygons created from line segments, line
     # segments that could not be connected together, and points not
     # contained by other polygons or line segments.
+    breakpoint()
     slice_geometries = (
         uncontained_polygons + polygons_from_segments + clean_isolated_segments
         + clean_points

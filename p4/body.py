@@ -16,9 +16,9 @@ from .util import (
     WONG_COLORS,
     point_segment_distance,
     point_plane_distance,
-    intersection_of_polygon_with_plane,
-    intersection_of_polyhedron_with_plane,
-    intersection_of_segment_with_plane
+    polygon_plane_intersection,
+    polyhedron_plane_intersection,
+    segment_plane_intersection
 )
 
 class Body:
@@ -639,7 +639,7 @@ class Body:
 
                 # Create shape and slice it
                 row_shape = coxeter.shapes.Polyhedron(row_vertices, faces)            
-                slice_geometries = intersection_of_polyhedron_with_plane(
+                slice_geometries = polyhedron_plane_intersection(
                     row_shape, plane
                 )
 
@@ -892,7 +892,7 @@ class Body:
 
                 # Create shape and slice it
                 row_shape = coxeter.shapes.Polyhedron(row_vertices, faces)            
-                slice_geometries = intersection_of_polyhedron_with_plane(
+                slice_geometries = polyhedron_plane_intersection(
                     row_shape, plane1
                 )
 
@@ -922,12 +922,12 @@ class Body:
                         )
                         if segment_is_intersected:
                             slice_geometries2.append(
-                                intersection_of_segment_with_plane(geometry, plane2)
+                                segment_plane_intersection(geometry, plane2)
                             )
 
                     # Polygons are sliced like in 2D plotting
                     if np.array(geometry).shape[0] > 2:
-                        geometries = intersection_of_polygon_with_plane(geometry, plane2)
+                        geometries = polygon_plane_intersection(geometry, plane2)
                         slice_geometries2.extend(geometries)
 
                 # Slice geometries are packaged in a new data structure that

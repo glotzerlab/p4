@@ -115,7 +115,6 @@ def pointsets_are_equivalent(pointset1, pointset2):
 
     return same_connectivity
 
-@pytest.mark.parametrize("filename", ["2d_clean.obj"])
 @pytest.mark.parametrize("slice,expected", [
     [   # Test internal polygon, tangent polygon, tangent edge, and tangent vertex
         dict(y=0),
@@ -146,7 +145,7 @@ def pointsets_are_equivalent(pointset1, pointset2):
             [   # Tangent vertex 2
                 ( 0.0,   0.0,  -0.5 ),
             ],
-        ]
+        ],
     ],
     [   # Test merging of multiple internal polygons
         dict(y=-0.25),
@@ -156,13 +155,13 @@ def pointsets_are_equivalent(pointset1, pointset2):
                 ( 0.5,  -0.25,   0.5 ),
                 (-0.5,  -0.25,   0.5 ),
                 (-0.5,  -0.25,  -0.5 ),
-            ]
-        ]
-    ]
+            ],
+        ],
+    ],
 ])
-def test_polyhedron_intersection_2d(filename, slice, expected):
+def test_polyhedron_intersection_2d(slice, expected):
     """Ensure that slices return expected geometric elements."""
-    filepath = REFERENCE_FOLDER / filename
+    filepath = REFERENCE_FOLDER / "2d.obj"
 
     shape = obj_to_polyhedron(filepath)
 

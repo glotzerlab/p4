@@ -79,6 +79,35 @@ def angle_between_vectors(a: list[float], b: list[float]) -> float:
     """Return the smallest angle between vectors a and b in radians."""
     return np.arccos(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
+def signed_angle_3d(
+    v1: list[float],
+    v2: list[float],
+    normal: list[float]
+) -> float:
+    """Calculates the signed angle between two 3D vectors relative to a normal.
+
+    This function was written by Google Gemini.
+    
+    Parameters
+    ----------
+    v1 : list[float]
+        The vector to measure the angle from.
+    v2 : list[float]
+        The vector to measure the angle to.
+    normal : list[float]
+        The reference normal vector.
+    """
+    v1 /= np.linalg.norm(v1)
+    v2 /= np.linalg.norm(v2)
+
+    dot = np.dot(v1, v2)
+    cross = np.cross(v1, v2)
+    
+    # Use the sign of the dot product between cross product and normal
+    # to determine the direction relative to the reference axis
+    angle = np.arctan2(np.dot(cross, normal), dot)
+    return angle
+
 def point_plane_distance(point: list[float], plane: list[float]) -> float:
     """Return the smallest distance between a point and a plane.
 
@@ -183,6 +212,65 @@ def pointset_is_ccw(pointset: list[tuple[float]]) -> bool:
         normal[1] += (v1[2] - v2[2]) * (v1[0] + v2[0])
         normal[2] += (v1[0] - v2[0]) * (v1[1] + v2[1])
     return normal[2] > 0
+
+def pointset_can_be_polygon(
+    pointset: list[tuple[float]],
+    unique_points: bool = False,
+    noncolinear_points: bool = False,
+    no_intersections: bool = False,
+    bp=False
+) -> bool:
+    """Whether a pointset can be a polygon.
+    
+    In order for this check to return True, the pointset must have no
+    overlapping or intersecting sides. Short-circuiting is enabled with
+    optional inputs.
+
+    Parameters
+    ----------
+    pointset : list[tuple[float]]
+        The array of 3D points.
+    unique_points : bool, default=False
+        Whether it is guaranteed that the points are already unique.
+    noncolinear_points : bool, default=False
+        Whether it is already guaranteed that the points are already
+        noncolinear.
+    no_intersections : bool, default=False
+        Whether it is already guaranteed that the sides already have no
+        intersections.
+    """
+    # if bp:
+    #     breakpoint()
+    # Ensure enough points
+    if len(pointset) < 3:
+        return False
+    
+    # Ensure unique points
+    if not unique_points:
+        if not len(set(pointset)) == len(pointset):
+            return False
+
+    # Ensure not all colinear points (check by making sure the cross products of
+    # all vectors between the starting point and other points are equal to
+    # zero) - NOTE: technically, we should check all triples of points...
+    if not noncolinear_points:
+        diff = np.array(pointset)[1:,:] - np.array(pointset)[0,:]
+        if np.all(np.cross(diff[0,:], diff[1:,:]) == 0):
+            return False
+    
+    # # Ensure no intersections
+    # # NOTE: this is an inefficient check
+    if not no_intersections:
+        segments = polygon_to_segments(pointset)
+        for s1, s2 in itertools.combinations(segments, 2):
+            # Don't consider overlapping endpoints as an intersection
+            if not any(point in s2 for point in s1):
+                if segment_segment_intersection(s1, s2) is not None:
+                    return False
+    
+    # If all the previous checks have passed, the pointset should be able to
+    # be a polygon
+    return True
 
 def points_straddle_plane(
     point1: list[float],
@@ -301,7 +389,9 @@ def polygon_plane_intersection(
     if len(np.array(polygon).shape) == 1: # TODO: fix this
         breakpoint()
 
-    coplanar_points = [p for p in polygon if point_plane_distance(p, plane) < 1e-6] # TODO: return here
+    coplanar_points = [
+        p for p in polygon if point_plane_distance(p, plane) < 1e-6
+    ] # TODO: return here
     if coplanar_points:
         if len(coplanar_points) == len(polygon):
             return [polygon]    # note it must be in an array
@@ -340,6 +430,8 @@ def polygon_plane_intersection(
         # plane with the polygon.
         merged_intersection_points = intersection_points + coplanar_points
         
+        # The line segments containing coplanar points are guaranteed to have
+        # those points as their starting points.
         coplanar_point_segments = []
         for p in coplanar_points:
             i = polygon.index(p)
@@ -348,17 +440,97 @@ def polygon_plane_intersection(
             else:
                 coplanar_point_segments.append([polygon[i], polygon[(i+1)]])
         
-        merged_intersected_segments = intersected_segments + coplanar_point_segments
+        merged_intersected_segments = (
+            intersected_segments + coplanar_point_segments
+        )
 
-        direction = np.array(merged_intersection_points[1]) - np.array(merged_intersection_points[0])
+        direction = (
+            np.array(merged_intersection_points[1])
+            - np.array(merged_intersection_points[0])
+        )
         metrics = [np.dot(direction, p) for p in merged_intersection_points]
-        sorted_merged_intersection_points = [p for _, p in sorted(zip(metrics, merged_intersection_points))]
-        sorted_merged_intersected_segments = [s for _, s in sorted(zip(metrics, merged_intersected_segments))]
+        sorted_merged_intersection_points = [
+            p for _, p in sorted(zip(metrics, merged_intersection_points))
+        ]
+        sorted_merged_intersected_segments = [
+            s for _, s in sorted(zip(metrics, merged_intersected_segments))
+        ]
 
-        # Check each sequential pair of points to see if the segment between
-        # them is inside the polygon. If it is, then they form an intersection
-        # segment. If not, then the first one is a tangent point and the next
-        # one is checked as the start point of the next pair.
+        # In order for the rest of this function to work, the order of the
+        # intersection points must follow the handedness of the polygon.
+        must_be_reversed = False
+        
+        # For 3+ intersection points, the handedness check works like this:
+        #   1) let *s0* be the segment containing the first intersection point,
+        #      likewise for *s1* and *s2*
+        #   2) let *P* be 
+        #   3) In the array of segments representing the polygon, start at *s0*
+        #      and look forward. If *s2* comes before *s1* then the order of the
+        #      intersection points must be reversed, otherwise the handedness is
+        #      preserved.
+        if len(sorted_merged_intersection_points) > 2:
+            if bp:
+                breakpoint()
+            s0, s1, s2 = sorted_merged_intersected_segments[0:3]
+            polygon_segments = polygon_to_segments(polygon)
+            start = polygon_segments.index(s0)
+            for i in range(1, len(polygon)):
+                current_s = polygon_segments[(start + i) % len(polygon)]
+                if current_s == s2:
+                    must_be_reversed = True
+                    break
+                elif current_s == s1:
+                    break
+
+            # i_s0 = polygon.index(s0)
+            # i_s1 = polygon.index(s1)
+            # i_s2 = polygon.index(s2)
+            # distance_to_s1 = (i_s1 - i_s0) % len(polygon)
+            # distance_to_s2 = (i_s2 - i_s0) % len(polygon)
+            # if distance_to_s2 < distance_to_s1:
+            #     must_be_reversed = True
+
+        # For 2+ intersection points, the handedness check works like this:
+        #   1) let *i0* be the first intersection point, likewise for *i1*
+        #   2) let *c* be the polygon's centroid
+        #   3) let *p* be the polygon point immediately after *i0* in the
+        #      current order of the intersection segments array
+        #   4) let *u* be the vector from *c* to *i0*
+        #   5) let *v* be the vector from *c* to *p*
+        #   6) let *w* be the vector from *c* to *i1*
+        #   7) let *n* be the polygon normal
+        #   8) let *a* be the angle (relative to *n*) from *u* to *v*
+        #   9) let *b* be the angle (relative to *n*) from *u* to *w*
+        #   10) if *a* and *b* have opposite signs, then the order of the
+        #       intersection points must be reversed, otherwise the handedness
+        #       is preserved.
+        elif len(sorted_merged_intersection_points) == 2:
+            i0, i1 = sorted_merged_intersection_points
+            c = np.mean(polygon, axis=0)
+            p = sorted_merged_intersected_segments[0][1]
+            u = np.array(i0) - c
+            v = np.array(p) - c
+            w = np.array(i1) - c
+            a = signed_angle_3d(u, v, normal)
+            b = signed_angle_3d(u, w, normal)
+
+            if bp:
+                breakpoint()
+            if ((a < 0) and (b > 0)) or ((a > 0) and (b < 0)):
+                must_be_reversed = True
+        
+        if must_be_reversed:
+            sorted_merged_intersection_points = list(
+                reversed(sorted_merged_intersection_points)
+            )
+            sorted_merged_intersected_segments = list(
+                reversed(sorted_merged_intersected_segments)
+            )
+
+        # Check each sequential pair of intersection points to see if the
+        # segment between them is inside the polygon. If it is, then they form
+        # an intersection segment. If not, then the first one is a tangent point
+        # and the next one is checked as the start point of the next pair.
 
         # This check consists of the following steps:
         #   1) let *a* be a vector representing a potential intersection segment
@@ -367,21 +539,9 @@ def polygon_plane_intersection(
         #      segment that that point lies on
         #   3) Take the cross product b x a = c
         #   4) Compare the cross product *c* to the normal vector *n* for the
-        #      polygon. If the angle between *c* and *n* is approximately 0,
+        #      polygon. If the angle between *c* and *n* is within 90 degrees,
         #      then the potential intersection segment is inside the polygon
         #      and counts as a legitimate intersection.
-
-        # In order for this method to work, we need to preserve the handedness.
-        c = np.array(sorted_merged_intersection_points[1]) - np.array(sorted_merged_intersection_points[0])
-        d = np.array(sorted_merged_intersected_segments[0][1]) - np.array(sorted_merged_intersection_points[0])
-        e = np.cross(c, d)
-
-        if not angle_between_vectors(e, normal) == 0:
-        # intersection_points_ccw = pointset_is_ccw(sorted_merged_intersection_points)
-        # polygon_ccw = pointset_is_ccw(polygon)
-        # if not intersection_points_ccw == polygon_ccw:
-            sorted_merged_intersection_points = list(reversed(sorted_merged_intersection_points))
-            sorted_merged_intersected_segments = list(reversed(sorted_merged_intersected_segments))
 
         # In order to calculate *a*, we need an array of potential intersection
         # segments (this is what sorted_merged_points is for) and in order to
@@ -394,22 +554,17 @@ def polygon_plane_intersection(
         tangent_intersection_points = []
 
         for i in range(len(sorted_merged_intersection_points) - 1):
-            a = np.array(sorted_merged_intersection_points[i+1]) - np.array(sorted_merged_intersection_points[i])
-            b = np.array(sorted_merged_intersected_segments[i][1]) - np.array(sorted_merged_intersection_points[i])
-
-            # NOTE: if b points more than 90 degrees away from a, it is
-            # backwards and must be reversed
-            # if bp:
-            #     breakpoint()
-            # if (
-            #     (angle_between_vectors(a, b) > np.pi/2)
-            #     or (angle_between_vectors(a, b) < -np.pi/2)
-            # ):
-            #     b *= -1
-            
+            a = (
+                np.array(sorted_merged_intersection_points[i+1])
+                - np.array(sorted_merged_intersection_points[i])
+            )
+            b = (
+                np.array(sorted_merged_intersected_segments[i][1])
+                - np.array(sorted_merged_intersection_points[i])
+            )
             c = np.cross(b, a)
 
-            if angle_between_vectors(c, normal) < np.pi/2:
+            if angle_between_vectors(c, normal) < np.pi/2 or np.array_equal(a, b):  # TODO: return here
                 intersection_segments.append([
                     sorted_merged_intersection_points[i],
                     sorted_merged_intersection_points[i+1]
@@ -703,12 +858,21 @@ def segments_to_polygons(
     for pt in copy(adj):
         if pt not in visited:
             loop = find_loop(pt, adj, visited)
-            if loop == []:
+            # reject loops that cannot be polygons
+            if not loop or not pointset_can_be_polygon(loop, unique_points=True, bp=bp):
                 isolated_pairs.append([pt] + [n for n in adj[pt]])  # Review: this shouldn't be necessary
             else:
                 loops.append(loop)
 
-    return loops, isolated_pairs
+    # Remove duplicate isolated pairs
+    unique_isolated_pairs = []
+    for g in isolated_pairs:
+        if not any(
+            segments_are_equivalent(g, u) for u in unique_isolated_pairs
+        ):
+            unique_isolated_pairs.append(g)
+
+    return loops, unique_isolated_pairs
 
 def pointset_contains_point(
     pointset: list[list[float]],
@@ -951,7 +1115,6 @@ def pointset_in_polygon(
 
     return all(is_inside)
 
-
 def polygon_contains_polygon(polygon1, polygon2) -> int:
     """Check if polygon1 fully contains polygon2.
     
@@ -982,8 +1145,6 @@ def polygon_contains_polygon(polygon1, polygon2) -> int:
                 return 1
     
     return 0
-
-
 
 def segments_are_equivalent(
     segment1: list[tuple[float]],
@@ -1065,7 +1226,7 @@ def polyhedron_plane_intersection(
         intersection = polygon_plane_intersection(
             polygon,
             plane,
-            bp = (bp and (face in [[8, 9, 10, 11, 12, 13, 7, 3, 2], [15, 14, 18, 25, 22, 21, 24, 26, 27]]))
+            bp = (bp and (face in [[0, 1, 2, 3]]))
         )
         if len(intersection) > 0:
             slice_geometries.extend(
@@ -1152,6 +1313,9 @@ def polyhedron_plane_intersection(
     points = [g for g in uncontained_geometries if len(g) == 1]
     segments = [g for g in uncontained_geometries if len(g) == 2]
     polygons = [g for g in uncontained_geometries if len(g) > 2]
+
+    if bp:
+        breakpoint()
 
     # # Remove points and segments that are contained by polygons. These were
     # # formed from intersections with other faces.
@@ -1254,6 +1418,16 @@ def polyhedron_plane_intersection(
         segments, bp
     )
 
+    # segments_to_polygons is bugged [2026-04-07]. Fix its outputs. [TODO]
+    # 1) Remove duplicate isolated segments
+    # 2) Remove spurious polygons that are actually colinear 
+    unique_isolated_segments = []
+    for g in isolated_segments:
+        if not any(
+            segments_are_equivalent(g, u) for u in unique_isolated_segments
+        ):
+            unique_isolated_segments.append(g)
+
     # # One last pass for removing equivalent line segments
     # clean_isolated_segments = []
     # removed_isolated_segment_indices = []
@@ -1287,10 +1461,13 @@ def polyhedron_plane_intersection(
                     contained_points_indices.append(i)
         
         # Check for isolated segments
-        for i, segment in enumerate(isolated_segments):
+        for i, segment in enumerate(unique_isolated_segments):
             if i not in contained_isolated_segments_indices:
-                if pointset_in_polygon(segment, polygon_from_segments):
-                    contained_isolated_segments_indices.append(i)
+                try:
+                    if pointset_in_polygon(segment, polygon_from_segments):
+                        contained_isolated_segments_indices.append(i)
+                except:
+                    breakpoint()
         
         # Check for polygons that were not constructed from segments
         for i, polygon in enumerate(polygons):
@@ -1303,7 +1480,7 @@ def polyhedron_plane_intersection(
     ]
     uncontained_isolated_segments = [
         s
-        for i, s in enumerate(isolated_segments)
+        for i, s in enumerate(unique_isolated_segments)
         if i not in contained_isolated_segments_indices
     ]
     uncontained_polygons = [

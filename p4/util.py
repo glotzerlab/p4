@@ -108,6 +108,34 @@ def signed_angle_3d(
     angle = np.arctan2(np.dot(cross, normal), dot)
     return angle
 
+def newells_normal(polygon: list[tuple[float]]) -> list[float]:
+    """Calculate the normal for an arbitrary 3D polygon using Newell's method.
+    
+    Newell's method is required for concave polygons, since the usual 3-point
+    method will give different signs depending on whether they are around a
+    concave corner.
+
+    Note that this vector does NOT have a magnitude of 1.
+
+    Ref: https://doi.org/10.1016/B978-0-08-050755-2.50052-X
+
+    Parameters
+    ----------
+    polygon : list[tuple[float]]
+        The polygon in 3D.
+    """
+    n = len(polygon)
+
+    x = [p[0] for p in polygon]
+    y = [p[1] for p in polygon]
+    z = [p[2] for p in polygon]
+
+    a = sum((y[i] - y[(i+1) % n]) * (z[i] + z[(i+1) % n]) for i in range(n))
+    b = sum((z[i] - z[(i+1) % n]) * (x[i] + x[(i+1) % n]) for i in range(n))
+    c = sum((x[i] - x[(i+1) % n]) * (y[i] + y[(i+1) % n]) for i in range(n))
+
+    return [a, b, c]
+
 def point_plane_distance(point: list[float], plane: list[float]) -> float:
     """Return the smallest distance between a point and a plane.
 
@@ -304,11 +332,35 @@ def polygon_plane_intersection(
     line segment. In the case of no intersection, an empty list is returned.
     """
     polygon = [tuple(float(i) for i in p) for p in polygon]
+
+    # Simplify the polygon, merging all colinear segments
+    colinear_indices = []
+    for i, p in enumerate(polygon):
+        p_before = polygon[(i - 1) % len(polygon)]
+        p_after = polygon[(i + 1) % len(polygon)]
+        if point_in_segment(p, [p_before, p_after]):
+            colinear_indices.append(i)
+    polygon = [p for i, p in enumerate(polygon) if i not in colinear_indices]
     
-    normal = np.cross(
-        np.array(polygon[1]) - np.array(polygon[0]),
-        np.array(polygon[2]) - np.array(polygon[1])
-    )
+    normal = newells_normal(polygon)
+
+    # If the polygon's points are arranged CW when looking down the normal,
+    # reverse the order. The handedness check works like this:
+    #   1) let *p0* be the first polygon point, likewise for *p1* and *p2*
+    #   2) let *c* be the polygon's centroid
+    #   3) let *u* be the vector from *c* to *p0*
+    #   4) let *v* be the vector from *c* to *p1*
+    #   5) let *a* be the angle (relative to the normal) from *u* to *v*
+    #   6) if *a* is negative, the polygon points are arranged CW and their
+    #      order must be reversed.
+    c = np.mean(polygon, axis=0)
+    u = np.array(polygon[0]) - c
+    v = np.array(polygon[1]) - c
+    if bp:
+        breakpoint()
+    if signed_angle_3d(u, v, normal) < 0:
+        polygon = list(reversed(polygon))
+        normal = newells_normal(polygon)
 
     # If all of the polygon's vertices are co-planar, return the polygon.
     # If some of the vertices are co-planar, still proceed with the line segment

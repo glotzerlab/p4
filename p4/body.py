@@ -16,9 +16,8 @@ from .util import (
     WONG_COLORS,
     point_segment_distance,
     point_plane_distance,
-    polygon_plane_intersection,
     polyhedron_plane_intersection,
-    segment_plane_intersection
+    polyhedron_line_intersection
 )
 
 class Body:
@@ -864,7 +863,7 @@ class Body:
         else:
             plane1 = [0, 1, 0, slice_y]
             plane2 = [0, 0, 1, slice_z]
-            line = [[-1e9, slice_y, slice_z], [1e9, slice_y, slice_z]]    
+            line = [[-1e9, slice_y, slice_z], [1e9, slice_y, slice_z]]
 
         # Construct the particle data for the first slice. The row is included only
         # if points are returned for the slice
@@ -892,47 +891,13 @@ class Body:
 
                 # Create shape and slice it
                 row_shape = coxeter.shapes.Polyhedron(row_vertices, faces)            
-                slice_geometries = polyhedron_plane_intersection(
-                    row_shape, plane1
+                slice_geometries = polyhedron_line_intersection(
+                    row_shape, [plane1, plane2]
                 )
-
-                # Slice the current slice with the second plane
-                slice_geometries2 = []
-                for geometry in slice_geometries:
-                    # Points must be within the distance tolerance
-                    if np.array(geometry).shape[0] == 1:
-                        px, py, pz = geometry
-                        if point_segment_distance([px, py, pz], line) < point_size_for_slice:
-                            slice_geometries2.append(geometry)
-                    
-                    # Segments must pass the intersection test
-                    if np.array(geometry).shape[0] == 2:
-                        segment_is_intersected = (
-                            (
-                                plane2[1] == 1
-                                and slice["y"] >= np.array(geometry)[:,1].min()
-                                and slice["y"] <= np.array(geometry)[:,1].max()
-                            )
-                            or
-                            (
-                                plane2[2] == 1
-                                and slice["z"] >= np.array(geometry)[:,2].min()
-                                and slice["z"] <= np.array(geometry)[:,2].max()
-                            )
-                        )
-                        if segment_is_intersected:
-                            slice_geometries2.append(
-                                segment_plane_intersection(geometry, plane2)
-                            )
-
-                    # Polygons are sliced like in 2D plotting
-                    if np.array(geometry).shape[0] > 2:
-                        geometries = polygon_plane_intersection(geometry, plane2)
-                        slice_geometries2.extend(geometries)
 
                 # Slice geometries are packaged in a new data structure that
                 # formats data for easier passing to the plotly constructors.
-                for geometry in slice_geometries2:
+                for geometry in slice_geometries:
                     geometry = np.array(geometry)
                     # Point
                     if geometry.shape[0] == 1:

@@ -160,7 +160,7 @@ def pointsets_are_equivalent(pointset1, pointset2):
     ],
 ])
 def test_polyhedron_intersection_2d(slice, expected):
-    """Ensure that slices return expected geometric elements."""
+    """Ensure that 2D slices return expected geometric elements for a concave test polyhedron."""
     filepath = REFERENCE_FOLDER / "2d.obj"
 
     shape = obj_to_polyhedron(filepath)
@@ -188,7 +188,53 @@ def test_polyhedron_intersection_2d(slice, expected):
 
         assert is_in_actual
 
-# def test_polyhedron_intersection_1d(filename, slice, expected):
-#     pass
 
+EXPECTED_FOR_1D_NO_MERGE = [
+    [
+        (0.0, 0.0, 0.0),
+        (1.0, 0.0, 0.0)
+    ],
+    [
+        (2.0, 0.0, 0.0)
+    ],
+    [
+        (3.0, 0.0, 0.0)
+    ],
+    [
+        (4.0, 0.0, 0.0),
+        (5.0, 0.0, 0.0)
+    ],
+]
 
+EXPECTED_FOR_1D_MERGE = [
+    [
+        (0.0, 0.0, 0.0),
+        (2.0, 0.0, 0.0)
+    ],
+]
+
+@pytest.mark.parametrize("filename,expected", [
+    ["1d-merge-tl-ee.obj", EXPECTED_FOR_1D_MERGE],
+    ["1d-merge-tl-vv.obj", EXPECTED_FOR_1D_MERGE],
+    ["1d-ee-fv.obj", EXPECTED_FOR_1D_NO_MERGE],
+    ["1d-fe-ve.obj", EXPECTED_FOR_1D_NO_MERGE],
+    ["1d-ff-vv.obj", EXPECTED_FOR_1D_NO_MERGE],
+    ["1d-tl-tl.obj", EXPECTED_FOR_1D_NO_MERGE],   # this isn't working
+])
+def test_polyhedron_intersection_1d(filename, expected):
+    """Ensure that 1D slices return expected geometric elements for multiple concave test polyhedra."""
+    line = [[0, 1, 0, 0], [0, 0, 1, 0]]
+
+    filepath = REFERENCE_FOLDER / filename
+    shape = obj_to_polyhedron(filepath)
+    actual = util.polyhedron_line_intersection(shape, line)
+
+    assert len(actual) == len(expected)
+    for e in expected:
+        is_in_actual = False
+
+        for a in actual:
+            if pointsets_are_equivalent(a, e):
+                is_in_actual = True
+
+        assert is_in_actual

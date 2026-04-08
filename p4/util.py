@@ -79,14 +79,14 @@ def angle_between_vectors(a: list[float], b: list[float]) -> float:
     """Return the smallest angle between vectors a and b in radians."""
     return np.arccos(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
-def signed_angle_3d(
+def angle_sign_3d(
     v1: list[float],
     v2: list[float],
     normal: list[float]
 ) -> float:
-    """Calculates the signed angle between two 3D vectors relative to a normal.
+    """Calculate the sign of the angle of two 3D vectors relative to a normal.
 
-    This function was written by Google Gemini.
+    This function was mostly written by Google Gemini.
     
     Parameters
     ----------
@@ -96,9 +96,13 @@ def signed_angle_3d(
         The vector to measure the angle to.
     normal : list[float]
         The reference normal vector.
+
+    Returns
+    -------
+    A float representing a scaled angle. Positive is CCW, negative is CW.
     """
-    v1 /= np.linalg.norm(v1)
-    v2 /= np.linalg.norm(v2)
+    # v1 /= np.linalg.norm(v1)
+    # v2 /= np.linalg.norm(v2)
 
     dot = np.dot(v1, v2)
     cross = np.cross(v1, v2)
@@ -309,7 +313,7 @@ def polygon_plane_intersection(
     points. It is assumed that
         
         - the points are co-planar with each other
-        - the points are in CCW order
+        - the points are in CCW order (looking down the normal)
         - the first point is not repeated as the last point
 
     Because this function relies on ``intersection_of_segment_with_plane``,
@@ -356,24 +360,19 @@ def polygon_plane_intersection(
     c = np.mean(polygon, axis=0)
     u = np.array(polygon[0]) - c
     v = np.array(polygon[1]) - c
-    if bp:
-        breakpoint()
-    if signed_angle_3d(u, v, normal) < 0:
+    if angle_sign_3d(u, v, normal) < 0:
         polygon = list(reversed(polygon))
         normal = newells_normal(polygon)
 
     # If all of the polygon's vertices are co-planar, return the polygon.
     # If some of the vertices are co-planar, still proceed with the line segment
     # intersection checks.
-    if len(np.array(polygon).shape) == 1: # TODO: fix this
-        breakpoint()
-
     coplanar_points = [
         p for p in polygon if point_plane_distance(p, plane) < 1e-6
-    ] # TODO: return here
+    ]
     if coplanar_points:
         if len(coplanar_points) == len(polygon):
-            return [polygon]    # note it must be in an array
+            return [polygon]    # NOTE: must be wrapped in an array
 
     # Check for intersections between line segments and the plane. There can
     # only be intersections if the points on either end of a line segment
@@ -388,7 +387,7 @@ def polygon_plane_intersection(
     # Handle the edge case where there is a single tangent point. In this case,
     # the intersection checks below will not work.
     if not intersected_segments and len(coplanar_points) == 1:
-        return [coplanar_points]    # NOTE: must be in an array
+        return [coplanar_points]    # NOTE: must be wrapped in an array
 
     # There is only an intersection if some points are co-planar or some
     # segments are intersected.
@@ -480,8 +479,8 @@ def polygon_plane_intersection(
             u = np.array(i0) - c
             v = np.array(p) - c
             w = np.array(i1) - c
-            a = signed_angle_3d(u, v, normal)
-            b = signed_angle_3d(u, w, normal)
+            a = angle_sign_3d(u, v, normal)
+            b = angle_sign_3d(u, w, normal)
 
             if ((a < 0) and (b > 0)) or ((a > 0) and (b < 0)):
                 must_be_reversed = True
@@ -560,15 +559,23 @@ def polygon_plane_intersection(
             
             if not merged_segments or merged_segments[-1][1] != current_end:
                 merged_segments.append([current_start, current_end])
+            
+            # Remove points that are contained by segments (not sure why this
+            # sometimes happens)
+            uncontained_tangent_intersection_points = [
+                p
+                for p in tangent_intersection_points
+                if not any(p[0] in s for s in intersection_segments)
+            ]
 
-            return merged_segments + tangent_intersection_points
-
+            return merged_segments + uncontained_tangent_intersection_points
+        
         else:
             return tangent_intersection_points
 
 def joinable_segments_to_polygon(
-    segments: list[list[list[float]]]
-) -> list[list[float]]:
+    segments: list[list[tuple[float]]]
+) -> list[tuple[float]]:
     """Convert mutually overlapping line segments into a polygon.
 
     Line segments, which are represented by their start and end points, are
@@ -621,10 +628,10 @@ def joinable_segments_to_polygon(
     return np.array(points)
 
 def find_loop(
-    start: Tuple[float, float, float],
-    adj: dict[Tuple[float, float, float], list[Tuple[float, float, float]]],
-    visited: set[Tuple[float, float, float]]
-) -> list[list[float]]:
+    start: tuple[float],
+    adj: dict[tuple[float], list[tuple[float]]],
+    visited: set[tuple[float]]
+) -> list[tuple[float]]:
     """Find and return a loop of connected points that are not already visited.
 
     If there is no loop containing both the start point and at least 2 other
@@ -784,7 +791,10 @@ def pointset_contains_segment(
         np.any(np.all(pointset_segments == segment[::-1], axis=(1,2)))
     )
 
-def segment_segment_intersection(segment1, segment2) -> list[float] | None:
+def segment_segment_intersection(
+    segment1: list[tuple[float]],
+    segment2: list[tuple[float]],
+) -> list[float] | None:
     """Return the intersection point between two segments.
     
     None is returned in the following cases:
@@ -882,7 +892,7 @@ def segment_segment_intersection(segment1, segment2) -> list[float] | None:
     else:
         return None
 
-def polygon_to_segments(polygon) -> list[list[float]]:
+def polygon_to_segments(polygon: list[tuple[float]]) -> list[list[float]]:
     """Convert a polygon into an array of segments.
     
     The polygon is given as a pointset without duplicates, i.e., an (N,3) array
@@ -897,14 +907,15 @@ def polygon_to_segments(polygon) -> list[list[float]]:
         segments.append([polygon[i], polygon[(i+1) % len(polygon)]])
     return segments
 
-def point_in_polygon(point, polygon) -> bool:
-    """Check if a polygon contains a point.
+def point_in_polygon(point: tuple[float], polygon: list[tuple[float]]) -> bool:
+    """Whether a polygon contains a point.
     
     Ref: https://stackoverflow.com/a/60672266/15426433
 
     NOTE: because we are only slicing along coordinate axes, the polygon is
     guaranteed to already be in a coordinate plane. Therefore we only need to
-    detect the degenerate coordinate and remove it (no rotating required).
+    detect the degenerate coordinate and remove it (no rotating required). This
+    function will not work for polygons with other orientations.
     """
     for i in [0, 1, 2]:
         if all(polygon[j][i] == polygon[j+1][i] for j in range(len(polygon)-1)):
@@ -1083,14 +1094,9 @@ def polyhedron_plane_intersection(
     slice_geometries = []
     for face in polyhedron.faces:
         polygon = polyhedron.vertices[face]
-        intersection = polygon_plane_intersection(
-            polygon,
-            plane,
-        )
+        intersection = polygon_plane_intersection(polygon, plane)
         if len(intersection) > 0:
-            slice_geometries.extend(
-                intersection
-            )
+            slice_geometries.extend(intersection)
 
     # Remove all duplicate geometries:
     #   - points are duplicates if they are identical
@@ -1136,7 +1142,7 @@ def polyhedron_plane_intersection(
                 uncontained_geometries.append(g)
         else:
             uncontained_geometries.append(g)
-    
+       
     # For bookkeeping, split geometries into arrays of different types
     points = [g for g in uncontained_geometries if len(g) == 1]
     segments = [g for g in uncontained_geometries if len(g) == 2]
@@ -1192,6 +1198,97 @@ def polyhedron_plane_intersection(
         + uncontained_isolated_segments + uncontained_points
     )
 
+def polyhedron_line_intersection(
+    polyhedron: coxeter.shapes.Polyhedron,
+    line: list[list[float]],
+    point_size_for_slice: float = 1e-6,
+) -> list[list[tuple[float]]]:
+    """Return the intersection of a polyhedron with a line.
+
+    Parameters
+    ----------
+    polyhedron : coxeter.shapes.Polyhedron
+        The polyhedron to slice with the plane.
+    line : list[list[float]]
+        The two planes whose intersection defines the line. Each element of this
+        array is an array of 4 numbers, corresponding to [a, b, c, d],
+        where the coefficients satisfy the conventional plane equation
+        a*x + b*y + c*z = d. Only one of a, b, or c may be non-zero.
+    point_size_for_slice : float, default=1e-6
+        The distance within which a point is considered to be contained by
+        a plane.
+
+    Returns
+    -------
+    A (N,) array of (M, 3) subarrays, where each subarray represents a set of M
+    points. For M = 1, the subarray represents a single point; for M = 2, a
+    line segment; for M > 2, a polygon. In the case of no intersection, an empty
+    list is returned.
+    """
+    plane1, plane2 = line
+    
+    slice_x, slice_y, slice_z = None, None, None
+    if plane1[0] == 1:
+        slice_x = plane1[-1]
+    elif plane2[0] == 1:
+        slice_x = plane2[-1]
+    if plane1[1] == 1:
+        slice_y = plane1[-1]
+    elif plane2[1] == 1:
+        slice_y = plane2[-1]
+    if plane1[2] == 1:
+        slice_z = plane1[-1]
+    elif plane2[2] == 1:
+        slice_z = plane2[-1]
+
+    # Create pseudoline for point intersection checks
+    # Review: there must be a better way...
+    if slice_x is not None:
+        if slice_y is not None:
+            pseudoline = [[slice_x, slice_y, -1e9], [slice_x, slice_y, 1e9]]
+        else:
+            pseudoline = [[slice_x, -1e9, slice_z], [slice_x, 1e9, slice_z]]
+    else:
+        pseudoline = [[-1e9, slice_y, slice_z], [1e9, slice_y, slice_z]]
+
+    slice_geometries1 = polyhedron_plane_intersection(polyhedron, plane1)
+
+    # Slice the current slice with the second plane
+    slice_geometries2 = []
+    for geometry in slice_geometries1:
+        # Points must be within the distance tolerance
+        if len(geometry) == 1:
+            # breakpoint()
+            px, py, pz = geometry[0]
+            if point_segment_distance([px, py, pz], pseudoline) < point_size_for_slice:
+                slice_geometries2.append(geometry)
+        
+        # Segments must pass the intersection test
+        if len(geometry) == 2:
+            segment_is_intersected = (
+                (
+                    plane2[1] == 1
+                    and slice_y >= np.array(geometry)[:,1].min()
+                    and slice_y <= np.array(geometry)[:,1].max()
+                )
+                or
+                (
+                    plane2[2] == 1
+                    and slice_z >= np.array(geometry)[:,2].min()
+                    and slice_z <= np.array(geometry)[:,2].max()
+                )
+            )
+            if segment_is_intersected:
+                slice_geometries2.append(
+                    segment_plane_intersection(geometry, plane2)
+                )
+
+        # Polygons are sliced like in 2D plotting
+        if len(geometry) > 2:
+            geometries = polygon_plane_intersection(geometry, plane2)
+            slice_geometries2.extend(geometries)
+    
+    return slice_geometries2
 
 # ---------------------------------- SAMPLING ----------------------------------
 

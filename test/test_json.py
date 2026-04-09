@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 
-CONTROL_DIR = Path(__file__).parent / "data"
+REFERENCE_FOLDER = Path(__file__).parent / "data"
 
 
 def cube_vertices(side_length):
@@ -111,10 +111,10 @@ def test_body_to_json(object_type, place, indent_type):
     elif object_type == "system":
         obj = make_system_for_json()
 
-    control_path = Path(CONTROL_DIR) / f"{object_type}_at_{place}_{indent_type}.json"
+    control_path = Path(REFERENCE_FOLDER) / f"{object_type}_at_{place}_{indent_type}.json"
     indent = None if indent_type == "noindent" else 2
 
-    with tempfile.TemporaryDirectory(dir=CONTROL_DIR) as tempdir:
+    with tempfile.TemporaryDirectory(dir=REFERENCE_FOLDER) as tempdir:
         test_path = Path(tempdir) / f"test_{object_type}_at_{place}_{indent_type}.json"
         
         if place == "root":
@@ -141,7 +141,7 @@ def test_body_from_json(object_type, place, indent_type):
     elif object_type == "system":
         obj = make_system_for_json()
 
-    control_path = Path(CONTROL_DIR) / f"{object_type}_at_{place}_{indent_type}.json"
+    control_path = Path(REFERENCE_FOLDER) / f"{object_type}_at_{place}_{indent_type}.json"
     json_path = None if place == "root" else f"path.to.{object_type}"
 
     if object_type == "body":

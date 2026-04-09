@@ -134,7 +134,7 @@ class Field:
         if type(recarray) != np.rec.recarray:
             raise TypeError("The array must be an instance of np.rec.recarray.")
         
-        columns = set(list(self.table.dtype.fields.keys()))
+        columns = set(list(recarray.dtype.fields.keys()))
         if {"x", "y", "z"} - columns != set():
             raise ValueError("The array must have columns 'x', 'y', and 'z'.")
         
@@ -151,7 +151,7 @@ class Field:
         
         self._positions = None
         self._orientations = None
-        self._table = self.table
+        self._table = recarray
 
     @property
     def columns(self) -> list[str]:
@@ -348,20 +348,21 @@ class Field:
         
         Kwargs
         ------
-        x : float or array of floats
-            Limit the new recarray to rows with this x value or values.
-        y : float or array of floats
-            Limit the new recarray to rows with this y value or values.
-        z : float or array of floats
-            Limit the new recarray to rows with this z value or values.
-        q0 : float or array of floats
-            Limit the new recarray to rows with this q0 value or values.
-        q1 : float or array of floats
-            Limit the new recarray to rows with this q1 value or values.
-        q2 : float or array of floats
-            Limit the new recarray to rows with this q2 value or values.
-        q3 : float or array of floats
-            Limit the new recarray to rows with this q3 value or values.
+        x : float or array of floats, optional
+            Restrict the new Field to these ``x`` values.
+        y : float or array of floats, optional
+            Restrict the new Field to these ``y`` values.
+        z : float or array of floats, optional
+            Restrict the new Field to these ``z`` values.
+        q0 : float or array of floats, optional
+            Restrict the new Field to these ``q0`` values.
+        q1 : float or array of floats, optional
+            Restrict the new Field to these ``q1`` values.
+        q2 : float or array of floats, optional
+            Restrict the new Field to these ``q2`` values.
+        q3 : float or array of floats, optional
+            Restrict the new Field to these ``q3`` values.
+        
         
         Returns
         -------
@@ -615,7 +616,7 @@ class Field:
         Raises
         ------
         ValueError
-            If the other Field has a different sampling grid.
+            If the other Field has a different sampling grid or quantities.
         """
         if set(self.columns) != set(other.columns):
             raise ValueError(
@@ -641,7 +642,32 @@ class Field:
                 + "measurement locations."
             )
         
-        new_recarray = self.table - other.table
+        self_quantity_names = [
+            name for name in self.quantities if name in self.columns
+        ]
+        other_quantity_names = [
+            name for name in other.quantities if name in other.columns
+        ]
+        
+        if not sorted(self_quantity_names) == sorted(other_quantity_names):
+            raise ValueError(
+                "Cannot calculate difference between two Fields with different "
+                + "measured quantities."
+            )
+
+        self_quantities = np.column_stack([
+            self.table[name] for name in self_quantity_names
+        ])
+        other_quantities = np.column_stack([    # *self* ensures same order
+            other.table[name] for name in self_quantity_names
+        ])
+
+        new_quantities = np.array(self_quantities) - np.array(other_quantities)
+
+        new_recarray = np.rec.fromarrays(
+            np.hstack((self_locations, new_quantities)),
+            names=location_columns + self_quantity_names
+        )
 
         return Field(new_recarray)
 
@@ -651,7 +677,7 @@ class Field:
         Raises
         ------
         ValueError
-            If the other Field has a different sampling grid.
+            If the other Field has a different sampling grid or quantities.
         """
         if set(self.columns) != set(other.columns):
             raise ValueError(
@@ -677,29 +703,54 @@ class Field:
                 + "measurement locations."
             )
         
-        new_recarray = self.table + other.table
+        self_quantity_names = [
+            name for name in self.quantities if name in self.columns
+        ]
+        other_quantity_names = [
+            name for name in other.quantities if name in other.columns
+        ]
+        
+        if not sorted(self_quantity_names) == sorted(other_quantity_names):
+            raise ValueError(
+                "Cannot calculate difference between two Fields with different "
+                + "measured quantities."
+            )
+
+        self_quantities = np.column_stack([
+            self.table[name] for name in self_quantity_names
+        ])
+        other_quantities = np.column_stack([    # *self* ensures same order
+            other.table[name] for name in self_quantity_names
+        ])
+
+        new_quantities = np.array(self_quantities) + np.array(other_quantities)
+
+        new_recarray = np.rec.fromarrays(
+            np.hstack((self_locations, new_quantities)),
+            names=location_columns + self_quantity_names
+        )
 
         return Field(new_recarray)
 
-    def __get_item__(self, **kwargs) -> Field:
+    def subset(self, **kwargs) -> Field:
         """Return a new Field that is a subset of the current one.
         
         Kwargs
         ------
-        x : float or array of floats
-            Limit the new recarray to rows with this x value or values.
-        y : float or array of floats
-            Limit the new recarray to rows with this y value or values.
-        z : float or array of floats
-            Limit the new recarray to rows with this z value or values.
-        q0 : float or array of floats
-            Limit the new recarray to rows with this q0 value or values.
-        q1 : float or array of floats
-            Limit the new recarray to rows with this q1 value or values.
-        q2 : float or array of floats
-            Limit the new recarray to rows with this q2 value or values.
-        q3 : float or array of floats
-            Limit the new recarray to rows with this q3 value or values.
+        x : float or array of floats, optional
+            Restrict the new Field to these ``x`` values.
+        y : float or array of floats, optional
+            Restrict the new Field to these ``y`` values.
+        z : float or array of floats, optional
+            Restrict the new Field to these ``z`` values.
+        q0 : float or array of floats, optional
+            Restrict the new Field to these ``q0`` values.
+        q1 : float or array of floats, optional
+            Restrict the new Field to these ``q1`` values.
+        q2 : float or array of floats, optional
+            Restrict the new Field to these ``q2`` values.
+        q3 : float or array of floats, optional
+            Restrict the new Field to these ``q3`` values.
         
         Returns
         -------
@@ -716,9 +767,11 @@ class Field:
         if unrecognized:
             raise ValueError(f"Unrecognized columns: {unrecognized}.")
         
-        recarray = self._subset_of_recarray(**kwargs)
+        return Field(self._subset_of_recarray(**kwargs))
 
-        return Field(recarray)
+    def __eq__(self, other) -> bool:
+        """Whether this field and another are equivalent."""
+        return (self._table == other._table).view(np.ndarray).all()
 
     # -------------------------------- PLOTTING --------------------------------
 

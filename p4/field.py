@@ -1382,6 +1382,12 @@ class Field:
                 x=0.5,
             )
         
+        # Miscellaneous other layout settings
+        layout["autosize"] = False
+        layout["width"] = 500
+        layout["height"] = 500
+        layout["margin"] = dict(t=20, b=20, l=20, r=20)
+        
         return layout
 
     def plot(

@@ -315,6 +315,14 @@ class Body:
                         x=0.5
                     )
                 )
+        
+        # Miscellaneous other layout settings
+        fig.update_layout(
+            autosize=False,
+            width=500,
+            height=500,
+            margin=dict(t=20, b=20, l=20, r=20)
+        )
 
         return figure, traces
 

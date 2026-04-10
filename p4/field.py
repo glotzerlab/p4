@@ -239,6 +239,29 @@ class Field:
     ) -> np.ndarray:
         """Return a gridded array of a given scalar or vector quantity.
 
+        The shape of the returned array depends on the measurement locations,
+        the slice, and whether vectors is True. In general, for a Field with
+        nx x positions, ny y positions, and nz z positions, the shape of the
+        returned array is as follows.
+
+        * vectors = False
+          * slice along x           -> (nz, ny)
+          * slice along y           -> (nz, nx)
+          * slice along z           -> (ny, nx)
+          * slice along x and y     -> (nz,)
+          * slice along x and z     -> (ny,)
+          * slice along y and z     -> (nx,)
+          * slice along x, y, and z -> (1,)
+
+        * vectors = True
+          * slice along x           -> (nz, ny, 3)
+          * slice along y           -> (nz, nx, 3)
+          * slice along z           -> (ny, nx, 3)
+          * slice along x and y     -> (nz, 3)
+          * slice along x and z     -> (ny, 3)
+          * slice along y and z     -> (nx, 3)
+          * slice along x, y, and z -> (3,)
+
         Parameters
         ----------
         quantity : 'U', 'F', 'T', 'Fx', 'Fy', 'Fz', 'Tx', 'Ty', or 'Tz'
@@ -423,7 +446,7 @@ class Field:
         Raises
         ------
         ValueError
-            If `recarray` neither 1 nor 3 measured quantities.
+            If `recarray` has neither 1 nor 3 measured quantities.
         """
         location_columns = ["x", "y", "z", "q0", "q1", "q2", "q3"]
         columns = recarray.dtype.names

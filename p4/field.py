@@ -330,6 +330,11 @@ class Field:
         else:
             table = self._subset_of_recarray(x=x, y=y, z=z)
 
+        if len(table) == 0:
+            raise ValueError(
+                "No measurements found for the given x, y, z, and q."
+            )
+
         if quantity == "U":
             columns_to_drop = [f for f in self.quantities if f != "U"]
         elif quantity == "F":
@@ -542,6 +547,10 @@ class Field:
             the values of the quantity are grouped together and this method is
             used to calculate a new value for that position.
         """
+        # Ensure there are orientations
+        if self.orientations is None:
+            raise ValueError("Cannot aggregate if there are no orientations.")
+
         # Ensure the quantity is represented in this field
         if quantity not in self.quantities:
             raise ValueError(

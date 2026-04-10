@@ -299,6 +299,7 @@ class Field:
         ValueError
             If `quantity` is not recognized.
         """
+        # [Review: get closest values of x, y, z?]
         # Input Validation
         if self.orientations is not None and self.orientations.shape[0] > 1 and q is None:
             raise ValueError(

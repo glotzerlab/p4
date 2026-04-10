@@ -1,3 +1,5 @@
+.. _interaction :
+
 Interaction
 ===========
 

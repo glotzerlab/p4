@@ -66,6 +66,9 @@ html_theme_options = {
 }
 html_static_path = ["_static"]
 
+maximum_signature_line_length = 100
+python_display_short_literal_types = True
+
 # Override default nbsphinx CSS for HTML tables, as it doesn't respect dark mode
 nbsphinx_prolog = """
 .. raw:: html

@@ -427,7 +427,6 @@ def test_gridded_array_valid(quantity, vectors, slice):
         f.gridded_array(quantity=quantity, vectors=vectors, q=q, **slice)
     )
 
-
 def test_gridded_array_invalid():
     """Ensure gridded_array fails expectedly for invalid input."""
     f = p4.Field(recarray_from_quantities(["U"]))

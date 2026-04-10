@@ -374,27 +374,6 @@ class Field:
             self._recarray_to_gridded_array(table).squeeze()
         )
 
-        # slice = {}
-        # if x is not None:
-        #     slice["x"] = x
-        # if y is not None:
-        #     slice["y"] = y
-        # if z is not None:
-        #     slice["z"] = z
-
-        # if not vectors and len(slice) > 0:
-        #     gridded_array = np.flip(gridded_array, axis=0)
-
-        # TODO: check order of components when vectors is True
-        # gridded_array = self._recarray_to_gridded_array(table)
-
-        
-        # if len(slice) == 3:
-        #     return gridded_array.squeeze()
-        
-        # elif len(slice) == 2:
-        #     pass
-
         return gridded_array
 
     def _subset_of_recarray(self, **kwargs) -> np.rec.recarray:
@@ -496,7 +475,6 @@ class Field:
         elif len(measured_quantities) == 3:
             shape = (len(z_values), len(y_values), len(x_values), 3)
             gridded_array = np.full(shape, np.nan)
-            breakpoint()
             components = np.column_stack(
                 [recarray[q] for q in measured_quantities]
             )

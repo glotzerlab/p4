@@ -452,7 +452,6 @@ def test_gridded_array_invalid():
         _ = f.gridded_array("F", q=(1, 0, 0, 0))
 
 @pytest.mark.parametrize("method", ["min", "max", "mean"])
-# @pytest.mark.parametrize("method", ["mean"])
 def test_aggregate_over_orientations_valid(method):
     """Ensure aggregate_over_orientations produces the correct result."""
     recarray = recarray_from_quantities(["U", "F", "T"])

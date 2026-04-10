@@ -363,8 +363,34 @@ class Field:
                 table = recfunctions.append_fields(
                     table, quantity, magnitudes
                 )
+        
+        # Create a gridded array and orient it to respect the conventions.
+        gridded_array = np.atleast_1d(
+            self._recarray_to_gridded_array(table).squeeze()
+        )
 
-        return self._recarray_to_gridded_array(table)
+        # slice = {}
+        # if x is not None:
+        #     slice["x"] = x
+        # if y is not None:
+        #     slice["y"] = y
+        # if z is not None:
+        #     slice["z"] = z
+
+        # if not vectors and len(slice) > 0:
+        #     gridded_array = np.flip(gridded_array, axis=0)
+
+        # TODO: check order of components when vectors is True
+        # gridded_array = self._recarray_to_gridded_array(table)
+
+        
+        # if len(slice) == 3:
+        #     return gridded_array.squeeze()
+        
+        # elif len(slice) == 2:
+        #     pass
+
+        return gridded_array
 
     def _subset_of_recarray(self, **kwargs) -> np.rec.recarray:
         """Return a new recarray that is a subset of the current one.
@@ -945,7 +971,7 @@ class Field:
             return plotly.graph_objects.Contour(
                 x=x,
                 y=y,
-                z=array[0, :, :],   # NOTE: gridded_array is always 3D
+                z=array,
                 colorscale=cmap,
                 opacity=1,
                 contours=dict(
@@ -973,7 +999,7 @@ class Field:
             return plotly.graph_objects.Heatmap(
                 x=x,
                 y=y,
-                z=array[0, :, :],   # NOTE: gridded_array is always 3D
+                z=array,
                 colorscale=cmap,
                 zmax=cmax,
                 zmin=cmin,
@@ -1029,7 +1055,7 @@ class Field:
 
         return plotly.graph_objects.Scatter(
             x=x,
-            y=array[0, 0, :],   # NOTE: gridded_array is always 3D
+            y=array,
             name=quantity,
             cliponaxis=False,
             mode=marker_mode,

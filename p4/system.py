@@ -159,14 +159,12 @@ class System:
     def measure(
         self,
         quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
-        position_resolutions: list[float],    # TODO: sampling_strategy: 'grid' with p_res and o_res, 'dynamic' with ???
+        position_resolutions: list[float],
         orientation_resolutions: list[list[float]],
         symmetries: list[int],
         csv_filename: str,
         nlist: hoomd.md.nlist.NeighborList,
         outside_cutoff: float,
-        inside_cutoff: float | None = None,
-        cutoff_shape: coxeter.shapes.ConvexPolyhedron | None = None,
         box_safety_factor: float = 100,
         n_processes: int = 1,
         save_gsd: bool = False,
@@ -194,20 +192,9 @@ class System:
         nlist : hoomd.md.nlist.NeighborList
             The neighbor list to use for the interactions.
         outside_cutoff : float
-            The cutoff distance outside which no positions will be probed. If
-            `cutoff_shape` is provided, this distance represents a buffer
-            distance around the shape, otherwise it distance represents the side
-            lengths of a cube centered on the origin.
-        inside_cutoff : float, optional
-            The cutoff distance inside which no positions will be probed.
-            If `probe_cutoff_shape` is provided, this distance represents a
-            buffer distance inside the shape, otherwise it distance represents
-            the side lengths of a cube centered on the origin. If not provided,
-            all positions inside the outer cutoff distance will be probed.
-        cutoff_shape : coxeter.shapes.ConvexPolyhedron, optional
-            A convex polyhedron representing a shape to which cutoff distances
-            are relative, enabling the user to sample non-cubic boxes. If not
-            provided, cutoff distances describe the side lengths of a cube.
+            The cutoff distance outside which no positions will be probed. This
+            distance represents the side lengths of a cube centered on the
+            origin.
         box_safety_factor : float, default=100
             The scale factor for the simulation box, since it must be bigger
             than the probe box to prevent the minimum image problem. Defaults
@@ -228,12 +215,8 @@ class System:
             available for debugging purposes, but generally should not be used.
         """
         # Calculate probe box based on cutoff distances
-        if cutoff_shape is None:
-            probe_box = [outside_cutoff, outside_cutoff, outside_cutoff]
-        else:
-            shape_maxes = cutoff_shape.vertices.max(axis=0)
-            probe_box = [m + outside_cutoff for m in shape_maxes]
-
+        probe_box = [outside_cutoff, outside_cutoff, outside_cutoff]
+        
         # Determine the frame's box from the probe box
         simulation_box = [d * box_safety_factor for d in probe_box]
         simulation_box.extend([0, 0, 0])
@@ -260,37 +243,9 @@ class System:
         probe_positions = p4.util.exclude_positions_by_shape(
             positions=probe_positions,
             exclude_inside=False,
-            shape=(
-                cutoff_shape
-                if cutoff_shape is not None
-                else p4.util.get_cube(outside_cutoff)
-            ),
-            buffer=outside_cutoff if cutoff_shape is not None else 0.0
+            shape=p4.util.get_cube(outside_cutoff),
+            buffer=0.0
         )
-
-        # Remove positions that are too close
-        # Review: allow distance to be negative?
-        if inside_cutoff is not None:
-            # if inside_cutoff <= 0:
-            #     raise ValueError(
-            #         "'inside_cutoff' must be a value greater than 0."
-            #     ) 
-            if inside_cutoff > outside_cutoff:
-                raise ValueError("inside cutoff must be smaller than outside cutoff.")
-            probe_positions = p4.util.exclude_positions_by_shape(
-                positions=probe_positions,
-                exclude_inside=True,
-                shape=(
-                    cutoff_shape
-                    if cutoff_shape is not None
-                    else p4.util.get_cube(inside_cutoff)
-                ),
-                buffer=(
-                    inside_cutoff
-                    if cutoff_shape is not None
-                    else 0.0
-                )
-            )
 
         # If multiprocessing, run copies of the probe simulation with chunks
         # of the set of positions across a collection of processes

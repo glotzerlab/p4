@@ -7,9 +7,6 @@
   - [ ] shape overlap exclusion
   - [ ] dynamical meshing?
 
-`Field`
-- [ ] write tests
-
 Other
   - [ ] Add support for Frame analytes. This would require
     - [ ] Writing measurements concurrently to disk, rather than storing in StringIO

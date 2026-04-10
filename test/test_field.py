@@ -270,17 +270,275 @@ def test_table_setter_invalid(recarray):
     with pytest.raises((TypeError, ValueError)):
         f.table = recarray
 
-def test_gridded_array(recarray, slice):
-    pass
+@pytest.mark.parametrize("vectors", [False, True])
+@pytest.mark.parametrize("slice", [
+    dict(),                # 3D slice through a single orientation
+    dict(x=-1),            # 2D slice through X
+    dict(y=-1),            # 2D slice through X
+    dict(z=-1),            # 2D slice through X
+    dict(x=-1, y=-1),      # 1D slice through X and Y
+    dict(x=-1, z=-1),      # 1D slice through X and Z
+    dict(y=-1, z=-1),      # 1D slice through Y and Z
+    dict(x=-1, y=-1, z=-1),# 0D slice, i.e., indexing (just for completeness) 
+])
+@pytest.mark.parametrize("quantity", ["U", "F", "T", "Fx", "Fy", "Fz", "Tx", "Ty", "Tz"])
+def test_gridded_array_valid(quantity, vectors, slice):
+    """Ensure gridded_array produces the expected result for multiple slices."""
+    f = p4.Field(recarray_from_quantities(["U", "F", "T"]))
 
-def test_aggregate_over_orientations_valid(recarray, method):
-    pass
+    q = (1, 0, 0, 0)
+    q0, q1, q2, q3 = q
+    sub_table = f.subset(q0=q0, q1=q1, q2=q2, q3=q3, **slice).table
+
+    # 3D
+    if len(slice) == 0:
+        grid_xs = np.unique(VALID_LOCATIONS[:,0])
+        grid_ys = np.unique(VALID_LOCATIONS[:,1])
+        grid_zs = np.unique(VALID_LOCATIONS[:,2])
+        if (quantity not in ("F", "T")) or (not vectors):
+            shape = (len(grid_zs), len(grid_ys), len(grid_xs))
+            correct_array = np.empty(shape)
+
+            if quantity == "F":
+                components = np.array([[row["Fx"], row["Fy"], row["Fz"]] for row in sub_table])
+                magnitudes = np.sqrt(np.sum(np.square(components), axis=1))
+            elif quantity == "T":
+                components = np.array([[row["Tx"], row["Ty"], row["Tz"]] for row in sub_table])
+                magnitudes = np.sqrt(np.sum(np.square(components), axis=1))
+
+            for i, row in enumerate(sub_table):
+                x_idx = grid_xs.tolist().index(row["x"])
+                y_idx = grid_ys.tolist().index(row["y"])
+                z_idx = grid_zs.tolist().index(row["z"])
+
+                if quantity in ("F", "T"):
+                    correct_array[z_idx, y_idx, x_idx] = magnitudes[i]
+                else:
+                    correct_array[z_idx, y_idx, x_idx] = row[quantity]
+        
+        else:
+            shape = (len(grid_zs), len(grid_ys), len(grid_xs), 3)
+            correct_array = np.empty(shape)
+            
+            if quantity == "F":
+                components = np.array([[row["Fx"], row["Fy"], row["Fz"]] for row in sub_table])
+            elif quantity == "T":
+                components = np.array([[row["Tx"], row["Ty"], row["Tz"]] for row in sub_table])
+            
+            for i, row in enumerate(sub_table):
+                x_idx = grid_xs.tolist().index(row["x"])
+                y_idx = grid_ys.tolist().index(row["y"])
+                z_idx = grid_zs.tolist().index(row["z"])
+                correct_array[z_idx, y_idx, x_idx] = components[i]
+
+    # 2D slices
+    if len(slice) == 1:
+        slice_dim = list(slice.keys())[0]
+        if slice_dim == "x":
+            grid_x_dim = "y"  # y along x axis
+            grid_y_dim = "z"  # z along y axis
+            grid_xs = np.unique(VALID_LOCATIONS[:,1])   
+            grid_ys = np.unique(VALID_LOCATIONS[:,2])
+        else:
+            grid_x_dim = "x"
+            grid_xs = np.unique(VALID_LOCATIONS[:,0])   # x along x axis
+            if slice_dim == "y":
+                grid_y_dim = "z"
+                grid_ys = np.unique(VALID_LOCATIONS[:,2])   # z along y axis
+            else:
+                grid_y_dim = "y"
+                grid_ys = np.unique(VALID_LOCATIONS[:,1])   # y along y axis
+        
+        if (quantity not in ("F", "T")) or (not vectors):
+            shape = (len(grid_ys), len(grid_xs))
+            correct_array = np.empty(shape)
+            
+            if quantity == "F":
+                components = np.array([[row["Fx"], row["Fy"], row["Fz"]] for row in sub_table])
+                magnitudes = np.sqrt(np.sum(np.square(components), axis=1))
+
+            elif quantity == "T":
+                components = np.array([[row["Tx"], row["Ty"], row["Tz"]] for row in sub_table])
+                magnitudes = np.sqrt(np.sum(np.square(components), axis=1))
+
+            for i, row in enumerate(sub_table):
+                x_idx = grid_xs.tolist().index(row[grid_x_dim])
+                y_idx = grid_ys.tolist().index(row[grid_y_dim])
+
+                if quantity in ("F", "T"):
+                    correct_array[y_idx, x_idx] = magnitudes[i]
+                else:
+                    correct_array[y_idx, x_idx] = row[quantity]
+        
+        else:
+            shape = (len(grid_ys), len(grid_xs), 3)
+            correct_array = np.empty(shape)
+            
+            if quantity == "F":
+                components = np.array([[row["Fx"], row["Fy"], row["Fz"]] for row in sub_table])
+            elif quantity == "T":
+                components = np.array([[row["Tx"], row["Ty"], row["Tz"]] for row in sub_table])
+            
+            for i, row in enumerate(sub_table):
+                x_idx = grid_xs.tolist().index(row[grid_x_dim])
+                y_idx = grid_ys.tolist().index(row[grid_y_dim])
+                correct_array[y_idx, x_idx] = components[i]
+
+    # 1D slices
+    elif len(slice) == 2:
+        if (quantity not in ("F", "T")) or (not vectors):
+            if quantity == "F":
+                components = np.array([[row["Fx"], row["Fy"], row["Fz"]] for row in sub_table])
+                correct_array = np.sqrt(np.sum(np.square(components), axis=1))
+            elif quantity == "T":
+                components = np.array([[row["Tx"], row["Ty"], row["Tz"]] for row in sub_table])
+                correct_array = np.sqrt(np.sum(np.square(components), axis=1))
+            else:
+                correct_array = np.array([row[quantity] for row in sub_table])
+        
+        else:
+            if quantity == "F":
+                correct_array = np.array([[row["Fx"], row["Fy"], row["Fz"]] for row in sub_table])
+            elif quantity == "T":
+                correct_array = np.array([[row["Tx"], row["Ty"], row["Tz"]] for row in sub_table])
+
+    # 0D slices
+    elif len(slice) == 3:  
+        if (quantity not in ("F", "T")) or (not vectors):
+            if quantity == "F":
+                components = [sub_table[0]["Fx"], sub_table[0]["Fy"], sub_table[0]["Fz"]]
+                magnitude = np.sqrt(np.sum(np.square(components)))
+                correct_array = np.array([magnitude])
+            elif quantity == "T":
+                components = [sub_table[0]["Tx"], sub_table[0]["Ty"], sub_table[0]["Tz"]]
+                magnitude = np.sqrt(np.sum(np.square(components)))
+                correct_array = np.array([magnitude])
+            else:
+                correct_array = np.array([sub_table[0][quantity]])
+        
+        else:
+            if quantity == "F":
+                correct_array = np.array([sub_table[0]["Fx"], sub_table[0]["Fy"], sub_table[0]["Fz"]])
+            elif quantity == "T":
+                correct_array = np.array([sub_table[0]["Tx"], sub_table[0]["Ty"], sub_table[0]["Tz"]])
+        
+    assert np.array_equal(
+        correct_array,
+        f.gridded_array(quantity=quantity, vectors=vectors, q=q, **slice)
+    )
+
+
+def test_gridded_array_invalid():
+    """Ensure gridded_array fails expectedly for invalid input."""
+    f = p4.Field(recarray_from_quantities(["U"]))
+
+    # Multiple orientations but q is not specified
+    with pytest.raises(ValueError):
+        _ = f.gridded_array("U")
+
+    # Incorrect q (not an iterable)
+    with pytest.raises(TypeError):
+        _ = f.gridded_array("U", q=1)
+
+    # Incorrect q (elements are not ints or floats)
+    with pytest.raises(TypeError):
+        _ = f.gridded_array("U", q=("a", "b", "c"))
+    
+    # Incorrect q (not in the locations)
+    with pytest.raises(ValueError):
+        _ = f.gridded_array("U", q=(0.5, 0.5, 0, 0))
+    
+    # Incorrect quantity
+    with pytest.raises(ValueError):
+        _ = f.gridded_array("F", q=(1, 0, 0, 0))
+
+@pytest.mark.parametrize("method", ["min", "max", "mean"])
+# @pytest.mark.parametrize("method", ["mean"])
+def test_aggregate_over_orientations_valid(method):
+    """Ensure aggregate_over_orientations produces the correct result."""
+    recarray = recarray_from_quantities(["U", "F", "T"])
+    f = p4.Field(recarray)
+
+    for q in ["U", "F", "T"]:
+        correct_records = []
+        record_groups_by_position = [
+            [
+                np.array(row.tolist())
+                for row in recarray
+                if np.array_equal(position, np.array(row.tolist())[:3])
+            ]
+            for position in f.positions
+        ]
+        
+        correct_records = []
+        for group in record_groups_by_position:
+            group = np.array(group)
+
+            if q == "U":
+                array_to_aggregate = group[:,7]
+            elif q == "F":
+                array_to_aggregate = group[:,8:11]
+            elif q == "T":
+                array_to_aggregate = group[:,11:]
+            
+            if method == "min":
+                if q == "U":
+                    i = np.argmin(array_to_aggregate)
+                    aggregated_result = array_to_aggregate[i]
+                
+                elif q in ("F", "T"):
+                    magnitudes = np.sqrt(np.sum(np.square(array_to_aggregate), axis=1))
+                    i = np.argmin(magnitudes)
+                    aggregated_result = array_to_aggregate[i, :]
+            
+            elif method == "max":
+                if q == "U":
+                    i = np.argmax(array_to_aggregate)
+                    aggregated_result = array_to_aggregate[i]
+
+                elif q in ("F", "T"):
+                    magnitudes = np.sqrt(np.sum(np.square(array_to_aggregate), axis=1))
+                    i = np.argmax(magnitudes)
+                    aggregated_result = array_to_aggregate[i, :]
+            
+            elif method == "mean":
+                aggregated_result = np.mean(array_to_aggregate, axis=0)
+
+            correct_records.append(np.hstack((group[0,:3], aggregated_result)))
+        
+        correct_names = ["x", "y", "z"]
+        if q == "U":
+            correct_names += ["U"]
+        elif q == "F":
+            correct_names += ["Fx", "Fy", "Fz"]
+        elif q == "T":
+            correct_names += ["Tx", "Ty", "Tz"]
+
+        correct_recarray = np.rec.fromrecords(correct_records, names=correct_names)
+
+    assert recarrays_are_equal(correct_recarray, f.aggregate_over_orientations(q, method).table)
 
 def test_aggregate_over_orientations_invalid():
-    # missing quantity
-    # wrong method
-    # wrong quantity
-    pass
+    """Ensure aggregate_over_orientations fails predictably with invalid input."""
+    recarray = recarray_from_quantities(["U", "F"])
+    f = p4.Field(copy(recarray))
+
+    # No orientations
+    f_no_orientations = f.aggregate_over_orientations("U", "min")
+    with pytest.raises(ValueError):
+        _ = f_no_orientations.aggregate_over_orientations("U", "min")
+
+    # Missing quantity
+    with pytest.raises(ValueError):
+        _ = f.aggregate_over_orientations("T", "min")
+    
+    # Unrecognized method
+    with pytest.raises(ValueError):
+        _ = f.aggregate_over_orientations("U", "wrong")
+    
+    # Invalid quantity
+    with pytest.raises(ValueError):
+        _ = f.aggregate_over_orientations("Fx", "min")
 
 def test_operations_valid():
     """Ensure addition and subtraction work when locations are identical."""

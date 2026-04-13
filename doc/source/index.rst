@@ -3,7 +3,7 @@ p4 - Pairwise Potential Particle Probe
 ======================================
 
 Probe the effective potential landscape around a rigid body of particles using
-.
+HOOMD-blue.
 
 **p4** provides a declarative interface for creating rigid bodies and pairwise
 interactions using `HOOMD-blue <https://hoomd-blue.readthedocs.io/en/latest/>`_,
@@ -24,10 +24,29 @@ analyzed, sliced, and plotted using **p4**'s :ref:`Field <field>` API.
    :maxdepth: 2
    :caption: Getting Started
 
-   installation
-   quickstart
-   user-guide
-   examples
+   getting-started/overview
+   getting-started/installation
+   getting-started/basic-usage
+   getting-started/project-philosophy
+
+.. toctree::
+   :maxdepth: 2
+   :caption: User Guide
+
+   user-guide/how-p4-works
+   user-guide/specifying-particle-models
+   user-guide/specifying-interaction-models
+   user-guide/measuring-fields
+   user-guide/advanced-topics
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Tutorials
+
+   tutorials/plotting-for-exploration-and-publication
+   tutorials/evaluate-fields-of-particle-interaction-models
+   tutorials/obtaining-an-effective-shape
+   tutorials/collecting-data-for-ml-models
 
 .. toctree::
    :maxdepth: 1

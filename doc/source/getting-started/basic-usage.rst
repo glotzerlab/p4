@@ -36,7 +36,8 @@ using
 
 .. code:: python
 
-    system.probe_potential(
+    system.measure(
+        quantities=["U"],
         position_resolutions=<your_spatial_resolution>,
         orientation_resolutions=<your_orientation_resolution>,
         symmetries=<your_body_symmetry>,
@@ -51,8 +52,16 @@ You can then visualize this field using the `field` class.
 
 .. code:: python
 
-    field = p4.Field.from_csv("field.csv", "mean")
-    field.plot()
+    field = p4.Field.from_csv("field.csv")
 
-The ``"mean"`` option causes ``Field`` to average the potential energy values at
-at each position over all orientations. (Other options are available---see the :ref:`documentation <field>`.)
+If you measured the potential energy at multiple orientations, you must
+aggregate the field's quantities over those orientations before plotting.
+
+.. code:: python
+
+    average_field = p4.Field.aggregate_over_orientations("U", "mean")
+    average_field.plot()
+
+The ``"mean"`` option causes the method to average the potential energy at each
+position over all orientations. Other options are available---see the
+:ref:`documentation <field>`.

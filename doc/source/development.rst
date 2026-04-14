@@ -106,10 +106,11 @@ All code contributed to p4 must follow these rules.
 Documentation
 -------------
 
-Additions and changes to classes and functions --- `even underscored ones`_ ---
-must be fully described in docstrings that follow the `NumPy style`_. The API
-documentation is automatically generated from the docstrings with `Sphinx`_,
-and so docstrings must be written in `reStructuredText`_.
+Additions and changes to classes and
+functions---\ `even underscored ones`_\ ---must be fully described in
+docstrings that follow the `NumPy style`_. The API documentation is
+automatically generated from the docstrings with `Sphinx`_, and so docstrings
+must be written in `reStructuredText`_.
 
 .. _even underscored ones: https://peps.python.org/pep-0008/#descriptive-naming-styles
 .. _NumPy style: https://numpydoc.readthedocs.io/en/latest/format.html

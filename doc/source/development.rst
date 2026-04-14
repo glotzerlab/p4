@@ -1,3 +1,5 @@
+.. _for-developers:
+
 ==============
 For Developers
 ==============
@@ -5,50 +7,76 @@ For Developers
 Design Principles
 =================
 
-The core motivation behind the creation of **p4** is that *it should be easy
-for less-experienced computational scientists to systematically measure and
-interactively view the potential energy fields around arbitrarily complex
-bodies of particles*. This motivation is broken down into the following principles:
-accessibility, flexibility, interactivity, and maintainability.
+p4 was created by and is mostly maintained by the `Glotzer Group`_, a team of
+undergraduate, graduate, and post-doctoral researchers at the University of
+Michigan. Turnover rate in academic research groups is much higher than in
+private companies, and even in computational research groups, "new hires"
+typically have little or no experience in software development, much less
+software maintenance. Consequently, the core design goal for p4 is that it
+should be easy to use and easy to maintain. To meet this goal, the design of
+p4 follows three fundamental principles: simplicity, flexibility, and
+interactivity.
 
-Accessibility
--------------
+.. _Glotzer Group: https://glotzerlab.engin.umich.edu/
 
-[TODO]
+
+Simplicity
+----------
+
+p4 is designed to be structurally and semantically simple.
+
+Structurally, p4 has a minimal number of classes that have separate, clearly
+defined roles within the package's targeted workflows. There is no class
+hierarchy or inheritance, and no auxiliary classes. Private/underscored methods
+are kept to a minimum, and there are no private classes.
+
+Semantically, p4 contains numerous named intermediate variables to aid readers
+in understanding its various implementations. List comprehensions and for loops
+routinely use multi-word variable names to ensure that the purposes of those
+variables are clear. Non-docstring comments supplement this objective where
+necessary.
+
+Going forward, future maintainers should follow this principle by prioritizing
+a small, atomic type system with implementations that focus on clarity over
+concision.
 
 
 Flexibility
 -----------
 
-[TODO]
+p4 is designed to be flexible, capable of accommodating arbitrarily complex
+models expressed in HOOMD-blue's stable but continuously maintained rigid body
+and pairwise potential systems. It achieves this flexibility by wrapping those
+systems in a thin declarative API that is exhaustively tested, ensuring that it
+can accommodate any model that HOOMD-blue can handle.
+
+Going forward, future maintainers should follow this principle by adhering
+closely to HOOMD-blue's internal systems, only wrapping its existing
+functionality.
 
 
 Interactivity
 -------------
 
-[TODO]
+p4 is designed to be interactive, accelerating the iterative
+hypothesize-test-evaluate development loop through a robust plotting interface
+and immediate and detailed error handling. All classes can be visualized in
+interactive plots, and instance validation always happens on instantiation,
+providing immediate responsiveness to users' code.
 
-
-Maintainability
----------------
-
-The code-base of **p4** is mostly be maintained by the `Glotzer Group <https://glotzerlab.engin.umich.edu/>`_,
-a team of undergraduate, graduate, and post-doctoral researchers at the University of Michigan.
-Turnover rate in academic research groups is much higher than in private companies, and even in
-computational research groups, "new hires" typically have little or no experience in software
-development, much less maintenance. Correspondingly, just as **p4** is designed for ease-of-use, it is
-also designed for ease-of-maintenance...
-
-[TODO]
+Going forward, future maintainers should follow this principle by ensuring that
+users can visualize new classes wherever possible, and by including
+comprehensive validation and error detection as close to instantiation as they
+can.
 
 
 Making Contributions
 ====================
 
-Developers are welcome to contribute new features or bug fixes to **p4** by
-making pull requests on the package repository on `Github`_. Contributions should
-follow the *spirit* of the design principles described above, and the *letter* of
-the style, docs, and testing rules described below.
+Other developers are welcome to contribute new features or bug fixes to p4 by
+making pull requests on the package repository on `Github`_. Contributions
+should follow the *spirit* of the design principles described above, and the
+*letter* of the style, docs, and testing rules described below.
 
 .. _github: https://github.com/glotzerlab/p4/pulls
 
@@ -56,21 +84,38 @@ the style, docs, and testing rules described below.
 Code Style
 ----------
 
-[TODO]
+All code contributed to p4 must follow these rules.
 
+1. Lines should not exceed 80 characters in length.
+2. Constants, variables, functions, and modules should be named in
+`snake case`_, while classes should be named in `camel case`_ with the first
+letter always capitalized.
+3. Every method, class, and function, no matter how small or simple, must have
+a docstring. For very simple functions or methods, such as property getters,
+this docstring may be a single line summary. All other docstrings must be
+follow specific formatting requirements --- see `Documentation`_.
+4. All imports should be placed at the top of the module file.
+
+.. _snake case: https://en.wikipedia.org/wiki/Snake_case
+.. _camel case: https://en.wikipedia.org/wiki/Camel_case
 
 Documentation
 -------------
 
-Additions and changes to classes and functions---`even underscored ones <https://peps.python.org/pep-0008/#descriptive-naming-styles>`_---must
-be fully described in docstrings that follow the `NumPy style <https://numpydoc.readthedocs.io/en/latest/format.html>`_. The API
-documentation is automatically generated from the docstrings with `Sphinx <https://www.sphinx-doc.org/en/master/>`_, which
-requires that they be written in `reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html>`_.
+Additions and changes to classes and functions --- `even underscored ones`_ ---
+must be fully described in docstrings that follow the `NumPy style`_. The API
+documentation is automatically generated from the docstrings with `Sphinx`_,
+and so docstrings must be written in `reStructuredText`_.
 
-To ensure that your docstrings are correctly rendered by Sphinx, please build the documentation locally before opening
-a pull request.
+.. _even underscored ones: https://peps.python.org/pep-0008/#descriptive-naming-styles
+.. _NumPy style: https://numpydoc.readthedocs.io/en/latest/format.html
+.. _Sphinx: https://www.sphinx-doc.org/en/master/
+.. _reStructuredText: https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html
 
-To build the documentation, first install the dependencies:
+To ensure that your docstrings are correctly rendered by Sphinx, please build
+the documentation locally before opening a pull request.
+
+To build the documentation, first install the dependencies.
 
 .. code:: bash
 
@@ -82,11 +127,14 @@ Then navigate to the ``doc`` directory and run
 
    make html
 
-Once the documentation is built, the homepage can be found at ``<path_to_p4>/doc/build/html/index.html``.
-Open this file in your browser and navigate to the relevant page in the API section to check that your docstrings are correct.
+Once the documentation is built, the homepage can be found at
+``<path_to_p4>/doc/build/html/index.html``. Open this file in your browser and
+navigate to the relevant page in the API section to check that your docstrings
+are correct.
 
-If your changes require the addition of new pages to the API section, create new ``.rst`` files whose
-names and contents are parallel to existing files.
+If your changes require the addition of new pages to the API section, create new
+``.rst`` files whose names and contents are parallel to existing files.
+
 
 Unit tests
 ----------

@@ -16,7 +16,7 @@ particle interaction models used in these simulations are adapted from previous
 or constructed ad hoc, and then validated by simply evaluating whether they
 appear to reproduce trends in the phase behavior observed from experiments.
 Properly, these models are called `phenomenological`_, since they are designed
-toreproduce the *phenomena* observed in experiment.
+to reproduce the *phenomena* observed in experiment.
 
 .. _phenomenological: https://en.wikipedia.org/wiki/Phenomenological_model
 

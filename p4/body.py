@@ -28,11 +28,10 @@ class Body:
     
     When secondary types **are** provided, the body represents a rigid body
     with a central particle (``primary_type``) and one or more constituent
-    particles (``secondary_types``). In this case, the body needs a way to
-    determine the position(s) of each type of constituent particle, and the user
-    must provide a function that does so.
+    particles (``secondary_types``). In this case, the positions (and
+    optionally orientations) for each secondary type must also be provided.
 
-    .. code-block::
+    .. code-block:: python
         :caption: A cubic body with primary particle 'A' at the center and
             secondary particles 'B' at the vertices.
 
@@ -60,12 +59,12 @@ class Body:
     secondary_types : list[str], optional
         The names of the secondary types.
     positions_by_type : dict[str, list[list[float]]], optional
-        A mapping of secondary particle type names to position(s). Required if
-        `secondary_types` is provided, otherwise ignored.
+        A mapping of secondary particle type names to positions. Required if
+        ``secondary_types`` is provided, otherwise ignored.
     orientations_by_type : dict[str, list[list[float]]], optional
         A mapping of secondary particle type names to orientation(s) in
-        quaternion form. Can only be provided if `secondary_types` and
-        `positions_by_type` are also provided.
+        quaternion form. Can only be provided if ``secondary_types`` and
+        ``positions_by_type`` are also provided.
     """
     def __init__(
         self,
@@ -132,11 +131,11 @@ class Body:
         """Interactively plot the body using `Plotly`_.
 
         Slicing is supported along the X, Y, and Z axes via the ``slice``
-        parameter. A slice along one axis (e.g., ``slice={"x": 1}``) is 2D,
-        while a slice along two axes (e.g., ``slice={"x": 1, "y": 1}``) is 1D.
+        parameter. A slice along one axis (``slice={"x": 1}``) is 2D, while a
+        slice along two axes (``slice={"x": 1, "y": 1}``) is 1D.
 
         Shapes and styles may be specified for specific types. A shape must be
-        specified as a coxeter `Polyhedron`_. A style must specified as a
+        specified as a `Coxeter Polyhedron`_. A style must specified as a
         dictionary which may have the following keys and values:
 
         * ``color`` [``str``] - The symbol's color. Plotly accepts color strings
@@ -153,7 +152,7 @@ class Body:
           polyhedron, this setting is ignored.
 
         .. _Plotly: https://plotly.com/
-        .. _Polyhedron: https://coxeter.readthedocs.io/en/latest/package-shapes.html#coxeter.shapes.Polyhedron
+        .. _Coxeter Polyhedron: https://coxeter.readthedocs.io/en/latest/package-shapes.html#coxeter.shapes.Polyhedron
         .. _standard HTML/CSS formats: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/color
         .. _rgb: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/color_value/rgb
         .. _many named colors: https://plotly.com/python/css-colors/
@@ -317,7 +316,7 @@ class Body:
                 )
         
         # Miscellaneous other layout settings
-        fig.update_layout(
+        figure.update_layout(
             autosize=False,
             width=500,
             height=500,
@@ -1255,8 +1254,8 @@ class Body:
             The name or path of the JSON file.
         json_path : str or None, default='p4.bodies'
             The location within the JSON file to put the body's representation
-            in. Only used if ``filename`` already exists. If None, then the
-            representation is placed at the root level.
+            in. Only used if ``filename`` already exists. If ``None`` is
+            provided, then the representation is placed at the root level.
         indent : str or int, optional
             The string or number of spaces to use when indenting newlines in the
             JSON file. If not provided, there are no newlines.

@@ -678,7 +678,8 @@ class Interaction:
         json_path : str or None, default='p4.interactions'
             The location within the JSON file to put the interaction's
             representation in. Only used if ``filename`` already exists. If
-            None, then the representation is placed at the root level.
+            ``None`` is provided, then the representation is placed at the root
+            level.
         indent : str or int, optional
             The string or number of spaces to use when indenting newlines in the
             JSON file. If not provided, there are no newlines.

@@ -22,7 +22,8 @@ steps to install p4.
 
    git clone https://github.com/glotzerlab/p4.git
 
-3. Install the python dependencies.
+3. In your terminal, navigate to p4's root directory and install the python
+   dependencies.
 
 .. code-block:: bash
 

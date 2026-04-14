@@ -10,13 +10,15 @@ interaction models in the physical systems they represent.
 Problems with Pure Phenomenology
 ================================
 
-Every year, there are dozens of studies that use molecular dynamics simulations
-to investigate the experimentally observed behavior of particle systems. Most
-often, the particle interaction models used in these simulations are adapted
-from previous publications or constructed ad hoc, and then validated by simply
-evaluating whether they appear to reproduce trends in the phase behavior
-observed from experiments. Properly, these models can be called
-"phenomenological."
+Every year, dozens of studies use molecular dynamics simulations to investigate
+the experimentally observed behavior of particle systems. Most often, the
+particle interaction models used in these simulations are adapted from previous
+or constructed ad hoc, and then validated by simply evaluating whether they
+appear to reproduce trends in the phase behavior observed from experiments.
+Properly, these models are called `phenomenological`_, since they are designed
+toreproduce the *phenomena* observed in experiment.
+
+.. _phenomenological: https://en.wikipedia.org/wiki/Phenomenological_model
 
 There are several problems with purely phenomenological particle models.
 

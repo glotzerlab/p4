@@ -5,7 +5,7 @@ Installation
 ============
 
 Currently, installation is only possible from source. Follow these
-steps to install **p4**.
+steps to install p4.
 
 1. Using your environment manager, activate or create an environment
    with ``python>=3.11`` and ``hoomd>=5.0.0``. For example, with

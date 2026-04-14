@@ -87,13 +87,17 @@ Code Style
 All code contributed to p4 must follow these rules.
 
 1. Lines should not exceed 80 characters in length.
+
 2. Constants, variables, functions, and modules should be named in
-`snake case`_, while classes should be named in `camel case`_ with the first
-letter always capitalized.
-3. Every method, class, and function, no matter how small or simple, must have
-a docstring. For very simple functions or methods, such as property getters,
-this docstring may be a single line summary. All other docstrings must be
-follow specific formatting requirements --- see `Documentation`_.
+   `snake case`_ (``this_is_a_method_name``), while classes should be named in
+   `camel case`_ with the first letter always capitalized
+   (``ThisIsAClassName``).
+
+3. Every method, class, and function, no matter how small, must have a
+   docstring. For very simple functions or methods, such as property getters,
+   this docstring may be a single line summary. All other docstrings must be
+   follow specific formatting requirements---see `Documentation`_.
+
 4. All imports should be placed at the top of the module file.
 
 .. _snake case: https://en.wikipedia.org/wiki/Snake_case

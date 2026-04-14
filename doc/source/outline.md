@@ -4,8 +4,9 @@
 What p4 is, basic use, note tight integration with hoomd and use of plotly
 
 ## Installation
-## Basic plotting
-## Getting help
+
+## Basic usage - starting from an existing simulation
+
 ## Project philosophy
 - Creator's note - this is the tool I wish I had
 - ease of use
@@ -37,6 +38,7 @@ Brief overview (with diagrams) explaning the different meanings for the classes 
 - plotting?
 
 ## 4. Measuring the fields of particles and interaction models
+
 ## 5. Advanced Topics
 ### 5.1. Evaluating many different model parameters
 Basically parameter sweeps with Signac
@@ -53,9 +55,11 @@ Basically large body (protein?) and frame analytes
 
 # Tutorials
 
-## 1. Building basic simulations
+## 1. Basic plotting
 ### 1.1. Plotting simulation state
 ### 1.2. Plotting interaction potential curves
+### 1.3. Exporting figures for publication
+Demonstrate export to HTML for interactive visualizations.
 
 ## 2. Evaluate energy, force, and torque fields of particle interaction models
 ### 2.1. Lennard-Jones Sphere
@@ -69,4 +73,6 @@ Show shape curvature dependence on the parameters, and show how unphysical torqu
 ### 2.4. Evaluate previously-used models: a case study of Lin et al 2017
 
 ## 3. Optimizing interaction parameters to achieve an effective shape
+
+## 4. Collecting training data for a ML potential
 

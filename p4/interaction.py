@@ -369,9 +369,9 @@ class Interaction:
         cls,
         pair: hoomd.md.pair.Pair
     ) -> list[Interaction] | Interaction:
-        """Parse a `HOOMD-blue MD pair potential`_ to create an interaction.
+        """Parse a HOOMD-blue `MD pair potential`_ to create an interaction.
 
-        .. _HOOMD-blue MD pair potential: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/pair/pair.html
+        .. _MD pair potential: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/pair/pair.html
         
         Parameters
         ----------
@@ -464,9 +464,9 @@ class Interaction:
         cls,
         integrator: hoomd.md.Integrator
     ) -> list[Interaction] | Interaction:
-        """Parse a `HOOMD-blue MD Integrator`_ to create interactions.
+        """Parse a HOOMD-blue `MD Integrator`_ to create interactions.
 
-        .. _HOOMD-blue MD Integrator: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/integrator.html#hoomd.md.Integrator
+        .. _MD Integrator: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/integrator.html#hoomd.md.Integrator
         
         This is a convenience method that is equivalent to
 

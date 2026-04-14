@@ -1227,7 +1227,7 @@ class Body:
     def to_json(
         self,
         filename: os.PathLike,
-        json_path: str | None = None,
+        json_path: str | None = "p4.bodies",
         indent: str | int | None = None
     ):
         """Export the body to JSON.
@@ -1253,9 +1253,10 @@ class Body:
         ----------
         filename : os.PathLike
             The name or path of the JSON file.
-        json_path : str, optional
+        json_path : str or None, default='p4.bodies'
             The location within the JSON file to put the body's representation
-            in. Only used if ``filename`` already exists.
+            in. Only used if ``filename`` already exists. If None, then the
+            representation is placed at the root level.
         indent : str or int, optional
             The string or number of spaces to use when indenting newlines in the
             JSON file. If not provided, there are no newlines.

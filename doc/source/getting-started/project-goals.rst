@@ -79,6 +79,7 @@ A Simple Tool for Complex Problems
 These are the problems that p4 is designed to address. This package is designed
 first and foremost to be friendly to new programmers, but also flexible enough
 for experienced simulators. It provides a flexible and extensible interface for
-sharing arbitrarily complex particle interaction models, and for measuring,
-visualizing, and publishing the energy and force fields that they produce.
+sharing arbitrarily complex particle interaction models for HOOMD-blue, and for
+measuring, visualizing, and publishing the energy and force fields that those
+models produce.
 

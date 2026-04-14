@@ -27,7 +27,7 @@ analyzed, sliced, and plotted using **p4**'s :ref:`Field <field>` API.
    getting-started/overview
    getting-started/installation
    getting-started/basic-usage
-   getting-started/project-philosophy
+   getting-started/project-goals
 
 .. toctree::
    :maxdepth: 2

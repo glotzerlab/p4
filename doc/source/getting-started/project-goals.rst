@@ -1,4 +1,4 @@
-.. _project philosophy:
+.. _project goals:
 
 =============
 Project Goals

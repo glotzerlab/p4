@@ -1283,6 +1283,8 @@ class Body:
                         # try to write alongside existing data if possible...
                         if isinstance(current_container[name], dict):
                             current_container[name].update(data)
+                        elif isinstance(current_container[name], list):
+                            current_container[name].append(data)
                         # ... and insert or overwrite if not
                         else:
                             current_container[name] = data

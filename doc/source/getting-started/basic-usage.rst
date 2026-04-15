@@ -43,22 +43,28 @@ example simulation using the code below.
     example_simulation.operations.integrator.rigid = rigid
     example_simulation.operations.integrator.forces.append(lj)
 
-You can directly parse your simulation extract its rigid constraint as one or
-more :py:class:`~p4.Body`.
+You can directly parse your simulation to extract its rigid constraint as one or
+more :py:class:`~p4.Body`. A ``Body`` is a collection of particle types, with
+one type ("primary") located at the body's center, and the other types
+("secondary") at specified positions around the primary particle.
 
 .. code:: python
 
     body = p4.Body.from_hoomd_simulation(example_simulation)
 
-Likewise, you can parse your simulation's pairwise forces as one or more
-:py:class:`~p4.Interaction`.
+Likewise, you can parse your simulation to extract its pairwise forces as one
+or more :py:class:`~p4.Interaction`. An ``Interaction`` is essentially a python
+dictionary containing all the information needed to create and parameterize a
+HOOMD-blue `MD pairwise force`_ for any number of interacting particle types.
+
+.. _MD pairwise force: https://hoomd-blue.readthedocs.io/en/v7.0.1/hoomd/md/module-pair.html
 
 .. code:: python
 
     interactions = p4.Interaction.from_hoomd_simulation(example_simulation)
 
 These objects can then be printed to show their primary and secondary types
-(in the case of ``bodies``) and their interacting types (in the case of
+(in the case of ``body``) and their interacting types (in the case of
 ``interactions``).
 
 If you already know the types of your particles of interest, you can parse a
@@ -72,9 +78,12 @@ simulation directly into a :py:class:`~p4.System` using
         analyte_primary_type="A"    # change to fit your system
     )
 
-Because all of these classes are self-validating, the ``system`` is ready
-to be probed as soon as it is created. You can measure its potential energy field
-using
+A ``System`` is a combination of a probe ``Body``, an analyte ``Body``, and a list
+of ``Interaction`` that define how the particles in the bodies can interact. A
+system has unique energy and force fields, which describe the effective action
+experienced by the probe body as it is moved to various positions and
+orientations around the static analyte. You can measure the potential energy
+field of the system using the code below.
 
 .. code:: python
 

@@ -41,6 +41,7 @@ jobs:
       - name: Build and Install p4
         run: |
           uv pip install . --no-build-isolation --no-deps -v --system
+          pwd
 
       - name: Run Tests
         run: pytest -v

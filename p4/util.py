@@ -1480,7 +1480,10 @@ def get_initial_frame(
     ]
     frame.configuration.box = simulation_box
     frame.particles.mass = [1] * frame.particles.N
-    frame.particles.moment_inertia = [1, 1, 1] * frame.particles.N
+    frame.particles.moment_inertia = np.reshape(
+        [1, 1, 1] * frame.particles.N,
+        (frame.particles.N, 3)
+    )
     frame.particles.orientation = [(1, 0, 0, 0)] * frame.particles.N
 
     return frame

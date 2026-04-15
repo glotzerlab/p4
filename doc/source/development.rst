@@ -4,7 +4,7 @@
 For Developers
 ==============
 
-Design Principles
+Design Priorities
 =================
 
 p4 was created by and is mostly maintained by the `Glotzer Group`_, a team of
@@ -13,8 +13,8 @@ Michigan. Turnover rate in academic research groups is much higher than in
 private companies, and even in computational research groups, "new hires"
 typically have little or no experience in software development, much less
 software maintenance. Consequently, the core design goal for p4 is that it
-should be easy to use and easy to maintain. To meet this goal, the design of
-p4 follows three fundamental principles: simplicity, flexibility, and
+should be both easy to use and easy to maintain. To meet this goal, the design
+of p4 follows three foundational priorities: simplicity, flexibility, and
 interactivity.
 
 .. _Glotzer Group: https://glotzerlab.engin.umich.edu/
@@ -36,7 +36,7 @@ routinely use multi-word variable names to ensure that the purposes of those
 variables are clear. Non-docstring comments supplement this objective where
 necessary.
 
-Going forward, future maintainers should follow this principle by prioritizing
+Going forward, future maintainers should follow this priority by prioritizing
 a small, atomic type system with implementations that focus on clarity over
 concision.
 
@@ -50,7 +50,7 @@ and pairwise potential systems. It achieves this flexibility by wrapping those
 systems in a thin declarative API that is exhaustively tested, ensuring that it
 can accommodate any model that HOOMD-blue can handle.
 
-Going forward, future maintainers should follow this principle by adhering
+Going forward, future maintainers should follow this priority by adhering
 closely to HOOMD-blue's internal systems, only wrapping its existing
 functionality.
 
@@ -64,7 +64,7 @@ and immediate and detailed error handling. All classes can be visualized in
 interactive plots, and instance validation always happens on instantiation,
 providing immediate responsiveness to users' code.
 
-Going forward, future maintainers should follow this principle by ensuring that
+Going forward, future maintainers should follow this priority by ensuring that
 users can visualize new classes wherever possible, and by including
 comprehensive validation and error detection as close to instantiation as they
 can.
@@ -75,7 +75,7 @@ Making Contributions
 
 Other developers are welcome to contribute new features or bug fixes to p4 by
 making pull requests on the package repository on `Github`_. Contributions
-should follow the *spirit* of the design principles described above, and the
+should follow the *spirit* of the design priorities described above, and the
 *letter* of the style, docs, and testing rules described below.
 
 .. _github: https://github.com/glotzerlab/p4/pulls

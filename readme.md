@@ -2,7 +2,7 @@
 
 Rapidly prototype new particle interaction models and evaluate existing models using [HOOMD-blue](https://hoomd-blue.readthedocs.io/en/latest/).
 
-p4 provides a simple declarative interface for specifying particle models and pairwise interaction models, and for measuring the energy and force fields that those models create. Particle models and their fields can then be easily plotted with methods build around the interactive plotting library [Plotly](https://plotly.com/).
+p4 provides a simple declarative interface for specifying particle models and pairwise interaction models, and for measuring the energy and force fields that those models create. Particle models and their fields can then be easily plotted with methods build on the interactive plotting library [Plotly](https://plotly.com/).
 
 ## Setup
 

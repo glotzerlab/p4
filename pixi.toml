@@ -20,6 +20,7 @@ sphinx-inline-tabs = "*"
 uv = "*"
 bump-my-version = "*"
 sybil = "*"
+plotly = "*"
 
 [feature.py312.dependencies]
 python = "3.12.*"

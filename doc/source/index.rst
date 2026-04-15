@@ -25,9 +25,11 @@ plotted with methods built on the interactive plotting library `Plotly`_.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Tutorials
+   :caption: User Guide
 
-   tutorials/evaluate-fields-of-particle-interaction-models
+   user-guide/specifying-particle-models
+   user-guide/specifying-interaction-models
+   user-guide/measuring-fields
 
 .. toctree::
    :maxdepth: 1

@@ -62,7 +62,7 @@ analyzed, sliced, and plotted using **p4**'s :ref:`Field <field>` API.
    :caption: Reference
 
    genindex
-   development
+   for-developers
    changelog
    credits
    license

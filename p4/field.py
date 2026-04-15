@@ -4,6 +4,7 @@
 # TODO: Add IO support for VTK
 # TODO: add support for irregular grids
 
+from __future__ import annotations
 from copy import copy
 from types import NoneType
 from typing import Iterable, Literal

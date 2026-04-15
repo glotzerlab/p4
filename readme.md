@@ -1,6 +1,6 @@
 # p4 - Patchy Particle Prototyper in Python
 
-Rapidly prototype new particle interaction models and evaluate existing models using [HOOMD-blue](https://hoomd-blue.readthedocs.io/en/latest/).
+Rapidly prototype new particle and interaction models and evaluate existing models using [HOOMD-blue](https://hoomd-blue.readthedocs.io/en/latest/).
 
 p4 provides a simple declarative interface for specifying particle models and pairwise interaction models, and for measuring the energy and force fields that those models create. Particle models and their fields can then be easily plotted with methods built on the interactive plotting library [Plotly](https://plotly.com/).
 

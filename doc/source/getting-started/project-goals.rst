@@ -12,9 +12,9 @@ Problems with Pure Phenomenology
 
 Every year, dozens of studies use molecular dynamics simulations to investigate
 the experimentally observed behavior of particle systems. Most often, the
-particle interaction models used in these simulations are adapted from previous
-or constructed ad hoc, and then validated by simply evaluating whether they
-appear to reproduce trends in the phase behavior observed from experiments.
+particle and interaction models used in these simulations are adapted from
+previous or constructed ad hoc, and then validated by simply evaluating whether
+they appear to reproduce trends in the phase behavior observed from experiments.
 Properly, these models are called `phenomenological`_, since they are designed
 to reproduce the *phenomena* observed in experiment.
 
@@ -45,7 +45,7 @@ The Reproducibility Crisis
 ==========================
 
 Compounding these problems is the lack of a standard, portable format for
-encoding and sharing particle interaction models between researchers.
+encoding and sharing particle and interaction models between researchers.
 Publications render these models into pictures and equations, but any
 researcher who has attempted to replicate simulated phase behavior knows
 that translating these images and symbols back into simulation code is almost
@@ -81,7 +81,7 @@ A Simple Tool for Complex Problems
 These are the problems that p4 is designed to address. This package is designed
 first and foremost to be friendly to new programmers, but also robust enough to
 meet the more advanced needs of experienced simulators. It provides a simple
-but flexible interface for sharing arbitrarily complex particle interaction
+but flexible interface for sharing arbitrarily complex particle and interaction
 models for HOOMD-blue, and for measuring, visualizing, and publishing the energy
 and force fields that those models produce.
 

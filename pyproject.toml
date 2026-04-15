@@ -33,6 +33,7 @@ docs = [
   "numpydoc",
   "nbsphinx",
   "sphinx-copybutton",
+  "sybil[pytest]"
 ]
 
 [tool.conda-lock]
@@ -44,3 +45,6 @@ hoomd = ">=5.0.0" # core
 
 [tool.uv.extra-build-dependencies]
 p4 = ["setuptools"]
+
+[tool.pytest.ini_options]
+addopts = "-p no:doctest"

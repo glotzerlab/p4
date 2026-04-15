@@ -954,6 +954,10 @@ class Field:
 
         if clim is None:
             clim = [np.percentile(array, 10), np.percentile(array, 90)]
+        if np.isnan(clim[0]):
+            clim[0] = -1e99
+        if np.isnan(clim[1]):
+            clim[1] = 1e99
 
         cmin, cmax = min(clim), max(clim)
 

@@ -30,8 +30,8 @@ class Field:
     .. _NumPy's recarray: https://numpy.org/doc/stable/reference/generated/numpy.recarray.html
     .. _Pandas DataFrame: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
 
-    Access a Field's tabular data using the ``table`` property, which returns
-    the underlying ``recarray``.
+    Access a Field's tabular data using the :attr:`~p4.Field.table` property,
+    which returns the underlying `recarray`.
     
     Instantiate a Field directly from a NumPy recarray, or build one from
     CSV using :meth:`~p4.Field.from_csv`. In order for instantiation to work,
@@ -241,26 +241,28 @@ class Field:
 
         The shape of the returned array depends on the measurement locations,
         the slice, and whether vectors is True. In general, for a Field with
-        nx x positions, ny y positions, and nz z positions, the shape of the
-        returned array is as follows.
+        ``nx`` x positions, ``ny`` y positions, and ``nz`` z positions, the
+        shape of the returned array is as follows.
 
-        * vectors = False
-          * slice along x           -> (nz, ny)
-          * slice along y           -> (nz, nx)
-          * slice along z           -> (ny, nx)
-          * slice along x and y     -> (nz,)
-          * slice along x and z     -> (ny,)
-          * slice along y and z     -> (nx,)
-          * slice along x, y, and z -> (1,)
+        .. code-block::
+            
+            * vectors = False
+                * slice along x           -> (nz, ny)
+                * slice along y           -> (nz, nx)
+                * slice along z           -> (ny, nx)
+                * slice along x and y     -> (nz,)
+                * slice along x and z     -> (ny,)
+                * slice along y and z     -> (nx,)
+                * slice along x, y, and z -> (1,)
 
-        * vectors = True
-          * slice along x           -> (nz, ny, 3)
-          * slice along y           -> (nz, nx, 3)
-          * slice along z           -> (ny, nx, 3)
-          * slice along x and y     -> (nz, 3)
-          * slice along x and z     -> (ny, 3)
-          * slice along y and z     -> (nx, 3)
-          * slice along x, y, and z -> (3,)
+            * vectors = True
+                * slice along x           -> (nz, ny, 3)
+                * slice along y           -> (nz, nx, 3)
+                * slice along z           -> (ny, nx, 3)
+                * slice along x and y     -> (nz, 3)
+                * slice along x and z     -> (ny, 3)
+                * slice along y and z     -> (nx, 3)
+                * slice along x, y, and z -> (3,)
 
         Parameters
         ----------
@@ -293,11 +295,11 @@ class Field:
         Raises
         ------
         ValueError
-            If `q` is required but not provided. 
+            If ``q`` is required but not provided. 
         TypeError
-            If `q` is not an iterable of 4 floats.
+            If ``q`` is not an iterable of 4 floats.
         ValueError
-            If `quantity` is not recognized.
+            If ``quantity`` is not recognized.
         """
         # [Review: get closest values of x, y, z?]
         # Input Validation
@@ -772,8 +774,8 @@ class Field:
     def subset(self, **kwargs) -> Field:
         """Return a new Field that is a subset of the current one.
         
-        Kwargs
-        ------
+        Parameters
+        ----------
         x : float or array of floats, optional
             Restrict the new Field to these ``x`` values.
         y : float or array of floats, optional
@@ -1411,14 +1413,14 @@ class Field:
         """Interactively plot the field using `Plotly`_.
         
         Slicing is supported along the X, Y, and Z axes via the ``slice``
-        parameter. A slice along one axis (e.g., ``slice={"x": 1}``) is 2D,
-        while a slice along two axes (e.g., ``slice={"x": 1, "y": 1}``) is 1D.
+        parameter. A slice along one axis (``slice={"x": 1}``) is 2D, while a
+        slice along two axes (``slice={"x": 1, "y": 1}``) is 1D.
 
         Any of the measured quantities (including individual components of
-        Forces or Torques) can be plotted. Set ``quantity`` equal to
-        'F' or 'T' to plot Force and Torque magnitudes as scalar quantities.
-        Set ``vectors`` to ``True`` to plot Forces or Torques as vectors. Vector
-        plotting is only available in 2D and 3D.
+        Forces or Torques) can be plotted. Set ``quantity`` to 'F' or 'T' to
+        plot Force and Torque magnitudes as scalar quantities. Set ``vectors``
+        to ``True`` to plot Forces or Torques as vectors. Vector plotting is
+        only available in 2D and 3D.
         
         Parameters
         ----------

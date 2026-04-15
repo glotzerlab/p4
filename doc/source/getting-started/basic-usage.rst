@@ -7,8 +7,10 @@ Basic Usage
 Starting from a HOOMD simulation
 --------------------------------
 
-If you already have an existing HOOMD-blue MD simulation. If not, you can follow
-with the example simulation below.
+If you already have an existing HOOMD-blue MD simulation, you can parse it
+into most of the major classes. If you do not have an existing simulation but
+wish to follow along to this quickstart guide, you can quickly create an
+example simulation using the code below.
 
 .. code:: python
 

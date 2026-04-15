@@ -1925,8 +1925,6 @@ def measure(
 def merge_tables(table_csvs: list[StringIO]):
     """Combine an array of tables stored in string buffers.
 
-    Additionally, the header is modified to have shorter column names.
-
     Parameters
     ----------
     table_csvs : list[StringIO]
@@ -1978,7 +1976,7 @@ def clean_header(table: StringIO):
     raw_columns = raw_header.split(",")
     clean_columns = []
     for c in raw_columns:
-        if c == "md.compute.ThermodynamicQuantities.potential_energy":
+        if c.strip() == "md.compute.ThermodynamicQuantities.potential_energy":
             clean_columns.append("U")
         else:
             clean_columns.append(c.strip())

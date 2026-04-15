@@ -24,6 +24,9 @@ dependencies = [
 
     # Plotting
     "plotly>=6.6.0",   # only needed for Field
+
+    # Testing
+    "sybil[pytest]",
 ]
 
 [project.optional-dependencies]
@@ -33,7 +36,6 @@ docs = [
   "numpydoc",
   "nbsphinx",
   "sphinx-copybutton",
-  "sybil[pytest]"
 ]
 
 [tool.conda-lock]

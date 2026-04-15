@@ -10,16 +10,15 @@ What p4 is, basic use, note tight integration with hoomd and use of plotly
 ## Project philosophy
 - Creator's note - this is the tool I wish I had
 - ease of use
-  - minimal dependencies
-  - simple but flexible API
-  - declarative over imperative
-    - easier to learn
+  - Dependencies should be minimized
+  - declarative is preferrable to imperative
+    - easier to learn - less syntax to track, fewer steps to remember
     - lets you serialize and deserialize
-  - deferred evaluation, but *instant* validation
-- ease of maintenance
-  - no private classes, minimal private methods
-  - simple module structure
-  - robust, future-hardened testing framework
+  - evaluate later, but validate *now*
+  - write for users, but keep maintainers as a close second
+    - no private classes, minimal private methods
+    - simple module structure
+    - robust, future-hardened testing framework
 
 # User Guide
 

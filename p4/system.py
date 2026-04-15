@@ -20,12 +20,12 @@ class System:
     Measure a system's spatial distributions of potential energy, force, and
     torque using :meth:`~p4.System.measure`.
 
-    .. code-block::
-        :caption: A system composed of a probe that is a point body 'A' and an
-            analyte that is a cubic body with primary particle 'B' and secondary
-            particles 'C' at the vertices. 'A' and 'C' particles interact
-            through a Lennard-Jones potential.
+    .. code-block:: python
+        :caption: A system composed of a probe point particle 'A' and a an analyte cubic body 'B' with secondary particles 'C'. 'A' and 'C' interact via an LJ potential.
 
+        import p4
+        import hoomd
+        
         probe = p4.Body("A")
         analyte = p4.Body(
             primary_type="B",

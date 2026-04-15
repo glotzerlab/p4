@@ -25,10 +25,12 @@ class Interaction:
     guaranteed that it can successfully instantiate and parameterize its
     HOOM-blue potential.
       
-    .. code-block::
-        :caption: A Lennard-Jones potential that allows A-B interactions but
-            not A-A or B-B.
+    .. code-block:: python
+        :caption: A Lennard-Jones potential that allows A-B interactions but not A-A or B-B.
 
+        import p4
+        import hoomd
+        
         interaction = p4.Interaction(
             hoomd_class=hoomd.md.pair.LJ,
             initial_args=dict(),
@@ -1286,3 +1288,35 @@ class Interaction:
             + f"\n\ttyped_params={self.typed_params}"
             + "\n)"
         )
+
+    def plot(
+        self,
+        r: list[float],
+        type_pairs: list[tuple] | None = None,
+        pair_marker_styles: dict[tuple, dict] | None = None,
+        exclude_default: bool = True,
+    ):
+        """Plot the interaction potential curve for pairs of types.
+        
+        Plotting is only supported for isotropic interactions.
+
+        Parameters
+        ----------
+        r : array of floats
+            The distances (x axis) at which to calculate the potential energy.
+        type_pairs : array of tuples of strings, optional
+            The pairs of types to plot the interaction for. If not provided, all
+            pairs are used.
+        pair_marker_styles : dict, optional
+            Style dictionaries to apply to the markers. If not provided, a
+            default set of styles is used.
+        exclude_default : bool, default=True
+            Whether to exclude the curve defined by ``default_params`` from
+            the plot.
+        
+        Returns
+        -------
+        figure, traces
+            The plot figure and its associated traces.
+        """
+        pass

@@ -32,8 +32,9 @@ class Body:
     optionally orientations) for each secondary type must also be provided.
 
     .. code-block:: python
-        :caption: A cubic body with primary particle 'A' at the center and
-            secondary particles 'B' at the vertices.
+        :caption: A cubic body with primary particle 'A' at the center and secondary particles 'B' at the vertices.
+
+        import p4
 
         body = p4.Body(
             primary_type="A",
@@ -95,7 +96,16 @@ class Body:
             self._validate_secondary_orientations_and_positions_match()
     
     def is_rigid(self, interactions: list["Interaction"]) -> bool:
-        """Whether the body must represent a rigid body for some interactions."""
+        """Whether the body must represent a rigid body for some interactions.
+        
+        If any of the interactions specify a non-zero ``r_cut`` for any of the
+        body's secondary types, then the body must be rigid.
+
+        Parameters
+        ----------
+        interactions : list[Interaction]
+            The interactions to check over.
+        """
         common_single_types = any(
             t in self.secondary_types
             for interaction in interactions

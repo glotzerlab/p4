@@ -188,6 +188,8 @@ and the sites be particle type "B".
 
 .. code-block:: python
 
+    import coxeter
+    
     cubic_body = p4.Body(
         primary_type="A",
         secondary_types=["B"],
@@ -377,7 +379,7 @@ orientation points to sample.
         nlist=hoomd.md.nlist.Cell(2),
         csv_filename="doc/source/data/abcd-aljgauss-uft.csv",   # change to fit your system
         outside_cutoff=10,
-        n_processes=-1
+        n_processes=3
     )
 
 .. note::
@@ -427,7 +429,7 @@ the force vectors at the slice ``z=0``, which passes through the approximate
 center of the cubic body analyte.
 
 .. code-block:: python
-
+    avg_f = field.aggregate_over_orientations(quantity="F", method="mean")
     fig, tr = avg_f.plot(slice=dict(z=0), vectors=True)
     fig.show()
 

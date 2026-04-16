@@ -1,9 +1,4 @@
 *.ipynb
-*.xlsx
-*.csv
-*.gsd
-*.tiff
-*.vti
 
 *.pyc
 .vscode/*
@@ -11,8 +6,5 @@ p4.egg-info/*
 
 build/*
 p4/__pycache__/*
-
-new-api-idea.py
-test_probe.py
 
 doc/build/*

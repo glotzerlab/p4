@@ -1,9 +1,11 @@
 # Copyright (c) 2025-2026, The Regents of the University of Michigan
 # This file is from the p4 project, released under the BSD 3-Clause License.
 
-from copy import deepcopy
+from copy import copy, deepcopy
+import json
 import os
-from typing import TYPE_CHECKING, Callable, Iterable
+from pathlib import Path
+from typing import TYPE_CHECKING, Callable, Iterable, Literal
 import multiprocessing
 
 import coxeter
@@ -13,17 +15,17 @@ import p4.util
 from p4 import Body, Interaction
 
 class System:
-    """A System is defined by two bodies and a set of interactions.
+    """A System is defined by a probe, an analyte, and their interactions.
     
-    Once the system is instantiated, its potential energy landscape can be
-    measured using :meth:`~p4.System.probe_potential`.
+    Measure a system's spatial distributions of potential energy, force, and
+    torque using :meth:`~p4.System.measure`.
 
-    .. code-block::
-        :caption: A system composed of a probe that is a point body 'A' and an
-            analyte that is a cubic body with primary particle 'B' and secondary
-            particles 'C' at the vertices. 'A' and 'C' particles interact
-            through a Lennard-Jones potential.
+    .. code-block:: python
+        :caption: A system composed of a probe point particle 'A' and a an analyte cubic body 'B' with secondary particles 'C'. 'A' and 'C' interact via an LJ potential.
 
+        import p4
+        import hoomd
+        
         probe = p4.Body("A")
         analyte = p4.Body(
             primary_type="B",
@@ -154,52 +156,45 @@ class System:
         all_types.extend(self.analyte.secondary_types)
         return list(set(all_types))
 
-    def probe_potential(
+    def measure(
         self,
-        position_resolutions: list[list[float]],    # TODO: sampling_strategy: 'grid' with p_res and o_res, 'dynamic' with ???
+        quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
+        position_resolutions: list[float],
         orientation_resolutions: list[list[float]],
         symmetries: list[int],
         csv_filename: str,
         nlist: hoomd.md.nlist.NeighborList,
         outside_cutoff: float,
-        inside_cutoff: float | None = None,
-        cutoff_shape: coxeter.shapes.ConvexPolyhedron | None = None,
         box_safety_factor: float = 100,
         n_processes: int = 1,
         save_gsd: bool = False,
     ):
-        """Probe the potential energy landscape of the system.
+        """Measure named quantities for the system.
 
         Parameters
         ----------
-        position_resolutions : list[list[float]]
-            The number of samples along each dimension of the position grid.
-            $[X, Y, Z]$
-        orientation_resolutions : list[list[float]]
-            The number of samples along each dimension of the orientation grid.
-            $[X, Y, Z]$
+        quantities : one or more of 'U', 'F', 'T'
+            The quantities to measure. 'U' is the potential energy measured for
+            the entire system, and is saved as a single scalar quantity. 'F' and
+            'T' are the net Force and Torque experienced by the probe, and are
+            saved as vector quantities.
+        position_resolutions : list[float]
+            The number of samples along each dimension :math:`[X, Y, Z]` of the
+            position grid.
+        orientation_resolutions : list[float]
+            The number of samples along each dimension :math:`[X, Y, Z]` of the
+            axis-angle orientation grid.
         orientation_symmetries : list[int]
-            The rotational symmetry for each axis. If not provided, C1 symmetry
-            is assumed for every axis. $[X, Y, Z]$
+            The rotational symmetry for each axis $[X, Y, Z]$. If not provided,
+            C1 symmetry is assumed for every axis. 
         csv_filename : str
             The name of the CSV file to save.
         nlist : hoomd.md.nlist.NeighborList
             The neighbor list to use for the interactions.
         outside_cutoff : float
-            The cutoff distance outside which no positions will be probed. If
-            `cutoff_shape` is provided, this distance represents a buffer
-            distance around the shape, otherwise it distance represents the side
-            lengths of a cube centered on the origin.
-        inside_cutoff : float, optional
-            The cutoff distance inside which no positions will be probed.
-            If `probe_cutoff_shape` is provided, this distance represents a
-            buffer distance inside the shape, otherwise it distance represents
-            the side lengths of a cube centered on the origin. If not provided,
-            all positions inside the outer cutoff distance will be probed.
-        cutoff_shape : coxeter.shapes.ConvexPolyhedron, optional
-            A convex polyhedron representing a shape to which cutoff distances
-            are relative, enabling the user to sample non-cubic boxes. If not
-            provided, cutoff distances describe the side lengths of a cube.
+            The cutoff distance outside which no positions will be probed. This
+            distance represents the side lengths of a cube centered on the
+            origin.
         box_safety_factor : float, default=100
             The scale factor for the simulation box, since it must be bigger
             than the probe box to prevent the minimum image problem. Defaults
@@ -208,10 +203,10 @@ class System:
             The number of processes to distribute the probe operation between.
             Parallelization is implemented at the Python level, so each process
             creates and runs its own simulation and then the table results are
-            combined in the output CSV. Note that if save_gsd is set to True,
-            each simulation will produce a separate GSD file. Set this parameter
-            to -1 to use the maximum allowed number of processes for your
-            machine.
+            combined in the output CSV. Note that if ``save_gsd`` is set to
+            True, each simulation will produce a separate GSD file. Set this
+            parameter to -1 to use the maximum allowed number of processes for
+            your machine.
         save_gsd : bool, default=False
             Whether to save a GSD file alongside the output CSV file. If True,
             the GSD has the same name as the CSV. The name of the GSD file will
@@ -220,12 +215,8 @@ class System:
             available for debugging purposes, but generally should not be used.
         """
         # Calculate probe box based on cutoff distances
-        if cutoff_shape is None:
-            probe_box = [outside_cutoff, outside_cutoff, outside_cutoff]
-        else:
-            shape_maxes = cutoff_shape.vertices.max(axis=0)
-            probe_box = [m + outside_cutoff for m in shape_maxes]
-
+        probe_box = [outside_cutoff, outside_cutoff, outside_cutoff]
+        
         # Determine the frame's box from the probe box
         simulation_box = [d * box_safety_factor for d in probe_box]
         simulation_box.extend([0, 0, 0])
@@ -252,37 +243,9 @@ class System:
         probe_positions = p4.util.exclude_positions_by_shape(
             positions=probe_positions,
             exclude_inside=False,
-            shape=(
-                cutoff_shape
-                if cutoff_shape is not None
-                else p4.util.get_cube(outside_cutoff)
-            ),
-            buffer=outside_cutoff if cutoff_shape is not None else 0.0
+            shape=p4.util.get_cube(outside_cutoff),
+            buffer=0.0
         )
-
-        # Remove positions that are too close
-        # Review: allow distance to be negative?
-        if inside_cutoff is not None:
-            # if inside_cutoff <= 0:
-            #     raise ValueError(
-            #         "'inside_cutoff' must be a value greater than 0."
-            #     ) 
-            if inside_cutoff > outside_cutoff:
-                raise ValueError("inside cutoff must be smaller than outside cutoff.")
-            probe_positions = p4.util.exclude_positions_by_shape(
-                positions=probe_positions,
-                exclude_inside=True,
-                shape=(
-                    cutoff_shape
-                    if cutoff_shape is not None
-                    else p4.util.get_cube(inside_cutoff)
-                ),
-                buffer=(
-                    inside_cutoff
-                    if cutoff_shape is not None
-                    else 0.0
-                )
-            )
 
         # If multiprocessing, run copies of the probe simulation with chunks
         # of the set of positions across a collection of processes
@@ -290,7 +253,7 @@ class System:
             with multiprocessing.Pool(processes=n_processes) as pool:
                 if save_gsd:
                     gsd_filenames = [
-                        csv_filename.split(".")[-2] + f"_{i}.gsd"
+                        csv_filename.rsplit(".", 1)[0] + f"_{i}.gsd"
                         for i in range(n_processes)
                     ]
                 else:
@@ -298,6 +261,7 @@ class System:
 
                 args = zip(
                     [deepcopy(self) for _ in range(n_processes)],
+                    [quantities for _ in range(n_processes)],
                     p4.util.subdivide(probe_positions, n_processes),
                     [probe_orientations for _ in range(n_processes)],
                     [self.active_interactions for _ in range(n_processes)],
@@ -306,23 +270,24 @@ class System:
                     [simulation_box for _ in range(n_processes)],
                     gsd_filenames,
                 )
-                tables = pool.starmap(p4.util.run_probe, args)
+                tables = pool.starmap(p4.util.measure, args)
             
             table = p4.util.clean_header(p4.util.merge_tables(tables))
         
         # If not multiprocessing, don't initialize a pool (easier for debugging)
         else:
             if save_gsd:
-                gsd_filename = csv_filename.split(".")[-2] + ".gsd"
+                gsd_filename = csv_filename.rsplit(".", 1)[0] + ".gsd"
             else:
                 gsd_filename = None
-            table = p4.util.run_probe(
+            table = p4.util.measure(
                 system=self,
-                probe_positions=probe_positions,
-                probe_orientations=probe_orientations,
+                quantities=quantities,
+                positions=probe_positions,
+                orientations=probe_orientations,
                 included_interactions=self.active_interactions,
                 nlist=nlist,
-                probe_box=probe_box,
+                measurement_box=probe_box,
                 simulation_box=simulation_box,
                 gsd_filename=gsd_filename
             )
@@ -340,14 +305,16 @@ class System:
         probe_primary_type: str,
         analyte_primary_type: str
     ):
-        """Parse a `hoomd.Simulation <https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html>`_ to create a :class:`~p4.System`.
+        """Parse a HOOMD-blue `Simulation`_ to create a system.
+
+        .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
 
         The simulation must have an integrator, and the integrator must have one
         or more forces. Optionally, the integrator may also have a rigid
         constraint. If it does have one, and if this constraint's keys
         include ``probe_primary_type`` or ``analyte_primary_type``, then the
         constraint is parsed to determine secondary types, positions, and
-        orientations for the resulting probe and/or analyte :class:`~p4.Body`.
+        orientations for the resulting probe and/or analyte.
 
         Parameters
         ----------
@@ -395,7 +362,161 @@ class System:
             analyte=analyte,
             interactions=interactions
         )
+
+    def _to_json_dict(self):
+        """Convert the system to a JSON-compliant dictionary."""
+        data = {}
+
+        data["probe"] = self.probe._to_json_dict()
+        data["analyte"] = self.analyte._to_json_dict()
+        data["interactions"] = [
+            i._to_json_dict() for i in self.interactions
+        ]
+
+        return data
+
+    def to_json(
+        self,
+        filename: os.PathLike,
+        json_path: str | None = "p4.system",
+        indent: str | int | None = None
+    ):
+        """Export the system to JSON.
+        
+        If ``filename`` points to an existing file, a JSON path may be specified
+        to ensure the system data does not clash with existing data in the
+        file.
+
+        A JSON path that looks like ``'parent.object.subobject'`` represents the
+        following location:
+
+        .. code-block::
+
+            <root>
+            └─ parent
+               └─ object
+                  └─ subobject
+                     └─ <data will go here>
+
+        If the path specifies a location that already contains data, the
+        contents of that location may be overwritten.
+                     
+        Parameters
+        ----------
+        filename : os.PathLike
+            The name or path of the JSON file.
+        json_path : str or None, default='p4.system'
+            The location within the JSON file to put the system's
+            representation in. Only used if ``filename`` already exists. If
+            ``None`` is provided, then the representation is placed at the root
+            level.
+        indent : str or int, optional
+            The string or number of spaces to use when indenting newlines in the
+            JSON file. If not provided, there are no newlines.
+        """
+        path = Path(filename)
+        data = self._to_json_dict()
+
+        if path.exists():
+            with open(path, "r") as f:
+                existing_data = json.load(f)
+            
+            if json_path is None:
+                for k, v in data:
+                    existing_data[k] = v
+            
+            else:
+                names = json_path.split(".")
+                current_container = existing_data
+                for i, name in enumerate(names):
+                    if name not in current_container:
+                        current_container[name] = {}
+                    if i < (len(names) - 1):
+                        current_container = current_container[name]
+                    else:
+                        # try to write alongside existing data if possible...
+                        if isinstance(current_container[name], dict):
+                            current_container[name].update(data)
+                        # ... and insert or overwrite if not
+                        else:
+                            current_container[name] = data
+
+            with open(path, "w") as f:
+                json.dump(existing_data, f, indent=indent)
+
+        else:
+            with open(filename, "w") as f:
+                json.dump(data, f, indent=indent)
     
+    @classmethod
+    def _convert_json_dict(cls, data: dict):
+        """Convert a JSON-compliant dict into an instantiation-ready dict."""
+        data["probe"] = p4.Body._convert_json_dict(data["probe"])
+        data["analyte"] = p4.Body._convert_json_dict(data["analyte"])
+        data["interactions"] = [
+            p4.Interaction._convert_json_dict(i_dict)
+            for i_dict in data["interactions"]
+        ]
+        return data
+
+    @classmethod
+    def from_json(cls, filename: os.PathLike, json_path: str | None = None):
+        """Create a system from JSON.
+
+        a JSON path may be provided to control the location that the system
+        data is retrieved from. See :meth:`~p4.System.to_json` for an
+        explanation of JSON path path formatting.
+        
+        Parameters
+        ----------
+        filename : os.PathLike
+            The name or path of the JSON file.
+        json_path : str, optional
+            The location within the JSON file to retrieve the system's
+            representation from.
+        
+        Raises
+        ------
+        ValueError
+            If the JSON file does not have the keys and values required for
+            instantiating a System.
+        """
+        with open(filename, "r") as f:
+            data = json.load(f)
+
+        if json_path is None:
+            data = cls._convert_json_dict(data)            
+        
+        else:
+            current_container = data
+            for name in json_path.split("."):
+                current_container = current_container[name]
+            data = cls._convert_json_dict(current_container)
+        
+        required_args = [
+            "probe",
+            "analyte",
+            "interactions",
+        ]
+        for required_arg in required_args:
+            if required_arg not in data:
+                raise ValueError(
+                    f"Required arg {required_arg} not found in '{filename}' "
+                    + f"at path '{json_path}'."
+                )
+        for key in copy(data):
+            if key not in required_args:
+                del data[key]
+        
+        data["probe"] = p4.Body(**data["probe"])
+        data["analyte"] = p4.Body(**data["analyte"])
+        interactions = [
+            p4.Interaction(**i_dict) for i_dict in data["interactions"]
+        ]
+        data["interactions"] = interactions
+        
+        return cls(**data)
+
     def __eq__(self, other):
         """Two Systems are equivalent if their settable properties are, too."""
         return (

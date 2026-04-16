@@ -43,7 +43,7 @@ jobs:
           uv pip install . --no-build-isolation --no-deps -v --system
 
       - name: Run Tests
-        run: pytest test -v
+        run: pytest -v
 
   tests_complete:
     name: All tests

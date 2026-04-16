@@ -3,9 +3,13 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
+from copy import copy, deepcopy
 import inspect
 import itertools
+import importlib
+import json
+import os
+from pathlib import Path
 from typing import Iterable, Literal
 import hoomd
 
@@ -13,15 +17,20 @@ import p4.util
 
 
 class Interaction:
-    """The data for instantiating and parameterizing a hoomd.md.pair potential.
+    """The data for making and parameterizing a `HOOMD-blue MD pair potential`_.
 
-    `Interaction` is self-validating, i.e., every instance is guaranteed to
-    successfully create and parameterize its provided HOOMD pair potential.
+    .. _HOOMD-blue MD pair potential: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/pair/pair.html
+
+    This class is self-validating: when it is successfully instantiated, it is
+    guaranteed that it can successfully instantiate and parameterize its
+    HOOM-blue potential.
       
-    .. code-block::
-        :caption: A Lennard-Jones potential that allows A-B interactions but
-            not A-A or B-B.
+    .. code-block:: python
+        :caption: A Lennard-Jones potential that allows A-B interactions but not A-A or B-B.
 
+        import p4
+        import hoomd
+        
         interaction = p4.Interaction(
             hoomd_class=hoomd.md.pair.LJ,
             initial_args=dict(),
@@ -40,17 +49,19 @@ class Interaction:
     Parameters
     ----------
     hoomd_class : hoomd.md.pair.Pair
-        The constructor for the HOOMD class. Must be in `hoomd.md.pair`.
+        The constructor for the HOOMD class. Must be in the ``hoomd.md.pair``
+        module or one of its submodules.
     initial_args : dict[str, float | str]
-        All parameters (that aren't `nlist`) that are needed for instantiating
+        All parameters (that aren't ``nlist``) needed for instantiating
         the class from its constructor.
     default_params : dict
         The names and values of parameters that will be set by default for
-        **all** single and pair types. To determine the params for
-        your `hoomd_class`, consult the HOOMD docs.
+        all single and pair types. To determine the params for a given
+        class, consult the `HOOMD-blue documentation
+        <https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/module-pair.html>`__.
     typed_params : dict
         A mapping of single and pair types to parameter names and values. These
-        names and values will override those from `default_params`.
+        names and values will override those from ``default_params``.
     """
     def __init__(
         self,
@@ -72,7 +83,7 @@ class Interaction:
         # Ensure the hoomd class can be instantiated
         nlist = hoomd.md.nlist.Cell(2)
         try:
-            _ = self.to_hoomd_instance(nlist)
+            _ = self.to_hoomd_pair(nlist, parameterize=False)
         except ValueError as e:
             msg = "Validation failed: the HOOMD class cannot be instantiated."
             raise ValueError(msg) from e
@@ -81,8 +92,9 @@ class Interaction:
         nlist = hoomd.md.nlist.Cell(2)
         test_all_types = self.interacting_types("all")
         try:
-            _ = self.to_parameterized_hoomd_instance(
+            _ = self.to_hoomd_pair(
                 nlist=nlist,
+                parameterize=True,
                 all_types=test_all_types
             )
         except (AttributeError, KeyError) as e:
@@ -91,8 +103,11 @@ class Interaction:
         
         # Ensure the parameterized hoomd class can be used in a simulation
         nlist = hoomd.md.nlist.Cell(2)
+        test_types = self.interacting_types("all")
+        if not test_types:
+            test_types = ["A", "B"] # catch case with no typed params
         simulation = hoomd.util.make_example_simulation(
-            particle_types=self.interacting_types("all")
+            particle_types=test_types
         )
         if not any("params" in v for v in self.typed_params.values()):
             max_r_cut = self.default_params["r_cut"]
@@ -102,7 +117,7 @@ class Interaction:
             ])
         
         simulation = self._get_test_simulation(
-            particle_types=self.interacting_types("all"),
+            particle_types=test_types,
             max_r_cut=max_r_cut,
             nlist=hoomd.md.nlist.Cell(2),
             interaction=self
@@ -114,7 +129,7 @@ class Interaction:
             simulation=simulation,
             nlist=nlist,
             interaction=self,
-            all_types=self.interacting_types("all")
+            all_types=test_types
         )
 
         try:
@@ -210,13 +225,13 @@ class Interaction:
             simulation=simulation,
             nlist=nlist,
             interaction=interaction,
-            all_types=interaction.interacting_types("all")
+            all_types=particle_types
         )
         
         return simulation
 
     def interacting_types(self, category=Literal["single", "pair", "all"]):
-        """A list of particle types from `typed_params`.
+        """A list of particle types from ``typed_params``.
         
         Parameters
         ----------
@@ -246,47 +261,33 @@ class Interaction:
                         types.append(t)
             return types
 
-    def to_hoomd_instance(
-        self,
-        nlist: hoomd.md.nlist.NeighborList
-    ) -> hoomd.md.pair.Pair:
-        """Return an unparameterized instance of the HOOMD class.
-
-        Parameters
-        ----------
-        nlist : hoomd.md.nlist.NeighborList
-            The neighbor list to use.
-
-        Raises
-        ------
-        ValueError
-            If the initial inputs are wrong.
-        """
-        try:
-            return self.hoomd_class(nlist, **self.initial_args)
-        except (TypeError, hoomd.error.TypeConversionError) as e:
-            msg = "'initial_args' are wrong. See traceback for details."
-            raise ValueError(msg) from e
-
-    def to_parameterized_hoomd_instance(
+    def to_hoomd_pair(
         self,
         nlist: hoomd.md.nlist.NeighborList,
-        all_types: list[str]
+        parameterize: bool,
+        all_types: list[str] | None = None,
     ) -> hoomd.md.pair.Pair:
-        """Return a parameterized instance of the HOOMD class.
+        """Return an instance of the HOOMD-blue class.
         
         Parameters
         ----------
         nlist : hoomd.md.nlist.NeighborList
             The neighbor list to use.
+        parameterize : bool
+            Whether to parameterize the hoomd-blue ``pair`` instance. If False,
+            then the class is merely instantiated with ``initial_args`` and
+            returned as-is.
         all_types : list[str]
             The names of all the particle types for which the instance should be
-            parameterized.
+            parameterized. Required if ``parameterize`` is True, otherwise
+            ignored.
 
         Raises
         ------
+        ValueError
+            If the ``initial_args`` is wrong.
         AttributeError
-            If the typed params are wrong.
+            If the ``typed_params`` is wrong.
         """
         def wrong_type_msg(param, default_or_typed, single_or_pair, hoomd_class):
             return (
@@ -295,7 +296,15 @@ class Interaction:
                 f"hoomd class '{hoomd_class}'."
             )
 
-        instance = self.to_hoomd_instance(nlist)
+        try:
+            instance = self.hoomd_class(nlist, **self.initial_args)
+        
+        except (TypeError, hoomd.error.TypeConversionError) as e:
+            msg = "'initial_args' are wrong. See traceback for details."
+            raise ValueError(msg) from e
+        
+        if not parameterize:
+            return instance
         
         # Calculate the pairwise combinations of all types and interacting types
         all_type_pairs = list(
@@ -362,12 +371,14 @@ class Interaction:
         cls,
         pair: hoomd.md.pair.Pair
     ) -> list[Interaction] | Interaction:
-        """Parse a `hoomd.md.pair.Pair <https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/pair/pair.html>`_ to create an :class:`~p4.Interaction`.
+        """Parse a HOOMD-blue `MD pair potential`_ to create an interaction.
+
+        .. _MD pair potential: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/pair/pair.html
         
         Parameters
         ----------
         pair : hoomd.md.pair.Pair
-            The hoomd pairwise force instance.
+            The pair potential.
         """
         def get_particle_types(typeparam_dict, interacting_or_all):
             """Return a list of particle type names in a typeparameter dictionary.
@@ -455,7 +466,9 @@ class Interaction:
         cls,
         integrator: hoomd.md.Integrator
     ) -> list[Interaction] | Interaction:
-        """Parse a `hoomd.md.Integrator <https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/integrator.html#hoomd.md.Integrator>`_ to create 1 or more :class:`~p4.Interaction`.
+        """Parse a HOOMD-blue `MD Integrator`_ to create interactions.
+
+        .. _MD Integrator: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/integrator.html#hoomd.md.Integrator
         
         This is a convenience method that is equivalent to
 
@@ -466,7 +479,7 @@ class Interaction:
         Parameters
         ----------
         integrator : hoomd.md.Integrator
-            The integrator that contains the pairwise forces.
+            The integrator that contains the pair potentials.
         """
         if not integrator.forces:
             raise ValueError("`integrator` must have forces")
@@ -477,7 +490,9 @@ class Interaction:
         cls,
         simulation: hoomd.Simulation,
     ) -> list[Interaction] | Interaction:
-        """Parse a `hoomd.Simulation <https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html>`_ to create one or more :class:`~p4.Interaction`.
+        """Parse a HOOMD-blue `Simulation`_ to create interactions.
+
+        .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
 
         This is a convenience method that is equivalent to
         
@@ -488,7 +503,7 @@ class Interaction:
         Parameters
         ----------
         simulation : hoomd.Simulation
-            The simulation whose integrator contains the pairwise forces.
+            The simulation whose integrator contains the pair potentials.
         """
         if simulation.operations.integrator is None:
             raise ValueError("`simulation` must have an integrator")
@@ -611,6 +626,175 @@ class Interaction:
                     )
         
         return params
+
+    def _to_json_dict(self):
+        """Return a JSON-compliant dictionary representing this interaction."""
+        data = self.__dict__
+
+        # The hoomd class must be a string
+        data["hoomd_class"] = (
+            f"{data["hoomd_class"].__module__}.{data["hoomd_class"].__name__}"
+        )
+
+        # The typed params must not have tuples for keys
+        typed_params = []
+        for k, v in data["typed_params"].items():
+            typed_params.append({
+                "types": k,
+                "params": v
+            })
+        data["typed_params"] = typed_params
+
+        return data
+
+    def to_json(
+        self,
+        filename: os.PathLike,
+        json_path: str | None = "p4.interactions",
+        indent: str | int | None = None
+    ):
+        """Export the interaction to JSON.
+        
+        If ``filename`` points to an existing file, a JSON path may be specified
+        to ensure the interaction data does not clash with existing data in the
+        file.
+
+        A JSON path that looks like ``'parent.object.subobject'`` represents the
+        following location:
+
+        .. code-block::
+
+            <root>
+            └─ parent
+               └─ object
+                  └─ subobject
+                     └─ <data will go here>
+
+        If the path specifies a location that already contains data, the
+        contents of that location may be overwritten.
+                     
+        Parameters
+        ----------
+        filename : os.PathLike
+            The name or path of the JSON file.
+        json_path : str or None, default='p4.interactions'
+            The location within the JSON file to put the interaction's
+            representation in. Only used if ``filename`` already exists. If
+            ``None`` is provided, then the representation is placed at the root
+            level.
+        indent : str or int, optional
+            The string or number of spaces to use when indenting newlines in the
+            JSON file. If not provided, there are no newlines.
+        """
+        path = Path(filename)
+        data = self._to_json_dict()
+
+        if path.exists():
+            with open(path, "r") as f:
+                existing_data = json.load(f)
+            
+            if json_path is None:
+                for k, v in data:
+                    existing_data[k] = v
+            
+            else:
+                names = json_path.split(".")
+                current_container = existing_data
+                for i, name in enumerate(names):
+                    if name not in current_container:
+                        current_container[name] = {}
+                    if i < (len(names) - 1):
+                        current_container = current_container[name]
+                    else:
+                        # try to write alongside existing data if possible...
+                        if isinstance(current_container[name], dict):
+                            current_container[name].update(data)
+                        elif isinstance(current_container[name], list):
+                            current_container[name].append(data)
+                        # ... and insert or overwrite if not
+                        else:
+                            current_container[name] = data
+
+            with open(path, "w") as f:
+                json.dump(existing_data, f, indent=indent)
+
+        else:
+            with open(filename, "w") as f:
+                json.dump(data, f, indent=indent)
+    
+    @classmethod
+    def _convert_json_dict(cls, data: dict):
+        """Convert a JSON-compliant dict into an instantiation-ready dict."""
+        # Convert hoomd class path from string to type
+        class_path = data["hoomd_class"]
+        module_name, class_name = class_path.rsplit(".", 1)
+        hoomd_class = getattr(importlib.import_module(module_name), class_name)
+        data["hoomd_class"] = hoomd_class
+
+        # Convert typed params back into a dict with tuples and strings as keys
+        typed_params = {}
+        for item in data["typed_params"]:
+            if isinstance(item["types"], str):
+                key = item["types"]
+            elif isinstance(item["types"], list):
+                key = tuple(item["types"])
+            typed_params[key] = item["params"]
+        
+        data["typed_params"] = typed_params
+        
+        return data
+
+    @classmethod
+    def from_json(cls, filename: os.PathLike, json_path: str | None = None):
+        """Create an interaction from JSON.
+
+        a JSON path may be provided to control the location that the interaction
+        data is retrieved from. See :meth:`~p4.Interaction.to_json` for an
+        explanation of JSON path path formatting.
+        
+        Parameters
+        ----------
+        filename : os.PathLike
+            The name or path of the JSON file.
+        json_path : str, optional
+            The location within the JSON file to retrieve the interaction's
+            representation from.
+        
+        Raises
+        ------
+        ValueError
+            If the JSON file does not have the keys and values required for
+            instantiating an Interaction.
+        """
+        with open(filename, "r") as f:
+            data = json.load(f)
+
+        if json_path is None:
+            data = cls._convert_json_dict(data)            
+        
+        else:
+            current_container = data
+            for name in json_path.split("."):
+                current_container = current_container[name]
+            data = cls._convert_json_dict(current_container)
+        
+        required_args = [
+            "hoomd_class",
+            "initial_args",
+            "default_params",
+            "typed_params"
+        ]
+        for required_arg in required_args:
+            if required_arg not in data:
+                raise ValueError(
+                    f"Required arg {required_arg} not found in '{filename}' "
+                    + f"at path '{json_path}'."
+                )
+        for key in copy(data):
+            if key not in required_args:
+                del data[key]
+
+        return cls(**data)
 
     def __eq__(self, other):
         """Interactions are equal if they have equivalent properties."""
@@ -801,7 +985,10 @@ class Interaction:
             # Check for equivalence based on optional parameters
             optional_params_equivalent = []
             if not same_without_rs:
-                instance = self.to_hoomd_instance(hoomd.md.nlist.Cell(0))
+                instance = self.to_hoomd_pair(
+                    hoomd.md.nlist.Cell(0),
+                    parameterize=False
+                )
                 tpd = instance._typeparam_dict
                 for name, typeparam in tpd.items():
                     # If the typeparam is a dictionary mapping names to some
@@ -978,7 +1165,10 @@ class Interaction:
             # Check for equivalence based on optional parameters
             optional_params_equivalent = []
             if not same_without_rs:
-                instance = self.to_hoomd_instance(hoomd.md.nlist.Cell(0))
+                instance = self.to_hoomd_pair(
+                    hoomd.md.nlist.Cell(0),
+                    parameterize=False
+                )
                 tpd = instance._typeparam_dict
                 for name, typeparam in tpd.items():
                     # If the typeparam is a dictionary mapping names to some
@@ -1098,3 +1288,35 @@ class Interaction:
             + f"\n\ttyped_params={self.typed_params}"
             + "\n)"
         )
+
+    def plot(
+        self,
+        r: list[float],
+        type_pairs: list[tuple] | None = None,
+        pair_marker_styles: dict[tuple, dict] | None = None,
+        exclude_default: bool = True,
+    ):
+        """Plot the interaction potential curve for pairs of types.
+        
+        Plotting is only supported for isotropic interactions.
+
+        Parameters
+        ----------
+        r : array of floats
+            The distances (x axis) at which to calculate the potential energy.
+        type_pairs : array of tuples of strings, optional
+            The pairs of types to plot the interaction for. If not provided, all
+            pairs are used.
+        pair_marker_styles : dict, optional
+            Style dictionaries to apply to the markers. If not provided, a
+            default set of styles is used.
+        exclude_default : bool, default=True
+            Whether to exclude the curve defined by ``default_params`` from
+            the plot.
+        
+        Returns
+        -------
+        figure, traces
+            The plot figure and its associated traces.
+        """
+        pass

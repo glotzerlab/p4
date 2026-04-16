@@ -1,4 +1,4 @@
-.. _body :
+.. _body:
 
 Body
 ====

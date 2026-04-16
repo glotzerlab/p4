@@ -1,4 +1,4 @@
-.. _system :
+.. _system:
 
 System
 ======

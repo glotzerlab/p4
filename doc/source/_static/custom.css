@@ -1,0 +1,11 @@
+/* Center plotly plots */
+.plotly-graph-div {
+    margin: 0 auto;
+}
+
+/* Dirty hack for switching plotly plots to respect dark mode */
+/* @media (prefers-color-scheme: dark) {
+  .plotly-graph-div { 
+    filter: invert(100%) hue-rotate(180deg); 
+  }
+} */

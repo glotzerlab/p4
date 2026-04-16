@@ -69,7 +69,7 @@ class.
     # change path to fit your system
     field = p4.Field.from_csv("doc/source/data/ac-lj.csv")
 
-Since everything is isotropic, we only conducted measurements over asingle probe
+Since everything is isotropic, we only conducted measurements over a single probe
 orientation, so the field can be plotted immediately.
 
 .. code-block:: python

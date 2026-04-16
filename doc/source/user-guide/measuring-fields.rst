@@ -10,8 +10,8 @@ expressed in the :py:class:`System` class. A p4 ``System`` stores two kinds of
 bodies: a *probe* and an *analyte*. The measured fields reflect the force and
 torque experienced by the *probe* from the *analyte*.
 
-Isotropic Field
----------------
+Isotropic Fields
+----------------
 
 Let's define a ``System`` using the bodies and interaction that we created in
 the previous sections. We will begin simply, with a single-particle probe and
@@ -155,3 +155,301 @@ Individual components of the force can also be plotted as scalars.
     :file: ../data/ac-lj-fx-2d.html
 
 | 
+
+Anisotropic Fields
+------------------
+
+Next, let's investigate the fields for a repulsive cube with attractive sites
+on its vertices.
+
+.. code-block:: python
+
+    cube_vertices = [
+        [-1, -1, -1],
+        [-1, -1,  1],
+        [-1,  1, -1],
+        [-1,  1,  1],
+        [ 1, -1, -1],
+        [ 1, -1,  1],
+        [ 1,  1, -1],
+        [ 1,  1,  1]
+    ]
+    cube_faces = [
+        [0, 2, 6, 4],
+        [0, 4, 5, 1],
+        [4, 6, 7, 5],
+        [0, 1, 3, 2],
+        [2, 3, 7, 6],
+        [1, 5, 7, 3],
+    ]
+
+The ``Body`` for this particle model will have the cube be particle type "A",
+and the sites be particle type "B".
+
+.. code-block:: python
+
+    cubic_body = p4.Body(
+        primary_type="A",
+        secondary_types=["B"],
+        positions_by_type=dict(B=cube_vertices)
+    )
+
+    fig, tr = cubic_body.plot(
+        type_shapes=dict(
+            A=coxeter.shapes.ConvexPolyhedron(cube_vertices)
+        )
+    )
+    fig.show()
+
+.. raw:: html
+    :file: ../data/cubic-body.html
+
+| 
+
+We'll first investigate the fields experienced by a point particle probe, to
+which we'll give the particle type "D".
+
+.. code-block:: python
+
+    point_body = p4.Body("D")
+
+We can model the attractive interaction using an isotropic `Gaussian`_
+potential with a negative ``epsilon``. The gaussian potential should only be
+active for B-D pairs.
+
+.. _Gaussian: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/pair/gaussian.html
+
+.. code-block:: python
+
+    attraction = p4.Interaction(
+        hoomd_class=hoomd.md.pair.Gaussian,
+        initial_args=dict(),
+        default_params=dict(
+            r_cut=0,
+            params=dict(epsilon=0, sigma=1)
+        ),
+        typed_params={
+            ("B", "D"): dict(
+                r_cut=5.0,
+                params=dict(epsilon=-1, sigma=0.2)
+            )
+        }
+    )
+
+We can model the repulsive interaction using an `anisotropic Lennard-Jones`_
+(ALJ) potential with ``alpha=0``. The ALJ potential should only be active for
+A-D pairs.
+
+.. _anisotropic Lennard-Jones: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/pair/aniso/alj.html
+
+.. code-block:: python
+
+    repulsion = p4.Interaction(
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(),
+        default_params=dict(
+            r_cut=0,
+            params=dict(epsilon=0, sigma_i=0.2, sigma_j=0.2, alpha=0),
+            shape=dict(vertices=[], faces=[])
+        ),
+        typed_params={
+            ("A", "D"): dict(
+                r_cut=5.0,
+                params=dict(epsilon=0.1, sigma_i=0.2, sigma_j=0.2, alpha=0)
+            ),
+            "A": dict(shape=dict(vertices=cube_vertices, faces=cube_faces))
+        }
+    )
+
+Let's create the system and measure its energy, and force fields.
+
+.. code-block:: python
+
+    system = p4.System(
+        probe=point_body,
+        analyte=cubic_body,
+        interactions=[attraction, repulsion]
+    )
+    system.measure(
+        quantities=["U", "F", "T"],
+        position_resolutions=[30, 30, 30],
+        orientation_resolutions=[1, 1, 1],
+        symmetries=[1, 1, 1],
+        nlist=hoomd.md.nlist.Cell(2),
+        csv_filename="doc/source/data/abd-aljg-uft.csv", # change to fit your system
+        outside_cutoff=5,
+    )
+
+    # change path to fit your system
+    field = p4.Field.from_csv("doc/source/data/abd-aljgauss-uft.csv")
+    
+    fig, tr = field.plot("U", clim=[-0.2, 1], fill_nan_with_inf=True)
+    fig.show()
+
+.. note::
+
+    The ALJ potential is numerically unstable when the probe overlaps with the cube.
+    This means that there are ``NaN`` values in the field. To plot it effectively,
+    we overwrite those ``NaN`` values with very large numbers using the
+    ``fill_nan_with_inf`` flag. We then must manually set the limits of the colorbar
+    with ``clim``.
+
+.. raw:: html
+    :file: ../data/abd-aljgauss-u-3d.html
+
+| 
+
+If you like, you can add your body plot traces to the energy plot.
+
+.. code-block:: python
+
+    _, body_tr = cubic_body.plot(
+        type_shapes=dict(
+            A=coxeter.shapes.ConvexPolyhedron(cube_vertices)
+        )
+    )
+
+    fig.add_traces(body_tr)
+    fig.show()
+
+.. raw:: html
+    :file: ../data/abd-aljgauss-u-3d-with-body.html
+
+| 
+
+Next, let's investigate the fields experienced that the cubic body would
+experience as a probe. Because we cannot have the same particle types in both
+the probe and the analyte, we must create a new cubic body with new particle
+types. The new repulsive cube be particle type "C", and the sites be particle
+type "D".
+
+.. code-block:: python
+
+    cubic_body2 = p4.Body(
+        primary_type="C",
+        secondary_types=["D"],
+        positions_by_type=dict(D=cube_vertices)
+    )
+
+We can re-use the attractive potential from earlier, but we must make a new
+repulsive potential that is only active between the cube particle types "A" and
+"C".
+
+.. code-block:: python
+
+    repulsion2 = p4.Interaction(
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args=dict(),
+        default_params=dict(
+            r_cut=0,
+            params=dict(epsilon=0, sigma_i=0.2, sigma_j=0.2, alpha=0),
+            shape=dict(vertices=[], faces=[])
+        ),
+        typed_params={
+            ("A", "C"): dict(
+                r_cut=5.0,
+                params=dict(epsilon=0.1, sigma_i=0.2, sigma_j=0.2, alpha=0)
+            ),
+            "A": dict(shape=dict(vertices=cube_vertices, faces=cube_faces)),
+            "C": dict(shape=dict(vertices=cube_vertices, faces=cube_faces))
+        }
+    )
+
+Now we can make a new system, and this time we can measure its energy, force,
+*and* torque fields. Since the probe is anisotropic, it is no longer correct
+to measure at a single probe orientation, so we must specify
+``orientation_resolutions``. The probe has 4-fold symmetry about each axis, so
+and we can use those ``symmetries`` to decrease the number of required
+orientation points to sample.
+
+.. code-block:: python
+
+    system2 = p4.System(
+        probe=cubic_body2,
+        analyte=cubic_body,
+        interactions=[attraction, repulsion2]
+    )
+    system2.measure(
+        quantities=["U", "F", "T"],
+        position_resolutions=[13, 13, 13],
+        orientation_resolutions=[5, 5, 5],  # <--
+        symmetries=[4, 4, 4],               # <--
+        nlist=hoomd.md.nlist.Cell(2),
+        csv_filename="doc/source/data/abcd-aljgauss-uft.csv",   # change to fit your system
+        outside_cutoff=10,
+        n_processes=-1
+    )
+
+.. note::
+    We must double the ``outside_cutoff``, because the effective shape of the
+    repulsive cube (as experienced by another repulsive cube) is double the
+    size of the original cube. This will be evident in a plot below.
+
+.. note::
+    Measuring fields with anisotropic probes is much slower than with isotropic
+    ones because of the new axes in orientation-space. To offset the increase in
+    computational cost, use the ``n_processes`` parameter to parallelize the
+    measurement procedure across a provided number of CPU cores. The ``-1``
+    value uses the maximum number of cores available on your computer.
+
+As before, we can create a ``Field`` from the output CSV, but this time we
+must decide how to handle the multiple orientations. The simplest thing to do
+is to average over them.
+
+.. code-block:: python
+
+    # change path to fit your system
+    field = p4.Field.from_csv("doc/source/data/abcd-aljgauss-uft.csv")
+    
+    avg_u = field.aggregate_over_orientations(quantity="U", method="mean")
+
+    fig, tr = avg_u.plot()
+    fig.add_traces(body_tr)
+    fig.show()
+
+.. raw:: html
+    :file: ../data/abcd-aljgauss-avg-u-3d-with-body.html
+
+| 
+
+.. note::
+    Each quantity (U, F, T) must be aggregated individually because vector
+    quantities are aggregated differently from scalar quantities. See
+    :py:meth:`~p4.Field.aggregate_over_orientations`.
+
+.. TODO: we need to add a flag to the aggregation method that controls how it deals with nan and inf
+
+Recall what was mentioned above: the ALJ potential is numerically unstable
+and unphysical when it is evaluated for particle shape overlaps. You can see
+this if you plot the forces and torques. The measurements outside of the
+effective shape are accurate, but those inside are not. For example, plot
+the force vectors at the slice ``z=0``, which passes through the approximate
+center of the cubic body analyte.
+
+.. code-block:: python
+
+    fig, tr = avg_f.plot(slice=dict(z=0), vectors=True)
+    fig.show()
+
+.. raw:: html
+    :file: ../data/abcd-aljgauss-avg-f-2d-scalar.html
+
+| 
+
+The vectors inside the effective shape result from the sum of the attractive
+gaussian potential and the unphysical ALJ potential.
+
+
+Conclusion
+----------
+
+You have reached the end of the User Guide. In the future, another section
+will be added to demonstrate more advanced uses for p4, including parameter
+sweeps with `Signac`_ (``Body``, ``Interaction``, and ``System`` can be stored
+in Signac statepoints) and evaluating larger and more complex systems
+(support will be added for analyzing fields created by an entire simulation
+state, and for exporting bodies, states, and fields to `VTK`_ for more complex
+plotting and slicing).
+
+.. _Signac: https://signac.readthedocs.io/en/latest/index.html
+.. _VTK: https://docs.vtk.org/en/latest/index.html

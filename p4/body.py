@@ -118,8 +118,10 @@ class Body:
         )
         nonzero_default_r_cut = any(
             (
-                interaction.default_params["r_cut"] > 0
-                or interaction.initial_args.get("default_r_cut", 0) > 0
+                (
+                    len(self.secondary_types) > 0
+                    and interaction.default_params["r_cut"] > 0
+                ) or interaction.initial_args.get("default_r_cut", 0) > 0
             )
             for interaction in interactions
         )

@@ -8,7 +8,7 @@
   - [ ] dynamical meshing?
 
 `Interaction`
-- [ ] add plotting
+- [x] add plotting
 - [ ] add autogenerate dict method
 
 Other

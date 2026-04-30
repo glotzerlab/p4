@@ -19,6 +19,10 @@ Other
   - [ ] Add state/frame plotting
   - [ ] write basic error-checking tests for plotting
 
+Docs
+- [ ] switch to MyST
+- [ ] move HTML to separate build step
+
 ## Roadmap
 
 ### Open to group members

@@ -429,6 +429,7 @@ the force vectors at the slice ``z=0``, which passes through the approximate
 center of the cubic body analyte.
 
 .. code-block:: python
+    
     avg_f = field.aggregate_over_orientations(quantity="F", method="mean")
     fig, tr = avg_f.plot(slice=dict(z=0), vectors=True)
     fig.show()

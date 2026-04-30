@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from copy import copy, deepcopy
 import inspect
 import itertools
@@ -12,6 +13,8 @@ import os
 from pathlib import Path
 from typing import Iterable, Literal
 import hoomd
+import numpy as np
+import plotly
 
 import p4.util
 
@@ -81,7 +84,7 @@ class Interaction:
     def _validate(self):
         """Ensure this Interaction behaves properly."""
         # Ensure the hoomd class can be instantiated
-        nlist = hoomd.md.nlist.Cell(2)
+        nlist = hoomd.md.nlist.Tree(2)
         try:
             _ = self.to_hoomd_pair(nlist, parameterize=False)
         except ValueError as e:
@@ -89,7 +92,7 @@ class Interaction:
             raise ValueError(msg) from e
         
         # Ensure the hoomd class can be parameterized
-        nlist = hoomd.md.nlist.Cell(2)
+        nlist = hoomd.md.nlist.Tree(2)
         test_all_types = self.interacting_types("all")
         try:
             _ = self.to_hoomd_pair(
@@ -102,7 +105,7 @@ class Interaction:
             raise ValueError(msg) from e
         
         # Ensure the parameterized hoomd class can be used in a simulation
-        nlist = hoomd.md.nlist.Cell(2)
+        nlist = hoomd.md.nlist.Tree(2)
         test_types = self.interacting_types("all")
         if not test_types:
             test_types = ["A", "B"] # catch case with no typed params
@@ -119,7 +122,7 @@ class Interaction:
         simulation = self._get_test_simulation(
             particle_types=test_types,
             max_r_cut=max_r_cut,
-            nlist=hoomd.md.nlist.Cell(2),
+            nlist=hoomd.md.nlist.Tree(2),
             interaction=self
         )
         box_length = 10 * max(max_r_cut, 1.0)
@@ -581,7 +584,7 @@ class Interaction:
         
         params = {}
         tpd = self.hoomd_class(
-            nlist=hoomd.md.nlist.Cell(2),
+            nlist=hoomd.md.nlist.Tree(2),
             **self.initial_args
         )._typeparam_dict
 
@@ -1293,12 +1296,39 @@ class Interaction:
         self,
         r: list[float],
         type_pairs: list[tuple] | None = None,
-        pair_marker_styles: dict[tuple, dict] | None = None,
+        pair_styles: dict[tuple, dict] = {},
+        cmap: str | None = None,
+        ylim: list[float] | None = None,
         exclude_default: bool = True,
+        marker_size: float = 6,
+        line_width: float = 2,
+        mode: Literal["lines", "marker+lines", "marker"] = "lines",
+        show_axes: bool = True,
+        show_ticks: bool = True,
+        show_grid: bool = False,
+        show_border: bool = True,
+        width: int = 500,
+        height: int = 500,
     ):
-        """Plot the interaction potential curve for pairs of types.
+        """Plot the interaction potential energy curve for pairs of types.
         
         Plotting is only supported for isotropic interactions.
+
+        Styles may be specified for specific pairs of types. A style must
+        specified as a dictionary which may have the following keys and values:
+
+        * ``mode`` [``'lines'``, ``'lines+markers'``, ``'markers'``] The
+          `drawing mode`_ for the plotly trace.
+
+        * ``color`` [``str``] - The symbol's color. Plotly accepts color strings
+          in `standard HTML/CSS formats`_ (for example, `rgb`_), as well as
+          `many named colors`_.
+        
+        * ``marker_size`` [``float`` > 0] - The marker size.
+
+        * ``line_width`` [``float`` > 0] - The line width.
+
+        .. _drawing mode: https://plotly.com/python/reference/scatter/#scatter-mode
 
         Parameters
         ----------
@@ -1307,7 +1337,7 @@ class Interaction:
         type_pairs : array of tuples of strings, optional
             The pairs of types to plot the interaction for. If not provided, all
             pairs are used.
-        pair_marker_styles : dict, optional
+        pair_styles : dict, optional
             Style dictionaries to apply to the markers. If not provided, a
             default set of styles is used.
         exclude_default : bool, default=True
@@ -1319,4 +1349,163 @@ class Interaction:
         figure, traces
             The plot figure and its associated traces.
         """
-        pass
+        # Defaults
+        DEFAULT_COLORSCALE = "pastel"
+        DEFAULT_STYLE = dict(
+            color=None,
+            marker_size=marker_size,
+            line_width=line_width,
+            mode=mode,
+        )
+        
+        for pair, style in copy(pair_styles).items():
+            for key, default_value in DEFAULT_STYLE.items():
+                if key not in style:
+                    style[key] = default_value
+            pair_styles[pair] = style
+        
+        pair_styles = defaultdict(
+            lambda: defaultdict(None, DEFAULT_STYLE),
+            pair_styles
+        )
+        
+        # Ensure the interaction is isotropic
+        if self.hoomd_class.__module__ != "hoomd.md.pair.pair":
+            raise TypeError(
+                "Plotting is only supported for isotropic interactions, but "
+                + f"hoomd_class is from the {self.hoomd_class.__module__} "
+                + "module."
+            )
+
+        # Ensure there is a working colormap
+        if cmap is None:
+            cmap = DEFAULT_COLORSCALE
+        try:
+            _ = plotly.colors.get_colorscale(cmap)
+        except plotly.exceptions.PlotlyError:
+            try:
+                getattr(plotly.colors.qualitative, cmap.capitalize())
+            except AttributeError:
+                raise ValueError(
+                    "`cmap` is not a valid name for a continuous or "
+                    "qualitative plotly colorscale."
+                )
+
+        # If no type pairs are provided, use all of them
+        if type_pairs is None:
+            type_pairs = list(self.typed_params.keys())
+        
+        if not exclude_default:
+            type_pairs = ["default"] + type_pairs
+
+        # Calculate kwargs for the measure function call
+        # still needed for every call: system, nlist
+        kwargs = dict(
+            quantities="U",
+            positions=[[0 + value, 0, 0] for value in r],
+            orientations=[(1,0,0,0)],
+            measurement_box=[0, 0, 0], # TODO: refactor to remove this parameter
+            simulation_box=[100*max(r), 100*max(r), 100*max(r), 0, 0, 0],
+            included_interactions=[self]
+        )
+
+        # Build plot traces pair by pair
+        traces = []
+
+        for i, pair in enumerate(type_pairs):
+            if pair == "default":
+                probe=p4.Body("skvblejy")
+                analyte=p4.Body("dhytkgvle")
+            else:
+                probe=p4.Body(pair[0])
+                analyte=p4.Body(pair[1])
+            
+            system = p4.System(probe, analyte, [self])
+            
+            table = p4.util.measure(
+                system=system,
+                nlist=hoomd.md.nlist.Tree(2),
+                **kwargs
+            )
+            table = p4.util.clean_header(table)
+            table.seek(0)
+
+            field = p4.Field(
+                np.rec.array(
+                    np.genfromtxt(
+                        table,
+                        names=True,
+                        dtype=None,
+                        delimiter=",",
+                        encoding="utf-8"
+                    )
+                )
+            )
+
+            style = pair_styles[pair]
+            
+            if style["color"] is None:
+                try:
+                    color = plotly.colors.get_colorscale(cmap)[i]
+                except plotly.exceptions.PlotlyError:
+                    color = getattr(
+                        plotly.colors.qualitative,
+                        cmap.capitalize()
+                    )[i]
+            else:
+                color=style["color"]
+
+            _, trace = field.plot(
+                slice=dict(z=0, y=0),
+                marker_color_1d=color,
+                marker_mode_1d=style["mode"],
+                marker_size_1d=style["marker_size"],
+                line_width_1d=style["line_width"],
+                show_axes=show_axes,
+                show_title=False,
+                show_ticks=show_ticks,
+                show_grid=show_grid,
+                show_border=show_border,
+            )
+            trace["name"] = str(pair)
+
+            traces.append(trace)
+
+        # Build figure and style it
+        figure = plotly.graph_objects.Figure()
+        figure.add_traces(traces)
+        layout = p4.Field._plot_layout( # TODO: refactor to put this in util
+            self=None,
+            quantity="U",
+            slice=dict(z=0, y=0),
+            clim=[0, 1],    # does not matter in 1D
+            show_axes=show_axes,
+            show_title=False,
+            show_ticks=show_ticks,
+            show_grid=show_grid,
+            show_border=show_border
+        )
+        figure.update_layout(**layout)
+        figure.update_layout(xaxis=dict(title="r", range=[min(r), max(r)]))
+        
+        if ylim is None:
+            overall_min = min(min(s["y"]) for s in figure.data)
+            overall_max = max(max(s["y"]) for s in figure.data)
+            min_too_large = overall_min < -1e2
+            max_too_large = overall_max > 1e2
+
+            if min_too_large and not max_too_large:
+                ylim = [-0.5 * np.abs(overall_max), 1.1 * overall_max]
+            elif max_too_large and not min_too_large:
+                ylim = [1.1 * overall_min, 0.5 * np.abs(overall_min)]
+            elif max_too_large and min_too_large:
+                min_magnitude = min(min(np.abs(s["y"])) for s in figure.data)
+                ylim = [-2 * min_magnitude, 2 * min_magnitude]
+            else:
+                ylim = [overall_min, overall_max]
+        
+        figure.update_layout(yaxis=dict(range=ylim))
+        figure.update_layout(width=width, height=height)
+
+        return figure, traces
+        

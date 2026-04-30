@@ -33,7 +33,7 @@ example simulation using the code below.
 
     # Add an integrator and a simple B-B LJ force
     example_simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
-    lj = hoomd.md.pair.LJ(nlist=hoomd.md.nlist.Cell(2), default_r_cut=0)
+    lj = hoomd.md.pair.LJ(nlist=hoomd.md.nlist.Tree(2), default_r_cut=0)
     lj.r_cut[("B", "B")] = 5
     lj.params[("A", "A")] = {"epsilon": 0.0, "sigma": 1.0}
     lj.params[("A", "B")] = {"epsilon": 0.0, "sigma": 1.0}
@@ -92,7 +92,7 @@ field of the system using the code below.
         position_resolutions=[10, 10, 10],  # change to fit your system
         orientation_resolutions=[1, 1, 1],  # change to fit your system
         symmetries=[1, 1, 1],               # change to fit your system
-        nlist=hoomd.md.nlist.Cell(2),
+        nlist=hoomd.md.nlist.Tree(2),
         csv_filename="field.csv",
         outside_cutoff=10,                  # change to fit your system
     )

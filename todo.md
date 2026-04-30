@@ -8,7 +8,7 @@
   - [ ] dynamical meshing?
 
 `Interaction`
-- [ ] add plotting
+- [x] add plotting
 - [ ] add autogenerate dict method
 
 Other
@@ -17,6 +17,7 @@ Other
     - [ ] Support VTK in Field IO (plotly can't handle datasets that large)
     - [ ] Body saving to VTK
   - [ ] Add state/frame plotting
+  - [ ] write basic error-checking tests for plotting
 
 ## Roadmap
 

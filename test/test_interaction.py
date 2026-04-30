@@ -98,7 +98,7 @@ CLASSES_TO_TEST = get_all_classes_to_test()
 #   2. there are no initial arg clashes that we haven't approved
 
 
-NLIST = hoomd.md.nlist.Cell(2)
+NLIST = hoomd.md.nlist.Tree(2)
 INITIAL_ARGS_REQUIRED = dict(
     kT=1
 )

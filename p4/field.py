@@ -1013,6 +1013,8 @@ class Field:
         slice: dict[str, float],
         marker_mode: Literal["lines+markers", "lines", "markers"],
         marker_color: str,
+        marker_size: float,
+        line_width: float,
     ) -> plotly.graph_objs._scatter.Scatter:
         """Return the Plotly trace for a 1D scalar (Scatter) plot.
 
@@ -1029,6 +1031,10 @@ class Field:
         marker_color : str
             In a 1D scalar plot, the color of the plot symbol. Ignored for all
             other plot types.
+        marker_size : float
+            The size of the marker in pixels.
+        line_width : float
+            The width of the line in pixels.
 
         Returns
         -------
@@ -1055,6 +1061,8 @@ class Field:
             cliponaxis=False,
             mode=marker_mode,
             marker_color=marker_color,
+            marker=dict(size=marker_size),
+            line=dict(width=line_width),
         )
 
     def _plot_trace_vector_3d(
@@ -1412,8 +1420,10 @@ class Field:
         show_ticks: bool = True,
         show_grid: bool = False,
         show_border: bool = True,
-        marker_mode: Literal["lines+markers", "lines", "markers"] = "lines",
-        marker_color: str = "black",
+        marker_mode_1d: Literal["lines+markers", "lines", "markers"] = "lines",
+        marker_color_1d: str = "black",
+        marker_size_1d: float = 6,
+        line_width_1d: float = 2,
     ):
         """Interactively plot the field using `Plotly`_.
         
@@ -1466,13 +1476,16 @@ class Field:
             Whether to show the axes grid.
         show_border : bool, default=True
             Whether to show the plot border.
-        marker_mode : 'lines+markers', 'lines', or 'markers', default='lines'
+        marker_mode_1d : 'lines+markers', 'lines', or 'markers', default='lines'
             In a 1D scalar plot, whether to show only lines, only markers, or
             both. Ignored for all other plot types.
-        marker_color : str, default='black'
+        marker_color_1d : str, default='black'
             In a 1D scalar plot, the color of the plot symbol. Ignored for all
             other plot types.
-        
+        marker_size_1d : float, default=6
+            In a 1D scalar plot, the size of the marker in pixels.
+        line_width_1d : float, default=2
+            In a 1D scalar plot, the width of the line in pixels.
         Returns
         -------
         figure, traces
@@ -1586,8 +1599,10 @@ class Field:
                 trace = self._plot_trace_scalar_1d(
                     quantity=quantity,
                     slice=slice,
-                    marker_color=marker_color,
-                    marker_mode=marker_mode,
+                    marker_color=marker_color_1d,
+                    marker_mode=marker_mode_1d,
+                    marker_size=marker_size_1d,
+                    line_width=line_width_1d,
                 )
         
         else:
@@ -1602,7 +1617,7 @@ class Field:
                 trace = self._plot_trace_vector_2d(
                     quantity=quantity,
                     slice=slice,
-                    marker_color=marker_color,
+                    marker_color=marker_color_1d,
                 )
 
         # Create and style the figure

@@ -1359,11 +1359,17 @@ class Interaction:
             mode=mode,
         )
         
+        for pair, style in copy(pair_styles).items():
+            for key, default_value in DEFAULT_STYLE.items():
+                if key not in style:
+                    style[key] = default_value
+            pair_styles[pair] = style
+        
         pair_styles = defaultdict(
             lambda: defaultdict(None, DEFAULT_STYLE),
             pair_styles
         )
-
+        
         # Ensure the interaction is isotropic
         if self.hoomd_class.__module__ != "hoomd.md.pair.pair":
             raise TypeError(

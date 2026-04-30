@@ -222,7 +222,6 @@ VALID_INTERACTION_KWARGS = dict(
 @pytest.mark.parametrize("variant", ["none", "some", "all"])
 def test_is_rigid(kwargs, variant):
     """Ensure method returns True if the body has any secondary types in common with an interction."""
-    # TODO: check that the variants are handled correctly
     b = Body(**kwargs)
     interaction_kwargs = deepcopy(VALID_INTERACTION_KWARGS)
 

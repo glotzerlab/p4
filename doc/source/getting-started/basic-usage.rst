@@ -122,7 +122,8 @@ The potential energy can be plotted as a 3D volume, or as a slice in 2D or
 
 .. code:: python
     
-    field.plot()
+    fig, tr = field.plot()
+    fig.show()
 
 .. raw:: html
     :file: ../data/field.html

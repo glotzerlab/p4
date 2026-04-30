@@ -40,7 +40,19 @@ are then applied to specifically named pairs of types.
     )
 
 In the above example, the interaction is a `Lennard-Jones force`_ that is active
-only for A-C pairs.
+only for A-C pairs. Just like a ``Body``, and ``Interaction`` can be plotted.
+
+.. code-block:: python
+
+    import numpy as np
+
+    fig, tr = interaction.plot(r=np.linspace(0, 8, 100), exclude_default=False)
+    fig.show()
+
+.. raw:: html
+    :file: ../data/interaction.html
+
+| 
 
 .. _Lennard-Jones force: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/pair/lj.html
 

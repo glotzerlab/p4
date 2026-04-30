@@ -84,7 +84,7 @@ class Interaction:
     def _validate(self):
         """Ensure this Interaction behaves properly."""
         # Ensure the hoomd class can be instantiated
-        nlist = hoomd.md.nlist.Cell(2)
+        nlist = hoomd.md.nlist.Tree(2)
         try:
             _ = self.to_hoomd_pair(nlist, parameterize=False)
         except ValueError as e:
@@ -92,7 +92,7 @@ class Interaction:
             raise ValueError(msg) from e
         
         # Ensure the hoomd class can be parameterized
-        nlist = hoomd.md.nlist.Cell(2)
+        nlist = hoomd.md.nlist.Tree(2)
         test_all_types = self.interacting_types("all")
         try:
             _ = self.to_hoomd_pair(
@@ -105,7 +105,7 @@ class Interaction:
             raise ValueError(msg) from e
         
         # Ensure the parameterized hoomd class can be used in a simulation
-        nlist = hoomd.md.nlist.Cell(2)
+        nlist = hoomd.md.nlist.Tree(2)
         test_types = self.interacting_types("all")
         if not test_types:
             test_types = ["A", "B"] # catch case with no typed params
@@ -122,7 +122,7 @@ class Interaction:
         simulation = self._get_test_simulation(
             particle_types=test_types,
             max_r_cut=max_r_cut,
-            nlist=hoomd.md.nlist.Cell(2),
+            nlist=hoomd.md.nlist.Tree(2),
             interaction=self
         )
         box_length = 10 * max(max_r_cut, 1.0)
@@ -584,7 +584,7 @@ class Interaction:
         
         params = {}
         tpd = self.hoomd_class(
-            nlist=hoomd.md.nlist.Cell(2),
+            nlist=hoomd.md.nlist.Tree(2),
             **self.initial_args
         )._typeparam_dict
 
@@ -1419,7 +1419,7 @@ class Interaction:
             
             table = p4.util.measure(
                 system=system,
-                nlist=hoomd.md.nlist.Cell(2),
+                nlist=hoomd.md.nlist.Tree(2),
                 **kwargs
             )
             table = p4.util.clean_header(table)

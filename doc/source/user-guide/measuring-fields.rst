@@ -55,7 +55,7 @@ isotropic, torque will be zero everywhere.)
         position_resolutions=[30, 30, 30],
         orientation_resolutions=[1, 1, 1], # <-- note: single orientation
         symmetries=[1, 1, 1],
-        nlist=hoomd.md.nlist.Cell(2),
+        nlist=hoomd.md.nlist.Tree(2),
         csv_filename="doc/source/data/ac-lj.csv",   # change to fit your system
         outside_cutoff=5,
     )
@@ -277,7 +277,7 @@ Let's create the system and measure its energy, and force fields.
         position_resolutions=[30, 30, 30],
         orientation_resolutions=[1, 1, 1],
         symmetries=[1, 1, 1],
-        nlist=hoomd.md.nlist.Cell(2),
+        nlist=hoomd.md.nlist.Tree(2),
         csv_filename="doc/source/data/abd-aljg-uft.csv", # change to fit your system
         outside_cutoff=5,
     )
@@ -376,7 +376,7 @@ orientation points to sample.
         position_resolutions=[13, 13, 13],
         orientation_resolutions=[5, 5, 5],  # <--
         symmetries=[4, 4, 4],               # <--
-        nlist=hoomd.md.nlist.Cell(2),
+        nlist=hoomd.md.nlist.Tree(2),
         csv_filename="doc/source/data/abcd-aljgauss-uft.csv",   # change to fit your system
         outside_cutoff=10,
         n_processes=3

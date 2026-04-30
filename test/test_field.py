@@ -676,9 +676,3 @@ def test_equality():
     f1 = p4.Field(copy(recarray))
     f2 = p4.Field(copy(recarray))
     assert f1 == f2
-
-# def test_plot_valid(recarray):
-#     pass
-
-# def test_plot_invalid(recarray):
-#     pass

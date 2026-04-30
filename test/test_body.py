@@ -383,7 +383,3 @@ def test_to_hoomd_rigid(kwargs):
                 included_secondary_types=kwargs["secondary_types"]
             )
         )
-
-def test_plot():
-    """Ensure that plotting does not error for sets of valid kwargs."""
-    # TODO

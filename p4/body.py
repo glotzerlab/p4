@@ -259,7 +259,8 @@ class Body:
             )
 
         for trace in traces:
-            figure.add_trace(trace)
+            if trace is not None:
+                figure.add_trace(trace)
 
         figure.update_layout(showlegend=show_legend)
 

@@ -35,7 +35,7 @@ FIELD_3D_LAYOUT = dict(
 data_path = "source/data"
 
 # Ensure data path points to an existing directory
-(Path(__file__) / data_path).mkdir(parents=True, exist_ok=True)
+(Path(__file__).parent / data_path).mkdir(parents=True, exist_ok=True)
 
 
 # %% ------------------------------ Basic Usage --------------------------------

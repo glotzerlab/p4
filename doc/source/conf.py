@@ -28,7 +28,6 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
-    "nbsphinx",
     "sphinx_autodoc_typehints",
     "sphinx_copybutton",
 ]
@@ -69,28 +68,6 @@ html_static_path = ["_static"]
 maximum_signature_line_length = 100
 python_display_short_literal_types = True
 
-# Override default nbsphinx CSS for HTML tables, as it doesn't respect dark mode
-nbsphinx_prolog = """
-.. raw:: html
-
-    <style>
-        div.rendered_html table {
-            color: var(--color-code-foreground);
-        }
-        div.rendered_html thead {
-            border-bottom: 1px solid var(--color-code-foreground);
-        }
-        div.rendered_html thead tr {
-            background: var(--color-background-secondary);
-        }
-        div.rendered_html tbody tr:nth-child(2n) {
-            background: var(--color-background-primary);
-        }
-        div.rendered_html tbody tr:nth-child(2n+1) {
-            background: var(--color-background-secondary);
-        }
-    </style>
-"""
 
 def setup(app):
   app.add_css_file("custom.css")

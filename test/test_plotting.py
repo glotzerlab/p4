@@ -4,6 +4,7 @@ from copy import copy
 import p4
 import hoomd
 import numpy as np
+from pathlib import Path
 
 INTERACTION = p4.Interaction(
     hoomd_class=hoomd.md.pair.LJ,
@@ -135,7 +136,7 @@ def test_body_plot(
         show_legend=show_legend,
     )
 
-FIELD = p4.Field.from_csv("test/data/field-uft.csv")
+FIELD = p4.Field.from_csv(str(Path(__file__).parent / "data/field-uft.csv"))
 FIELD = FIELD.subset(q0=1.0, q1=0.0, q2=0.0, q3=0.0)
 
 @pytest.mark.parametrize("quantity", ["U", "F", "T", "Fx", "Fy", "Fz", "Tx", "Ty", "Tz"])

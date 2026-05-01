@@ -40,8 +40,6 @@ as follows.
 .. raw:: html
     :file: ../data/body-1type.html
 
-| 
-
 A multi-particle body would then be created in the following way.
 
 .. code-block:: python
@@ -67,8 +65,6 @@ A multi-particle body would then be created in the following way.
 .. raw:: html
     :file: ../data/body-2types.html
 
-| 
-
 When plotting bodies, it is often useful to represent the primary particle type
 with a polyhedron. To do so, pass a `Coxeter Polyhedron`_ for a type using the
 ``type_shapes`` parameter.
@@ -86,8 +82,6 @@ with a polyhedron. To do so, pass a `Coxeter Polyhedron`_ for a type using the
 
 .. raw:: html
     :file: ../data/body-2types-1shape.html
-
-| 
 
 The ``type_shapes`` parameter can also be used to indicate the orientation of
 secondary types.
@@ -114,8 +108,6 @@ secondary types.
 .. raw:: html
     :file: ../data/body-2types-2shapes.html
 
-| 
-
 Orthogonal slices of bodies can also be plotted. This is especially useful when
 overlaying a body's extents on a plot of its field (see 
 :doc:`measuring-fields`).
@@ -131,8 +123,6 @@ overlaying a body's extents on a plot of its field (see
 .. raw:: html
     :file: ../data/body-2types-2shapes-slice2D.html
 
-| 
-
 .. code-block:: python
 
     fig, _ = body.plot(
@@ -143,5 +133,3 @@ overlaying a body's extents on a plot of its field (see
 
 .. raw:: html
     :file: ../data/body-2types-2shapes-slice1D.html
-
-| 

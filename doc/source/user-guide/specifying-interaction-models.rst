@@ -52,8 +52,6 @@ only for A-C pairs. Just like a ``Body``, and ``Interaction`` can be plotted.
 .. raw:: html
     :file: ../data/basic-interaction.html
 
-| 
-
 .. _Lennard-Jones force: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/pair/lj.html
 
 An ``Interaction`` can be created for any instantiable subclass of HOOMD-blue's

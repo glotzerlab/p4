@@ -81,8 +81,6 @@ orientation, so the field can be plotted immediately.
 .. raw:: html
     :file: ../data/ac-lj-u-3d.html
 
-| 
-
 As with ``Body``, we can plot slices of the field.
 
 .. code-block:: python
@@ -100,8 +98,6 @@ As with ``Body``, we can plot slices of the field.
 
 .. raw:: html
     :file: ../data/ac-lj-u-1d.html
-
-| 
 
 The force field can also be plotted, both as a scalar plot and a vector plot.
 
@@ -121,8 +117,6 @@ The force field can also be plotted, both as a scalar plot and a vector plot.
 .. raw:: html
     :file: ../data/ac-lj-f-vector-3d.html
 
-| 
-
 Vector plots can also be sliced into 2D (though not 1D).
 
 .. code-block:: python
@@ -132,8 +126,6 @@ Vector plots can also be sliced into 2D (though not 1D).
 
 .. raw:: html
     :file: ../data/ac-lj-f-vector-2d.html
-
-| 
 
 Individual components of the force can also be plotted as scalars.
 
@@ -145,8 +137,6 @@ Individual components of the force can also be plotted as scalars.
 .. raw:: html
     :file: ../data/ac-lj-fx-3d.html
 
-| 
-
 .. code-block:: python
 
     fig, tr = field.plot("Fx", slice=dict(z=0))
@@ -154,8 +144,6 @@ Individual components of the force can also be plotted as scalars.
 
 .. raw:: html
     :file: ../data/ac-lj-fx-2d.html
-
-| 
 
 Anisotropic Fields
 ------------------
@@ -206,8 +194,6 @@ and the sites be particle type "B".
 
 .. raw:: html
     :file: ../data/body-anisotropic.html
-
-| 
 
 We'll first investigate the fields experienced by a point particle probe, to
 which we'll give the particle type "D".
@@ -299,8 +285,6 @@ Let's create the system and measure its energy, and force fields.
 .. raw:: html
     :file: ../data/abd-aljg-u-3d.html
 
-| 
-
 If you like, you can add your body plot traces to the energy plot.
 
 .. code-block:: python
@@ -316,8 +300,6 @@ If you like, you can add your body plot traces to the energy plot.
 
 .. raw:: html
     :file: ../data/abd-aljg-u-3d-with-body.html
-
-| 
 
 Next, let's investigate the fields experienced that the cubic body would
 experience as a probe. Because we cannot have the same particle types in both
@@ -411,8 +393,6 @@ is to average over them.
 .. raw:: html
     :file: ../data/abcd-aljg-avg-u-3d-with-body.html
 
-| 
-
 .. note::
     Each quantity (U, F, T) must be aggregated individually because vector
     quantities are aggregated differently from scalar quantities. See
@@ -435,8 +415,6 @@ center of the cubic body analyte.
 
 .. raw:: html
     :file: ../data/abcd-aljg-avg-f-vector-2d.html
-
-| 
 
 The vectors inside the effective shape result from the sum of the attractive
 gaussian potential and the unphysical ALJ potential.

@@ -50,7 +50,7 @@ only for A-C pairs. Just like a ``Body``, and ``Interaction`` can be plotted.
     fig.show()
 
 .. raw:: html
-    :file: ../data/interaction.html
+    :file: ../data/basic-interaction.html
 
 | 
 

@@ -8,3 +8,5 @@ build/*
 p4/__pycache__/*
 
 doc/build/*
+# doc/source/data/*
+doc/source/data-old/*

@@ -50,13 +50,15 @@ isotropic, torque will be zero everywhere.)
 
 .. code-block:: python
 
+    data_path = "doc/source/data" # change to your own directory path
+
     system.measure(
         quantities=["U", "F"],
         position_resolutions=[30, 30, 30],
         orientation_resolutions=[1, 1, 1], # <-- note: single orientation
         symmetries=[1, 1, 1],
         nlist=hoomd.md.nlist.Tree(2),
-        csv_filename="doc/source/data/ac-lj.csv",   # change to fit your system
+        csv_filename=data_path+"/ac-lj-uf.csv",
         outside_cutoff=5,
     )
 
@@ -66,8 +68,7 @@ class.
 
 .. code-block:: python
 
-    # change path to fit your system
-    field = p4.Field.from_csv("doc/source/data/ac-lj.csv")
+    field = p4.Field.from_csv(data_path+"/ac-lj-uf.csv")
 
 Since everything is isotropic, we only conducted measurements over a single probe
 orientation, so the field can be plotted immediately.
@@ -204,7 +205,7 @@ and the sites be particle type "B".
     fig.show()
 
 .. raw:: html
-    :file: ../data/cubic-body.html
+    :file: ../data/body-anisotropic.html
 
 | 
 
@@ -278,12 +279,11 @@ Let's create the system and measure its energy, and force fields.
         orientation_resolutions=[1, 1, 1],
         symmetries=[1, 1, 1],
         nlist=hoomd.md.nlist.Tree(2),
-        csv_filename="doc/source/data/abd-aljg-uft.csv", # change to fit your system
+        csv_filename=data_path+"/abd-aljg-uft.csv",
         outside_cutoff=5,
     )
 
-    # change path to fit your system
-    field = p4.Field.from_csv("doc/source/data/abd-aljgauss-uft.csv")
+    field = p4.Field.from_csv(data_path+"/abd-aljg-uft.csv")
     
     fig, tr = field.plot("U", clim=[-0.2, 1], fill_nan_with_inf=True)
     fig.show()
@@ -297,7 +297,7 @@ Let's create the system and measure its energy, and force fields.
     with ``clim``.
 
 .. raw:: html
-    :file: ../data/abd-aljgauss-u-3d.html
+    :file: ../data/abd-aljg-u-3d.html
 
 | 
 
@@ -315,7 +315,7 @@ If you like, you can add your body plot traces to the energy plot.
     fig.show()
 
 .. raw:: html
-    :file: ../data/abd-aljgauss-u-3d-with-body.html
+    :file: ../data/abd-aljg-u-3d-with-body.html
 
 | 
 
@@ -377,9 +377,8 @@ orientation points to sample.
         orientation_resolutions=[5, 5, 5],  # <--
         symmetries=[4, 4, 4],               # <--
         nlist=hoomd.md.nlist.Tree(2),
-        csv_filename="doc/source/data/abcd-aljgauss-uft.csv",   # change to fit your system
+        csv_filename=data_path+"/abcd-aljg-uft.csv",
         outside_cutoff=10,
-        n_processes=3
     )
 
 .. note::
@@ -390,9 +389,10 @@ orientation points to sample.
 .. note::
     Measuring fields with anisotropic probes is much slower than with isotropic
     ones because of the new axes in orientation-space. To offset the increase in
-    computational cost, use the ``n_processes`` parameter to parallelize the
-    measurement procedure across a provided number of CPU cores. The ``-1``
-    value uses the maximum number of cores available on your computer.
+    computational cost, you can use the ``n_processes`` parameter to parallelize
+    the measurement procedure across a provided number of CPU cores. Set the
+    value to ``-1`` to use the maximum number of cores available on your
+    computer.
 
 As before, we can create a ``Field`` from the output CSV, but this time we
 must decide how to handle the multiple orientations. The simplest thing to do
@@ -400,17 +400,16 @@ is to average over them.
 
 .. code-block:: python
 
-    # change path to fit your system
-    field = p4.Field.from_csv("doc/source/data/abcd-aljgauss-uft.csv")
+    field = p4.Field.from_csv(data_path+"/abcd-aljg-uft.csv")
     
     avg_u = field.aggregate_over_orientations(quantity="U", method="mean")
 
-    fig, tr = avg_u.plot()
+    fig, tr = avg_u.plot(fill_nan_with_inf=True)
     fig.add_traces(body_tr)
     fig.show()
 
 .. raw:: html
-    :file: ../data/abcd-aljgauss-avg-u-3d-with-body.html
+    :file: ../data/abcd-aljg-avg-u-3d-with-body.html
 
 | 
 
@@ -435,7 +434,7 @@ center of the cubic body analyte.
     fig.show()
 
 .. raw:: html
-    :file: ../data/abcd-aljgauss-avg-f-2d-scalar.html
+    :file: ../data/abcd-aljg-avg-f-vector-2d.html
 
 | 
 

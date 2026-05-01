@@ -3,6 +3,9 @@ build:
     os: ubuntu-24.04
     tools:
         python: "miniforge3-25.11"
+    jobs:
+        pre_build:
+            - python doc/generate_data_and_plots.py
 python:
     install:
         - method: pip

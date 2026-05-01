@@ -87,14 +87,16 @@ field of the system using the code below.
 
 .. code:: python
 
+    data_path = "doc/source/data" # change to your own directory path
+
     system.measure(
         quantities=["U"],
-        position_resolutions=[10, 10, 10],  # change to fit your system
-        orientation_resolutions=[1, 1, 1],  # change to fit your system
-        symmetries=[1, 1, 1],               # change to fit your system
+        position_resolutions=[10, 10, 10],   # change to fit your system
+        orientation_resolutions=[1, 1, 1],   # change to fit your system
+        symmetries=[1, 1, 1],                # change to fit your system
         nlist=hoomd.md.nlist.Tree(2),
-        csv_filename="field.csv",
-        outside_cutoff=10,                  # change to fit your system
+        csv_filename=data_path+"/field.csv",# change to fit your system
+        outside_cutoff=10,                   # change to fit your system
     )
 
 This method saves a csv file that records the potential energy at each position
@@ -104,7 +106,7 @@ then visualize this field using :py:class:`~p4.Field`.
 .. code:: python
 
     # change path to fit your system
-    field = p4.Field.from_csv("doc/source/data/field.csv")  
+    field = p4.Field.from_csv(data_path+"/field.csv")  
 
 If you measured the potential energy at multiple orientations, you must
 aggregate the field's quantities over those orientations before plotting.
@@ -122,7 +124,8 @@ The potential energy can be plotted as a 3D volume, or as a slice in 2D or
 
 .. code:: python
     
-    field.plot()
+    fig, tr = field.plot()
+    fig.show()
 
 .. raw:: html
-    :file: ../data/field.html
+    :file: ../data/basic-field.html

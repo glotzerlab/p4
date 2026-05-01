@@ -1486,6 +1486,7 @@ class Field:
             In a 1D scalar plot, the size of the marker in pixels.
         line_width_1d : float, default=2
             In a 1D scalar plot, the width of the line in pixels.
+        
         Returns
         -------
         figure, traces

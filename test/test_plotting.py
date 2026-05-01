@@ -4,6 +4,7 @@ from copy import copy
 import p4
 import hoomd
 import numpy as np
+from pathlib import Path
 
 INTERACTION = p4.Interaction(
     hoomd_class=hoomd.md.pair.LJ,
@@ -19,7 +20,7 @@ INTERACTION = p4.Interaction(
 @pytest.mark.parametrize("pair_styles", [{}, {"default": dict(color="black")}])
 @pytest.mark.parametrize("cmap", [None, "plotly"])
 @pytest.mark.parametrize("ylim", [None, [0, 1]])
-@pytest.mark.parametrize("exclude_default", [False, True])
+@pytest.mark.parametrize("include_default", [False, True])
 @pytest.mark.parametrize("marker_size", [10])
 @pytest.mark.parametrize("line_width", [4])
 @pytest.mark.parametrize("mode", ["markers+lines"])
@@ -27,14 +28,12 @@ INTERACTION = p4.Interaction(
 @pytest.mark.parametrize("show_ticks", [False])
 @pytest.mark.parametrize("show_grid", [False])
 @pytest.mark.parametrize("show_border", [True])
-@pytest.mark.parametrize("width", [500])
-@pytest.mark.parametrize("height", [500])
 def test_interaction_plot(
     type_pairs,
     pair_styles,
     cmap,
     ylim,
-    exclude_default,
+    include_default,
     marker_size,
     line_width,
     mode,
@@ -42,8 +41,6 @@ def test_interaction_plot(
     show_ticks,
     show_grid,
     show_border,
-    width,
-    height,
 ):
     """Ensure interaction plotting does not error for valid parameters."""
     fig, tr = INTERACTION.plot(
@@ -52,7 +49,7 @@ def test_interaction_plot(
         pair_styles=pair_styles,
         cmap=cmap,
         ylim=ylim,
-        exclude_default=exclude_default,
+        include_default=include_default,
         marker_size=marker_size,
         line_width=line_width,
         mode=mode,
@@ -60,8 +57,6 @@ def test_interaction_plot(
         show_ticks=show_ticks,
         show_grid=show_grid,
         show_border=show_border,
-        width=width,
-        height=height,
     )
 
 CUBE_VERTICES = [
@@ -135,7 +130,7 @@ def test_body_plot(
         show_legend=show_legend,
     )
 
-FIELD = p4.Field.from_csv("test/data/field-uft.csv")
+FIELD = p4.Field.from_csv(str(Path(__file__).parent / "data/field-uft.csv"))
 FIELD = FIELD.subset(q0=1.0, q1=0.0, q2=0.0, q3=0.0)
 
 @pytest.mark.parametrize("quantity", ["U", "F", "T", "Fx", "Fy", "Fz", "Tx", "Ty", "Tz"])

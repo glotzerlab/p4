@@ -1299,7 +1299,7 @@ class Interaction:
         pair_styles: dict[tuple, dict] = {},
         cmap: str | None = None,
         ylim: list[float] | None = None,
-        exclude_default: bool = True,
+        include_default: bool = False,
         marker_size: float = 6,
         line_width: float = 2,
         mode: Literal["lines", "marker+lines", "marker"] = "lines",
@@ -1307,8 +1307,6 @@ class Interaction:
         show_ticks: bool = True,
         show_grid: bool = False,
         show_border: bool = True,
-        width: int = 500,
-        height: int = 500,
     ):
         """Plot the interaction potential energy curve for pairs of types.
         
@@ -1340,9 +1338,29 @@ class Interaction:
         pair_styles : dict, optional
             Style dictionaries to apply to the markers. If not provided, a
             default set of styles is used.
-        exclude_default : bool, default=True
-            Whether to exclude the curve defined by ``default_params`` from
+        cmap : str, default='RdYlBu_r'
+            The name of the Plotly colormap to use. This must be a continuous
+            or qualitative colorscale.
+        ylim : list of floats, optional
+            The lower and upper limits of the y axis. If not provided, limits
+            will be calculated that attempt to give a clear view of the data.
+        include_default : bool, default=False
+            Whether to include the curve defined by ``default_params`` in
             the plot.
+        marker_size : float, default=6
+            The size of the marker in pixels.
+        line_width : float, default=2
+            The width of the line in pixels.
+        marker_mode : 'lines+markers', 'lines', or 'markers', default='lines'
+            Whether to show only lines, only markers, or both.
+        show_axes : bool, default=True
+            Whether to show the axes.
+        show_ticks : bool, default=True
+            Whether to show tick marks on the axes.
+        show_grid : bool, default=False
+            Whether to show the axes grid.
+        show_border : bool, default=True
+            Whether to show the plot border.
         
         Returns
         -------
@@ -1395,7 +1413,7 @@ class Interaction:
         if type_pairs is None:
             type_pairs = list(self.typed_params.keys())
         
-        if not exclude_default:
+        if include_default:
             type_pairs = ["default"] + type_pairs
 
         # Calculate kwargs for the measure function call
@@ -1505,7 +1523,7 @@ class Interaction:
                 ylim = [overall_min, overall_max]
         
         figure.update_layout(yaxis=dict(range=ylim))
-        figure.update_layout(width=width, height=height)
+        figure.update_layout(width=500, height=500)
 
         return figure, traces
         

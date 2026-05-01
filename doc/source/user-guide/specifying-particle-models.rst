@@ -38,9 +38,7 @@ as follows.
     fig.show()
 
 .. raw:: html
-    :file: ../data/single-particle-body.html
-
-| 
+    :file: ../data/body-1type.html
 
 A multi-particle body would then be created in the following way.
 
@@ -65,9 +63,7 @@ A multi-particle body would then be created in the following way.
     fig.show()
 
 .. raw:: html
-    :file: ../data/multi-particle-body.html
-
-| 
+    :file: ../data/body-2types.html
 
 When plotting bodies, it is often useful to represent the primary particle type
 with a polyhedron. To do so, pass a `Coxeter Polyhedron`_ for a type using the
@@ -85,9 +81,7 @@ with a polyhedron. To do so, pass a `Coxeter Polyhedron`_ for a type using the
     fig.show()
 
 .. raw:: html
-    :file: ../data/multi-particle-body-with-type-shape.html
-
-| 
+    :file: ../data/body-2types-1shape.html
 
 The ``type_shapes`` parameter can also be used to indicate the orientation of
 secondary types.
@@ -112,9 +106,7 @@ secondary types.
     fig.show()
 
 .. raw:: html
-    :file: ../data/multi-particle-body-with-type-shape-and-orientations.html
-
-| 
+    :file: ../data/body-2types-2shapes.html
 
 Orthogonal slices of bodies can also be plotted. This is especially useful when
 overlaying a body's extents on a plot of its field (see 
@@ -129,6 +121,15 @@ overlaying a body's extents on a plot of its field (see
     fig.show()
 
 .. raw:: html
-    :file: ../data/multi-particle-body-with-type-shape-sliced.html
+    :file: ../data/body-2types-2shapes-slice2D.html
 
-| 
+.. code-block:: python
+
+    fig, _ = body.plot(
+        slice=dict(x=0, y=0),    # <--
+        type_shapes=dict(A=coxeter.shapes.ConvexPolyhedron(octahedron_vertices))
+    )
+    fig.show()
+
+.. raw:: html
+    :file: ../data/body-2types-2shapes-slice1D.html

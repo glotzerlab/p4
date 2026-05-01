@@ -22,7 +22,7 @@ Other
 
 Docs
 - [ ] switch to MyST
-- [ ] move HTML to separate build step
+- [x] move HTML to separate build step
 - [x] fix syntax highlighting for bash and license
 
 ## Roadmap

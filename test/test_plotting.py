@@ -28,8 +28,6 @@ INTERACTION = p4.Interaction(
 @pytest.mark.parametrize("show_ticks", [False])
 @pytest.mark.parametrize("show_grid", [False])
 @pytest.mark.parametrize("show_border", [True])
-@pytest.mark.parametrize("width", [500])
-@pytest.mark.parametrize("height", [500])
 def test_interaction_plot(
     type_pairs,
     pair_styles,
@@ -43,8 +41,6 @@ def test_interaction_plot(
     show_ticks,
     show_grid,
     show_border,
-    width,
-    height,
 ):
     """Ensure interaction plotting does not error for valid parameters."""
     fig, tr = INTERACTION.plot(
@@ -61,8 +57,6 @@ def test_interaction_plot(
         show_ticks=show_ticks,
         show_grid=show_grid,
         show_border=show_border,
-        width=width,
-        height=height,
     )
 
 CUBE_VERTICES = [

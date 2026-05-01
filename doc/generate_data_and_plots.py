@@ -184,7 +184,7 @@ interaction = p4.Interaction(
 )
 
 # %%
-fig, tr = interaction.plot(r=np.linspace(0, 8, 100), exclude_default=False)
+fig, tr = interaction.plot(r=np.linspace(0, 8, 100), include_default=True)
 fig.update_layout(**FIELD_PLOT_DIMENSIONS)
 fig.write_html(data_path+"/basic-interaction.html", include_plotlyjs='cdn')
 

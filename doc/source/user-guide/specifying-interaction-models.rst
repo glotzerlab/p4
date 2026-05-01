@@ -46,7 +46,7 @@ only for A-C pairs. Just like a ``Body``, and ``Interaction`` can be plotted.
 
     import numpy as np
 
-    fig, tr = interaction.plot(r=np.linspace(0, 8, 100), exclude_default=False)
+    fig, tr = interaction.plot(r=np.linspace(0, 8, 100), include_default=True)
     fig.show()
 
 .. raw:: html

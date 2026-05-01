@@ -32,10 +32,10 @@ FIELD_3D_LAYOUT = dict(
     **FIELD_PLOT_DIMENSIONS
 )
 
-data_path = "source/data"
+data_path = str(Path(__file__).parent / "source/data")
 
 # Ensure data path points to an existing directory
-(Path(__file__).parent / data_path).mkdir(parents=True, exist_ok=True)
+Path(data_path).mkdir(parents=True, exist_ok=True)
 
 
 # %% ------------------------------ Basic Usage --------------------------------

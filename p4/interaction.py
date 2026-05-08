@@ -366,7 +366,7 @@ class Interaction:
 
         a JSON path may be provided to control the location that the interaction
         data is retrieved from. See :meth:`~p4.Interaction.to_json` for an
-        explanation of JSON path path formatting.
+        explanation of JSON path formatting.
 
         .. note::
             ``typed_params`` is not a JSON-compliant dictionary, so in the JSON

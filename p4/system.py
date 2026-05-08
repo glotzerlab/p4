@@ -186,7 +186,7 @@ class System:
 
         a JSON path may be provided to control the location that the system
         data is retrieved from. See :meth:`~p4.System.to_json` for an
-        explanation of JSON path path formatting.
+        explanation of JSON path formatting.
         
         Parameters
         ----------

@@ -93,32 +93,30 @@ class Body:
         # Ensure orientations are either provided for all secondary types, or
         # not provided at all
         if secondary_types and orientations_by_type:
-            missing_types = [
+            ts = [
                 t for t in secondary_types if t not in orientations_by_type
             ]
-            if missing_types:
+            if ts:
                 raise ValueError(
                     f"Missing required keys in `orientations_by_type`: "
-                    + f"'{"', '".join(missing_types)}'. If orientations are "
-                    + "provided at all, they must be provided for all "
-                    + "secondary types."
+                    + f"'{"', '".join(ts)}'. If orientations are provided at "
+                    " all, they must be provided for all secondary types."
                 )
         
         # Ensure that for every secondary type, the number of provided
         # orientations matches the number of provided positions
         if secondary_types and positions_by_type and orientations_by_type:
-            mismatched_types = [
+            ts = [
                 t
                 for t in secondary_types
                 if len(positions_by_type[t]) != len(orientations_by_type[t])
             ]
-            if mismatched_types:
+            if ts:
                 raise ValueError(
                     "Mismatched numbers of orientations and positions for the "
                     + "following secondary types: "
-                    + f"'{"', '".join(missing_types)}'. For every secondary "
-                    + "type, the numbers of positions and orientations must be "
-                    + "the same."
+                    + f"'{"', '".join(ts)}'. For every secondary type, the "
+                    + "numbers of positions and orientations must be the same."
                 )
 
         self.primary_type = str(primary_type)

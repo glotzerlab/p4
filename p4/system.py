@@ -113,6 +113,231 @@ class System:
         self.analyte = analyte
         self.interactions = interactions
 
+    # --------------------------------- IMPORT ---------------------------------
+
+    @classmethod
+    def from_hoomd_simulation(
+        cls,
+        simulation: hoomd.Simulation,
+        probe_primary_type: str,
+        analyte_primary_type: str
+    ):
+        """Parse a HOOMD-blue `Simulation`_ to create a system.
+
+        .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
+
+        The simulation must have an integrator, and the integrator must have one
+        or more forces. Optionally, the integrator may also have a rigid
+        constraint. If it does have one, and if this constraint's keys
+        include ``probe_primary_type`` or ``analyte_primary_type``, then the
+        constraint is parsed to determine secondary types, positions, and
+        orientations for the resulting probe and/or analyte.
+
+        Parameters
+        ----------
+        simulation : hoomd.Simulation
+            The simulation to parse.
+        probe_primary_type : str
+            The name of the particle type to use for the probe's primary type.
+            This name must be represented in the simulation's current state.
+        analyte_primary_type : str
+            The name of the particle type to use for the analyte's primary type.
+            This name must be represented in the simulation's current state.
+        """
+        if (
+            not simulation.operations.integrator
+            or not simulation.operations.integrator.forces 
+        ):
+            raise ValueError("simulation must have an integrator with forces.")
+
+        types_in_state = simulation.state.get_snapshot().particles.types
+        if probe_primary_type not in types_in_state:
+            raise ValueError(
+                "simulation state does not have particle type "
+                + f"{probe_primary_type}"
+            )
+        if analyte_primary_type not in types_in_state:
+            raise ValueError(
+                "simulation state does not have particle type "
+                + f"{analyte_primary_type}"
+            )
+        
+        interactions = Interaction.from_hoomd_simulation(simulation)
+
+        # [Review: is there a better way to do this?]
+        try:
+            probe = Body.from_hoomd_simulation(simulation, probe_primary_type)
+        except ValueError:
+            probe = Body(probe_primary_type)
+        try:
+            analyte = Body.from_hoomd_simulation(simulation, analyte_primary_type)
+        except ValueError:
+            analyte = Body(analyte_primary_type)
+        
+        return cls(
+            probe=probe,
+            analyte=analyte,
+            interactions=interactions
+        )
+
+    @classmethod
+    def from_json(cls, filename: os.PathLike, json_path: str | None = None):
+        """Create a system from JSON.
+
+        a JSON path may be provided to control the location that the system
+        data is retrieved from. See :meth:`~p4.System.to_json` for an
+        explanation of JSON path path formatting.
+        
+        Parameters
+        ----------
+        filename : os.PathLike
+            The name or path of the JSON file.
+        json_path : str, optional
+            The location within the JSON file to retrieve the system's
+            representation from.
+        
+        Raises
+        ------
+        ValueError
+            If the JSON file does not have the keys and values required for
+            instantiating a System.
+        """
+        with open(filename, "r") as f:
+            data = json.load(f)
+
+        if json_path is None:
+            data = cls._convert_json_dict(data)            
+        
+        else:
+            current_container = data
+            for name in json_path.split("."):
+                current_container = current_container[name]
+            data = cls._convert_json_dict(current_container)
+        
+        required_args = [
+            "probe",
+            "analyte",
+            "interactions",
+        ]
+        for required_arg in required_args:
+            if required_arg not in data:
+                raise ValueError(
+                    f"Required arg {required_arg} not found in '{filename}' "
+                    + f"at path '{json_path}'."
+                )
+        for key in copy(data):
+            if key not in required_args:
+                del data[key]
+        
+        data["probe"] = p4.Body(**data["probe"])
+        data["analyte"] = p4.Body(**data["analyte"])
+        interactions = [
+            p4.Interaction(**i_dict) for i_dict in data["interactions"]
+        ]
+        data["interactions"] = interactions
+        
+        return cls(**data)
+
+    @classmethod
+    def _convert_json_dict(cls, data: dict):
+        """Convert a JSON-compliant dict into an instantiation-ready dict."""
+        data["probe"] = p4.Body._convert_json_dict(data["probe"])
+        data["analyte"] = p4.Body._convert_json_dict(data["analyte"])
+        data["interactions"] = [
+            p4.Interaction._convert_json_dict(i_dict)
+            for i_dict in data["interactions"]
+        ]
+        return data
+
+    # --------------------------------- EXPORT ---------------------------------
+
+    def to_json(
+        self,
+        filename: os.PathLike,
+        json_path: str | None = "p4.system",
+        indent: str | int | None = None
+    ):
+        """Export the system to JSON.
+        
+        If ``filename`` points to an existing file, a JSON path may be specified
+        to ensure the system data does not clash with existing data in the
+        file.
+
+        A JSON path that looks like ``'parent.object.subobject'`` represents the
+        following location:
+
+        .. code-block::
+
+            <root>
+            └─ parent
+               └─ object
+                  └─ subobject
+                     └─ <data will go here>
+
+        If the path specifies a location that already contains data, the
+        contents of that location may be overwritten.
+                     
+        Parameters
+        ----------
+        filename : os.PathLike
+            The name or path of the JSON file.
+        json_path : str or None, default='p4.system'
+            The location within the JSON file to put the system's
+            representation in. Only used if ``filename`` already exists. If
+            ``None`` is provided, then the representation is placed at the root
+            level.
+        indent : str or int, optional
+            The string or number of spaces to use when indenting newlines in the
+            JSON file. If not provided, there are no newlines.
+        """
+        path = Path(filename)
+        data = self._to_json_dict()
+
+        if path.exists():
+            with open(path, "r") as f:
+                existing_data = json.load(f)
+            
+            if json_path is None:
+                for k, v in data:
+                    existing_data[k] = v
+            
+            else:
+                names = json_path.split(".")
+                current_container = existing_data
+                for i, name in enumerate(names):
+                    if name not in current_container:
+                        current_container[name] = {}
+                    if i < (len(names) - 1):
+                        current_container = current_container[name]
+                    else:
+                        # try to write alongside existing data if possible...
+                        if isinstance(current_container[name], dict):
+                            current_container[name].update(data)
+                        # ... and insert or overwrite if not
+                        else:
+                            current_container[name] = data
+
+            with open(path, "w") as f:
+                json.dump(existing_data, f, indent=indent)
+
+        else:
+            with open(filename, "w") as f:
+                json.dump(data, f, indent=indent)
+
+    def _to_json_dict(self):
+        """Convert the system to a JSON-compliant dictionary."""
+        data = {}
+
+        data["probe"] = self.probe._to_json_dict()
+        data["analyte"] = self.analyte._to_json_dict()
+        data["interactions"] = [
+            i._to_json_dict() for i in self.interactions
+        ]
+
+        return data
+
+    # ------------------------------- PROPERTIES -------------------------------
+
     @property
     def active_interactions(self) -> list[Interaction]:
         """Interactions with typed params for both the probe and the analyte."""
@@ -154,6 +379,8 @@ class System:
         all_types.append(self.analyte.primary_type)
         all_types.extend(self.analyte.secondary_types)
         return list(set(all_types))
+
+    # -------------------------------- MEASURE ---------------------------------
 
     def measure(
         self,
@@ -297,224 +524,7 @@ class System:
             table.seek(0)
             file.write(table.read())
 
-    @classmethod
-    def from_hoomd_simulation(
-        cls,
-        simulation: hoomd.Simulation,
-        probe_primary_type: str,
-        analyte_primary_type: str
-    ):
-        """Parse a HOOMD-blue `Simulation`_ to create a system.
-
-        .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
-
-        The simulation must have an integrator, and the integrator must have one
-        or more forces. Optionally, the integrator may also have a rigid
-        constraint. If it does have one, and if this constraint's keys
-        include ``probe_primary_type`` or ``analyte_primary_type``, then the
-        constraint is parsed to determine secondary types, positions, and
-        orientations for the resulting probe and/or analyte.
-
-        Parameters
-        ----------
-        simulation : hoomd.Simulation
-            The simulation to parse.
-        probe_primary_type : str
-            The name of the particle type to use for the probe's primary type.
-            This name must be represented in the simulation's current state.
-        analyte_primary_type : str
-            The name of the particle type to use for the analyte's primary type.
-            This name must be represented in the simulation's current state.
-        """
-        if (
-            not simulation.operations.integrator
-            or not simulation.operations.integrator.forces 
-        ):
-            raise ValueError("simulation must have an integrator with forces.")
-
-        types_in_state = simulation.state.get_snapshot().particles.types
-        if probe_primary_type not in types_in_state:
-            raise ValueError(
-                "simulation state does not have particle type "
-                + f"{probe_primary_type}"
-            )
-        if analyte_primary_type not in types_in_state:
-            raise ValueError(
-                "simulation state does not have particle type "
-                + f"{analyte_primary_type}"
-            )
-        
-        interactions = Interaction.from_hoomd_simulation(simulation)
-
-        # [Review: is there a better way to do this?]
-        try:
-            probe = Body.from_hoomd_simulation(simulation, probe_primary_type)
-        except ValueError:
-            probe = Body(probe_primary_type)
-        try:
-            analyte = Body.from_hoomd_simulation(simulation, analyte_primary_type)
-        except ValueError:
-            analyte = Body(analyte_primary_type)
-        
-        return cls(
-            probe=probe,
-            analyte=analyte,
-            interactions=interactions
-        )
-
-    def _to_json_dict(self):
-        """Convert the system to a JSON-compliant dictionary."""
-        data = {}
-
-        data["probe"] = self.probe._to_json_dict()
-        data["analyte"] = self.analyte._to_json_dict()
-        data["interactions"] = [
-            i._to_json_dict() for i in self.interactions
-        ]
-
-        return data
-
-    def to_json(
-        self,
-        filename: os.PathLike,
-        json_path: str | None = "p4.system",
-        indent: str | int | None = None
-    ):
-        """Export the system to JSON.
-        
-        If ``filename`` points to an existing file, a JSON path may be specified
-        to ensure the system data does not clash with existing data in the
-        file.
-
-        A JSON path that looks like ``'parent.object.subobject'`` represents the
-        following location:
-
-        .. code-block::
-
-            <root>
-            └─ parent
-               └─ object
-                  └─ subobject
-                     └─ <data will go here>
-
-        If the path specifies a location that already contains data, the
-        contents of that location may be overwritten.
-                     
-        Parameters
-        ----------
-        filename : os.PathLike
-            The name or path of the JSON file.
-        json_path : str or None, default='p4.system'
-            The location within the JSON file to put the system's
-            representation in. Only used if ``filename`` already exists. If
-            ``None`` is provided, then the representation is placed at the root
-            level.
-        indent : str or int, optional
-            The string or number of spaces to use when indenting newlines in the
-            JSON file. If not provided, there are no newlines.
-        """
-        path = Path(filename)
-        data = self._to_json_dict()
-
-        if path.exists():
-            with open(path, "r") as f:
-                existing_data = json.load(f)
-            
-            if json_path is None:
-                for k, v in data:
-                    existing_data[k] = v
-            
-            else:
-                names = json_path.split(".")
-                current_container = existing_data
-                for i, name in enumerate(names):
-                    if name not in current_container:
-                        current_container[name] = {}
-                    if i < (len(names) - 1):
-                        current_container = current_container[name]
-                    else:
-                        # try to write alongside existing data if possible...
-                        if isinstance(current_container[name], dict):
-                            current_container[name].update(data)
-                        # ... and insert or overwrite if not
-                        else:
-                            current_container[name] = data
-
-            with open(path, "w") as f:
-                json.dump(existing_data, f, indent=indent)
-
-        else:
-            with open(filename, "w") as f:
-                json.dump(data, f, indent=indent)
-    
-    @classmethod
-    def _convert_json_dict(cls, data: dict):
-        """Convert a JSON-compliant dict into an instantiation-ready dict."""
-        data["probe"] = p4.Body._convert_json_dict(data["probe"])
-        data["analyte"] = p4.Body._convert_json_dict(data["analyte"])
-        data["interactions"] = [
-            p4.Interaction._convert_json_dict(i_dict)
-            for i_dict in data["interactions"]
-        ]
-        return data
-
-    @classmethod
-    def from_json(cls, filename: os.PathLike, json_path: str | None = None):
-        """Create a system from JSON.
-
-        a JSON path may be provided to control the location that the system
-        data is retrieved from. See :meth:`~p4.System.to_json` for an
-        explanation of JSON path path formatting.
-        
-        Parameters
-        ----------
-        filename : os.PathLike
-            The name or path of the JSON file.
-        json_path : str, optional
-            The location within the JSON file to retrieve the system's
-            representation from.
-        
-        Raises
-        ------
-        ValueError
-            If the JSON file does not have the keys and values required for
-            instantiating a System.
-        """
-        with open(filename, "r") as f:
-            data = json.load(f)
-
-        if json_path is None:
-            data = cls._convert_json_dict(data)            
-        
-        else:
-            current_container = data
-            for name in json_path.split("."):
-                current_container = current_container[name]
-            data = cls._convert_json_dict(current_container)
-        
-        required_args = [
-            "probe",
-            "analyte",
-            "interactions",
-        ]
-        for required_arg in required_args:
-            if required_arg not in data:
-                raise ValueError(
-                    f"Required arg {required_arg} not found in '{filename}' "
-                    + f"at path '{json_path}'."
-                )
-        for key in copy(data):
-            if key not in required_args:
-                del data[key]
-        
-        data["probe"] = p4.Body(**data["probe"])
-        data["analyte"] = p4.Body(**data["analyte"])
-        interactions = [
-            p4.Interaction(**i_dict) for i_dict in data["interactions"]
-        ]
-        data["interactions"] = interactions
-        
-        return cls(**data)
+    # --------------------------------- OTHER ----------------------------------
 
     def __eq__(self, other):
         """Two Systems are equivalent if their settable properties are, too."""

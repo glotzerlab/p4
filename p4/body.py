@@ -125,38 +125,308 @@ class Body:
         self.secondary_types = [str(t) for t in secondary_types]
         self.positions_by_type = positions_by_type
         self.orientations_by_type = orientations_by_type
-    
-    def _is_rigid(self, interactions: list["Interaction"]) -> bool:
-        """Whether the body must represent a rigid body for some interactions.
+
+    # --------------------------------- IMPORT ---------------------------------
+
+    @classmethod
+    def from_hoomd_rigid(
+        cls,
+        rigid: hoomd.md.constrain.Rigid,
+        primary_type: str | None = None
+    ) -> list[Body] | Body:
+        """Parse a HOOMD-blue `rigid constraint`_ to create bodies.
+
+        .. _rigid constraint: https://hoomd-blue.readthedocs.io/en/stable/hoomd/md/constrain/rigid.html
         
-        If any of the interactions specify a non-zero ``r_cut`` for any of the
-        body's secondary types, then the body must be rigid.
+        Parameters
+        ----------
+        rigid : hoomd.md.constrain.Rigid
+            The constraint that defines rigid bodies.
+        primary_type : str, optional
+            The name of the primary type of a single body. If provided, just
+            that body is returned. If not provided, all possible bodies are
+            returned in a list. If there is no body defined for the provided
+            primary type, a single-particle body is returned.
+        """
+        # If primary type is supplied, it must be in the rigid's primary types
+        if primary_type and primary_type not in rigid.body.keys():
+            raise ValueError(
+                f"`primary_type` ({primary_type}) not in rigid's primary types "
+                f"({list(rigid.body.keys())})"
+            )
+        
+        # Hoomd does not detect nested body definitions until sim.run(), so a
+        # check is needed here
+        for p_t in rigid.body.keys():
+            for k, v in rigid.body.items():
+                if v is not None:
+                    if p_t in v["constituent_types"] and rigid.body[p_t] is not None:
+                        raise ValueError("Nested bodies are not supported.")
+
+        if primary_type:
+            primary_types = [primary_type]
+        else:
+            primary_types = rigid.body.keys()
+
+        def unique(strings):
+            """Find unique values in a list of strings."""
+            searched = []
+            for s in strings:
+                if s not in searched:
+                    searched.append(s)
+            return searched
+        
+        def data_by_type(types, data):
+            """Return a mapping of unique types to their corresponding data."""
+            d = {}
+            for t in unique(types):
+                d[t] = [x for i, x in enumerate(data) if types[i] == t]
+            return d
+        
+        # Construct bodies
+        bodies = []
+        for p_t in primary_types:
+            if rigid.body[p_t] is not None:
+                bodies.append(cls(
+                    primary_type=p_t,
+                    secondary_types=unique(rigid.body[p_t]["constituent_types"]),
+                    positions_by_type=data_by_type(
+                        rigid.body[p_t]["constituent_types"],
+                        [list(p) for p in rigid.body[p_t]["positions"]]
+                    ),
+                    orientations_by_type=data_by_type(
+                        rigid.body[p_t]["constituent_types"],
+                        [list(p) for p in rigid.body[p_t]["orientations"]]
+                    )
+                ))
+
+        if len(bodies) == 0:
+            return cls(primary_type=primary_type)
+        if len(bodies) == 1:
+            return bodies[0]
+        else:
+            return bodies
+
+    @classmethod
+    def from_hoomd_simulation(
+        cls,
+        simulation: hoomd.Simulation,
+        primary_type: str | None = None
+    ) -> list[Body] | Body:
+        """Parse a HOOMD-blue `Simulation`_ to create bodies.
+
+        .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
+
+        This is a convenience method that is equivalent to
+        
+        .. code-block::
+            
+            p4.Body.from_hoomd_rigid(sim.operations.integrator.rigid, primary_type)
+        
+        Parameters
+        ----------
+        simulation : hoomd.Simulation
+            The simulation to parse.
+        primary_type : str, optional
+            The name of the primary type of a single body. If provided, just
+            that body is returned. If not provided, all possible bodies are
+            returned in a list.
+        """
+        if simulation.operations.integrator is None:
+            raise ValueError("`simulation` must have an integrator")
+        if simulation.operations.integrator.rigid is None:
+            raise ValueError("integrator must have a rigid constraint")
+        types_in_state = simulation.state.get_snapshot().particles.types
+        if primary_type is not None and primary_type not in types_in_state:
+            raise ValueError(
+                f"`simulation` does not contain primary_type {primary_type}"
+            )
+        return cls.from_hoomd_rigid(
+            simulation.operations.integrator.rigid, primary_type
+        )
+
+    @classmethod
+    def from_json(cls, filename: os.PathLike, json_path: str | None = None):
+        """Create a body from JSON.
+
+        a JSON path may be provided to control the location that the body data
+        is retrieved from. See :meth:`~p4.Body.to_json` for an explanation of
+        JSON path formatting.
+        
+        Parameters
+        ----------
+        filename : os.PathLike
+            The name or path of the JSON file.
+        json_path : str, optional
+            The location within the JSON file to retrieve the body's
+            representation from.
+        
+        Raises
+        ------
+        ValueError
+            If the JSON file does not have the keys and values required for
+            instantiating a Body.
+        """
+        with open(filename, "r") as f:
+            data = json.load(f)
+
+        if json_path is None:
+            data = cls._convert_json_dict(data)            
+        
+        else:
+            current_container = data
+            for name in json_path.split("."):
+                current_container = current_container[name]
+            data = cls._convert_json_dict(current_container)
+        
+        required_args = [
+            "primary_type",
+            "secondary_types",
+            "positions_by_type",
+            "orientations_by_type"
+        ]
+        for required_arg in required_args:
+            if required_arg not in data:
+                raise ValueError(
+                    f"Required arg {required_arg} not found in '{filename}' "
+                    + f"at path '{json_path}'."
+                )
+        for key in copy(data):
+            if key not in required_args:
+                del data[key]
+
+        return cls(**data)
+
+    # --------------------------------- EXPORT ---------------------------------
+
+    def to_hoomd_rigid(
+        self,
+        rigid: hoomd.md.constrain.Rigid | None = None,
+        included_secondary_types: list[str] | None = None,
+    ) -> hoomd.md.constrain.Rigid:
+        """Convert the body to a HOOMD-blue `rigid constraint`_.
+
+        An existing rigid constraint may be passed to this method, in which case
+        this body is merely added to it.
+
+        .. _rigid constraint: https://hoomd-blue.readthedocs.io/en/stable/hoomd/md/constrain/rigid.html
 
         Parameters
         ----------
-        interactions : list[Interaction]
-            The interactions to check over.
+        rigid : hoomd.md.constrain.Rigid, optional
+            An existing constraint instance to use. If not provided, a new one is
+            created.
+        included_secondary_types : list[str], optional
+            The names of the secondary types to include in the rigid body. If not
+            provided, all secondary types are included.
         """
-        common_single_types = any(
-            t in self.secondary_types
-            for interaction in interactions
-            for t in interaction.interacting_types("single")
-        )
-        common_pair_types = any(
-            p[0] in self.secondary_types or p[1] in self.secondary_types
-            for interaction in interactions
-            for p in interaction.interacting_types("pair")
-        )
-        nonzero_default_r_cut = any(
-            (
-                (
-                    len(self.secondary_types) > 0
-                    and interaction.default_params["r_cut"] > 0
-                ) or interaction.initial_args.get("default_r_cut", 0) > 0
-            )
-            for interaction in interactions
-        )
-        return common_single_types or common_pair_types or nonzero_default_r_cut
+        if rigid is None:
+            rigid = hoomd.md.constrain.Rigid()
+    
+        if included_secondary_types is None:
+            included_secondary_types = self.secondary_types
+        
+        types_and_positions = [
+            [t, position]
+            for t in included_secondary_types
+            for position in self.positions_by_type[t]
+        ]
+
+        if self.orientations_by_type:
+            orientations = [
+                orientation
+                for t in included_secondary_types
+                for orientation in self.orientations_by_type[t]
+            ]
+        else:
+            orientations = [(1, 0, 0, 0) for _ in types_and_positions]
+
+        rigid.body[self.primary_type] = {
+            "constituent_types": [t for (t, p) in types_and_positions],
+            "positions": [p for (t, p) in types_and_positions],
+            "orientations": [o for o in orientations]
+        }
+
+        return rigid
+
+    def to_json(
+        self,
+        filename: os.PathLike,
+        json_path: str | None = "p4.bodies",
+        indent: str | int | None = None
+    ):
+        """Export the body to JSON.
+        
+        If ``filename`` points to an existing file, a JSON path may be provided
+        to ensure the body data does not clash with existing data in the file.
+
+        A JSON path that looks like ``'parent.object.subobject'`` represents the
+        following location:
+
+        .. code-block::
+
+            <root>
+            └─ parent
+               └─ object
+                  └─ subobject
+                     └─ <data will go here>
+
+        If the path specifies a location that already contains data, the
+        contents of that location may be overwritten.
+                     
+        Parameters
+        ----------
+        filename : os.PathLike
+            The name or path of the JSON file.
+        json_path : str or None, default='p4.bodies'
+            The location within the JSON file to put the body's representation
+            in. Only used if ``filename`` already exists. If ``None`` is
+            provided, then the representation is placed at the root level.
+        indent : str or int, optional
+            The string or number of spaces to use when indenting newlines in the
+            JSON file. If not provided, there are no newlines.
+        """
+        path = Path(filename)
+        data = self._to_json_dict()
+
+        if path.exists():
+            with open(path, "r") as f:
+                existing_data = json.load(f)
+            
+            if json_path is None:
+                for k, v in data:
+                    existing_data[k] = v
+            
+            else:
+                names = json_path.split(".")
+                current_container = existing_data
+                for i, name in enumerate(names):
+                    if name not in current_container:
+                        current_container[name] = {}
+                    if i < (len(names) - 1):
+                        current_container = current_container[name]
+                    else:
+                        # try to write alongside existing data if possible...
+                        if isinstance(current_container[name], dict):
+                            current_container[name].update(data)
+                        elif isinstance(current_container[name], list):
+                            current_container[name].append(data)
+                        # ... and insert or overwrite if not
+                        else:
+                            current_container[name] = data
+
+            with open(path, "w") as f:
+                json.dump(existing_data, f, indent=indent)
+
+        else:
+            with open(filename, "w") as f:
+                json.dump(data, f, indent=indent)
+    
+    def _to_json_dict(self):
+        """Return a JSON-compliant dictionary representing this body."""
+        return self.__dict__
+
+    # -------------------------------- PLOTTING --------------------------------
 
     def plot(
         self,
@@ -1066,306 +1336,39 @@ class Body:
         
         return traces
 
-    def to_hoomd_rigid(
-        self,
-        rigid: hoomd.md.constrain.Rigid | None = None,
-        included_secondary_types: list[str] | None = None,
-    ) -> hoomd.md.constrain.Rigid:
-        """Convert the body to a HOOMD-blue `rigid constraint`_.
+    # --------------------------------- OTHER ----------------------------------
 
-        An existing rigid constraint may be passed to this method, in which case
-        this body is merely added to it.
-
-        .. _rigid constraint: https://hoomd-blue.readthedocs.io/en/stable/hoomd/md/constrain/rigid.html
+    def _is_rigid(self, interactions: list["Interaction"]) -> bool:
+        """Whether the body must represent a rigid body for some interactions.
+        
+        If any of the interactions specify a non-zero ``r_cut`` for any of the
+        body's secondary types, then the body must be rigid.
 
         Parameters
         ----------
-        rigid : hoomd.md.constrain.Rigid, optional
-            An existing constraint instance to use. If not provided, a new one is
-            created.
-        included_secondary_types : list[str], optional
-            The names of the secondary types to include in the rigid body. If not
-            provided, all secondary types are included.
+        interactions : list[Interaction]
+            The interactions to check over.
         """
-        if rigid is None:
-            rigid = hoomd.md.constrain.Rigid()
-    
-        if included_secondary_types is None:
-            included_secondary_types = self.secondary_types
-        
-        types_and_positions = [
-            [t, position]
-            for t in included_secondary_types
-            for position in self.positions_by_type[t]
-        ]
-
-        if self.orientations_by_type:
-            orientations = [
-                orientation
-                for t in included_secondary_types
-                for orientation in self.orientations_by_type[t]
-            ]
-        else:
-            orientations = [(1, 0, 0, 0) for _ in types_and_positions]
-
-        rigid.body[self.primary_type] = {
-            "constituent_types": [t for (t, p) in types_and_positions],
-            "positions": [p for (t, p) in types_and_positions],
-            "orientations": [o for o in orientations]
-        }
-
-        return rigid
-
-    @classmethod
-    def from_hoomd_rigid(
-        cls,
-        rigid: hoomd.md.constrain.Rigid,
-        primary_type: str | None = None
-    ) -> list[Body] | Body:
-        """Parse a HOOMD-blue `rigid constraint`_ to create bodies.
-
-        .. _rigid constraint: https://hoomd-blue.readthedocs.io/en/stable/hoomd/md/constrain/rigid.html
-        
-        Parameters
-        ----------
-        rigid : hoomd.md.constrain.Rigid
-            The constraint that defines rigid bodies.
-        primary_type : str, optional
-            The name of the primary type of a single body. If provided, just
-            that body is returned. If not provided, all possible bodies are
-            returned in a list. If there is no body defined for the provided
-            primary type, a single-particle body is returned.
-        """
-        # If primary type is supplied, it must be in the rigid's primary types
-        if primary_type and primary_type not in rigid.body.keys():
-            raise ValueError(
-                f"`primary_type` ({primary_type}) not in rigid's primary types "
-                f"({list(rigid.body.keys())})"
-            )
-        
-        # Hoomd does not detect nested body definitions until sim.run(), so a
-        # check is needed here
-        for p_t in rigid.body.keys():
-            for k, v in rigid.body.items():
-                if v is not None:
-                    if p_t in v["constituent_types"] and rigid.body[p_t] is not None:
-                        raise ValueError("Nested bodies are not supported.")
-
-        if primary_type:
-            primary_types = [primary_type]
-        else:
-            primary_types = rigid.body.keys()
-
-        def unique(strings):
-            """Find unique values in a list of strings."""
-            searched = []
-            for s in strings:
-                if s not in searched:
-                    searched.append(s)
-            return searched
-        
-        def data_by_type(types, data):
-            """Return a mapping of unique types to their corresponding data."""
-            d = {}
-            for t in unique(types):
-                d[t] = [x for i, x in enumerate(data) if types[i] == t]
-            return d
-        
-        # Construct bodies
-        bodies = []
-        for p_t in primary_types:
-            if rigid.body[p_t] is not None:
-                bodies.append(cls(
-                    primary_type=p_t,
-                    secondary_types=unique(rigid.body[p_t]["constituent_types"]),
-                    positions_by_type=data_by_type(
-                        rigid.body[p_t]["constituent_types"],
-                        [list(p) for p in rigid.body[p_t]["positions"]]
-                    ),
-                    orientations_by_type=data_by_type(
-                        rigid.body[p_t]["constituent_types"],
-                        [list(p) for p in rigid.body[p_t]["orientations"]]
-                    )
-                ))
-
-        if len(bodies) == 0:
-            return cls(primary_type=primary_type)
-        if len(bodies) == 1:
-            return bodies[0]
-        else:
-            return bodies
-
-    @classmethod
-    def from_hoomd_simulation(
-        cls,
-        simulation: hoomd.Simulation,
-        primary_type: str | None = None
-    ) -> list[Body] | Body:
-        """Parse a HOOMD-blue `Simulation`_ to create bodies.
-
-        .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
-
-        This is a convenience method that is equivalent to
-        
-        .. code-block::
-            
-            p4.Body.from_hoomd_rigid(sim.operations.integrator.rigid, primary_type)
-        
-        Parameters
-        ----------
-        simulation : hoomd.Simulation
-            The simulation to parse.
-        primary_type : str, optional
-            The name of the primary type of a single body. If provided, just
-            that body is returned. If not provided, all possible bodies are
-            returned in a list.
-        """
-        if simulation.operations.integrator is None:
-            raise ValueError("`simulation` must have an integrator")
-        if simulation.operations.integrator.rigid is None:
-            raise ValueError("integrator must have a rigid constraint")
-        types_in_state = simulation.state.get_snapshot().particles.types
-        if primary_type is not None and primary_type not in types_in_state:
-            raise ValueError(
-                f"`simulation` does not contain primary_type {primary_type}"
-            )
-        return cls.from_hoomd_rigid(
-            simulation.operations.integrator.rigid, primary_type
+        common_single_types = any(
+            t in self.secondary_types
+            for interaction in interactions
+            for t in interaction.interacting_types("single")
         )
-
-    def _to_json_dict(self):
-        """Return a JSON-compliant dictionary representing this body."""
-        return self.__dict__
-
-    def to_json(
-        self,
-        filename: os.PathLike,
-        json_path: str | None = "p4.bodies",
-        indent: str | int | None = None
-    ):
-        """Export the body to JSON.
-        
-        If ``filename`` points to an existing file, a JSON path may be provided
-        to ensure the body data does not clash with existing data in the file.
-
-        A JSON path that looks like ``'parent.object.subobject'`` represents the
-        following location:
-
-        .. code-block::
-
-            <root>
-            └─ parent
-               └─ object
-                  └─ subobject
-                     └─ <data will go here>
-
-        If the path specifies a location that already contains data, the
-        contents of that location may be overwritten.
-                     
-        Parameters
-        ----------
-        filename : os.PathLike
-            The name or path of the JSON file.
-        json_path : str or None, default='p4.bodies'
-            The location within the JSON file to put the body's representation
-            in. Only used if ``filename`` already exists. If ``None`` is
-            provided, then the representation is placed at the root level.
-        indent : str or int, optional
-            The string or number of spaces to use when indenting newlines in the
-            JSON file. If not provided, there are no newlines.
-        """
-        path = Path(filename)
-        data = self._to_json_dict()
-
-        if path.exists():
-            with open(path, "r") as f:
-                existing_data = json.load(f)
-            
-            if json_path is None:
-                for k, v in data:
-                    existing_data[k] = v
-            
-            else:
-                names = json_path.split(".")
-                current_container = existing_data
-                for i, name in enumerate(names):
-                    if name not in current_container:
-                        current_container[name] = {}
-                    if i < (len(names) - 1):
-                        current_container = current_container[name]
-                    else:
-                        # try to write alongside existing data if possible...
-                        if isinstance(current_container[name], dict):
-                            current_container[name].update(data)
-                        elif isinstance(current_container[name], list):
-                            current_container[name].append(data)
-                        # ... and insert or overwrite if not
-                        else:
-                            current_container[name] = data
-
-            with open(path, "w") as f:
-                json.dump(existing_data, f, indent=indent)
-
-        else:
-            with open(filename, "w") as f:
-                json.dump(data, f, indent=indent)
-    
-    @classmethod
-    def _convert_json_dict(cls, json_dict: dict):
-        """Convert a JSON-compliant dict into an instantiation-ready dict."""
-        return json_dict
-
-    @classmethod
-    def from_json(cls, filename: os.PathLike, json_path: str | None = None):
-        """Create a body from JSON.
-
-        a JSON path may be provided to control the location that the body data
-        is retrieved from. See :meth:`~p4.Body.to_json` for an explanation of
-        JSON path formatting.
-        
-        Parameters
-        ----------
-        filename : os.PathLike
-            The name or path of the JSON file.
-        json_path : str, optional
-            The location within the JSON file to retrieve the body's
-            representation from.
-        
-        Raises
-        ------
-        ValueError
-            If the JSON file does not have the keys and values required for
-            instantiating a Body.
-        """
-        with open(filename, "r") as f:
-            data = json.load(f)
-
-        if json_path is None:
-            data = cls._convert_json_dict(data)            
-        
-        else:
-            current_container = data
-            for name in json_path.split("."):
-                current_container = current_container[name]
-            data = cls._convert_json_dict(current_container)
-        
-        required_args = [
-            "primary_type",
-            "secondary_types",
-            "positions_by_type",
-            "orientations_by_type"
-        ]
-        for required_arg in required_args:
-            if required_arg not in data:
-                raise ValueError(
-                    f"Required arg {required_arg} not found in '{filename}' "
-                    + f"at path '{json_path}'."
-                )
-        for key in copy(data):
-            if key not in required_args:
-                del data[key]
-
-        return cls(**data)
+        common_pair_types = any(
+            p[0] in self.secondary_types or p[1] in self.secondary_types
+            for interaction in interactions
+            for p in interaction.interacting_types("pair")
+        )
+        nonzero_default_r_cut = any(
+            (
+                (
+                    len(self.secondary_types) > 0
+                    and interaction.default_params["r_cut"] > 0
+                ) or interaction.initial_args.get("default_r_cut", 0) > 0
+            )
+            for interaction in interactions
+        )
+        return common_single_types or common_pair_types or nonzero_default_r_cut
 
     def __eq__(self, other):
         """Bodies are equal if their attributes are the same or equivalent."""

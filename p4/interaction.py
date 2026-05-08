@@ -213,161 +213,7 @@ class Interaction:
                 else:
                     p[k] = tuples_to_lists(v)               
 
-    @staticmethod
-    def _get_test_simulation(particle_types, max_r_cut, nlist, interaction):
-        """Return a small example simulation with an interaction that is ready to run.
-        TODO
-        """
-        simulation = hoomd.util.make_example_simulation(
-            particle_types=particle_types
-        )
-        s = 10 * max_r_cut
-        simulation.state.set_box([s, s, s, 0, 0, 0])
-        simulation = p4.util.add_integrator(simulation)
-        simulation = p4.util.add_interaction(
-            simulation=simulation,
-            nlist=nlist,
-            interaction=interaction,
-            all_types=particle_types
-        )
-        
-        return simulation
-
-    def interacting_types(self, category=Literal["single", "pair", "all"]):
-        """A list of particle types from ``typed_params``.
-        
-        Parameters
-        ----------
-        category : 'single', 'pair', or 'all'
-            Which types to return. If set to 'single', single types (strings)
-            will be returned. If set to 'pair', pair types (2-tuples of strings) 
-            will be returned. If set to 'all', a union of all single types and
-            the contents of all pair types will be returned.
-        """
-        if category == "single":
-            return [key for key in self.typed_params if isinstance(key, str)]
-
-        elif category == "pair":
-            return [
-                key
-                for key in self.typed_params
-                if isinstance(key, Iterable)
-                    and not isinstance(key, (str, bytes))
-                    and len(key) == 2
-            ]
-        
-        elif category == "all":
-            types = [t for t in self.interacting_types("single")]
-            for p in self.interacting_types("pair"):
-                for t in p:
-                    if t not in types:
-                        types.append(t)
-            return types
-
-    def to_hoomd_pair(
-        self,
-        nlist: hoomd.md.nlist.NeighborList,
-        parameterize: bool,
-        all_types: list[str] | None = None,
-    ) -> hoomd.md.pair.Pair:
-        """Return an instance of the HOOMD-blue class.
-        
-        Parameters
-        ----------
-        nlist : hoomd.md.nlist.NeighborList
-            The neighbor list to use.
-        parameterize : bool
-            Whether to parameterize the hoomd-blue ``pair`` instance. If False,
-            then the class is merely instantiated with ``initial_args`` and
-            returned as-is.
-        all_types : list[str]
-            The names of all the particle types for which the instance should be
-            parameterized. Required if ``parameterize`` is True, otherwise
-            ignored.
-
-        Raises
-        ------
-        ValueError
-            If the ``initial_args`` is wrong.
-        AttributeError
-            If the ``typed_params`` is wrong.
-        """
-        def wrong_type_msg(param, default_or_typed, single_or_pair, hoomd_class):
-            return (
-                f"'{param}' was provided as a {default_or_typed} "
-                f"{single_or_pair}-typed-param, but no such param was found in "
-                f"hoomd class '{hoomd_class}'."
-            )
-
-        try:
-            instance = self.hoomd_class(nlist, **self.initial_args)
-        
-        except (TypeError, hoomd.error.TypeConversionError) as e:
-            msg = "'initial_args' are wrong. See traceback for details."
-            raise ValueError(msg) from e
-        
-        if not parameterize:
-            return instance
-        
-        # Calculate the pairwise combinations of all types and interacting types
-        all_type_pairs = list(
-            itertools.combinations_with_replacement(all_types, 2)
-        )
-
-        single_typed_params = self._parse_params("single", "all")
-        pair_typed_params = self._parse_params("pair", "all")
-
-        # Set default single type params
-        for t in all_types:
-            for name, typed_param in self.default_params.items():
-                if name in single_typed_params:
-                    try:    # TODO: probably don't need try-block if there's a parsing method
-                        getattr(instance, name)[t] = typed_param
-                    except AttributeError:
-                        raise AttributeError(
-                            wrong_type_msg(
-                                name, "default", "single", self.hoomd_class
-                            )
-                        )
-
-        # Set default pair type params
-        for p in all_type_pairs:
-            for name, typed_param in self.default_params.items():
-                if name in pair_typed_params:
-                    try:
-                        getattr(instance, name)[p] = typed_param
-                    except AttributeError:
-                        raise AttributeError(
-                            wrong_type_msg(
-                                name, "default", "pair", self.hoomd_class
-                            )
-                        )
-
-        # Modify typed single type params
-        for t in self.interacting_types("single"):
-            for param_name, param_value in self.typed_params[t].items():
-                try:
-                    getattr(instance, param_name)[t] = param_value
-                except AttributeError:
-                    raise AttributeError(
-                        wrong_type_msg(
-                            param_name, "typed", "single", self.hoomd_class
-                        )
-                    )
-
-        # Modify typed pair type params
-        for p in self.interacting_types("pair"):
-            for param_name, param_value in self.typed_params[p].items():
-                try:
-                    getattr(instance, param_name)[p] = param_value
-                except AttributeError:
-                    raise AttributeError(
-                        wrong_type_msg(
-                            param_name, "typed", "pair", self.hoomd_class
-                        )
-                    )
-
-        return instance
+    # --------------------------------- IMPORT ---------------------------------
 
     @classmethod
     def from_hoomd_pair(
@@ -514,6 +360,187 @@ class Interaction:
             raise ValueError("integrator must have forces")
         return cls.from_hoomd_integrator(simulation.operations.integrator)
 
+    @classmethod
+    def from_json(cls, filename: os.PathLike, json_path: str | None = None):
+        """Create an interaction from JSON.
+
+        a JSON path may be provided to control the location that the interaction
+        data is retrieved from. See :meth:`~p4.Interaction.to_json` for an
+        explanation of JSON path path formatting.
+        
+        Parameters
+        ----------
+        filename : os.PathLike
+            The name or path of the JSON file.
+        json_path : str, optional
+            The location within the JSON file to retrieve the interaction's
+            representation from.
+        
+        Raises
+        ------
+        ValueError
+            If the JSON file does not have the keys and values required for
+            instantiating an Interaction.
+        """
+        with open(filename, "r") as f:
+            data = json.load(f)
+
+        if json_path is None:
+            data = cls._convert_json_dict(data)            
+        
+        else:
+            current_container = data
+            for name in json_path.split("."):
+                current_container = current_container[name]
+            data = cls._convert_json_dict(current_container)
+        
+        required_args = [
+            "hoomd_class",
+            "initial_args",
+            "default_params",
+            "typed_params"
+        ]
+        for required_arg in required_args:
+            if required_arg not in data:
+                raise ValueError(
+                    f"Required arg {required_arg} not found in '{filename}' "
+                    + f"at path '{json_path}'."
+                )
+        for key in copy(data):
+            if key not in required_args:
+                del data[key]
+
+        return cls(**data)
+
+    @classmethod
+    def _convert_json_dict(cls, data: dict):
+        """Convert a JSON-compliant dict into an instantiation-ready dict."""
+        # Convert hoomd class path from string to type
+        class_path = data["hoomd_class"]
+        module_name, class_name = class_path.rsplit(".", 1)
+        hoomd_class = getattr(importlib.import_module(module_name), class_name)
+        data["hoomd_class"] = hoomd_class
+
+        # Convert typed params back into a dict with tuples and strings as keys
+        typed_params = {}
+        for item in data["typed_params"]:
+            if isinstance(item["types"], str):
+                key = item["types"]
+            elif isinstance(item["types"], list):
+                key = tuple(item["types"])
+            typed_params[key] = item["params"]
+        
+        data["typed_params"] = typed_params
+        
+        return data
+
+    # --------------------------------- EXPORT ---------------------------------
+
+    def to_hoomd_pair(
+        self,
+        nlist: hoomd.md.nlist.NeighborList,
+        parameterize: bool,
+        all_types: list[str] | None = None,
+    ) -> hoomd.md.pair.Pair:
+        """Return an instance of the HOOMD-blue class.
+        
+        Parameters
+        ----------
+        nlist : hoomd.md.nlist.NeighborList
+            The neighbor list to use.
+        parameterize : bool
+            Whether to parameterize the hoomd-blue ``pair`` instance. If False,
+            then the class is merely instantiated with ``initial_args`` and
+            returned as-is.
+        all_types : list[str]
+            The names of all the particle types for which the instance should be
+            parameterized. Required if ``parameterize`` is True, otherwise
+            ignored.
+
+        Raises
+        ------
+        ValueError
+            If the ``initial_args`` is wrong.
+        AttributeError
+            If the ``typed_params`` is wrong.
+        """
+        def wrong_type_msg(param, default_or_typed, single_or_pair, hoomd_class):
+            return (
+                f"'{param}' was provided as a {default_or_typed} "
+                f"{single_or_pair}-typed-param, but no such param was found in "
+                f"hoomd class '{hoomd_class}'."
+            )
+
+        try:
+            instance = self.hoomd_class(nlist, **self.initial_args)
+        
+        except (TypeError, hoomd.error.TypeConversionError) as e:
+            msg = "'initial_args' are wrong. See traceback for details."
+            raise ValueError(msg) from e
+        
+        if not parameterize:
+            return instance
+        
+        # Calculate the pairwise combinations of all types and interacting types
+        all_type_pairs = list(
+            itertools.combinations_with_replacement(all_types, 2)
+        )
+
+        single_typed_params = self._parse_params("single", "all")
+        pair_typed_params = self._parse_params("pair", "all")
+
+        # Set default single type params
+        for t in all_types:
+            for name, typed_param in self.default_params.items():
+                if name in single_typed_params:
+                    try:    # TODO: probably don't need try-block if there's a parsing method
+                        getattr(instance, name)[t] = typed_param
+                    except AttributeError:
+                        raise AttributeError(
+                            wrong_type_msg(
+                                name, "default", "single", self.hoomd_class
+                            )
+                        )
+
+        # Set default pair type params
+        for p in all_type_pairs:
+            for name, typed_param in self.default_params.items():
+                if name in pair_typed_params:
+                    try:
+                        getattr(instance, name)[p] = typed_param
+                    except AttributeError:
+                        raise AttributeError(
+                            wrong_type_msg(
+                                name, "default", "pair", self.hoomd_class
+                            )
+                        )
+
+        # Modify typed single type params
+        for t in self.interacting_types("single"):
+            for param_name, param_value in self.typed_params[t].items():
+                try:
+                    getattr(instance, param_name)[t] = param_value
+                except AttributeError:
+                    raise AttributeError(
+                        wrong_type_msg(
+                            param_name, "typed", "single", self.hoomd_class
+                        )
+                    )
+
+        # Modify typed pair type params
+        for p in self.interacting_types("pair"):
+            for param_name, param_value in self.typed_params[p].items():
+                try:
+                    getattr(instance, param_name)[p] = param_value
+                except AttributeError:
+                    raise AttributeError(
+                        wrong_type_msg(
+                            param_name, "typed", "pair", self.hoomd_class
+                        )
+                    )
+
+        return instance
+
     def _parse_params(self, single_or_pair, required_or_optional):
         """Return a param dictionary for a given hoomd class.
 
@@ -629,27 +656,7 @@ class Interaction:
                     )
         
         return params
-
-    def _to_json_dict(self):
-        """Return a JSON-compliant dictionary representing this interaction."""
-        data = self.__dict__
-
-        # The hoomd class must be a string
-        data["hoomd_class"] = (
-            f"{data["hoomd_class"].__module__}.{data["hoomd_class"].__name__}"
-        )
-
-        # The typed params must not have tuples for keys
-        typed_params = []
-        for k, v in data["typed_params"].items():
-            typed_params.append({
-                "types": k,
-                "params": v
-            })
-        data["typed_params"] = typed_params
-
-        return data
-
+    
     def to_json(
         self,
         filename: os.PathLike,
@@ -724,80 +731,316 @@ class Interaction:
         else:
             with open(filename, "w") as f:
                 json.dump(data, f, indent=indent)
-    
-    @classmethod
-    def _convert_json_dict(cls, data: dict):
-        """Convert a JSON-compliant dict into an instantiation-ready dict."""
-        # Convert hoomd class path from string to type
-        class_path = data["hoomd_class"]
-        module_name, class_name = class_path.rsplit(".", 1)
-        hoomd_class = getattr(importlib.import_module(module_name), class_name)
-        data["hoomd_class"] = hoomd_class
 
-        # Convert typed params back into a dict with tuples and strings as keys
-        typed_params = {}
-        for item in data["typed_params"]:
-            if isinstance(item["types"], str):
-                key = item["types"]
-            elif isinstance(item["types"], list):
-                key = tuple(item["types"])
-            typed_params[key] = item["params"]
-        
+    def _to_json_dict(self):
+        """Return a JSON-compliant dictionary representing this interaction."""
+        data = self.__dict__
+
+        # The hoomd class must be a string
+        data["hoomd_class"] = (
+            f"{data["hoomd_class"].__module__}.{data["hoomd_class"].__name__}"
+        )
+
+        # The typed params must not have tuples for keys
+        typed_params = []
+        for k, v in data["typed_params"].items():
+            typed_params.append({
+                "types": k,
+                "params": v
+            })
         data["typed_params"] = typed_params
-        
+
         return data
 
-    @classmethod
-    def from_json(cls, filename: os.PathLike, json_path: str | None = None):
-        """Create an interaction from JSON.
+    # -------------------------------- PLOTTING --------------------------------
 
-        a JSON path may be provided to control the location that the interaction
-        data is retrieved from. See :meth:`~p4.Interaction.to_json` for an
-        explanation of JSON path path formatting.
+    def plot(
+        self,
+        r: list[float],
+        type_pairs: list[tuple] | None = None,
+        pair_styles: dict[tuple, dict] = {},
+        cmap: str | None = None,
+        ylim: list[float] | None = None,
+        include_default: bool = False,
+        marker_size: float = 6,
+        line_width: float = 2,
+        mode: Literal["lines", "marker+lines", "marker"] = "lines",
+        show_axes: bool = True,
+        show_ticks: bool = True,
+        show_grid: bool = False,
+        show_border: bool = True,
+    ):
+        """Plot the interaction potential energy curve for pairs of types.
+        
+        Plotting is only supported for isotropic interactions.
+
+        Styles may be specified for specific pairs of types. A style must
+        specified as a dictionary which may have the following keys and values:
+
+        * ``mode`` [``'lines'``, ``'lines+markers'``, ``'markers'``] The
+          `drawing mode`_ for the plotly trace.
+
+        * ``color`` [``str``] - The symbol's color. Plotly accepts color strings
+          in `standard HTML/CSS formats`_ (for example, `rgb`_), as well as
+          `many named colors`_.
+        
+        * ``marker_size`` [``float`` > 0] - The marker size.
+
+        * ``line_width`` [``float`` > 0] - The line width.
+
+        .. _drawing mode: https://plotly.com/python/reference/scatter/#scatter-mode
+
+        Parameters
+        ----------
+        r : array of floats
+            The distances (x axis) at which to calculate the potential energy.
+        type_pairs : array of tuples of strings, optional
+            The pairs of types to plot the interaction for. If not provided, all
+            pairs are used.
+        pair_styles : dict, optional
+            Style dictionaries to apply to the markers. If not provided, a
+            default set of styles is used.
+        cmap : str, default='RdYlBu_r'
+            The name of the Plotly colormap to use. This must be a continuous
+            or qualitative colorscale.
+        ylim : list of floats, optional
+            The lower and upper limits of the y axis. If not provided, limits
+            will be calculated that attempt to give a clear view of the data.
+        include_default : bool, default=False
+            Whether to include the curve defined by ``default_params`` in
+            the plot.
+        marker_size : float, default=6
+            The size of the marker in pixels.
+        line_width : float, default=2
+            The width of the line in pixels.
+        marker_mode : 'lines+markers', 'lines', or 'markers', default='lines'
+            Whether to show only lines, only markers, or both.
+        show_axes : bool, default=True
+            Whether to show the axes.
+        show_ticks : bool, default=True
+            Whether to show tick marks on the axes.
+        show_grid : bool, default=False
+            Whether to show the axes grid.
+        show_border : bool, default=True
+            Whether to show the plot border.
+        
+        Returns
+        -------
+        figure, traces
+            The plot figure and its associated traces.
+        """
+        # Defaults
+        DEFAULT_COLORSCALE = "pastel"
+        DEFAULT_STYLE = dict(
+            color=None,
+            marker_size=marker_size,
+            line_width=line_width,
+            mode=mode,
+        )
+        
+        for pair, style in copy(pair_styles).items():
+            for key, default_value in DEFAULT_STYLE.items():
+                if key not in style:
+                    style[key] = default_value
+            pair_styles[pair] = style
+        
+        pair_styles = defaultdict(
+            lambda: defaultdict(None, DEFAULT_STYLE),
+            pair_styles
+        )
+        
+        # Ensure the interaction is isotropic
+        if self.hoomd_class.__module__ != "hoomd.md.pair.pair":
+            raise TypeError(
+                "Plotting is only supported for isotropic interactions, but "
+                + f"hoomd_class is from the {self.hoomd_class.__module__} "
+                + "module."
+            )
+
+        # Ensure there is a working colormap
+        if cmap is None:
+            cmap = DEFAULT_COLORSCALE
+        try:
+            _ = plotly.colors.get_colorscale(cmap)
+        except plotly.exceptions.PlotlyError:
+            try:
+                getattr(plotly.colors.qualitative, cmap.capitalize())
+            except AttributeError:
+                raise ValueError(
+                    "`cmap` is not a valid name for a continuous or "
+                    "qualitative plotly colorscale."
+                )
+
+        # If no type pairs are provided, use all of them
+        if type_pairs is None:
+            type_pairs = list(self.typed_params.keys())
+        
+        if include_default:
+            type_pairs = ["default"] + type_pairs
+
+        # Calculate kwargs for the measure function call
+        # still needed for every call: system, nlist
+        kwargs = dict(
+            quantities="U",
+            positions=[[0 + value, 0, 0] for value in r],
+            orientations=[(1,0,0,0)],
+            measurement_box=[0, 0, 0], # TODO: refactor to remove this parameter
+            simulation_box=[100*max(r), 100*max(r), 100*max(r), 0, 0, 0],
+            included_interactions=[self]
+        )
+
+        # Build plot traces pair by pair
+        traces = []
+
+        for i, pair in enumerate(type_pairs):
+            if pair == "default":
+                probe=p4.Body("skvblejy")
+                analyte=p4.Body("dhytkgvle")
+            else:
+                probe=p4.Body(pair[0])
+                analyte=p4.Body(pair[1])
+            
+            system = p4.System(probe, analyte, [self])
+            
+            table = p4.util.measure(
+                system=system,
+                nlist=hoomd.md.nlist.Tree(2),
+                **kwargs
+            )
+            table = p4.util.clean_header(table)
+            table.seek(0)
+
+            field = p4.Field(
+                np.rec.array(
+                    np.genfromtxt(
+                        table,
+                        names=True,
+                        dtype=None,
+                        delimiter=",",
+                        encoding="utf-8"
+                    )
+                )
+            )
+
+            style = pair_styles[pair]
+            
+            if style["color"] is None:
+                try:
+                    color = plotly.colors.get_colorscale(cmap)[i]
+                except plotly.exceptions.PlotlyError:
+                    color = getattr(
+                        plotly.colors.qualitative,
+                        cmap.capitalize()
+                    )[i]
+            else:
+                color=style["color"]
+
+            _, trace = field.plot(
+                slice=dict(z=0, y=0),
+                marker_color_1d=color,
+                marker_mode_1d=style["mode"],
+                marker_size_1d=style["marker_size"],
+                line_width_1d=style["line_width"],
+                show_axes=show_axes,
+                show_title=False,
+                show_ticks=show_ticks,
+                show_grid=show_grid,
+                show_border=show_border,
+            )
+            trace["name"] = str(pair)
+
+            traces.append(trace)
+
+        # Build figure and style it
+        figure = plotly.graph_objects.Figure()
+        figure.add_traces(traces)
+        layout = p4.Field._plot_layout( # TODO: refactor to put this in util
+            self=None,
+            quantity="U",
+            slice=dict(z=0, y=0),
+            clim=[0, 1],    # does not matter in 1D
+            show_axes=show_axes,
+            show_title=False,
+            show_ticks=show_ticks,
+            show_grid=show_grid,
+            show_border=show_border
+        )
+        figure.update_layout(**layout)
+        figure.update_layout(xaxis=dict(title="r", range=[min(r), max(r)]))
+        
+        if ylim is None:
+            overall_min = min(min(s["y"]) for s in figure.data)
+            overall_max = max(max(s["y"]) for s in figure.data)
+            min_too_large = overall_min < -1e2
+            max_too_large = overall_max > 1e2
+
+            if min_too_large and not max_too_large:
+                ylim = [-0.5 * np.abs(overall_max), 1.1 * overall_max]
+            elif max_too_large and not min_too_large:
+                ylim = [1.1 * overall_min, 0.5 * np.abs(overall_min)]
+            elif max_too_large and min_too_large:
+                min_magnitude = min(min(np.abs(s["y"])) for s in figure.data)
+                ylim = [-2 * min_magnitude, 2 * min_magnitude]
+            else:
+                ylim = [overall_min, overall_max]
+        
+        figure.update_layout(yaxis=dict(range=ylim))
+        figure.update_layout(width=500, height=500)
+
+        return figure, traces
+
+    # ---------------------------------- OTHER ---------------------------------
+
+    @staticmethod
+    def _get_test_simulation(particle_types, max_r_cut, nlist, interaction):
+        """Return a small example simulation with an interaction that is ready to run.
+        TODO
+        """
+        simulation = hoomd.util.make_example_simulation(
+            particle_types=particle_types
+        )
+        s = 10 * max_r_cut
+        simulation.state.set_box([s, s, s, 0, 0, 0])
+        simulation = p4.util.add_integrator(simulation)
+        simulation = p4.util.add_interaction(
+            simulation=simulation,
+            nlist=nlist,
+            interaction=interaction,
+            all_types=particle_types
+        )
+        
+        return simulation
+
+    def interacting_types(self, category=Literal["single", "pair", "all"]):
+        """A list of particle types from ``typed_params``.
         
         Parameters
         ----------
-        filename : os.PathLike
-            The name or path of the JSON file.
-        json_path : str, optional
-            The location within the JSON file to retrieve the interaction's
-            representation from.
-        
-        Raises
-        ------
-        ValueError
-            If the JSON file does not have the keys and values required for
-            instantiating an Interaction.
+        category : 'single', 'pair', or 'all'
+            Which types to return. If set to 'single', single types (strings)
+            will be returned. If set to 'pair', pair types (2-tuples of strings) 
+            will be returned. If set to 'all', a union of all single types and
+            the contents of all pair types will be returned.
         """
-        with open(filename, "r") as f:
-            data = json.load(f)
+        if category == "single":
+            return [key for key in self.typed_params if isinstance(key, str)]
 
-        if json_path is None:
-            data = cls._convert_json_dict(data)            
+        elif category == "pair":
+            return [
+                key
+                for key in self.typed_params
+                if isinstance(key, Iterable)
+                    and not isinstance(key, (str, bytes))
+                    and len(key) == 2
+            ]
         
-        else:
-            current_container = data
-            for name in json_path.split("."):
-                current_container = current_container[name]
-            data = cls._convert_json_dict(current_container)
-        
-        required_args = [
-            "hoomd_class",
-            "initial_args",
-            "default_params",
-            "typed_params"
-        ]
-        for required_arg in required_args:
-            if required_arg not in data:
-                raise ValueError(
-                    f"Required arg {required_arg} not found in '{filename}' "
-                    + f"at path '{json_path}'."
-                )
-        for key in copy(data):
-            if key not in required_args:
-                del data[key]
-
-        return cls(**data)
+        elif category == "all":
+            types = [t for t in self.interacting_types("single")]
+            for p in self.interacting_types("pair"):
+                for t in p:
+                    if t not in types:
+                        types.append(t)
+            return types
 
     def __eq__(self, other):
         """Interactions are equal if they have equivalent properties."""
@@ -1292,238 +1535,4 @@ class Interaction:
             + "\n)"
         )
 
-    def plot(
-        self,
-        r: list[float],
-        type_pairs: list[tuple] | None = None,
-        pair_styles: dict[tuple, dict] = {},
-        cmap: str | None = None,
-        ylim: list[float] | None = None,
-        include_default: bool = False,
-        marker_size: float = 6,
-        line_width: float = 2,
-        mode: Literal["lines", "marker+lines", "marker"] = "lines",
-        show_axes: bool = True,
-        show_ticks: bool = True,
-        show_grid: bool = False,
-        show_border: bool = True,
-    ):
-        """Plot the interaction potential energy curve for pairs of types.
-        
-        Plotting is only supported for isotropic interactions.
 
-        Styles may be specified for specific pairs of types. A style must
-        specified as a dictionary which may have the following keys and values:
-
-        * ``mode`` [``'lines'``, ``'lines+markers'``, ``'markers'``] The
-          `drawing mode`_ for the plotly trace.
-
-        * ``color`` [``str``] - The symbol's color. Plotly accepts color strings
-          in `standard HTML/CSS formats`_ (for example, `rgb`_), as well as
-          `many named colors`_.
-        
-        * ``marker_size`` [``float`` > 0] - The marker size.
-
-        * ``line_width`` [``float`` > 0] - The line width.
-
-        .. _drawing mode: https://plotly.com/python/reference/scatter/#scatter-mode
-
-        Parameters
-        ----------
-        r : array of floats
-            The distances (x axis) at which to calculate the potential energy.
-        type_pairs : array of tuples of strings, optional
-            The pairs of types to plot the interaction for. If not provided, all
-            pairs are used.
-        pair_styles : dict, optional
-            Style dictionaries to apply to the markers. If not provided, a
-            default set of styles is used.
-        cmap : str, default='RdYlBu_r'
-            The name of the Plotly colormap to use. This must be a continuous
-            or qualitative colorscale.
-        ylim : list of floats, optional
-            The lower and upper limits of the y axis. If not provided, limits
-            will be calculated that attempt to give a clear view of the data.
-        include_default : bool, default=False
-            Whether to include the curve defined by ``default_params`` in
-            the plot.
-        marker_size : float, default=6
-            The size of the marker in pixels.
-        line_width : float, default=2
-            The width of the line in pixels.
-        marker_mode : 'lines+markers', 'lines', or 'markers', default='lines'
-            Whether to show only lines, only markers, or both.
-        show_axes : bool, default=True
-            Whether to show the axes.
-        show_ticks : bool, default=True
-            Whether to show tick marks on the axes.
-        show_grid : bool, default=False
-            Whether to show the axes grid.
-        show_border : bool, default=True
-            Whether to show the plot border.
-        
-        Returns
-        -------
-        figure, traces
-            The plot figure and its associated traces.
-        """
-        # Defaults
-        DEFAULT_COLORSCALE = "pastel"
-        DEFAULT_STYLE = dict(
-            color=None,
-            marker_size=marker_size,
-            line_width=line_width,
-            mode=mode,
-        )
-        
-        for pair, style in copy(pair_styles).items():
-            for key, default_value in DEFAULT_STYLE.items():
-                if key not in style:
-                    style[key] = default_value
-            pair_styles[pair] = style
-        
-        pair_styles = defaultdict(
-            lambda: defaultdict(None, DEFAULT_STYLE),
-            pair_styles
-        )
-        
-        # Ensure the interaction is isotropic
-        if self.hoomd_class.__module__ != "hoomd.md.pair.pair":
-            raise TypeError(
-                "Plotting is only supported for isotropic interactions, but "
-                + f"hoomd_class is from the {self.hoomd_class.__module__} "
-                + "module."
-            )
-
-        # Ensure there is a working colormap
-        if cmap is None:
-            cmap = DEFAULT_COLORSCALE
-        try:
-            _ = plotly.colors.get_colorscale(cmap)
-        except plotly.exceptions.PlotlyError:
-            try:
-                getattr(plotly.colors.qualitative, cmap.capitalize())
-            except AttributeError:
-                raise ValueError(
-                    "`cmap` is not a valid name for a continuous or "
-                    "qualitative plotly colorscale."
-                )
-
-        # If no type pairs are provided, use all of them
-        if type_pairs is None:
-            type_pairs = list(self.typed_params.keys())
-        
-        if include_default:
-            type_pairs = ["default"] + type_pairs
-
-        # Calculate kwargs for the measure function call
-        # still needed for every call: system, nlist
-        kwargs = dict(
-            quantities="U",
-            positions=[[0 + value, 0, 0] for value in r],
-            orientations=[(1,0,0,0)],
-            measurement_box=[0, 0, 0], # TODO: refactor to remove this parameter
-            simulation_box=[100*max(r), 100*max(r), 100*max(r), 0, 0, 0],
-            included_interactions=[self]
-        )
-
-        # Build plot traces pair by pair
-        traces = []
-
-        for i, pair in enumerate(type_pairs):
-            if pair == "default":
-                probe=p4.Body("skvblejy")
-                analyte=p4.Body("dhytkgvle")
-            else:
-                probe=p4.Body(pair[0])
-                analyte=p4.Body(pair[1])
-            
-            system = p4.System(probe, analyte, [self])
-            
-            table = p4.util.measure(
-                system=system,
-                nlist=hoomd.md.nlist.Tree(2),
-                **kwargs
-            )
-            table = p4.util.clean_header(table)
-            table.seek(0)
-
-            field = p4.Field(
-                np.rec.array(
-                    np.genfromtxt(
-                        table,
-                        names=True,
-                        dtype=None,
-                        delimiter=",",
-                        encoding="utf-8"
-                    )
-                )
-            )
-
-            style = pair_styles[pair]
-            
-            if style["color"] is None:
-                try:
-                    color = plotly.colors.get_colorscale(cmap)[i]
-                except plotly.exceptions.PlotlyError:
-                    color = getattr(
-                        plotly.colors.qualitative,
-                        cmap.capitalize()
-                    )[i]
-            else:
-                color=style["color"]
-
-            _, trace = field.plot(
-                slice=dict(z=0, y=0),
-                marker_color_1d=color,
-                marker_mode_1d=style["mode"],
-                marker_size_1d=style["marker_size"],
-                line_width_1d=style["line_width"],
-                show_axes=show_axes,
-                show_title=False,
-                show_ticks=show_ticks,
-                show_grid=show_grid,
-                show_border=show_border,
-            )
-            trace["name"] = str(pair)
-
-            traces.append(trace)
-
-        # Build figure and style it
-        figure = plotly.graph_objects.Figure()
-        figure.add_traces(traces)
-        layout = p4.Field._plot_layout( # TODO: refactor to put this in util
-            self=None,
-            quantity="U",
-            slice=dict(z=0, y=0),
-            clim=[0, 1],    # does not matter in 1D
-            show_axes=show_axes,
-            show_title=False,
-            show_ticks=show_ticks,
-            show_grid=show_grid,
-            show_border=show_border
-        )
-        figure.update_layout(**layout)
-        figure.update_layout(xaxis=dict(title="r", range=[min(r), max(r)]))
-        
-        if ylim is None:
-            overall_min = min(min(s["y"]) for s in figure.data)
-            overall_max = max(max(s["y"]) for s in figure.data)
-            min_too_large = overall_min < -1e2
-            max_too_large = overall_max > 1e2
-
-            if min_too_large and not max_too_large:
-                ylim = [-0.5 * np.abs(overall_max), 1.1 * overall_max]
-            elif max_too_large and not min_too_large:
-                ylim = [1.1 * overall_min, 0.5 * np.abs(overall_min)]
-            elif max_too_large and min_too_large:
-                min_magnitude = min(min(np.abs(s["y"])) for s in figure.data)
-                ylim = [-2 * min_magnitude, 2 * min_magnitude]
-            else:
-                ylim = [overall_min, overall_max]
-        
-        figure.update_layout(yaxis=dict(range=ylim))
-        figure.update_layout(width=500, height=500)
-
-        return figure, traces
-        

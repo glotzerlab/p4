@@ -126,7 +126,7 @@ class Body:
         self.positions_by_type = positions_by_type
         self.orientations_by_type = orientations_by_type
     
-    def is_rigid(self, interactions: list["Interaction"]) -> bool:
+    def _is_rigid(self, interactions: list["Interaction"]) -> bool:
         """Whether the body must represent a rigid body for some interactions.
         
         If any of the interactions specify a non-zero ``r_cut`` for any of the

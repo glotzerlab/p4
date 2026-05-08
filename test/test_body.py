@@ -247,9 +247,9 @@ def test_is_rigid(kwargs, variant):
     i = Interaction(**interaction_kwargs)
 
     if variant == "none" or "secondary_types" not in kwargs.keys() or len(kwargs["secondary_types"]) == 0:
-        assert not b.is_rigid([i])
+        assert not b._is_rigid([i])
     elif variant in ["some", "all"]:
-        assert b.is_rigid([i])
+        assert b._is_rigid([i])
 
 def make_rigid(
     primary_type,

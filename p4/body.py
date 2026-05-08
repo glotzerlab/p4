@@ -304,7 +304,12 @@ class Body:
 
     @classmethod
     def _convert_json_dict(cls, json_dict: dict):
-        """Convert a JSON-compliant dict into an instantiation-ready dict."""
+        """Convert a JSON-compliant dict into an instantiation-ready dict.
+        
+        NOTE: this apparently useless method is included here for convenience
+        in the JSON import method in System. It may be refactored out of
+        existence later.
+        """
         return json_dict
 
     # --------------------------------- EXPORT ---------------------------------
@@ -438,7 +443,12 @@ class Body:
                 json.dump(data, f, indent=indent)
     
     def _to_json_dict(self):
-        """Return a JSON-compliant dictionary representing this body."""
+        """Return a JSON-compliant dictionary representing this body.
+        
+        NOTE: this apparently useless method is included here for convenience
+        in the JSON export method in System. It may be refactored out of
+        existence later.
+        """
         return self.__dict__
 
     # -------------------------------- PLOTTING --------------------------------

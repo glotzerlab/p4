@@ -801,6 +801,9 @@ class Interaction:
         * ``line_width`` [``float`` > 0] - The line width.
 
         .. _drawing mode: https://plotly.com/python/reference/scatter/#scatter-mode
+        .. _standard HTML/CSS formats: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/color
+        .. _rgb: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/color_value/rgb
+        .. _many named colors: https://plotly.com/python/css-colors/
 
         Parameters
         ----------

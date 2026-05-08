@@ -367,6 +367,12 @@ class Interaction:
         a JSON path may be provided to control the location that the interaction
         data is retrieved from. See :meth:`~p4.Interaction.to_json` for an
         explanation of JSON path path formatting.
+
+        .. note::
+            ``typed_params`` is not a JSON-compliant dictionary, so in the JSON
+            representation it is changed to an array of dictionaries, where each
+            dictionary represents a [key, value] pair from the Python
+            representation.
         
         Parameters
         ----------
@@ -682,6 +688,12 @@ class Interaction:
 
         If the path specifies a location that already contains data, the
         contents of that location may be overwritten.
+
+        .. note::
+            ``typed_params`` is not a JSON-compliant dictionary, so in the JSON
+            representation it is changed to an array of dictionaries, where each
+            dictionary represents a [key, value] pair from the Python
+            representation.
                      
         Parameters
         ----------

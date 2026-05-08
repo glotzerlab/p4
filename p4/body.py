@@ -297,6 +297,11 @@ class Body:
 
         return cls(**data)
 
+    @classmethod
+    def _convert_json_dict(cls, json_dict: dict):
+        """Convert a JSON-compliant dict into an instantiation-ready dict."""
+        return json_dict
+
     # --------------------------------- EXPORT ---------------------------------
 
     def to_hoomd_rigid(

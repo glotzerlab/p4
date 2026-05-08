@@ -269,7 +269,7 @@ class Interaction:
     def from_hoomd_pair(
         cls,
         pair: hoomd.md.pair.Pair
-    ) -> list[Interaction] | Interaction:
+    ) -> Interaction:
         """Parse a HOOMD-blue `MD pair potential`_ to create an interaction.
 
         .. _MD pair potential: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/pair/pair.html

@@ -77,6 +77,7 @@ class System:
         analyte: Body,
         interactions: list[Interaction],
     ):
+        # Ensure types are correct
         if not isinstance(probe, Body):
             raise TypeError("`probe` must be an instance of 'Body'.")
         if not isinstance(analyte, Body):
@@ -88,31 +89,29 @@ class System:
             raise TypeError(
                 "`interactions` must be a list of Interaction instances."
             )
-
-        self.probe = probe
-        self.analyte = analyte
-        self.interactions = interactions
-
-        self._validate()
-
-    def _validate(self):
-        """Ensure the system can be simulated."""
+        
         # Ensure there is no rigid body clash
-        if self.probe.primary_type == self.analyte.primary_type:
-            if self.probe != self.analyte:
+        if probe.primary_type == analyte.primary_type:
+            if probe != analyte:
                 raise ValueError(
                     "If `probe` and `analyte` have the same primary_type, they "
                     + "must also have the same secondary types, positions, and "
                     + "orientations."
                 )
-        if self.probe.primary_type in self.analyte.secondary_types:
+            
+        # Ensure there is no particle type clash between probe and analyte
+        if probe.primary_type in analyte.secondary_types:
             raise ValueError(
                 "probe primary type cannot appear in analyte secondary types."
             )
-        if self.analyte.primary_type in self.probe.secondary_types:
+        if analyte.primary_type in probe.secondary_types:
             raise ValueError(
                 "analyte primary type cannot appear in probe secondary types."
             )
+
+        self.probe = probe
+        self.analyte = analyte
+        self.interactions = interactions
 
     @property
     def active_interactions(self) -> list[Interaction]:

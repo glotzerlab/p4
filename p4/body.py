@@ -74,26 +74,57 @@ class Body:
         positions_by_type: dict[str, list[list[float]]] = {},
         orientations_by_type: dict[str, list[list[float]]] = {}
     ):
+        # Ensure positions are provided if secondary types are provided
         if secondary_types != [] and not positions_by_type:
-            raise ValueError(
-                "'positions_by_type' is required if "
+            raise TypeError(
+                "Missing required argument: 'positions_by_type' is required if "
                 + "'secondary_types' is provided"
             )
+
+        # Ensure positions are provided for every secondary type
+        if secondary_types:
+            if ts := [t for t in secondary_types if t not in positions_by_type]:
+                raise ValueError(
+                    f"Missing required keys in `positions_by_type`: "
+                    + f"'{"', '".join(ts)}'. Positions must be provided for "
+                    + "all secondary types."
+                )
+        
+        # Ensure orientations are either provided for all secondary types, or
+        # not provided at all
+        if secondary_types and orientations_by_type:
+            missing_types = [
+                t for t in secondary_types if t not in orientations_by_type
+            ]
+            if missing_types:
+                raise ValueError(
+                    f"Missing required keys in `orientations_by_type`: "
+                    + f"'{"', '".join(missing_types)}'. If orientations are "
+                    + "provided at all, they must be provided for all "
+                    + "secondary types."
+                )
+        
+        # Ensure that for every secondary type, the number of provided
+        # orientations matches the number of provided positions
+        if secondary_types and positions_by_type and orientations_by_type:
+            mismatched_types = [
+                t
+                for t in secondary_types
+                if len(positions_by_type[t]) != len(orientations_by_type[t])
+            ]
+            if mismatched_types:
+                raise ValueError(
+                    "Mismatched numbers of orientations and positions for the "
+                    + "following secondary types: "
+                    + f"'{"', '".join(missing_types)}'. For every secondary "
+                    + "type, the numbers of positions and orientations must be "
+                    + "the same."
+                )
 
         self.primary_type = str(primary_type)
         self.secondary_types = [str(t) for t in secondary_types]
         self.positions_by_type = positions_by_type
         self.orientations_by_type = orientations_by_type
-
-        if self.positions_by_type:
-            self._validate_secondary_positions()
-        if self.orientations_by_type:
-            self._validate_secondary_orientations()
-        if (
-            self.positions_by_type
-            and self.orientations_by_type
-        ):
-            self._validate_secondary_orientations_and_positions_match()
     
     def is_rigid(self, interactions: list["Interaction"]) -> bool:
         """Whether the body must represent a rigid body for some interactions.
@@ -1034,36 +1065,6 @@ class Body:
                 )
         
         return traces
-
-    def _validate_secondary_positions(self):
-        """Ensure that the provided callable works for all secondary types."""
-        for t in self.secondary_types:
-            if t not in self.positions_by_type.keys():
-                raise ValueError(
-                    "`positions_by_type` does not specify positions "
-                    + f"for secondary type '{t}'."
-                )
-
-    def _validate_secondary_orientations(self):
-        """Ensure that the provided callable works for all secondary types."""
-        for t in self.secondary_types:
-            if t not in self.orientations_by_type.keys():
-                raise ValueError(
-                    "`orientations_by_type` does not specify "
-                    + f"orientations for secondary type '{t}'."
-                )
-
-    def _validate_secondary_orientations_and_positions_match(self):
-        """Ensure secondary types' numbers of positions and orientations match."""
-        for t in self.secondary_types:
-            n_positions = len(self.positions_by_type[t])
-            n_orientations = len(self.orientations_by_type[t])
-            
-            if n_positions != n_orientations:
-                raise ValueError(
-                    "The number of positions and orientations for secondary  "
-                    + f"type {t} do not match."
-                )
 
     def to_hoomd_rigid(
         self,

@@ -216,6 +216,56 @@ class Interaction:
     # --------------------------------- IMPORT ---------------------------------
 
     @classmethod
+    def from_hoomd_simulation(
+        cls,
+        simulation: hoomd.Simulation,
+    ) -> list[Interaction] | Interaction:
+        """Parse a HOOMD-blue `Simulation`_ to create interactions.
+
+        .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
+
+        This is a convenience method that is equivalent to
+        
+        .. code-block::
+
+            p4.Interaction.from_hoomd_integrator(simulation.operations.integrator)
+
+        Parameters
+        ----------
+        simulation : hoomd.Simulation
+            The simulation whose integrator contains the pair potentials.
+        """
+        if simulation.operations.integrator is None:
+            raise ValueError("`simulation` must have an integrator")
+        if not simulation.operations.integrator.forces:
+            raise ValueError("integrator must have forces")
+        return cls.from_hoomd_integrator(simulation.operations.integrator)
+
+    @classmethod
+    def from_hoomd_integrator(
+        cls,
+        integrator: hoomd.md.Integrator
+    ) -> list[Interaction] | Interaction:
+        """Parse a HOOMD-blue `MD Integrator`_ to create interactions.
+
+        .. _MD Integrator: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/integrator.html#hoomd.md.Integrator
+        
+        This is a convenience method that is equivalent to
+
+        .. code-block::
+
+            [p4.Interaction.from_hoomd_pair(p) for p in integrator.forces]
+
+        Parameters
+        ----------
+        integrator : hoomd.md.Integrator
+            The integrator that contains the pair potentials.
+        """
+        if not integrator.forces:
+            raise ValueError("`integrator` must have forces")
+        return [cls.from_hoomd_pair(p) for p in integrator.forces]
+
+    @classmethod
     def from_hoomd_pair(
         cls,
         pair: hoomd.md.pair.Pair
@@ -309,56 +359,6 @@ class Interaction:
         )
 
         return cls(**kwargs)
-
-    @classmethod
-    def from_hoomd_integrator(
-        cls,
-        integrator: hoomd.md.Integrator
-    ) -> list[Interaction] | Interaction:
-        """Parse a HOOMD-blue `MD Integrator`_ to create interactions.
-
-        .. _MD Integrator: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/integrator.html#hoomd.md.Integrator
-        
-        This is a convenience method that is equivalent to
-
-        .. code-block::
-
-            [p4.Interaction.from_hoomd_pair(p) for p in integrator.forces]
-
-        Parameters
-        ----------
-        integrator : hoomd.md.Integrator
-            The integrator that contains the pair potentials.
-        """
-        if not integrator.forces:
-            raise ValueError("`integrator` must have forces")
-        return [cls.from_hoomd_pair(p) for p in integrator.forces]
-
-    @classmethod
-    def from_hoomd_simulation(
-        cls,
-        simulation: hoomd.Simulation,
-    ) -> list[Interaction] | Interaction:
-        """Parse a HOOMD-blue `Simulation`_ to create interactions.
-
-        .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
-
-        This is a convenience method that is equivalent to
-        
-        .. code-block::
-
-            p4.Interaction.from_hoomd_integrator(simulation.operations.integrator)
-
-        Parameters
-        ----------
-        simulation : hoomd.Simulation
-            The simulation whose integrator contains the pair potentials.
-        """
-        if simulation.operations.integrator is None:
-            raise ValueError("`simulation` must have an integrator")
-        if not simulation.operations.integrator.forces:
-            raise ValueError("integrator must have forces")
-        return cls.from_hoomd_integrator(simulation.operations.integrator)
 
     @classmethod
     def from_json(cls, filename: os.PathLike, json_path: str | None = None):

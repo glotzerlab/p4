@@ -68,7 +68,7 @@ class Configuration:
     # --------------------------------- IMPORT ---------------------------------
 
     @classmethod
-    def from_gsd_frame(cls, frame: gsd.hoomd.Frame):
+    def from_hoomd_simulation(cls, simulation: hoomd.Simulation):
         pass
 
     @classmethod
@@ -77,7 +77,7 @@ class Configuration:
         pass
 
     @classmethod
-    def from_hoomd_simulation(cls, simulation: hoomd.Simulation):
+    def from_gsd_frame(cls, frame: gsd.hoomd.Frame):
         pass
 
     @classmethod
@@ -94,11 +94,11 @@ class Configuration:
 
     # --------------------------------- EXPORT ---------------------------------
 
-    def to_gsd_frame(self):
-        pass
-
     def to_hoomd_snapshot(self, ignore_types=[]):
         # call to_gsd_frame and then convert that to a snapshot
+        pass
+
+    def to_gsd_frame(self):
         pass
 
     # -------------------------------- PLOTTING --------------------------------

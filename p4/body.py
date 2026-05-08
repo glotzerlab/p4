@@ -670,7 +670,7 @@ class Body:
         color: str,
         opacity: float,
         line_width: float
-    ) -> dict:
+    ):
         """Return plotly plot traces for schematic slice in 3D.
 
         A slice with 1 key is represented as a plane, while a slice with 2 keys
@@ -785,7 +785,7 @@ class Body:
         type_shapes: dict[str, coxeter.shapes.Polyhedron],
         type_styles: dict[str, dict],
         default_colors: list[str],
-    ) -> list[dict]:
+    ):
         """Return plotly plot traces for body plotting in 3D.
         
         This function requires pre-calculated particle data. It should only be
@@ -910,7 +910,7 @@ class Body:
         slice: dict[str, float],
         default_colors: list[str],
         point_size_for_slice: float = 1e-6
-    ) -> list[dict]:
+    ):
         """Return plotly plot traces for body plotting in 2D.
         
         This function requires pre-calculated particle data and assumes that
@@ -1154,7 +1154,7 @@ class Body:
         slice: dict[str, float],
         default_colors: list[str],
         point_size_for_slice: float = 1e-6
-    ) -> list[dict]:
+    ):
         """Return plotly plot traces for body plotting in 1D.
         
         This function requires pre-calculated particle data and assumes that

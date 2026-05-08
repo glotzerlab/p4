@@ -252,7 +252,12 @@ class Body:
         a JSON path may be provided to control the location that the body data
         is retrieved from. See :meth:`~p4.Body.to_json` for an explanation of
         JSON path formatting.
-        
+
+        .. note::
+            The internal data structures for the ``Body`` class have native
+            JSON analogues, so the JSON representation is simply
+            ``Body.__dict__``.
+
         Parameters
         ----------
         filename : os.PathLike
@@ -378,6 +383,11 @@ class Body:
 
         If the path specifies a location that already contains data, the
         contents of that location may be overwritten.
+
+        .. note::
+            The internal data structures for the ``Body`` class have native
+            JSON analogues, so the JSON representation is simply
+            ``Body.__dict__``.
                      
         Parameters
         ----------

@@ -181,7 +181,11 @@ class System:
         )
 
     @classmethod
-    def from_json(cls, filename: os.PathLike, json_path: str | None = None):
+    def from_json(
+        cls,
+        filename: os.PathLike,
+        json_path: str = "p4.system"
+    ):
         """Create a system from JSON.
 
         a JSON path may be provided to control the location that the system
@@ -192,7 +196,7 @@ class System:
         ----------
         filename : os.PathLike
             The name or path of the JSON file.
-        json_path : str, optional
+        json_path : str, default='p4.system'
             The location within the JSON file to retrieve the system's
             representation from.
         
@@ -254,7 +258,7 @@ class System:
     def to_json(
         self,
         filename: os.PathLike,
-        json_path: str | None = "p4.system",
+        json_path: str = "p4.system",
         indent: str | int | None = None
     ):
         """Export the system to JSON.
@@ -284,7 +288,7 @@ class System:
         json_path : str or None, default='p4.system'
             The location within the JSON file to put the system's
             representation in. Only used if ``filename`` already exists. If
-            ``None`` is provided, then the representation is placed at the root
+            ``'.'`` is provided, then the representation is placed at the root
             level.
         indent : str or int, optional
             The string or number of spaces to use when indenting newlines in the

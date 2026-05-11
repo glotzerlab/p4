@@ -244,7 +244,11 @@ class Body:
             return bodies
 
     @classmethod
-    def from_json(cls, filename: os.PathLike, json_path: str | None = None):
+    def from_json(
+        cls,
+        filename: os.PathLike,
+        json_path: str = "p4.body"
+    ):
         """Create a body from JSON.
 
         a JSON path may be provided to control the location that the body data
@@ -260,7 +264,7 @@ class Body:
         ----------
         filename : os.PathLike
             The name or path of the JSON file.
-        json_path : str, optional
+        json_path : str, default='p4.body'
             The location within the JSON file to retrieve the body's
             representation from.
         
@@ -365,7 +369,7 @@ class Body:
     def to_json(
         self,
         filename: os.PathLike,
-        json_path: str | None = "p4.bodies",
+        json_path: str = "p4.body",
         indent: str | int | None = None
     ):
         """Export the body to JSON.
@@ -396,9 +400,9 @@ class Body:
         ----------
         filename : os.PathLike
             The name or path of the JSON file.
-        json_path : str or None, default='p4.bodies'
+        json_path : str or None, default='p4.body'
             The location within the JSON file to put the body's representation
-            in. Only used if ``filename`` already exists. If ``None`` is
+            in. Only used if ``filename`` already exists. If ``'.'`` is
             provided, then the representation is placed at the root level.
         indent : str or int, optional
             The string or number of spaces to use when indenting newlines in the

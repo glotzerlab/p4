@@ -361,7 +361,11 @@ class Interaction:
         return cls(**kwargs)
 
     @classmethod
-    def from_json(cls, filename: os.PathLike, json_path: str | None = None):
+    def from_json(
+        cls,
+        filename: os.PathLike,
+        json_path: str = "p4.interaction"
+    ):
         """Create an interaction from JSON.
 
         a JSON path may be provided to control the location that the interaction
@@ -378,7 +382,7 @@ class Interaction:
         ----------
         filename : os.PathLike
             The name or path of the JSON file.
-        json_path : str, optional
+        json_path : str, default='p4.interaction'
             The location within the JSON file to retrieve the interaction's
             representation from.
         
@@ -666,7 +670,7 @@ class Interaction:
     def to_json(
         self,
         filename: os.PathLike,
-        json_path: str | None = "p4.interactions",
+        json_path: str = "p4.interaction",
         indent: str | int | None = None
     ):
         """Export the interaction to JSON.
@@ -702,7 +706,7 @@ class Interaction:
         json_path : str or None, default='p4.interactions'
             The location within the JSON file to put the interaction's
             representation in. Only used if ``filename`` already exists. If
-            ``None`` is provided, then the representation is placed at the root
+            ``'.'`` is provided, then the representation is placed at the root
             level.
         indent : str or int, optional
             The string or number of spaces to use when indenting newlines in the

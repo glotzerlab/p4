@@ -167,7 +167,11 @@ class Configuration:
         )
 
     @classmethod
-    def from_json(cls, filename: os.PathLike, json_path: str | None = None):
+    def from_json(
+        cls,
+        filename: os.PathLike,
+        json_path: str = "p4.configuration"
+    ):
         """Create a configuration from JSON.
 
         a JSON path may be provided to control the location that the
@@ -184,7 +188,7 @@ class Configuration:
         ----------
         filename : os.PathLike
             The name or path of the JSON file.
-        json_path : str, optional
+        json_path : str, default='p4.configuration'
             The location within the JSON file to retrieve the configuration's
             representation from.
         
@@ -197,7 +201,7 @@ class Configuration:
         with open(filename, "r") as f:
             data = json.load(f)
 
-        if json_path is None:
+        if json_path == ".":
             data = cls._convert_json_dict(data)            
         
         else:
@@ -314,7 +318,7 @@ class Configuration:
     def to_json(
         self,
         filename: os.PathLike,
-        json_path: str | None = "p4.configuration",
+        json_path: str = "p4.configuration",
         indent: str | int | None = None
     ):
         """Export the configuration to JSON.
@@ -323,15 +327,15 @@ class Configuration:
         to ensure the configuration data does not clash with existing data in
         the file.
 
-        A JSON path that looks like ``'parent.object.subobject'`` represents the
-        following location:
+        A JSON path that looks like ``'a.b.c'`` represents the following
+        location:
 
         .. code-block::
 
             <root>
-            └─ parent
-               └─ object
-                  └─ subobject
+            └─ a
+               └─ b
+                  └─ c
                      └─ <data will go here>
 
         If the path specifies a location that already contains data, the
@@ -346,7 +350,7 @@ class Configuration:
         ----------
         filename : os.PathLike
             The name or path of the JSON file.
-        json_path : str or None, default='p4.bodies'
+        json_path : str or None, default='p4.configuration'
             The location within the JSON file to put the configuration's
             representation in. Only used if ``filename`` already exists. If
             ``None`` is provided, then the representation is placed at the root
@@ -358,38 +362,37 @@ class Configuration:
         path = Path(filename)
         data = self._to_json_dict()
 
-        if path.exists():
+        if not path.exists():
+            path.touch()
+            existing_data = {}
+        else:
             with open(path, "r") as f:
                 existing_data = json.load(f)
             
-            if json_path is None:
-                for k, v in data:
-                    existing_data[k] = v
-            
-            else:
-                names = json_path.split(".")
-                current_container = existing_data
-                for i, name in enumerate(names):
-                    if name not in current_container:
-                        current_container[name] = {}
-                    if i < (len(names) - 1):
-                        current_container = current_container[name]
-                    else:
-                        # try to write alongside existing data if possible...
-                        if isinstance(current_container[name], dict):
-                            current_container[name].update(data)
-                        elif isinstance(current_container[name], list):
-                            current_container[name].append(data)
-                        # ... and insert or overwrite if not
-                        else:
-                            current_container[name] = data
-
-            with open(path, "w") as f:
-                json.dump(existing_data, f, indent=indent)
-
+        if json_path == ".":
+            for k, v in data.items():
+                existing_data[k] = v
+        
         else:
-            with open(filename, "w") as f:
-                json.dump(data, f, indent=indent)
+            names = json_path.split(".")
+            current_container = existing_data
+            for i, name in enumerate(names):
+                if name not in current_container:
+                    current_container[name] = {}
+                if i < (len(names) - 1):
+                    current_container = current_container[name]
+                else:
+                    # try to write alongside existing data if possible...
+                    if isinstance(current_container[name], dict):
+                        current_container[name].update(data)
+                    elif isinstance(current_container[name], list):
+                        current_container[name].append(data)
+                    # ... and insert or overwrite if not
+                    else:
+                        current_container[name] = data
+
+        with open(path, "w") as f:
+            json.dump(existing_data, f, indent=indent)
 
     def _to_json_dict(self):
         """Return a JSON-compliant dictionary representing this configuration.
@@ -398,7 +401,7 @@ class Configuration:
         in the JSON export method in System. It may be refactored out of
         existence later.
         """
-        return self.__dict__
+        return copy(self.__dict__)
 
     # -------------------------------- PLOTTING --------------------------------
 

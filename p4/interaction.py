@@ -395,7 +395,7 @@ class Interaction:
         with open(filename, "r") as f:
             data = json.load(f)
 
-        if json_path is None:
+        if json_path == ".":
             data = cls._convert_json_dict(data)            
         
         else:

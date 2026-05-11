@@ -267,15 +267,15 @@ class System:
         to ensure the system data does not clash with existing data in the
         file.
 
-        A JSON path that looks like ``'parent.object.subobject'`` represents the
-        following location:
+        A JSON path that looks like ``'a.b.c'`` represents the following
+        location:
 
         .. code-block::
 
             <root>
-            └─ parent
-               └─ object
-                  └─ subobject
+            └─ a
+               └─ b
+                  └─ c
                      └─ <data will go here>
 
         If the path specifies a location that already contains data, the

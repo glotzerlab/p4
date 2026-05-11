@@ -25,14 +25,14 @@ FIG_TITLE_FONT = dict(style="italic", size=16)
 class Field:
     """Analyze and plot scalar and vector fields in 3D, 2D, and 1D.
     
-    This class is built around `NumPy's recarray`_, which is a lightweight
-    tabular data structure similar to the `Pandas DataFrame`_.
+    This class is built around NumPy's `recarray`_, which is a lightweight
+    tabular data structure similar to the Pandas `DataFrame`_.
 
-    .. _NumPy's recarray: https://numpy.org/doc/stable/reference/generated/numpy.recarray.html
-    .. _Pandas DataFrame: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
+    .. _recarray: https://numpy.org/doc/stable/reference/generated/numpy.recarray.html
+    .. _DataFrame: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
 
     Access a Field's tabular data using the :attr:`~p4.Field.table` property,
-    which returns the underlying `recarray`.
+    which returns the underlying recarray.
     
     Instantiate a Field directly from a NumPy recarray, or build one from
     CSV using :meth:`~p4.Field.from_csv`. In order for instantiation to work,

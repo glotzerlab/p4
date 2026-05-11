@@ -411,39 +411,38 @@ class Body:
         path = Path(filename)
         data = self._to_json_dict()
 
-        if path.exists():
+        if not path.exists():
+            path.touch()
+            existing_data = {}
+        else:
             with open(path, "r") as f:
                 existing_data = json.load(f)
             
-            if json_path is None:
-                for k, v in data:
-                    existing_data[k] = v
-            
-            else:
-                names = json_path.split(".")
-                current_container = existing_data
-                for i, name in enumerate(names):
-                    if name not in current_container:
-                        current_container[name] = {}
-                    if i < (len(names) - 1):
-                        current_container = current_container[name]
-                    else:
-                        # try to write alongside existing data if possible...
-                        if isinstance(current_container[name], dict):
-                            current_container[name].update(data)
-                        elif isinstance(current_container[name], list):
-                            current_container[name].append(data)
-                        # ... and insert or overwrite if not
-                        else:
-                            current_container[name] = data
-
-            with open(path, "w") as f:
-                json.dump(existing_data, f, indent=indent)
-
+        if json_path == ".":
+            for k, v in data.items():
+                existing_data[k] = v
+        
         else:
-            with open(filename, "w") as f:
-                json.dump(data, f, indent=indent)
-    
+            names = json_path.split(".")
+            current_container = existing_data
+            for i, name in enumerate(names):
+                if name not in current_container:
+                    current_container[name] = {}
+                if i < (len(names) - 1):
+                    current_container = current_container[name]
+                else:
+                    # try to write alongside existing data if possible...
+                    if isinstance(current_container[name], dict):
+                        current_container[name].update(data)
+                    elif isinstance(current_container[name], list):
+                        current_container[name].append(data)
+                    # ... and insert or overwrite if not
+                    else:
+                        current_container[name] = data
+
+        with open(path, "w") as f:
+            json.dump(existing_data, f, indent=indent)
+
     def _to_json_dict(self):
         """Return a JSON-compliant dictionary representing this body.
         

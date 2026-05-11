@@ -447,7 +447,7 @@ class Body:
         in the JSON export method in System. It may be refactored out of
         existence later.
         """
-        return self.__dict__
+        return copy(self.__dict__)
 
     # -------------------------------- PLOTTING --------------------------------
 

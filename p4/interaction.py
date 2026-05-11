@@ -746,7 +746,7 @@ class Interaction:
 
     def _to_json_dict(self):
         """Return a JSON-compliant dictionary representing this interaction."""
-        data = self.__dict__
+        data = copy(self.__dict__)
 
         # The hoomd class must be a string
         data["hoomd_class"] = (

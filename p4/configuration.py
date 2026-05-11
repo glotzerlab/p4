@@ -1,10 +1,14 @@
+from copy import copy
+import json
 import os
 from typing import Iterable
+from pathlib import Path
 
 import coxeter
 import gsd
 import hoomd
 import numpy as np
+import rowan
 
 from p4 import Body
 
@@ -44,7 +48,6 @@ class Configuration:
                     " all, they must be provided for all bodies' primary types."
                 )
 
-
         # Ensure that for every secondary type, the number of provided
         # orientations matches the number of provided positions
         if orientations_by_type:
@@ -69,37 +72,333 @@ class Configuration:
 
     @classmethod
     def from_hoomd_simulation(cls, simulation: hoomd.Simulation):
-        pass
+        """Parse a HOOMD-blue `Simulation`_ to create a configuration.
+
+        .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
+        
+        Parameters
+        ----------
+        simulation : hoomd.Simulation
+            The simulation to parse.
+        """
+        bodies = Body.from_hoomd_simulation(simulation)
+
+        snapshot = simulation.state.get_snapshot()
+
+        single_particle_conf = cls.from_hoomd_snapshot(snapshot)
+
+        positions_by_type = {
+            t: single_particle_conf.positions_by_type[t]
+            for t in single_particle_conf.positions_by_type
+            if any(t == b.primary_type for b in bodies)
+        }
+        orientations_by_type = {
+            t: single_particle_conf.orientations_by_type[t]
+            for t in single_particle_conf.orientations_by_type
+            if any(t == b.primary_type for b in bodies)
+        }
+
+        return cls(
+            bodies=bodies,
+            positions_by_type=positions_by_type,
+            orientations_by_type=orientations_by_type
+        )
 
     @classmethod
     def from_hoomd_snapshot(cls, snapshot: hoomd.Snapshot):
-        # Convert snapshot to gsd frame and then call from_gsd_frame
-        pass
+        """Parse a HOOMD-blue `Snapshot`_ to create a configuration.
+
+        .. _Snapshot: https://hoomd-blue.readthedocs.io/en/latest/hoomd/snapshot.html
+
+        A snapshot does not contain rigid body constraint data, so it is parsed
+        into single-particle bodies.
+        
+        Parameters
+        ----------
+        snapshot : hoomd.Snapshot
+            The snapshot to parse.
+        """
+        frame = gsd.hoomd.Frame()
+
+        frame.particles.N = snapshot.particles.position.shape[0]
+        frame.particles.types = snapshot.particles.types
+        frame.particles.typeid = snapshot.particles.typeid
+        frame.particles.position = snapshot.particles.position
+        frame.particles.orientation = snapshot.particles.orientation
+        
+        return cls.from_gsd_frame(frame)
+
 
     @classmethod
     def from_gsd_frame(cls, frame: gsd.hoomd.Frame):
-        pass
+        """Parse a GSD `Frame`_ to create a configuration.
+
+        .. _Frame: https://gsd.readthedocs.io/en/latest/python-module-gsd.hoomd.html#gsd.hoomd.Frame
+
+        A Frame does not contain rigid body constraint data, so it is parsed
+        into single-particle bodies.
+        
+        Parameters
+        ----------
+        frame : gsd.hoomd.Frame
+            The frame to parse.
+        """
+        types = frame.particles.types
+        typeids = frame.particles.typeid
+        positions = frame.particles.position
+        orientations = frame.particles.orientation
+
+        bodies = [Body(t) for t in types]
+
+        positions_by_type = {
+            t: [p for tid, p in zip(typeids, positions) if types[tid] == t]
+            for t in types
+        }
+
+        orientations_by_type = {
+            t: [p for tid, p in zip(typeids, orientations) if types[tid] == t]
+            for t in types
+        }
+
+        return cls(
+            bodies=bodies,
+            positions_by_type=positions_by_type,
+            orientations_by_type=orientations_by_type
+        )
 
     @classmethod
-    def from_json(
-        cls,
-        filename: os.PathLike,
-        json_path: str | None = "p4.configuration"
-    ):
-        pass
+    def from_json(cls, filename: os.PathLike, json_path: str | None = None):
+        """Create a configuration from JSON.
+
+        a JSON path may be provided to control the location that the
+        configuration data is retrieved from. See
+        :meth:`~p4.Configuration.to_json` for an explanation of JSON path
+        formatting.
+
+        .. note::
+            The internal data structures for the ``Configuration`` class have
+            native JSON analogues, so the JSON representation is simply
+            ``Configuration.__dict__``.
+
+        Parameters
+        ----------
+        filename : os.PathLike
+            The name or path of the JSON file.
+        json_path : str, optional
+            The location within the JSON file to retrieve the configuration's
+            representation from.
+        
+        Raises
+        ------
+        ValueError
+            If the JSON file does not have the keys and values required for
+            instantiating a Configuration.
+        """
+        with open(filename, "r") as f:
+            data = json.load(f)
+
+        if json_path is None:
+            data = cls._convert_json_dict(data)            
+        
+        else:
+            current_container = data
+            for name in json_path.split("."):
+                current_container = current_container[name]
+            data = cls._convert_json_dict(current_container)
+        
+        required_args = [
+            "bodies",
+            "positions_by_type",
+            "orientations_by_type"
+        ]
+        for required_arg in required_args:
+            if required_arg not in data:
+                raise ValueError(
+                    f"Required arg {required_arg} not found in '{filename}' "
+                    + f"at path '{json_path}'."
+                )
+        for key in copy(data):
+            if key not in required_args:
+                del data[key]
+
+        return cls(**data)
 
     @classmethod
     def _convert_json_dict(cls, json_dict: dict):
-        pass
+        """Convert a JSON-compliant dict into an instantiation-ready dict.
+        
+        NOTE: this apparently useless method is included here for convenience
+        in the JSON import method in System. It may be refactored out of
+        existence later.
+        """
+        return json_dict
 
     # --------------------------------- EXPORT ---------------------------------
 
-    def to_hoomd_snapshot(self, ignore_types=[]):
-        # call to_gsd_frame and then convert that to a snapshot
-        pass
+    def to_hoomd_snapshot(self, ignore_types: list[str] = []):
+        """Convert the configuration to a HOOMD-blue `Snapshot`_.
+        
+        .. _Snapshot: https://hoomd-blue.readthedocs.io/en/latest/hoomd/snapshot.html
 
-    def to_gsd_frame(self):
-        pass
+        Parameters
+        ----------
+        ignore_types : list[str], default=[]
+            Primary types to omit from the snapshot.
+        """
+        frame = self.to_gsd_frame(ignore_types)
+        return hoomd.Snapshot.from_gsd_frame(
+            gsd_snap=frame,
+            communicator=hoomd.communicator.Communicator()
+        )
+
+    def to_gsd_frame(self, ignore_types: list[str] = []):
+        """Convert the configuration to a GSD `Frame`_.
+        
+        .. _Frame: https://gsd.readthedocs.io/en/latest/python-module-gsd.hoomd.html#gsd.hoomd.Frame
+
+        Parameters
+        ----------
+        ignore_types : list[str], default=[]
+            Primary types to omit from the frame.
+        """
+        types = []
+        typeids = []
+        positions = np.empty((0, 3), dtype=np.float32)
+        orientations = np.empty((0, 4), dtype=np.float32)
+
+        for body in self.bodies:
+            types.extend([body.primary_type] + body.secondary_types)
+            
+            body_positions = self.positions_by_type[body.primary_type]
+            body_orientations = self.orientations_by_type[body.primary_type]
+            
+            for primary_p, primary_o in zip(body_positions, body_orientations):
+                # Primary particle
+                typeids.append(types.index(body.primary_type))
+                positions = np.vstack((positions, primary_p))
+                orientations = np.vstack((orientations, primary_o))
+                
+                # Secondary particles
+                for secondary_t in body.secondary_types:
+                    secondary_ps = body.positions_by_type[secondary_t]
+                    secondary_os = body.orientations_by_type.get(
+                        secondary_t,
+                        np.array([(1, 0, 0, 0) for _ in secondary_ps])
+                    )
+
+                    # typeids
+                    typeids.extend([types.index(secondary_t) for _ in secondary_ps])
+
+                    # positions
+                    positions = np.vstack((
+                        positions,
+                        rowan.rotate(primary_o, secondary_ps) + primary_p
+                    ))
+
+                    # orientations
+                    orientations = np.vstack((
+                        orientations,
+                        rowan.multiply(primary_o, secondary_os)
+                    ))
+
+        frame = gsd.hoomd.Frame()
+
+        frame.particles.N = positions.shape[0]
+        frame.particles.types = types
+        frame.particles.typeid = typeids
+        frame.particles.position = positions
+        frame.particles.orientation = orientations
+
+        return frame
+
+    def to_json(
+        self,
+        filename: os.PathLike,
+        json_path: str | None = "p4.configuration",
+        indent: str | int | None = None
+    ):
+        """Export the configuration to JSON.
+        
+        If ``filename`` points to an existing file, a JSON path may be provided
+        to ensure the configuration data does not clash with existing data in
+        the file.
+
+        A JSON path that looks like ``'parent.object.subobject'`` represents the
+        following location:
+
+        .. code-block::
+
+            <root>
+            └─ parent
+               └─ object
+                  └─ subobject
+                     └─ <data will go here>
+
+        If the path specifies a location that already contains data, the
+        contents of that location may be overwritten.
+
+        .. note::
+            The internal data structures for the ``Configuration`` class have
+            native JSON analogues, so the JSON representation is simply
+            ``Configuration.__dict__``.
+                     
+        Parameters
+        ----------
+        filename : os.PathLike
+            The name or path of the JSON file.
+        json_path : str or None, default='p4.bodies'
+            The location within the JSON file to put the configuration's
+            representation in. Only used if ``filename`` already exists. If
+            ``None`` is provided, then the representation is placed at the root
+            level.
+        indent : str or int, optional
+            The string or number of spaces to use when indenting newlines in the
+            JSON file. If not provided, there are no newlines.
+        """
+        path = Path(filename)
+        data = self._to_json_dict()
+
+        if path.exists():
+            with open(path, "r") as f:
+                existing_data = json.load(f)
+            
+            if json_path is None:
+                for k, v in data:
+                    existing_data[k] = v
+            
+            else:
+                names = json_path.split(".")
+                current_container = existing_data
+                for i, name in enumerate(names):
+                    if name not in current_container:
+                        current_container[name] = {}
+                    if i < (len(names) - 1):
+                        current_container = current_container[name]
+                    else:
+                        # try to write alongside existing data if possible...
+                        if isinstance(current_container[name], dict):
+                            current_container[name].update(data)
+                        elif isinstance(current_container[name], list):
+                            current_container[name].append(data)
+                        # ... and insert or overwrite if not
+                        else:
+                            current_container[name] = data
+
+            with open(path, "w") as f:
+                json.dump(existing_data, f, indent=indent)
+
+        else:
+            with open(filename, "w") as f:
+                json.dump(data, f, indent=indent)
+
+    def _to_json_dict(self):
+        """Return a JSON-compliant dictionary representing this configuration.
+        
+        NOTE: this apparently useless method is included here for convenience
+        in the JSON export method in System. It may be refactored out of
+        existence later.
+        """
+        return self.__dict__
 
     # -------------------------------- PLOTTING --------------------------------
 

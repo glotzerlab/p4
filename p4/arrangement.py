@@ -232,7 +232,7 @@ class Arrangement:
         """Convert a JSON-compliant dict into an instantiation-ready dict."""
         data = copy(json_dict)
         data["bodies"] = [Body(**b) for b in data["bodies"]]
-        return json_dict
+        return data
 
     # --------------------------------- EXPORT ---------------------------------
 

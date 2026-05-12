@@ -93,13 +93,47 @@ def make_system_for_json():
         interactions=[make_interaction_for_json()]
     )
 
+def make_arrangement_for_json():
+    """Return the arrangement used for the reference arrangement JSON files."""
+    return p4.Arrangement(
+        bodies=[
+            p4.Body(
+                primary_type="A",
+                secondary_types=["B"],
+                positions_by_type=dict(
+                    B=[[-1,0,0], [1,0,0]]
+                )
+            ),
+            p4.Body(
+                primary_type="C",
+                secondary_types=["D", "E"],
+                positions_by_type=dict(
+                    D=[[0, -1, 0], [0, 1, 0]],
+                    E=[[0, 0, -1], [0, 0, 1]]
+                ),
+                orientations_by_type=dict(
+                    D=[[1,0,0,0], [0, 0.707, 0.707, 0]],
+                    E=[[0.707, 0, -0.707, 0], [0.707, 0, 0.707, 0]]
+                ),
+            )
+        ],
+        positions_by_type=dict(
+            A=[[10, 0, 0]],
+            C=[[0, 10, 0], [0, 20, 0]]
+        ),
+        orientations_by_type=dict(
+            A=[[1,0,0,0]],
+            C=[[0, 0.707, 0.707, 0], [0.707, 0, 0.707, 0]]
+        )
+    )
+
 def compare_text_files(file_path_1, file_path_2):
     """Raise an Error if two text files do not have identical contents, ignoring different newlines."""
     with open(file_path_1) as file1, open(file_path_2) as file2:
         file1_contents, file2_contents = file1.readlines(), file2.readlines()
         assert file1_contents == file2_contents
 
-@pytest.mark.parametrize("object_type", ["body", "interaction", "system"])
+@pytest.mark.parametrize("object_type", ["body", "interaction", "system", "arrangement"])
 @pytest.mark.parametrize("place", ["root", "path"])
 @pytest.mark.parametrize("indent_type", ["indent", "noindent"])
 def test_to_json(object_type, place, indent_type):
@@ -110,6 +144,8 @@ def test_to_json(object_type, place, indent_type):
         obj = make_interaction_for_json()
     elif object_type == "system":
         obj = make_system_for_json()
+    elif object_type == "arrangement":
+        obj = make_arrangement_for_json()
 
     control_path = Path(REFERENCE_FOLDER) / f"{object_type}_at_{place}_{indent_type}.json"
     indent = None if indent_type == "noindent" else 2
@@ -123,7 +159,7 @@ def test_to_json(object_type, place, indent_type):
         
         compare_text_files(control_path, test_path)
 
-@pytest.mark.parametrize("object_type", ["body", "interaction", "system"])
+@pytest.mark.parametrize("object_type", ["body", "interaction", "system", "arrangement"])
 @pytest.mark.parametrize("place", ["root", "path"])
 @pytest.mark.parametrize("indent_type", ["indent", "noindent"])
 def test_from_json(object_type, place, indent_type):
@@ -134,6 +170,8 @@ def test_from_json(object_type, place, indent_type):
         obj = make_interaction_for_json()
     elif object_type == "system":
         obj = make_system_for_json()
+    elif object_type == "arrangement":
+        obj = make_arrangement_for_json()
 
     control_path = Path(REFERENCE_FOLDER) / f"{object_type}_at_{place}_{indent_type}.json"
     json_path = "." if place == "root" else f"path.to.{object_type}"
@@ -144,5 +182,7 @@ def test_from_json(object_type, place, indent_type):
         test_obj = p4.Interaction.from_json(control_path, json_path)
     elif object_type == "system":
         test_obj = p4.System.from_json(control_path, json_path)
+    elif object_type == "arrangement":
+        test_obj = p4.Arrangement.from_json(control_path, json_path)
 
     assert obj == test_obj

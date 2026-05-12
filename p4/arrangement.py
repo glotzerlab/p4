@@ -128,7 +128,6 @@ class Arrangement:
         
         return cls.from_gsd_frame(frame)
 
-
     @classmethod
     def from_gsd_frame(cls, frame: gsd.hoomd.Frame):
         """Parse a GSD `Frame`_ to create a arrangement.

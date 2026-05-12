@@ -229,12 +229,9 @@ class Configuration:
 
     @classmethod
     def _convert_json_dict(cls, json_dict: dict):
-        """Convert a JSON-compliant dict into an instantiation-ready dict.
-        
-        NOTE: this apparently useless method is included here for convenience
-        in the JSON import method in System. It may be refactored out of
-        existence later.
-        """
+        """Convert a JSON-compliant dict into an instantiation-ready dict."""
+        data = copy(json_dict)
+        data["bodies"] = [Body(**b) for b in data["bodies"]]
         return json_dict
 
     # --------------------------------- EXPORT ---------------------------------
@@ -353,7 +350,7 @@ class Configuration:
         json_path : str or None, default='p4.configuration'
             The location within the JSON file to put the configuration's
             representation in. Only used if ``filename`` already exists. If
-            ``None`` is provided, then the representation is placed at the root
+            ``'.'`` is provided, then the representation is placed at the root
             level.
         indent : str or int, optional
             The string or number of spaces to use when indenting newlines in the
@@ -395,13 +392,10 @@ class Configuration:
             json.dump(existing_data, f, indent=indent)
 
     def _to_json_dict(self):
-        """Return a JSON-compliant dictionary representing this configuration.
-        
-        NOTE: this apparently useless method is included here for convenience
-        in the JSON export method in System. It may be refactored out of
-        existence later.
-        """
-        return copy(self.__dict__)
+        """Return a JSON-compliant dictionary representing this configuration."""
+        data = copy(self.__dict__)
+        data["bodies"] = [b._to_json_dict() for b in self.bodies]
+        return data
 
     # -------------------------------- PLOTTING --------------------------------
 

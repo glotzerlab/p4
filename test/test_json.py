@@ -117,15 +117,9 @@ def test_to_json(object_type, place, indent_type):
     with tempfile.TemporaryDirectory(dir=REFERENCE_FOLDER) as tempdir:
         test_path = Path(tempdir) / f"test_{object_type}_at_{place}_{indent_type}.json"
         
-        if place == "root":
-            obj.to_json(test_path, json_path=".", indent=indent)
+        json_path = "." if place == "root" else f"path.to.{object_type}"
         
-        else:
-            # In order for json_path to work, the file must already exist, so
-            # make one with the same name
-            with open(test_path, "w") as f:
-                json.dump({"something else": "is here"}, f, indent=indent)
-            obj.to_json(test_path, json_path=f"path.to.{object_type}", indent=indent)
+        obj.to_json(test_path, json_path=json_path, indent=indent)
         
         compare_text_files(control_path, test_path)
 

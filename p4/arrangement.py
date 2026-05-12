@@ -12,7 +12,7 @@ import rowan
 
 from p4 import Body
 
-class Configuration:
+class Arrangement:
     def __init__(
         self,
         bodies: list[Body],
@@ -72,7 +72,7 @@ class Configuration:
 
     @classmethod
     def from_hoomd_simulation(cls, simulation: hoomd.Simulation):
-        """Parse a HOOMD-blue `Simulation`_ to create a configuration.
+        """Parse a HOOMD-blue `Simulation`_ to create a arrangement.
 
         .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
         
@@ -106,7 +106,7 @@ class Configuration:
 
     @classmethod
     def from_hoomd_snapshot(cls, snapshot: hoomd.Snapshot):
-        """Parse a HOOMD-blue `Snapshot`_ to create a configuration.
+        """Parse a HOOMD-blue `Snapshot`_ to create a arrangement.
 
         .. _Snapshot: https://hoomd-blue.readthedocs.io/en/latest/hoomd/snapshot.html
 
@@ -131,7 +131,7 @@ class Configuration:
 
     @classmethod
     def from_gsd_frame(cls, frame: gsd.hoomd.Frame):
-        """Parse a GSD `Frame`_ to create a configuration.
+        """Parse a GSD `Frame`_ to create a arrangement.
 
         .. _Frame: https://gsd.readthedocs.io/en/latest/python-module-gsd.hoomd.html#gsd.hoomd.Frame
 
@@ -170,33 +170,33 @@ class Configuration:
     def from_json(
         cls,
         filename: os.PathLike,
-        json_path: str = "p4.configuration"
+        json_path: str = "p4.arrangement"
     ):
-        """Create a configuration from JSON.
+        """Create a arrangement from JSON.
 
         a JSON path may be provided to control the location that the
-        configuration data is retrieved from. See
-        :meth:`~p4.Configuration.to_json` for an explanation of JSON path
+        arrangement data is retrieved from. See
+        :meth:`~p4.Arrangement.to_json` for an explanation of JSON path
         formatting.
 
         .. note::
-            The internal data structures for the ``Configuration`` class have
+            The internal data structures for the ``Arrangement`` class have
             native JSON analogues, so the JSON representation is simply
-            ``Configuration.__dict__``.
+            ``Arrangement.__dict__``.
 
         Parameters
         ----------
         filename : os.PathLike
             The name or path of the JSON file.
-        json_path : str, default='p4.configuration'
-            The location within the JSON file to retrieve the configuration's
+        json_path : str, default='p4.arrangement'
+            The location within the JSON file to retrieve the arrangement's
             representation from.
         
         Raises
         ------
         ValueError
             If the JSON file does not have the keys and values required for
-            instantiating a Configuration.
+            instantiating a Arrangement.
         """
         with open(filename, "r") as f:
             data = json.load(f)
@@ -237,7 +237,7 @@ class Configuration:
     # --------------------------------- EXPORT ---------------------------------
 
     def to_hoomd_snapshot(self, ignore_types: list[str] = []):
-        """Convert the configuration to a HOOMD-blue `Snapshot`_.
+        """Convert the arrangement to a HOOMD-blue `Snapshot`_.
         
         .. _Snapshot: https://hoomd-blue.readthedocs.io/en/latest/hoomd/snapshot.html
 
@@ -253,7 +253,7 @@ class Configuration:
         )
 
     def to_gsd_frame(self, ignore_types: list[str] = []):
-        """Convert the configuration to a GSD `Frame`_.
+        """Convert the arrangement to a GSD `Frame`_.
         
         .. _Frame: https://gsd.readthedocs.io/en/latest/python-module-gsd.hoomd.html#gsd.hoomd.Frame
 
@@ -268,10 +268,16 @@ class Configuration:
         orientations = np.empty((0, 4), dtype=np.float32)
 
         for body in self.bodies:
+            if body.primary_type in ignore_types:
+                continue
+
             types.extend([body.primary_type] + body.secondary_types)
             
             body_positions = self.positions_by_type[body.primary_type]
-            body_orientations = self.orientations_by_type[body.primary_type]
+            body_orientations = self.orientations_by_type.get(
+                body.primary_type,
+                np.array([[1, 0, 0, 0] for _ in body_positions])
+            )
             
             for primary_p, primary_o in zip(body_positions, body_orientations):
                 # Primary particle
@@ -315,13 +321,13 @@ class Configuration:
     def to_json(
         self,
         filename: os.PathLike,
-        json_path: str = "p4.configuration",
+        json_path: str = "p4.arrangement",
         indent: str | int | None = None
     ):
-        """Export the configuration to JSON.
+        """Export the arrangement to JSON.
         
         If ``filename`` points to an existing file, a JSON path may be provided
-        to ensure the configuration data does not clash with existing data in
+        to ensure the arrangement data does not clash with existing data in
         the file.
 
         A JSON path that looks like ``'a.b.c'`` represents the following
@@ -339,16 +345,16 @@ class Configuration:
         contents of that location may be overwritten.
 
         .. note::
-            The internal data structures for the ``Configuration`` class have
+            The internal data structures for the ``Arrangement`` class have
             native JSON analogues, so the JSON representation is simply
-            ``Configuration.__dict__``.
+            ``Arrangement.__dict__``.
                      
         Parameters
         ----------
         filename : os.PathLike
             The name or path of the JSON file.
-        json_path : str or None, default='p4.configuration'
-            The location within the JSON file to put the configuration's
+        json_path : str or None, default='p4.arrangement'
+            The location within the JSON file to put the arrangement's
             representation in. Only used if ``filename`` already exists. If
             ``'.'`` is provided, then the representation is placed at the root
             level.
@@ -392,7 +398,7 @@ class Configuration:
             json.dump(existing_data, f, indent=indent)
 
     def _to_json_dict(self):
-        """Return a JSON-compliant dictionary representing this configuration."""
+        """Return a JSON-compliant dictionary representing this arrangement."""
         data = copy(self.__dict__)
         data["bodies"] = [b._to_json_dict() for b in self.bodies]
         return data

@@ -5,12 +5,14 @@ from .interaction import Interaction
 from .body import Body
 from .system import System
 from .field import Field
+from .arrangement import Arrangement
 
 __all__ = [
     "Interaction",
     "Body",
     "System",
-    "Field"
+    "Field",
+    "Arrangement"
 ]
 
 __version__ = "0.0.1"

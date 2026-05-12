@@ -102,7 +102,7 @@ def compare_text_files(file_path_1, file_path_2):
 @pytest.mark.parametrize("object_type", ["body", "interaction", "system"])
 @pytest.mark.parametrize("place", ["root", "path"])
 @pytest.mark.parametrize("indent_type", ["indent", "noindent"])
-def test_body_to_json(object_type, place, indent_type):
+def test_to_json(object_type, place, indent_type):
     """Ensure object export to JSON produces files identical to the control."""
     if object_type == "body":
         obj = make_body_for_json()
@@ -118,7 +118,7 @@ def test_body_to_json(object_type, place, indent_type):
         test_path = Path(tempdir) / f"test_{object_type}_at_{place}_{indent_type}.json"
         
         if place == "root":
-            obj.to_json(test_path, indent=indent)
+            obj.to_json(test_path, json_path=".", indent=indent)
         
         else:
             # In order for json_path to work, the file must already exist, so
@@ -132,7 +132,7 @@ def test_body_to_json(object_type, place, indent_type):
 @pytest.mark.parametrize("object_type", ["body", "interaction", "system"])
 @pytest.mark.parametrize("place", ["root", "path"])
 @pytest.mark.parametrize("indent_type", ["indent", "noindent"])
-def test_body_from_json(object_type, place, indent_type):
+def test_from_json(object_type, place, indent_type):
     """Ensure object creation from JSON produces the expected result."""
     if object_type == "body":
         obj = make_body_for_json()
@@ -142,7 +142,7 @@ def test_body_from_json(object_type, place, indent_type):
         obj = make_system_for_json()
 
     control_path = Path(REFERENCE_FOLDER) / f"{object_type}_at_{place}_{indent_type}.json"
-    json_path = None if place == "root" else f"path.to.{object_type}"
+    json_path = "." if place == "root" else f"path.to.{object_type}"
 
     if object_type == "body":
         test_obj = p4.Body.from_json(control_path, json_path)

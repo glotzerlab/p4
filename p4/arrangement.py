@@ -461,3 +461,12 @@ class Arrangement:
         point_size_for_slice: float = 1e-6
     ):
         pass
+
+    # --------------------------------- OTHER ----------------------------------
+    
+    def __eq__(self, other):
+        return (
+            self.bodies == other.bodies
+            and self.positions_by_type == other.positions_by_type
+            and self.orientations_by_type == other.orientations_by_type
+        )

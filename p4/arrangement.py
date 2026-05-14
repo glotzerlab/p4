@@ -255,6 +255,7 @@ class Arrangement:
         
         .. _Snapshot: https://hoomd-blue.readthedocs.io/en/latest/hoomd/snapshot.html
         """
+        # Create initial state with only primary type particles
         types = []
         typeids = []
         positions = np.empty((0, 3), dtype=np.float32)
@@ -263,40 +264,16 @@ class Arrangement:
         for body in self.bodies:
             types.extend([body.primary_type] + body.secondary_types)
             
+            body_typeid = types.index(body.primary_type)
             body_positions = self.positions_by_type[body.primary_type]
             body_orientations = self.orientations_by_type.get(
                 body.primary_type,
                 np.array([[1, 0, 0, 0] for _ in body_positions])
             )
             
-            for primary_p, primary_o in zip(body_positions, body_orientations):
-                # Primary particle
-                typeids.append(types.index(body.primary_type))
-                positions = np.vstack((positions, primary_p))
-                orientations = np.vstack((orientations, primary_o))
-                
-                # Secondary particles
-                for secondary_t in body.secondary_types:
-                    secondary_ps = body.positions_by_type[secondary_t]
-                    secondary_os = body.orientations_by_type.get(
-                        secondary_t,
-                        np.array([(1, 0, 0, 0) for _ in secondary_ps])
-                    )
-
-                    # typeids
-                    typeids.extend([types.index(secondary_t) for _ in secondary_ps])
-
-                    # positions
-                    positions = np.vstack((
-                        positions,
-                        rowan.rotate(primary_o, secondary_ps) + primary_p
-                    ))
-
-                    # orientations
-                    orientations = np.vstack((
-                        orientations,
-                        rowan.multiply(primary_o, secondary_os)
-                    ))
+            typeids.extend([body_typeid for _ in body_positions])
+            positions = np.vstack((positions, body_positions))
+            orientations = np.vstack((orientations, body_orientations))
 
         frame = gsd.hoomd.Frame()
         frame.configuration.box = [
@@ -313,10 +290,25 @@ class Arrangement:
         frame.particles.position = positions
         frame.particles.orientation = orientations
 
-        return hoomd.Snapshot.from_gsd_frame(
+        # Create a simulation from the initial state
+        snapshot = hoomd.Snapshot.from_gsd_frame(
             gsd_snap=frame,
             communicator=hoomd.communicator.Communicator()
         )
+
+        simulation = hoomd.Simulation(device=hoomd.device.CPU())
+        simulation.create_state_from_snapshot(snapshot)
+
+        # Create a rigid constraint from all of the bodies
+        rigid = hoomd.md.constrain.Rigid()
+        for b in self.bodies:
+            rigid = b.to_hoomd_rigid(rigid)
+
+        # Use the rigid constraint to add all secondary particles
+        rigid.create_bodies(simulation.state)
+
+        # Parse the simulation state to get the snapshot
+        return simulation.state.get_snapshot()
 
     def to_gsd(self, filename: os.PathLike):
         """Export the arrangement to a frame in a GSD file.

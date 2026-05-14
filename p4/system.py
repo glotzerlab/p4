@@ -164,15 +164,21 @@ class System:
         
         interactions = Interaction.from_hoomd_simulation(simulation)
 
-        # [Review: is there a better way to do this?]
-        try:
-            probe = Body.from_hoomd_simulation(simulation, probe_primary_type)
-        except ValueError:
+        bodies = Body.from_hoomd_simulation(
+            simulation,
+            include_singles=True
+        )
+        if not any(b.primary_type == probe_primary_type for b in bodies):
             probe = Body(probe_primary_type)
-        try:
-            analyte = Body.from_hoomd_simulation(simulation, analyte_primary_type)
-        except ValueError:
+        else:
+            probe = [b.primary_type == probe_primary_type for b in bodies][0]
+
+        if not any(b.primary_type == analyte_primary_type for b in bodies):
             analyte = Body(analyte_primary_type)
+        else:
+            analyte = [
+                b.primary_type == analyte_primary_type for b in bodies
+            ][0]
         
         return cls(
             probe=probe,

@@ -19,7 +19,7 @@ class Arrangement:
         positions_by_type: dict[str, list[list[float]]],
         orientations_by_type: dict[str, list[list[float]]] = {}
     ):
-        # Ensure bodies is the right type [TODO: consider duck-typing instead]
+        # Ensure bodies is the right type
         if not (
             isinstance(bodies, Iterable)
             and all(isinstance(b, Body) for b in bodies)

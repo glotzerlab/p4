@@ -299,7 +299,14 @@ class Arrangement:
                     ))
 
         frame = gsd.hoomd.Frame()
-
+        frame.configuration.box = [
+            3*max(np.abs(positions[:,0].max()), np.abs(positions[:,0].min())+1),
+            3*max(np.abs(positions[:,1].max()), np.abs(positions[:,1].min())+1),
+            3*max(np.abs(positions[:,2].max()), np.abs(positions[:,2].min())+1),
+            0.0,
+            0.0,
+            0.0
+        ]
         frame.particles.N = positions.shape[0]
         frame.particles.types = types
         frame.particles.typeid = typeids

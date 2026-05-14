@@ -22,7 +22,7 @@ class Arrangement:
         # Ensure bodies is the right type [TODO: consider duck-typing instead]
         if not (
             isinstance(bodies, Iterable)
-            or all(isinstance(b, Body) for b in bodies)
+            and all(isinstance(b, Body) for b in bodies)
         ):
             raise TypeError("`bodies` must be a list of Bodies.")
 

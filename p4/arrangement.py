@@ -113,7 +113,7 @@ class Arrangement:
 
     @classmethod
     def from_hoomd_snapshot(cls, snapshot: hoomd.Snapshot):
-        """Parse a HOOMD-blue `Snapshot`_ to create a arrangement.
+        """Parse a HOOMD-blue `Snapshot`_ to create an arrangement.
 
         .. _Snapshot: https://hoomd-blue.readthedocs.io/en/latest/hoomd/snapshot.html
 
@@ -186,7 +186,7 @@ class Arrangement:
         filename: os.PathLike,
         json_path: str = "p4.arrangement"
     ):
-        """Create a arrangement from JSON.
+        """Create an arrangement from JSON.
 
         a JSON path may be provided to control the location that the
         arrangement data is retrieved from. See

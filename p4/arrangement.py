@@ -250,15 +250,10 @@ class Arrangement:
 
     # --------------------------------- EXPORT ---------------------------------
 
-    def to_hoomd_snapshot(self, ignore_types: list[str] = []):
+    def to_hoomd_snapshot(self):
         """Convert the arrangement to a HOOMD-blue `Snapshot`_.
         
         .. _Snapshot: https://hoomd-blue.readthedocs.io/en/latest/hoomd/snapshot.html
-
-        Parameters
-        ----------
-        ignore_types : list[str], default=[]
-            Primary types to omit from the snapshot.
         """
         types = []
         typeids = []
@@ -266,9 +261,6 @@ class Arrangement:
         orientations = np.empty((0, 4), dtype=np.float32)
 
         for body in self.bodies:
-            if body.primary_type in ignore_types:
-                continue
-
             types.extend([body.primary_type] + body.secondary_types)
             
             body_positions = self.positions_by_type[body.primary_type]
@@ -319,20 +311,17 @@ class Arrangement:
             communicator=hoomd.communicator.Communicator()
         )
 
-    def to_gsd(self, filename: os.PathLike, ignore_types: list[str] = []):
+    def to_gsd(self, filename: os.PathLike):
         """Export the arrangement to a frame in a GSD file.
-
-        If the file already exists, this frame is appended to it.
 
         Parameters
         ----------
         filename : os.PathLike
             The name or path of the GSD file.
-        ignore_types : list[str], default=[]
-            Primary types to omit from the frame.
         """
-        with gsd.hoomd.open(filename, "a") as f:
-            f.append(self.to_hoomd_snapshot(ignore_types))
+        simulation = hoomd.Simulation(device=hoomd.device.CPU())
+        simulation.create_state_from_snapshot(self.to_hoomd_snapshot())
+        hoomd.write.GSD.write(simulation.state, filename)
 
     def to_json(
         self,

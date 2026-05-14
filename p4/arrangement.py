@@ -71,8 +71,12 @@ class Arrangement:
     # --------------------------------- IMPORT ---------------------------------
 
     @classmethod
-    def from_hoomd_simulation(cls, simulation: hoomd.Simulation):
-        """Parse a HOOMD-blue `Simulation`_ to create a arrangement.
+    def from_hoomd_simulation(
+        cls,
+        simulation: hoomd.Simulation,
+        include_singles: bool = False
+    ):
+        """Parse a HOOMD-blue `Simulation`_ to create an arrangement.
 
         .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
         
@@ -80,21 +84,24 @@ class Arrangement:
         ----------
         simulation : hoomd.Simulation
             The simulation to parse.
+        include_singles : bool, default=False
+            Whether to include single-particle bodies when parsing the
+            simulation.
         """
-        bodies = Body.from_hoomd_simulation(simulation)
+        bodies = Body.from_hoomd_simulation(simulation, include_singles)
 
         snapshot = simulation.state.get_snapshot()
 
-        single_particle_conf = cls.from_hoomd_snapshot(snapshot)
+        single_particle_arr = cls.from_hoomd_snapshot(snapshot)
 
         positions_by_type = {
-            t: single_particle_conf.positions_by_type[t]
-            for t in single_particle_conf.positions_by_type
+            t: single_particle_arr.positions_by_type[t]
+            for t in single_particle_arr.positions_by_type
             if any(t == b.primary_type for b in bodies)
         }
         orientations_by_type = {
-            t: single_particle_conf.orientations_by_type[t]
-            for t in single_particle_conf.orientations_by_type
+            t: single_particle_arr.orientations_by_type[t]
+            for t in single_particle_arr.orientations_by_type
             if any(t == b.primary_type for b in bodies)
         }
 
@@ -118,19 +125,37 @@ class Arrangement:
         snapshot : hoomd.Snapshot
             The snapshot to parse.
         """
-        frame = gsd.hoomd.Frame()
+        types = snapshot.particles.types
+        typeids = snapshot.particles.typeid
+        positions = snapshot.particles.position
+        orientations = snapshot.particles.orientation
 
-        frame.particles.N = snapshot.particles.position.shape[0]
-        frame.particles.types = snapshot.particles.types
-        frame.particles.typeid = snapshot.particles.typeid
-        frame.particles.position = snapshot.particles.position
-        frame.particles.orientation = snapshot.particles.orientation
-        
-        return cls.from_gsd_frame(frame)
+        bodies = [Body(t) for t in types]
+
+        positions_by_type = {}
+        orientations_by_type = {}
+        for t in types:
+            positions_by_type[t] = [
+                p.tolist()
+                for tid, p in zip(typeids, positions)
+                if types[tid] == t
+            ]
+
+            orientations_by_type[t] = [
+                p.tolist()
+                for tid, p in zip(typeids, orientations)
+                if types[tid] == t
+            ]
+
+        return cls(
+            bodies=bodies,
+            positions_by_type=positions_by_type,
+            orientations_by_type=orientations_by_type
+        )
 
     @classmethod
-    def from_gsd_frame(cls, frame: gsd.hoomd.Frame):
-        """Parse a GSD `Frame`_ to create a arrangement.
+    def from_gsd(cls, filename: os.PathLike, index: int = -1):
+        """Parse a GSD file to create an arrangement from an indexed frame.
 
         .. _Frame: https://gsd.readthedocs.io/en/latest/python-module-gsd.hoomd.html#gsd.hoomd.Frame
 
@@ -139,31 +164,21 @@ class Arrangement:
         
         Parameters
         ----------
-        frame : gsd.hoomd.Frame
-            The frame to parse.
+        filename : os.PathLike
+            The name or path of the GSD file.
+        index : int, default=-1
+            The index of the frame to parse. Defaults to the last frame in the
+            file.
         """
-        types = frame.particles.types
-        typeids = frame.particles.typeid
-        positions = frame.particles.position
-        orientations = frame.particles.orientation
-
-        bodies = [Body(t) for t in types]
-
-        positions_by_type = {
-            t: [p for tid, p in zip(typeids, positions) if types[tid] == t]
-            for t in types
-        }
-
-        orientations_by_type = {
-            t: [p for tid, p in zip(typeids, orientations) if types[tid] == t]
-            for t in types
-        }
-
-        return cls(
-            bodies=bodies,
-            positions_by_type=positions_by_type,
-            orientations_by_type=orientations_by_type
+        with gsd.hoomd.open(filename, "r") as f:
+            frame = f[index]
+        
+        snapshot = hoomd.Snapshot.from_gsd_frame(
+            gsd_snap=frame,
+            communicator=hoomd.communicator.Communicator()
         )
+        
+        return cls.from_hoomd_snapshot(snapshot)
 
     @classmethod
     def from_json(
@@ -245,22 +260,6 @@ class Arrangement:
         ignore_types : list[str], default=[]
             Primary types to omit from the snapshot.
         """
-        frame = self.to_gsd_frame(ignore_types)
-        return hoomd.Snapshot.from_gsd_frame(
-            gsd_snap=frame,
-            communicator=hoomd.communicator.Communicator()
-        )
-
-    def to_gsd_frame(self, ignore_types: list[str] = []):
-        """Convert the arrangement to a GSD `Frame`_.
-        
-        .. _Frame: https://gsd.readthedocs.io/en/latest/python-module-gsd.hoomd.html#gsd.hoomd.Frame
-
-        Parameters
-        ----------
-        ignore_types : list[str], default=[]
-            Primary types to omit from the frame.
-        """
         types = []
         typeids = []
         positions = np.empty((0, 3), dtype=np.float32)
@@ -315,7 +314,25 @@ class Arrangement:
         frame.particles.position = positions
         frame.particles.orientation = orientations
 
-        return frame
+        return hoomd.Snapshot.from_gsd_frame(
+            gsd_snap=frame,
+            communicator=hoomd.communicator.Communicator()
+        )
+
+    def to_gsd(self, filename: os.PathLike, ignore_types: list[str] = []):
+        """Export the arrangement to a frame in a GSD file.
+
+        If the file already exists, this frame is appended to it.
+
+        Parameters
+        ----------
+        filename : os.PathLike
+            The name or path of the GSD file.
+        ignore_types : list[str], default=[]
+            Primary types to omit from the frame.
+        """
+        with gsd.hoomd.open(filename, "a") as f:
+            f.append(self.to_hoomd_snapshot(ignore_types))
 
     def to_json(
         self,

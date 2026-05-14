@@ -480,9 +480,11 @@ class Arrangement:
 
     # --------------------------------- OTHER ----------------------------------
     
-    def __eq__(self, other):
+    def __repr__(self):
         return (
-            self.bodies == other.bodies
-            and self.positions_by_type == other.positions_by_type
-            and self.orientations_by_type == other.orientations_by_type
+            "Arrangement ("
+            + f"\n\tbodies='{self.bodies}',"
+            + f"\n\tpositions_by_type={self.positions_by_type},"
+            + f"\n\torientations_by_type={self.orientations_by_type},"
+            + "\n)"
         )

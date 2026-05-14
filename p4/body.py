@@ -130,46 +130,61 @@ class Body:
     def from_hoomd_simulation(
         cls,
         simulation: hoomd.Simulation,
-        primary_type: str | None = None
-    ) -> list[Body] | Body:
+        include_singles: bool = False
+    ) -> list[Body]:
         """Parse a HOOMD-blue `Simulation`_ to create bodies.
 
         .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
 
-        This is a convenience method that is equivalent to
+        If ``include_singles`` is set to ``True``, the returned list of bodies
+        includes both those defined in the simulation's rigid constraint and
+        single-particle bodies with types matching those defined in the
+        simulation's current state. When set to ``False``, this method becomes
+        equivalent to
         
         .. code-block::
             
-            p4.Body.from_hoomd_rigid(sim.operations.integrator.rigid, primary_type)
-        
+            p4.Body.from_hoomd_rigid(simulation.operations.integrator.rigid)
+
         Parameters
         ----------
         simulation : hoomd.Simulation
             The simulation to parse.
-        primary_type : str, optional
-            The name of the primary type of a single body. If provided, just
-            that body is returned. If not provided, all possible bodies are
-            returned in a list.
+        include_singles : bool, default=False
+            Whether to include single-particle bodies when parsing the
+            simulation.
         """
-        if simulation.operations.integrator is None:
-            raise ValueError("`simulation` must have an integrator")
-        if simulation.operations.integrator.rigid is None:
-            raise ValueError("integrator must have a rigid constraint")
-        types_in_state = simulation.state.get_snapshot().particles.types
-        if primary_type is not None and primary_type not in types_in_state:
-            raise ValueError(
-                f"`simulation` does not contain primary_type {primary_type}"
+        if (
+            simulation.operations.integrator is None
+            or simulation.operations.integrator.rigid is None
+        ):
+            bodies_from_rigid = []
+        
+        else:
+            bodies_from_rigid = cls.from_hoomd_rigid(
+                simulation.operations.integrator.rigid,
+                include_singles
             )
-        return cls.from_hoomd_rigid(
-            simulation.operations.integrator.rigid, primary_type
-        )
+        
+        bodies_from_state = [cls(t) for t in simulation.state.get_snapshot().particles.types]
+        
+        if not include_singles:
+            return bodies_from_rigid
+        
+        else:
+            bodies = copy(bodies_from_rigid)
+            for body in bodies_from_state:
+                if not any(b.primary_type == body.primary_type for b in bodies):
+                    bodies.append(body)
+            
+            return bodies
 
     @classmethod
     def from_hoomd_rigid(
         cls,
         rigid: hoomd.md.constrain.Rigid,
-        primary_type: str | None = None
-    ) -> list[Body] | Body:
+        include_singles: bool = False
+    ) -> list[Body]:
         """Parse a HOOMD-blue `rigid constraint`_ to create bodies.
 
         .. _rigid constraint: https://hoomd-blue.readthedocs.io/en/stable/hoomd/md/constrain/rigid.html
@@ -178,19 +193,10 @@ class Body:
         ----------
         rigid : hoomd.md.constrain.Rigid
             The constraint that defines rigid bodies.
-        primary_type : str, optional
-            The name of the primary type of a single body. If provided, just
-            that body is returned. If not provided, all possible bodies are
-            returned in a list. If there is no body defined for the provided
-            primary type, a single-particle body is returned.
+        include_singles : bool, default=False
+            Whether to include single-particle bodies when parsing the rigid
+            constraint.
         """
-        # If primary type is supplied, it must be in the rigid's primary types
-        if primary_type and primary_type not in rigid.body.keys():
-            raise ValueError(
-                f"`primary_type` ({primary_type}) not in rigid's primary types "
-                f"({list(rigid.body.keys())})"
-            )
-        
         # Hoomd does not detect nested body definitions until sim.run(), so a
         # check is needed here
         for p_t in rigid.body.keys():
@@ -198,11 +204,6 @@ class Body:
                 if v is not None:
                     if p_t in v["constituent_types"] and rigid.body[p_t] is not None:
                         raise ValueError("Nested bodies are not supported.")
-
-        if primary_type:
-            primary_types = [primary_type]
-        else:
-            primary_types = rigid.body.keys()
 
         def unique(strings):
             """Find unique values in a list of strings."""
@@ -221,8 +222,10 @@ class Body:
         
         # Construct bodies
         bodies = []
-        for p_t in primary_types:
-            if rigid.body[p_t] is not None:
+        # breakpoint()
+        empty_dict = dict(constituent_types=[], positions=[], orientations=[])
+        for p_t in rigid.body.keys():
+            if rigid.body[p_t] is not None and rigid.body[p_t] != empty_dict:
                 bodies.append(cls(
                     primary_type=p_t,
                     secondary_types=unique(rigid.body[p_t]["constituent_types"]),
@@ -235,13 +238,16 @@ class Body:
                         [list(p) for p in rigid.body[p_t]["orientations"]]
                     )
                 ))
+            elif (
+                include_singles
+                and (
+                    rigid.body[p_t] is None
+                    or rigid.body[p_t].to_base() == empty_dict
+                )
+            ):
+                bodies.append(cls(primary_type=p_t))
 
-        if len(bodies) == 0:
-            return cls(primary_type=primary_type)
-        if len(bodies) == 1:
-            return bodies[0]
-        else:
-            return bodies
+        return bodies
 
     @classmethod
     def from_json(

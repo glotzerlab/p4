@@ -1,5 +1,7 @@
 import itertools
+import gsd
 import hoomd
+import numpy as np
 import pytest
 from p4 import Body, Interaction
 from copy import deepcopy
@@ -280,6 +282,107 @@ def make_rigid(
 
     return rigid
 
+def merge_rigids(rigid1, rigid2):
+    """Combine two rigid constraints together."""
+    merged = hoomd.md.constrain.Rigid()
+    
+    for primary_type, body_dict in rigid1.body.items():
+        merged.body[primary_type] = body_dict
+    
+    for primary_type, body_dict in rigid2.body.items():
+        merged.body[primary_type] = body_dict
+    
+    return merged
+
+def make_rigid_and_expected_bodies_for_variant(
+    single_or_multi_body,
+    single_or_multi_particle,
+):
+    """Create a rigid constraint that matches the variants and return it with the expected bodies."""
+    rigid = hoomd.md.constrain.Rigid()
+
+    if single_or_multi_body == "single" and single_or_multi_particle == "single":
+        rigid.body["A"] = None
+        expected_bodies = [Body("A")]
+
+    elif single_or_multi_body == "multi" and single_or_multi_particle == "single":
+        rigid.body["A"] = None
+        rigid.body["B"] = dict(constituent_types=[], positions=[], orientations=[])
+        expected_bodies = [Body("A"), Body("B")]
+
+    elif single_or_multi_body == "single" and single_or_multi_particle == "multi":
+        rigid.body["A"] = dict(
+            constituent_types=["B", "C"],
+            positions=[[1, 0, 0], [2, 0, 0]],
+            orientations=[[0, 1, 0, 0], [0, 0, 1, 0]]
+        )
+        expected_bodies = [
+            Body(
+                primary_type="A",
+                secondary_types=["B", "C"],
+                positions_by_type=dict(B=[[1, 0, 0]], C=[[2, 0, 0]]),
+                orientations_by_type=dict(B=[[0, 1, 0, 0]], C=[[0, 0, 1, 0]])
+            )
+        ]
+
+    elif single_or_multi_body == "multi" and single_or_multi_particle == "multi":
+        rigid.body["A"] = dict(
+            constituent_types=["B", "C"],
+            positions=[[1, 0, 0], [2, 0, 0]],
+            orientations=[(0, 1, 0, 0), (0, 0, 1, 0)]
+        )
+        rigid.body["D"] = dict(
+            constituent_types=["E", "F"],
+            positions=[[-1, 0, 0], [-2, 0, 0]],
+            orientations=[(0, -1, 0, 0), (0, 0, -1, 0)]
+        )
+        expected_bodies = [
+            Body(
+                primary_type="A",
+                secondary_types=["B", "C"],
+                positions_by_type=dict(B=[[1, 0, 0]], C=[[2, 0, 0]]),
+                orientations_by_type=dict(B=[[0, 1, 0, 0]], C=[[0, 0, 1, 0]])
+            ),
+            Body(
+                primary_type="D",
+                secondary_types=["E", "F"],
+                positions_by_type=dict(E=[[-1, 0, 0]], F=[[-2, 0, 0]]),
+                orientations_by_type=dict(E=[[0, -1, 0, 0]], F=[[0, 0, -1, 0]])
+            )
+        ]
+    
+    return rigid, expected_bodies
+
+@pytest.mark.parametrize("single_or_multi_body", ["single", "multi"])
+@pytest.mark.parametrize("single_or_multi_particle", ["single", "multi"])
+@pytest.mark.parametrize("include_singles", [False, True])
+def test_from_hoomd_rigid(
+    single_or_multi_body,
+    single_or_multi_particle,
+    include_singles,
+):
+    """Ensure parsing from hoomd.md.constrain.Rigid produces the expected output.
+    
+    Parameters
+    ----------
+    single_or_multi_body : 'single' or 'multi'
+        Whether there is one or more vodies in the rigid constraint.
+    single_or_multi_particle : 'single' or 'multi'
+        Whether the bodies in the rigid constraint are single or multi-particle.
+        Note: in multi-body rigid with single particles, one body is set to
+        None and the other is set to the empty dict.
+    include_singles : bool
+        Whether to include single-particle bodies.
+    """
+    rigid, expected_bodies = make_rigid_and_expected_bodies_for_variant(
+        single_or_multi_body,
+        single_or_multi_particle,
+    )
+    if single_or_multi_particle == "single" and not include_singles:
+        assert Body.from_hoomd_rigid(rigid, include_singles) == []
+    else:
+        assert Body.from_hoomd_rigid(rigid, include_singles) == expected_bodies
+
 def make_simulation(
     primary_type,
     secondary_types=[],
@@ -300,40 +403,156 @@ def make_simulation(
     sim.run(0)  # make sure it runs
     return sim
 
-@pytest.mark.parametrize("kwargs", VALID_KWARGS)
-def test_from_hoomd_rigid(kwargs):
-    """Ensure parsing from hoomd.md.constrain.Rigid produces the expected output."""
-    # Skip case when there are not secondary types
-    if "secondary_types" not in kwargs.keys():
+@pytest.mark.parametrize("has_integrator", [False, True])
+@pytest.mark.parametrize("has_particles_in_state", [False, True])
+@pytest.mark.parametrize("include_singles", [False, True])
+def test_from_hoomd_simulation_without_rigid(
+    has_integrator,
+    has_particles_in_state,
+    include_singles,
+):
+    """Ensure parsing from a simulation without a rigid constraint produces the expected output."""
+    if has_particles_in_state:
+        simulation = hoomd.util.make_example_simulation(particle_types=["A", "B"])
+        expected_bodies = [Body("A"), Body("B")] if include_singles else []
+    else:
+        simulation = hoomd.Simulation(device=hoomd.device.CPU())
+        simulation.create_state_from_snapshot(hoomd.Snapshot())
+        expected_bodies = []
+    
+    if has_integrator:
+        simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
+    
+    assert Body.from_hoomd_simulation(simulation, include_singles) == expected_bodies
+
+def make_snapshot_for_variant(
+    single_or_multi_body,
+    single_or_multi_particle,
+):
+    """Create a snapshot that matches the variants."""
+    frame = gsd.hoomd.Frame()
+    frame.configuration.box = [100, 100, 100, 0, 0, 0]
+
+    if single_or_multi_body == "single" and single_or_multi_particle == "single":
+        frame.particles.types = ["A"]
+        frame.particles.typeid = np.array([0, 0], dtype=np.uint32)
+        frame.particles.position = np.array([[0, 1, 0], [0, 2, 0]], dtype=np.float32)
+        frame.particles.orientation = np.array([[1, 0, 0, 0], [0, 1, 0, 0]], dtype=np.float32)
+
+    elif single_or_multi_body == "multi" and single_or_multi_particle == "single":
+        frame.particles.types = ["A", "B"]
+        frame.particles.typeid = np.array([0, 1], dtype=np.uint32)
+        frame.particles.position = np.array([[0, 1, 0], [0, 2, 0]], dtype=np.float32)
+        frame.particles.orientation = np.array([[1, 0, 0, 0], [0, 1, 0, 0]], dtype=np.float32)
+
+    elif single_or_multi_body == "single" and single_or_multi_particle == "multi":
+        frame.particles.types = ["A", "B", "C"]
+        # frame.particles.typid = np.array([0, 1, 2], dtype=np.uint32)
+        # frame.particles.position = np.array([[0, 1, 0], [1, 1, 0], [2, 1, 0]], dtype=np.float32)
+        # frame.particles.orientation = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]], dtype=np.float32)
+        frame.particles.typeid = np.array([0], dtype=np.uint32)
+        frame.particles.position = np.array([[0, 1, 0]], dtype=np.float32)
+        frame.particles.orientation = np.array([[1, 0, 0, 0]], dtype=np.float32)
+
+
+    elif single_or_multi_body == "multi" and single_or_multi_particle == "multi":
+        frame.particles.types = ["A", "B", "C", "D", "E", "F"]
+        # frame.particles.typid = np.array([0, 1, 2, 3, 4, 5], dtype=np.uint32)
+        frame.particles.typeid = np.array([0, 3], dtype=np.uint32)
+        frame.particles.position = np.array(
+            [
+                [0, 1, 0],
+                # [1, 1, 0],
+                # [2, 1, 0]
+                [0, 2, 0],
+                # [-1, 2, 0],
+                # [-2, 2, 0],
+            ],
+            dtype=np.float32
+        )
+        frame.particles.orientation = np.array(
+            [
+                [1, 0, 0, 0],
+                # [0, 1, 0, 0],
+                # [0, 0, 1, 0],
+                [1, 0, 0, 0]
+                # [0, -1, 0, 0],
+                # [0, 0, -1, 0],
+            ],
+            dtype=np.float32
+        )
+
+    frame.particles.N = frame.particles.position.shape[0]
+    
+    return hoomd.Snapshot.from_gsd_frame(frame, communicator=hoomd.communicator.Communicator())
+
+@pytest.mark.parametrize("single_or_multi_body", ["single", "multi"])
+@pytest.mark.parametrize("single_or_multi_particle", ["single", "multi"])
+@pytest.mark.parametrize("include_singles", [False, True])
+@pytest.mark.parametrize("has_particles_in_state", [False, True])
+@pytest.mark.parametrize("create_bodies_already_called", [False, True])
+def test_from_hoomd_simulation_with_rigid(
+    single_or_multi_body,
+    single_or_multi_particle,
+    include_singles,
+    has_particles_in_state,
+    create_bodies_already_called,
+):
+    """Ensure parsing from a simulation with a rigid constraint produces the expected output."""
+    # Skip clashing variant
+    if create_bodies_already_called and not has_particles_in_state:
         return
     
-    body = Body(**kwargs)
-    rigid = make_rigid(**kwargs)
-    assert body == Body.from_hoomd_rigid(rigid, body.primary_type)
+    rigid, expected_bodies_from_rigid = make_rigid_and_expected_bodies_for_variant(
+        single_or_multi_body,
+        single_or_multi_particle,
+    )
 
-@pytest.mark.parametrize("kwargs", VALID_KWARGS)
-def test_from_hoomd_simulation(kwargs):
-    """Ensure parsing from hoomd.Simulation produces the expected output."""
-    # Skip case when there are not secondary types
-    if "secondary_types" not in kwargs.keys():
-        return
+    expected_bodies = []
+    expected_bodies.extend(expected_bodies_from_rigid)
+
+    simulation = hoomd.Simulation(hoomd.device.CPU())
+    simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
     
-    body = Body(**kwargs)
-    simulation = make_simulation(**kwargs)
-    assert body == Body.from_hoomd_simulation(simulation, body.primary_type)
+    if has_particles_in_state:
+        snapshot = make_snapshot_for_variant(
+            single_or_multi_body,
+            single_or_multi_particle,
+        )
+
+        simulation.create_state_from_snapshot(snapshot)
+
+        if create_bodies_already_called:
+            rigid.create_bodies(simulation.state)
+            
+        if include_singles:
+            if single_or_multi_body == "single" and single_or_multi_particle == "single":
+                # already captured from rigid
+                pass
+            
+            elif single_or_multi_body == "multi" and single_or_multi_particle == "single":
+                # already captured from rigid
+                pass
+
+            elif single_or_multi_body == "single" and single_or_multi_particle == "multi":
+                expected_bodies.extend([Body("B"), Body("C")])
+
+            elif single_or_multi_body == "multi" and single_or_multi_particle == "multi":
+                expected_bodies.extend([Body("B"), Body("C"), Body("E"), Body("F")])
+
+    else:
+        simulation.create_state_from_snapshot(hoomd.Snapshot())
 
 
-def merge_rigids(rigid1, rigid2):
-    """Combine two rigid constraints together."""
-    merged = hoomd.md.constrain.Rigid()
-    
-    for primary_type, body_dict in rigid1.body.items():
-        merged.body[primary_type] = body_dict
-    
-    for primary_type, body_dict in rigid2.body.items():
-        merged.body[primary_type] = body_dict
-    
-    return merged
+    simulation.operations.integrator.rigid = rigid
+
+    # Test
+    if single_or_multi_particle == "single" and not include_singles:
+        assert Body.from_hoomd_simulation(simulation, include_singles) == []
+    else:
+        actual_bodies = Body.from_hoomd_simulation(simulation, include_singles)
+        assert len(actual_bodies) == len(expected_bodies)
+        assert all(b in actual_bodies for b in expected_bodies)
 
 def rigids_are_equal(rigid1, rigid2):
     """Whether two rigid constraints are equivalent."""

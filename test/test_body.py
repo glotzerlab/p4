@@ -64,7 +64,7 @@ def test_valid_instantiation(kwargs):
     _ = Body(**kwargs)
 
 INVALID_KWARGS = [
-    # Secondary types given with no orientations, position keys are missing
+    # Secondary types given with no orientations, position keys are missing/wrong
     dict(   # 1 secondary type (no positions given)
         primary_type="A",
         secondary_types=["B"]
@@ -81,27 +81,27 @@ INVALID_KWARGS = [
             wrong=[[1,1,1]]
         )
     ),
-    dict(   # 2 secondary types (first is wrong)
+    dict(   # 2 secondary types (first is missing)
         primary_type="A",
         secondary_types=["B", "C"],
         positions_by_type=dict(
             C=[[1,0,0], [0,1,0]]
         )
     ),
-    dict(   # 2 secondary types (second is wrong)
+    dict(   # 2 secondary types (second is missing)
         primary_type="A",
         secondary_types=["B", "C"],
         positions_by_type=dict(
             B=[[1,1,1]]
         )
     ),
-    dict(   # 2 secondary types (both are wrong)
+    dict(   # 2 secondary types (both are missing)
         primary_type="A",
         secondary_types=["B", "C"],
         positions_by_type=dict()
     ),
 
-    # Secondary types with orientations, position keys are missing
+    # Secondary types with orientations, position keys are missing/wrong
     dict(   # 1 secondary type
         primary_type="A",
         secondary_types=["B"],
@@ -119,7 +119,7 @@ INVALID_KWARGS = [
             B=[[1,1,0,0,]]
         )
     ),
-    dict(   # 2 secondary types (first is wrong)
+    dict(   # 2 secondary types (first is missing)
         primary_type="A",
         secondary_types=["B", "C"],
         positions_by_type=dict(
@@ -130,7 +130,7 @@ INVALID_KWARGS = [
             C=[[1,0,0,0], [0,1,0,0]]
         )
     ),
-    dict(   # 2 secondary types (second is wrong)
+    dict(   # 2 secondary types (second is missing)
         primary_type="A",
         secondary_types=["B", "C"],
         positions_by_type=dict(
@@ -141,7 +141,7 @@ INVALID_KWARGS = [
             C=[[1,0,0,0], [0,1,0,0]]
         )
     ),
-    dict(   # 2 secondary types (both are wrong)
+    dict(   # 2 secondary types (both are missing)
         primary_type="A",
         secondary_types=["B", "C"],
         orientations_by_type=dict(

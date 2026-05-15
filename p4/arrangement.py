@@ -251,6 +251,31 @@ class Arrangement:
 
     # --------------------------------- EXPORT ---------------------------------
 
+    def to_hoomd_rigid(
+        self,
+        rigid: hoomd.md.constrain.Rigid | None = None,
+    ) -> hoomd.md.constrain.Rigid:
+        """Convert the arrangement to a HOOMD-blue `rigid constraint`_.
+
+        An existing rigid constraint may be passed to this method, in which case
+        this arrangement is merely added to it.
+
+        .. _rigid constraint: https://hoomd-blue.readthedocs.io/en/stable/hoomd/md/constrain/rigid.html
+
+        Parameters
+        ----------
+        rigid : hoomd.md.constrain.Rigid, optional
+            An existing constraint instance to use. If not provided, a new one
+            is created.
+        """
+        if rigid is None:
+            rigid = hoomd.md.constrain.Rigid()
+        
+        for b in self.bodies:
+            rigid = b.to_hoomd_rigid(rigid)
+
+        return rigid 
+
     def to_hoomd_snapshot(self):
         """Convert the arrangement to a HOOMD-blue `Snapshot`_.
         

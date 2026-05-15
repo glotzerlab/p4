@@ -324,6 +324,48 @@ def test_from_gsd(kwargs, filename, index):
         p4.Arrangement.from_gsd(REFERENCE_FOLDER / filename, index)
     )
 
+def assert_rigids_are_equal(rigid1, rigid2):
+    """Assert that two rigid constraints are equivalent."""
+    r1_body = rigid1.body.to_base()
+    r2_body = rigid2.body.to_base()
+    assert r1_body == r2_body
+
+
+@pytest.mark.parametrize("kwargs", VALID_KWARGS)
+@pytest.mark.parametrize("variant", ["with_rigid", "without_rigid"])
+def test_to_hoomd_rigid(kwargs, variant):
+    """Ensure export to rigid produces the expected result."""
+    a = p4.Arrangement(**kwargs)
+    
+    if variant == "with_rigid":
+        ref_rigid = hoomd.md.constrain.Rigid()
+        ref_rigid.body["Z"] = dict(
+            constituent_types=["Y"],
+            positions=[[1,1,1]],
+            orientations=[[0,1,0,0]]
+        )
+
+        for b in a.bodies:
+            ref_rigid = b.to_hoomd_rigid(ref_rigid)
+        
+        test_rigid = hoomd.md.constrain.Rigid()
+        test_rigid.body["Z"] = dict(
+            constituent_types=["Y"],
+            positions=[[1,1,1]],
+            orientations=[[0,1,0,0]]
+        )
+
+        test_rigid = a.to_hoomd_rigid(test_rigid)
+
+    elif variant == "without_rigid":
+        ref_rigid = hoomd.md.constrain.Rigid()
+        for b in a.bodies:
+            ref_rigid = b.to_hoomd_rigid(ref_rigid)
+
+        test_rigid = a.to_hoomd_rigid()
+    
+    assert_rigids_are_equal(ref_rigid, test_rigid)
+
 @pytest.mark.parametrize("kwargs", VALID_KWARGS)
 def test_to_hoomd_snapshot(kwargs):
     """Ensure export to snapshot produces the expected output."""

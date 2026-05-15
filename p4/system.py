@@ -168,6 +168,7 @@ class System:
             simulation,
             include_singles=True
         )
+
         if not any(b.primary_type == probe_primary_type for b in bodies):
             probe = Body(probe_primary_type)
         else:

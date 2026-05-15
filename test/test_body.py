@@ -1,10 +1,13 @@
 import itertools
+import tempfile
 import gsd
 import hoomd
 import numpy as np
 import pytest
 from p4 import Body, Interaction
-from copy import deepcopy
+from copy import copy, deepcopy
+import coxeter
+from pathlib import Path
 
 # Verify that
 #   1. instantiation works given valid args
@@ -390,18 +393,31 @@ def make_simulation(
     orientations_by_type={}
 ):
     """Create a simulation with a rigid constraint that corresponds to the args for a Body."""
-    sim = hoomd.util.make_example_simulation(particle_types=[primary_type] + secondary_types)
+    simulation = hoomd.Simulation(device=hoomd.device.CPU())
+    
+    frame = gsd.hoomd.Frame()
+    frame.particles.types = [primary_type] + secondary_types
+    frame.particles.N = 1
+    
+    simulation.create_state_from_snapshot(
+        hoomd.Snapshot.from_gsd_frame(
+            gsd_snap=frame,
+            communicator=hoomd.communicator.Communicator()
+        )
+    )
+
     rigid = make_rigid(
         primary_type=primary_type,
         secondary_types=secondary_types,
         positions_by_type=positions_by_type,
         orientations_by_type=orientations_by_type
     )
-    rigid.create_bodies(sim.state)
-    sim.operations.integrator = hoomd.md.Integrator(dt=0.1)
-    sim.operations.integrator.rigid = rigid
-    sim.run(0)  # make sure it runs
-    return sim
+
+    rigid.create_bodies(simulation.state)
+    simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
+    simulation.operations.integrator.rigid = rigid
+    simulation.run(0)  # make sure it runs
+    return simulation
 
 @pytest.mark.parametrize("has_integrator", [False, True])
 @pytest.mark.parametrize("has_particles_in_state", [False, True])
@@ -601,3 +617,81 @@ def test_to_hoomd_rigid(kwargs):
                 included_secondary_types=kwargs["secondary_types"]
             )
         )
+
+@pytest.mark.parametrize("kwargs", VALID_KWARGS)
+def test_to_hoomd_snapshot(kwargs):
+    """Ensure export to snapshot produces the expected output."""
+    arrangement = Body(**kwargs)
+    simulation = make_simulation(**kwargs)
+    ref_snap = simulation.state.get_snapshot()
+    test_snap = arrangement.to_hoomd_snapshot()
+
+    ref_typeids = ref_snap.particles.typeid.tolist()
+    ref_positions = np.round(ref_snap.particles.position, 3).tolist()       # rounded because run(0) warps the exact values
+    ref_orientations = np.round(ref_snap.particles.orientation, 3).tolist()
+    
+    test_typeids = test_snap.particles.typeid.tolist()
+    test_positions = np.round(test_snap.particles.position, 3).tolist()
+    test_orientations = np.round(test_snap.particles.orientation, 3).tolist()
+
+    ref_data = list(zip(ref_typeids, ref_positions, ref_orientations))
+    test_data = list(zip(test_typeids, test_positions, test_orientations))
+    
+    assert ref_snap.particles.N == test_snap.particles.N
+    assert ref_snap.particles.types == test_snap.particles.types
+    assert all(row in test_data for row in ref_data)
+
+REFERENCE_FOLDER = Path(__file__).parent / "data"
+
+CUBE_VERTICES = [
+    [-1/4, -1/4, -1/4],
+    [-1/4, -1/4,  1/4],
+    [-1/4,  1/4, -1/4],
+    [-1/4,  1/4,  1/4],
+    [ 1/4, -1/4, -1/4],
+    [ 1/4, -1/4,  1/4],
+    [ 1/4,  1/4, -1/4],
+    [ 1/4,  1/4,  1/4]
+]
+
+@pytest.mark.parametrize("kwargs,ref_filename,type_shapes", [
+    [    # 2 seconary types, positions and orientations, type shapes are specified
+        dict(
+            primary_type="A",
+            secondary_types=["B", "C"],
+            positions_by_type=dict(
+                B=[[1,1,1]],
+                C=[[1,0,0], [0,1,0]]
+            ),
+            orientations_by_type=dict(
+                B=[[1,1,0,0]],
+                C=[[1,0,0,0], [0,1,0,0]]
+            )
+        ),
+        "body.gsd",
+        dict(
+            A=coxeter.shapes.Ellipsoid(a=0.25, b=0.5, c=0.75),
+            B=coxeter.shapes.ConvexPolyhedron(vertices=CUBE_VERTICES),
+        )
+    ]
+])
+def test_to_gsd(kwargs, ref_filename, type_shapes):
+    """Ensure export to GSD file produces the expected output."""
+    body = Body(**kwargs)
+
+    with tempfile.TemporaryDirectory(dir=REFERENCE_FOLDER) as tempdir:
+        test_path = Path(tempdir) / f"test_body.gsd"
+        body.to_gsd(test_path, type_shapes=type_shapes)
+
+        with gsd.hoomd.open(test_path, "r") as test_file:
+            test_frame = test_file[0]
+        
+        with gsd.hoomd.open(REFERENCE_FOLDER / ref_filename, "r") as ref_file:
+            ref_frame = ref_file[0]
+
+        assert test_frame.particles.N == ref_frame.particles.N
+        assert test_frame.particles.types == ref_frame.particles.types
+        assert np.array_equal(test_frame.particles.typeid, ref_frame.particles.typeid)
+        assert np.array_equal(test_frame.particles.position, ref_frame.particles.position)
+        assert np.array_equal(test_frame.particles.orientation, ref_frame.particles.orientation)
+        assert test_frame.particles.type_shapes == ref_frame.particles.type_shapes

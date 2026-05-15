@@ -580,6 +580,8 @@ def rigids_are_equal(rigid1, rigid2):
 @pytest.mark.parametrize("kwargs", VALID_KWARGS)
 def test_to_hoomd_rigid(kwargs):
     """Ensure converting to hoomd.md.constrain.Rigid produces the expected output."""
+    kwargs = copy(kwargs)
+
     body = Body(**kwargs)
     
     # Skip case when there are not secondary types

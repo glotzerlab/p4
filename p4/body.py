@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import coxeter
+import gsd
 import hoomd
 import numpy as np
 import plotly
@@ -371,6 +372,96 @@ class Body:
         }
 
         return rigid
+
+    def to_hoomd_snapshot(self):
+        """Export the body to a HOOMD-blue `Snapshot`_.
+        
+        .. _Snapshot: https://hoomd-blue.readthedocs.io/en/latest/hoomd/snapshot.html
+        """
+        # TODO - use this instead of the corresponding function in util
+        frame = gsd.hoomd.Frame()
+        
+        types = [self.primary_type] + self.secondary_types
+        typeids = [0]
+        positions = np.array([[0, 0, 0]], dtype=np.float32)
+        orientations = np.array([[1, 0, 0, 0]], dtype=np.float32)
+
+        for t, ps in self.positions_by_type.items():
+            os = self.orientations_by_type.get(t, [[1, 0, 0, 0] for _ in ps])
+            tid = types.index(t)
+
+            typeids.extend([tid for _ in ps])
+            positions = np.vstack((positions, ps))
+            orientations = np.vstack((orientations, os))
+
+        frame.configuration.box = [
+            3*max(np.abs(positions[:,0].max()), np.abs(positions[:,0].min())+1),
+            3*max(np.abs(positions[:,1].max()), np.abs(positions[:,1].min())+1),
+            3*max(np.abs(positions[:,2].max()), np.abs(positions[:,2].min())+1),
+            0.0,
+            0.0,
+            0.0
+        ]
+        frame.particles.N = positions.shape[0]
+        frame.particles.types = types
+        frame.particles.typeid = typeids
+        frame.particles.position = positions
+        frame.particles.orientation = orientations
+
+        return hoomd.Snapshot.from_gsd_frame(
+            gsd_snap=frame,
+            communicator=hoomd.communicator.Communicator()
+        )
+
+    def to_gsd(
+        self,
+        filename: os.PathLike,
+        type_shapes: dict = {}
+    ):
+        """Export the body to GSD.
+        
+        The exported GSD file has a single frame with the body centered on
+        the origin.
+
+        Parameters
+        ----------
+        filename : os.PathLike
+            The name or path of the GSD file.
+        type_shapes: dict[str, coxeter.shapes], optional
+            If provided, encodes geometry for provided particle types. Specify
+            a geometry using Coxeter's `shapes module`_.
+        
+        .. _shapes module: https://coxeter.readthedocs.io/en/latest/package-shapes.html
+        """
+        snapshot = self.to_hoomd_snapshot()
+
+        frame = gsd.hoomd.Frame()
+        frame.configuration.box = snapshot.configuration.box
+        frame.particles.N = snapshot.particles.N
+        frame.particles.types = snapshot.particles.types
+        frame.particles.typeid = snapshot.particles.typeid
+        frame.particles.position = snapshot.particles.position
+        frame.particles.orientation = snapshot.particles.orientation
+
+        if type_shapes:
+            gsd_shape_specs = []
+            for t in frame.particles.types:
+                s = type_shapes.get(t)
+                accepted_types = (
+                    coxeter.shapes.Sphere,
+                    coxeter.shapes.Ellipsoid,
+                    coxeter.shapes.Polygon,
+                    coxeter.shapes.Polyhedron,
+                )
+                if isinstance(s, (accepted_types)):
+                    gsd_shape_specs.append(s.gsd_shape_spec)
+                else:
+                    gsd_shape_specs.append({})
+
+            frame.particles.type_shapes = gsd_shape_specs
+
+        with gsd.hoomd.open(filename, "w") as f:
+            f.append(frame)
 
     def to_json(
         self,

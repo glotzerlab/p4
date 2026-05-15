@@ -99,31 +99,32 @@ def make_arrangement_for_json():
         bodies=[
             p4.Body(
                 primary_type="A",
-                secondary_types=["B"],
+                secondary_types=["B", "C"],
                 positions_by_type=dict(
-                    B=[[-1,0,0], [1,0,0]]
+                    B=[[-1,0,0]],
+                    C=[[1,0,0]]
                 )
             ),
             p4.Body(
-                primary_type="C",
-                secondary_types=["D", "E"],
+                primary_type="D",
+                secondary_types=["E", "F"],
                 positions_by_type=dict(
-                    D=[[0, -1, 0], [0, 1, 0]],
-                    E=[[0, 0, -1], [0, 0, 1]]
+                    E=[[0, -1, 0], [0, 1, 0]],
+                    F=[[0, 0, -1], [0, 0, 1]]
                 ),
                 orientations_by_type=dict(
-                    D=[[1,0,0,0], [0, 0.707, 0.707, 0]],
-                    E=[[0.707, 0, -0.707, 0], [0.707, 0, 0.707, 0]]
+                    E=[[1,0,0,0], [0, 0.707, 0.707, 0]],
+                    F=[[0.707, 0, -0.707, 0], [0.707, 0, 0.707, 0]]
                 ),
             )
         ],
         positions_by_type=dict(
             A=[[10, 0, 0]],
-            C=[[0, 10, 0], [0, 20, 0]]
+            D=[[0, 10, 0], [0, 20, 0]]
         ),
         orientations_by_type=dict(
             A=[[1,0,0,0]],
-            C=[[0, 0.707, 0.707, 0], [0.707, 0, 0.707, 0]]
+            D=[[0, 0.707, 0.707, 0], [0.707, 0, 0.707, 0]]
         )
     )
 

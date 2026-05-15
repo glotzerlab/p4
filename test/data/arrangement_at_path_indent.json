@@ -6,7 +6,8 @@
           {
             "primary_type": "A",
             "secondary_types": [
-              "B"
+              "B",
+              "C"
             ],
             "positions_by_type": {
               "B": [
@@ -14,7 +15,9 @@
                   -1,
                   0,
                   0
-                ],
+                ]
+              ],
+              "C": [
                 [
                   1,
                   0,
@@ -25,13 +28,13 @@
             "orientations_by_type": {}
           },
           {
-            "primary_type": "C",
+            "primary_type": "D",
             "secondary_types": [
-              "D",
-              "E"
+              "E",
+              "F"
             ],
             "positions_by_type": {
-              "D": [
+              "E": [
                 [
                   0,
                   -1,
@@ -43,7 +46,7 @@
                   0
                 ]
               ],
-              "E": [
+              "F": [
                 [
                   0,
                   0,
@@ -57,7 +60,7 @@
               ]
             },
             "orientations_by_type": {
-              "D": [
+              "E": [
                 [
                   1,
                   0,
@@ -71,7 +74,7 @@
                   0
                 ]
               ],
-              "E": [
+              "F": [
                 [
                   0.707,
                   0,
@@ -96,7 +99,7 @@
               0
             ]
           ],
-          "C": [
+          "D": [
             [
               0,
               10,
@@ -118,7 +121,7 @@
               0
             ]
           ],
-          "C": [
+          "D": [
             [
               0,
               0.707,

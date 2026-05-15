@@ -330,22 +330,22 @@ def test_to_hoomd_snapshot(kwargs):
     arrangement = p4.Arrangement(**kwargs)
     simulation = make_simulation(**kwargs)
     ref_snap = simulation.state.get_snapshot()
-    a_snap = arrangement.to_hoomd_snapshot()
+    test_snap = arrangement.to_hoomd_snapshot()
 
     ref_typeids = ref_snap.particles.typeid.tolist()
     ref_positions = np.round(ref_snap.particles.position, 3).tolist()       # rounded because run(0) warps the exact values
     ref_orientations = np.round(ref_snap.particles.orientation, 3).tolist()
     
-    a_typeids = a_snap.particles.typeid.tolist()
-    a_positions = np.round(a_snap.particles.position, 3).tolist()
-    a_orientations = np.round(a_snap.particles.orientation, 3).tolist()
+    test_typeids = test_snap.particles.typeid.tolist()
+    test_positions = np.round(test_snap.particles.position, 3).tolist()
+    test_orientations = np.round(test_snap.particles.orientation, 3).tolist()
 
     ref_data = list(zip(ref_typeids, ref_positions, ref_orientations))
-    a_data = list(zip(a_typeids, a_positions, a_orientations))
+    test_data = list(zip(test_typeids, test_positions, test_orientations))
     
-    assert ref_snap.particles.N == a_snap.particles.N
-    assert ref_snap.particles.types == a_snap.particles.types
-    assert all(row in a_data for row in ref_data)
+    assert ref_snap.particles.N == test_snap.particles.N
+    assert ref_snap.particles.types == test_snap.particles.types
+    assert all(row in test_data for row in ref_data)
 
 CUBE_VERTICES = [
     [-1/4, -1/4, -1/4],

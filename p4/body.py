@@ -20,6 +20,7 @@ from .util import (
     polyhedron_plane_intersection,
     polyhedron_line_intersection
 )
+from p4 import util
 
 class Body:
     """The names and spatial data for a body's primary and secondary types.
@@ -435,13 +436,7 @@ class Body:
         """
         snapshot = self.to_hoomd_snapshot()
 
-        frame = gsd.hoomd.Frame()
-        frame.configuration.box = snapshot.configuration.box
-        frame.particles.N = snapshot.particles.N
-        frame.particles.types = snapshot.particles.types
-        frame.particles.typeid = snapshot.particles.typeid
-        frame.particles.position = snapshot.particles.position
-        frame.particles.orientation = snapshot.particles.orientation
+        frame = util.snapshot_to_frame(snapshot)
 
         if type_shapes:
             gsd_shape_specs = []

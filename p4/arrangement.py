@@ -10,7 +10,7 @@ import hoomd
 import numpy as np
 import rowan
 
-from p4 import Body
+from p4 import Body, util
 
 class Arrangement:
     def __init__(
@@ -329,13 +329,7 @@ class Arrangement:
         """
         snapshot = self.to_hoomd_snapshot()
 
-        frame = gsd.hoomd.Frame()
-        frame.configuration.box = snapshot.configuration.box
-        frame.particles.N = snapshot.particles.N
-        frame.particles.types = snapshot.particles.types
-        frame.particles.typeid = snapshot.particles.typeid
-        frame.particles.position = snapshot.particles.position
-        frame.particles.orientation = snapshot.particles.orientation
+        frame = util.snapshot_to_frame(snapshot)
 
         if type_shapes:
             gsd_shape_specs = []

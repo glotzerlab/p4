@@ -1423,6 +1423,31 @@ def find_nearest(array, value):
 # --------------------------------- SIMULATION ---------------------------------
 
 
+def snapshot_to_frame(snapshot: hoomd.Snapshot):
+    """Convert a HOOMD-blue Snapshot to a GSD Frame.
+    
+    This function only copies the following data:
+    
+    * configuration.box
+    * particles.N
+    * particles.types
+    * particles.typeid
+    * particles.position
+    * particles.orientation
+     
+    All other data is ignored.
+    """
+    frame = gsd.hoomd.Frame()
+
+    frame.configuration.box = snapshot.configuration.box
+    frame.particles.N = snapshot.particles.N
+    frame.particles.types = snapshot.particles.types
+    frame.particles.typeid = snapshot.particles.typeid
+    frame.particles.position = snapshot.particles.position
+    frame.particles.orientation = snapshot.particles.orientation
+
+    return frame
+
 def get_initial_frame(
     probe_body: "Body",
     analyte_body: "Body",

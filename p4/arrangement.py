@@ -10,7 +10,8 @@ import hoomd
 import numpy as np
 import rowan
 
-from p4 import Body, util
+from . import util
+from .body import Body
 
 class Arrangement:
     def __init__(

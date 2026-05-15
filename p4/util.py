@@ -1797,20 +1797,20 @@ def get_simulation(
     simulation = add_integrator(simulation)
 
     # Add rigid bodies if necessary
-    if system.probe.is_rigid(included_interactions):
+    if system.probe._is_rigid(included_interactions):
         simulation, rigid = add_rigid_constraint(
             simulation,
             system.probe,
-            False if system.analyte.is_rigid(included_interactions) else True,
+            False if system.analyte._is_rigid(included_interactions) else True,
             [t for t in system.probe.secondary_types if t in included_secondary_types]
         )
-    if system.analyte.is_rigid(included_interactions):
+    if system.analyte._is_rigid(included_interactions):
         simulation, _ = add_rigid_constraint(
             simulation,
             system.analyte,
             True,
             [t for t in system.analyte.secondary_types if t in included_secondary_types],
-            rigid if system.probe.is_rigid(included_interactions) else None
+            rigid if system.probe._is_rigid(included_interactions) else None
         )
 
     # Add required interactions
@@ -1890,7 +1890,7 @@ def measure(
         simulation=simulation,
         csv_file=table,
         quantities=quantities,
-        probe_is_rigid=system.probe.is_rigid(included_interactions),
+        probe_is_rigid=system.probe._is_rigid(included_interactions),
         compute=None if gsd_filename is None else compute,
     )
     

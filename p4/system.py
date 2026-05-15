@@ -66,8 +66,8 @@ class System:
     ----------
     probe : Body
         The body for the probe.
-    analyte : Body
-        The body for the analyte.
+    analyte : Body | Arrangement
+        The body or arrangement for the analyte.
     interactions : list[Interaction]
         A collection of interactions that define how one or more particle types
         in the probe interact with one or more types in the analyte.
@@ -75,14 +75,16 @@ class System:
     def __init__(
         self,
         probe: Body,
-        analyte: Body,
+        analyte: Body | Arrangement,
         interactions: list[Interaction],
     ):
         # Ensure types are correct
         if not isinstance(probe, Body):
             raise TypeError("`probe` must be an instance of 'Body'.")
-        if not isinstance(analyte, Body):
-            raise TypeError("`analyte` must be an instance of 'Body'.")
+        if not isinstance(analyte, (Body, Arrangement)):
+            raise TypeError(
+                "`analyte` must be an instance of 'Body' or 'Arrangement'."
+            )
         if (
             not isinstance(interactions, Iterable)
             or not all(type(i) is Interaction for i in interactions)
@@ -92,22 +94,60 @@ class System:
             )
         
         # Ensure there is no rigid body clash
-        if probe.primary_type == analyte.primary_type:
+        if (
+            isinstance(analyte, Body)
+            and probe.primary_type == analyte.primary_type
+        ):
             if probe != analyte:
                 raise ValueError(
-                    "If `probe` and `analyte` have the same primary_type, they "
+                    "If the probe and analyte have the same primary_type, they "
                     + "must also have the same secondary types, positions, and "
                     + "orientations."
                 )
+        elif (
+            isinstance(analyte, Arrangement)
+            and any(
+                b.primary_types == probe.primary_type for b in analyte.bodies
+            )
+        ):
+            # TODO: check if this can be allowed if the bodies are the same
+            raise ValueError(
+                "The probe primary type cannot also be a primary type of a "
+                + "body in the analyte."
+            )
             
         # Ensure there is no particle type clash between probe and analyte
-        if probe.primary_type in analyte.secondary_types:
-            raise ValueError(
-                "probe primary type cannot appear in analyte secondary types."
+        if (
+            (
+                isinstance(analyte, Body)
+                and probe.primary_type in analyte.secondary_types
             )
-        if analyte.primary_type in probe.secondary_types:
+            or (
+                isinstance(analyte, Arrangement)
+                and any(
+                    probe.primary_type in b.secondary_types
+                    for b in analyte.bodies
+                )
+            )
+        ):
             raise ValueError(
-                "analyte primary type cannot appear in probe secondary types."
+                "Probe primary type cannot appear in analyte secondary types."
+            )
+        if (
+            (
+                isinstance(analyte, Body)
+                and analyte.primary_type in probe.secondary_types
+            )
+            or (
+                isinstance(analyte, Arrangement)
+                and any(
+                    b.primary_type in probe.secondary_types
+                    for b in analyte.bodies
+                )
+            )
+        ):
+            raise ValueError(
+                "Analyte primary type cannot appear in probe secondary types."
             )
 
         self.probe = probe
@@ -121,7 +161,7 @@ class System:
         cls,
         simulation: hoomd.Simulation,
         probe_primary_type: str,
-        analyte_primary_type: str
+        analyte_primary_type: str | None = None
     ):
         """Parse a HOOMD-blue `Simulation`_ to create a system.
 
@@ -141,9 +181,11 @@ class System:
         probe_primary_type : str
             The name of the particle type to use for the probe's primary type.
             This name must be represented in the simulation's current state.
-        analyte_primary_type : str
+        analyte_primary_type : str | None, optional
             The name of the particle type to use for the analyte's primary type.
-            This name must be represented in the simulation's current state.
+            This name must be represented in the simulation's current state. If
+            not provided, the entire simulation state becomes the analyte.
+            (See :py:class`~p4.Arrangement`.)
         """
         if (
             not simulation.operations.integrator
@@ -157,7 +199,10 @@ class System:
                 "simulation state does not have particle type "
                 + f"{probe_primary_type}"
             )
-        if analyte_primary_type not in types_in_state:
+        if (
+            isinstance(analyte_primary_type, str)
+            and analyte_primary_type not in types_in_state
+        ):
             raise ValueError(
                 "simulation state does not have particle type "
                 + f"{analyte_primary_type}"
@@ -176,13 +221,18 @@ class System:
             probe = [
                 b for b in bodies if b.primary_type == probe_primary_type
             ][0]
-
-        if not any(b.primary_type == analyte_primary_type for b in bodies):
-            analyte = Body(analyte_primary_type)
+        
+        if analyte_primary_type is None:
+            analyte = Arrangement.from_hoomd_snapshot(
+                simulation.state.get_snapshot()
+            )
         else:
-            analyte = [
-                b for b in bodies if b.primary_type == analyte_primary_type
-            ][0]
+            if not any(b.primary_type == analyte_primary_type for b in bodies):
+                analyte = Body(analyte_primary_type)
+            else:
+                analyte = [
+                    b for b in bodies if b.primary_type == analyte_primary_type
+                ][0]
         
         return cls(
             probe=probe,
@@ -243,10 +293,16 @@ class System:
             if key not in required_args:
                 del data[key]
         
-        data["probe"] = p4.Body(**data["probe"])
-        data["analyte"] = p4.Body(**data["analyte"])
+        data["probe"] = Body(**data["probe"])
+        
+        # TODO: see if there's a better way to distinguish a body json from
+        # an arrangement json
+        if "bodies" in data["analyte"]:
+            data["analyte"] = Arrangement(**data["analyte"])
+        else:
+            data["analyte"] = Body(**data["analyte"])
         interactions = [
-            p4.Interaction(**i_dict) for i_dict in data["interactions"]
+            Interaction(**i_dict) for i_dict in data["interactions"]
         ]
         data["interactions"] = interactions
         
@@ -255,12 +311,20 @@ class System:
     @classmethod
     def _convert_json_dict(cls, data: dict):
         """Convert a JSON-compliant dict into an instantiation-ready dict."""
-        data["probe"] = p4.Body._convert_json_dict(data["probe"])
-        data["analyte"] = p4.Body._convert_json_dict(data["analyte"])
+        data["probe"] = Body._convert_json_dict(data["probe"])
+        
+        # TODO: see if there's a better way to distinguish a body json from
+        # an arrangement json
+        if "bodies" in data["analyte"]:
+            data["analyte"] = Arrangement._convert_json_dict(data["analyte"])
+        else:
+            data["analyte"] = Body._convert_json_dict(data["analyte"])
+
         data["interactions"] = [
-            p4.Interaction._convert_json_dict(i_dict)
+            Interaction._convert_json_dict(i_dict)
             for i_dict in data["interactions"]
         ]
+
         return data
 
     # --------------------------------- EXPORT ---------------------------------
@@ -357,7 +421,16 @@ class System:
     def active_interactions(self) -> list[Interaction]:
         """Interactions with typed params for both the probe and the analyte."""
         probe_types = [self.probe.primary_type] + self.probe.secondary_types
-        analyte_types = [self.analyte.primary_type] + self.analyte.secondary_types
+        if isinstance(self.analyte, Body):
+            analyte_types = (
+                [self.analyte.primary_type] + self.analyte.secondary_types
+            )
+        else:
+            analyte_types = []
+            for b in self.analyte.bodies:
+                analyte_types.extend(
+                    [self.analyte.primary_type] + self.analyte.secondary_types
+                )
         
         included_interactions = []
 
@@ -365,8 +438,14 @@ class System:
             # For single types, there must be at least one in probe and one in
             # analyte
             if (
-                any(t in probe_types for t in interaction.interacting_types("single"))
-                and any(t in analyte_types for t in interaction.interacting_types("single"))
+                any(
+                    t in probe_types
+                    for t in interaction.interacting_types("single")
+                )
+                and any(
+                    t in analyte_types
+                    for t in interaction.interacting_types("single")
+                )
             ):
                 included_interactions.append(interaction)
 
@@ -391,8 +470,15 @@ class System:
         """All unique particle types in the probe and analyte."""
         all_types = [self.probe.primary_type]
         all_types.extend(self.probe.secondary_types)
-        all_types.append(self.analyte.primary_type)
-        all_types.extend(self.analyte.secondary_types)
+
+        if isinstance(self.analyte, Body):
+            all_types.append(self.analyte.primary_type)
+            all_types.extend(self.analyte.secondary_types)
+        else:
+            for b in self.analyte.bodies:
+                all_types.append(b.primary_type)
+                all_types.extend(b.secondary_types)
+
         return list(set(all_types))
 
     # -------------------------------- MEASURE ---------------------------------

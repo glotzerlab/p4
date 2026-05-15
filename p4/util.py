@@ -1434,6 +1434,8 @@ def snapshot_to_frame(snapshot: hoomd.Snapshot):
     * particles.typeid
     * particles.position
     * particles.orientation
+    * particles.mass
+    * particles.moment_inertia
      
     All other data is ignored.
     """
@@ -1445,32 +1447,30 @@ def snapshot_to_frame(snapshot: hoomd.Snapshot):
     frame.particles.typeid = snapshot.particles.typeid
     frame.particles.position = snapshot.particles.position
     frame.particles.orientation = snapshot.particles.orientation
+    frame.particles.mass = snapshot.particles.mass
+    frame.particles.moment_inertia = snapshot.particles.moment_inertia
 
     return frame
 
 def get_initial_frame(
-    probe_body: "Body",
-    analyte_body: "Body",
-    included_types: list[str],
+    probe: "Body",
+    analyte: "Body" | "Arrangement",
     probe_box: list[float],
     simulation_box: list[float],
 ) -> gsd.hoomd.Frame:
     """Return a simulation frame with analyte at center and probe at edge.
 
     All provided types are included in the particle type data, but only primary
-    types specified on the provided particle models are actually placed. In
-    other words, secondary types **are not** placed in the frame and must be
-    added separately using `create_rigid_bodies()`.
+    types specified on the provided particle models are actually placed.
+    Secondary types **are not** placed in the frame and must be added separately
+    using `create_rigid_bodies()`.
 
     Parameters
     ----------
-    probe_model : Body
+    probe : Body
         The body for the probe.
-    analyte_model : Body
-        The body for the analyte.
-    included_secondary_types : list[str]
-        The secondary types to include in the particle data, accessible via
-        frame.particles.types.
+    analyte : Body | Arrangement
+        The body or arrangement for the analyte.
     probe_box : list[float]
         The side lengths of the box that will be probed. [Lx, Ly, Lz]
     simulation_box : list[float]
@@ -1481,81 +1481,49 @@ def get_initial_frame(
     frame
         The initial frame.
     """
-    # TODO: remove the dependency on GSD - I can create this simulation state
-    # using just the HOOMD API
-    frame = gsd.hoomd.Frame()
+    # Create separate frames
+    probe_frame = snapshot_to_frame(probe.to_hoomd_snapshot())
+    analyte_frame = snapshot_to_frame(analyte.to_hoomd_snapshot())
 
-    all_types = list(
-        set(
-            [analyte_body.primary_type, probe_body.primary_type]
-        ).union(included_types)
-    )
-    all_types.sort()
-    frame.particles.types = all_types
-
-    positions = np.array([
-        [0.0, 0.0, 0.0],
+    # Recalculate the position data for the probe frame, moving the probe
+    # center to the edge of the probe box
+    probe_frame.particles.position -= np.array(
         [-probe_box[0]/2, -probe_box[1]/2, -probe_box[2]/2]
-    ]) 
-    frame.particles.N = 2
-    frame.particles.position = positions
-    frame.particles.typeid = [
-        frame.particles.types.index(analyte_body.primary_type),
-        frame.particles.types.index(probe_body.primary_type)
-    ]
-    frame.configuration.box = simulation_box
-    frame.particles.mass = [1] * frame.particles.N
-    frame.particles.moment_inertia = np.reshape(
-        [1, 1, 1] * frame.particles.N,
-        (frame.particles.N, 3)
-    )
-    frame.particles.orientation = [(1, 0, 0, 0)] * frame.particles.N
-
-    return frame
-
-def add_rigid_constraint(
-    simulation: hoomd.Simulation,
-    body: "Body",
-    create_bodies: bool,
-    included_secondary_types: list[str] | None = None,
-    rigid: hoomd.md.constrain.Rigid | None = None,
-) -> Tuple[hoomd.Simulation, hoomd.md.constrain.Rigid]:
-    """Add rigid body constraints for a single particle model to the simulation.
-
-    Parameters
-    ----------
-    simulation : hoomd.Simulation
-        The simulation to modify.
-    body : Body
-        The body containing the rigid body information. The model's
-        `primary_type` corresponds to the rigid body's central particle, while
-        the `secondary_types` correspond to the constituent particles.
-    create_bodies : bool
-        Whether to modify the simulation state by calling
-        `rigid.create_bodies(<simulation.state>)`. Only set the value to True
-        when no more constraints will be added.
-    included_secondary_types : list[str], optional
-        The names of the secondary types to include in the rigid body. If not
-        provided, all secondary types are included.
-    rigid : hoomd.md.constrain.Rigid, optional
-        An existing constraint instance to use. If not provided, a new one is
-        created.
-
-    Returns
-    -------
-    simulation, rigid
-        The modified simulation and its rigid constraint.
-    """
-    rigid = body.to_hoomd_rigid(
-        rigid=rigid,
-        included_secondary_types=included_secondary_types
     )
 
-    if create_bodies:
-        rigid.create_bodies(simulation.state)
-        simulation.operations.integrator.rigid = rigid
+    # Merge all data together, placing the probe particles after the analyte
+    # particles in the frame data
+    merged_frame = gsd.hoomd.Frame()
 
-    return simulation, rigid
+    merged_frame.configuration.box = simulation_box
+    merged_frame.particles.N = (
+        probe_frame.particles.N + analyte_frame.particles.N
+    )
+    merged_frame.particles.types = (
+        analyte_frame.particles.types + probe_frame.particles.types
+    )
+    merged_frame.particles.typeid = np.hstack((
+        analyte_frame.particles.typeid,
+        probe_frame.particles.typeid + len(analyte_frame.particles.types)
+    ))
+    merged_frame.particles.position = np.vstack((
+        analyte_frame.particles.position,
+        probe_frame.particles.position
+    ))
+    merged_frame.particles.orientation = np.vstack((
+        analyte_frame.particles.orientation,
+        probe_frame.particles.orientation
+    ))
+    merged_frame.particles.mass = np.hstack((
+        analyte_frame.particles.mass,
+        probe_frame.particles.mass
+    ))
+    merged_frame.particles.moment_inertia = np.vstack((
+        analyte_frame.particles.moment_inertia,
+        probe_frame.particles.moment_inertia
+    ))
+
+    return merged_frame
 
 def add_gsd_writer(
     simulation: hoomd.Simulation,
@@ -1799,7 +1767,6 @@ def get_simulation(
     hoomd.Simulation
         The simulation object, fully prepared and ready to be run.
     """
-
     # Create initial frame
     included_secondary_types = [
         t
@@ -1809,34 +1776,35 @@ def get_simulation(
     frame = get_initial_frame(
         system.probe,
         system.analyte,
-        included_secondary_types,
         measurement_box,
         simulation_box
     )
 
     # Initialize Simulation
     simulation = hoomd.Simulation(device=hoomd.device.CPU(), seed=1)
-    simulation.create_state_from_snapshot(frame)
+    simulation.create_state_from_snapshot(
+        hoomd.Snapshot.from_gsd_frame(
+            gsd_snap=frame,
+            communicator=hoomd.communicator.Communicator()
+        )
+    )
+
+    # Fix out-of-date body tags for the probe
+    n_total = simulation.state.get_snapshot().particles.N
+    n_probe = system.probe.to_hoomd_snapshot().particles.N
+    probe_start = n_total - n_probe
+
+    simulation.state.get_snapshot().particles.body[probe_start] = probe_start
+    simulation.state.get_snapshot().particles.body[
+        probe_start + 1 : n_total
+    ] = probe_start
+
+    # Create rigid constraint   [TODO: refactor to make this less hacky]
+    rigid = system.analyte.to_hoomd_rigid()
+    rigid = system.probe.to_hoomd_rigid(rigid)
 
     # Add integrator
-    simulation = add_integrator(simulation)
-
-    # Add rigid bodies if necessary
-    if system.probe._is_rigid(included_interactions):
-        simulation, rigid = add_rigid_constraint(
-            simulation,
-            system.probe,
-            False if system.analyte._is_rigid(included_interactions) else True,
-            [t for t in system.probe.secondary_types if t in included_secondary_types]
-        )
-    if system.analyte._is_rigid(included_interactions):
-        simulation, _ = add_rigid_constraint(
-            simulation,
-            system.analyte,
-            True,
-            [t for t in system.analyte.secondary_types if t in included_secondary_types],
-            rigid if system.probe._is_rigid(included_interactions) else None
-        )
+    simulation = add_integrator(simulation, rigid)
 
     # Add required interactions
     for interaction in included_interactions:
@@ -1918,14 +1886,16 @@ def measure(
         probe_is_rigid=system.probe._is_rigid(included_interactions),
         compute=None if gsd_filename is None else compute,
     )
-    
-    probe_index = 1
+
+    # Calculate the index of the probe's central particle
+    n_probe = system.probe.to_hoomd_snapshot().particles.N
+    probe_index = simulation.state.N_particles - n_probe
+    breakpoint()
 
     # Iterate over positions
     for p in positions:
         for o in orientations:
             with simulation.state.cpu_local_snapshot as state:
-
                 # Note: only probe position and orientation need to be
                 # reset. No forces can change the probe particle's velocity
                 # or angular momentum, nor can anything change the analyte's

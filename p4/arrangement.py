@@ -313,18 +313,19 @@ class Arrangement:
     def to_gsd(
         self,
         filename: os.PathLike,
-        type_shapes: dict={}
+        type_shapes: dict = {}
     ):
         """Export the arrangement to a frame in a GSD file.
-
-        Use the ``type_shapes`` parameter to encode geometric representations
-        of specific types for use in visualization.
 
         Parameters
         ----------
         filename : os.PathLike
             The name or path of the GSD file.
-        type_shapes : dict[str, coxeter.shapes.Shape2D or Shape3Dshape]
+        type_shapes: dict[str, coxeter.shapes], optional
+            If provided, encodes geometry for provided particle types. Specify
+            a geometry using Coxeter's `shapes module`_.
+        
+        .. _shapes module: https://coxeter.readthedocs.io/en/latest/package-shapes.html
         """
         snapshot = self.to_hoomd_snapshot()
 
@@ -456,6 +457,7 @@ class Arrangement:
         schematic_slice_line_width: float = 10,
         show_legend: bool = True,
     ):
+        # TODO
         pass
 
     def _plot_traces_schematic_slice(
@@ -509,4 +511,53 @@ class Arrangement:
             + f"\n\tpositions_by_type={self.positions_by_type},"
             + f"\n\torientations_by_type={self.orientations_by_type},"
             + "\n)"
+        )
+    
+    def __eq__(self, other):
+        """Arrangements are equal if their properties are equivalent."""
+        bodies_equivalent = (
+            len(self.bodies) == len(other.bodies)
+            and all([i in other.bodies for i in self.bodies])
+        )
+        positions_by_type_equivalent = (
+            self.positions_by_type.keys() == other.positions_by_type.keys()
+            and all(
+                np.isclose(
+                    self.positions_by_type[t],
+                    other.positions_by_type[t]
+                ).all()
+                for t in self.positions_by_type
+            )
+        )
+        orientations_by_type_equivalent =  (
+            all(
+                np.isclose(
+                    self.orientations_by_type.get(t, [1, 0, 0, 0]),
+                    other.orientations_by_type.get(t, [1, 0, 0, 0])
+                ).all()
+                for t in set(
+                    self.orientations_by_type.keys()
+                ).union(other.orientations_by_type.keys())
+            )
+            or (
+                self.orientations_by_type == {}
+                and all(
+                    list(i) == [1, 0, 0, 0]
+                    for v in other.orientations_by_type.values()
+                    for i in v
+                )
+            )
+            or (
+                other.orientations_by_type == {}
+                and all(
+                    list(i) == [1, 0, 0, 0]
+                    for v in self.orientations_by_type.values()
+                    for i in v
+                )
+            )
+        )
+        return (
+            bodies_equivalent
+            and positions_by_type_equivalent
+            and orientations_by_type_equivalent
         )

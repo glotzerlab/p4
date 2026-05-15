@@ -310,17 +310,51 @@ class Arrangement:
         # Parse the simulation state to get the snapshot
         return simulation.state.get_snapshot()
 
-    def to_gsd(self, filename: os.PathLike):
+    def to_gsd(
+        self,
+        filename: os.PathLike,
+        type_shapes: dict={}
+    ):
         """Export the arrangement to a frame in a GSD file.
+
+        Use the ``type_shapes`` parameter to encode geometric representations
+        of specific types for use in visualization.
 
         Parameters
         ----------
         filename : os.PathLike
             The name or path of the GSD file.
+        type_shapes : dict[str, coxeter.shapes.Shape2D or Shape3Dshape]
         """
-        simulation = hoomd.Simulation(device=hoomd.device.CPU())
-        simulation.create_state_from_snapshot(self.to_hoomd_snapshot())
-        hoomd.write.GSD.write(simulation.state, filename)
+        snapshot = self.to_hoomd_snapshot()
+
+        frame = gsd.hoomd.Frame()
+        frame.configuration.box = snapshot.configuration.box
+        frame.particles.N = snapshot.particles.N
+        frame.particles.types = snapshot.particles.types
+        frame.particles.typeid = snapshot.particles.typeid
+        frame.particles.position = snapshot.particles.position
+        frame.particles.orientation = snapshot.particles.orientation
+
+        if type_shapes:
+            gsd_shape_specs = []
+            for t in frame.particles.types:
+                s = type_shapes.get(t)
+                accepted_types = (
+                    coxeter.shapes.Sphere,
+                    coxeter.shapes.Ellipsoid,
+                    coxeter.shapes.Polygon,
+                    coxeter.shapes.Polyhedron,
+                )
+                if isinstance(s, (accepted_types)):
+                    gsd_shape_specs.append(s.gsd_shape_spec)
+                else:
+                    gsd_shape_specs.append({})
+
+            frame.particles.type_shapes = gsd_shape_specs
+
+        with gsd.hoomd.open(filename, "w") as f:
+            f.append(frame)
 
     def to_json(
         self,

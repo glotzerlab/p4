@@ -2,6 +2,7 @@ from collections import defaultdict
 from pathlib import Path
 import tempfile
 
+import coxeter
 import gsd
 import hoomd
 import numpy as np
@@ -21,31 +22,32 @@ VALID_KWARGS = [
         bodies=[
             p4.Body(
                 primary_type="A",
-                secondary_types=["B"],
+                secondary_types=["B", "C"],
                 positions_by_type=dict(
-                    B=[[-1,0,0], [1,0,0]]
+                    B=[[-1,0,0]],
+                    C=[[1,0,0]]
                 )
             ),
             p4.Body(
-                primary_type="C",
-                secondary_types=["D", "E"],
+                primary_type="D",
+                secondary_types=["E", "F"],
                 positions_by_type=dict(
-                    D=[[0, -1, 0], [0, 1, 0]],
-                    E=[[0, 0, -1], [0, 0, 1]]
+                    E=[[0, -1, 0], [0, 1, 0]],
+                    F=[[0, 0, -1], [0, 0, 1]]
                 ),
                 orientations_by_type=dict(
-                    D=[[1,0,0,0], [0, 0.707, 0.707, 0]],
-                    E=[[0.707, 0, -0.707, 0], [0.707, 0, 0.707, 0]]
+                    E=[[1,0,0,0], [0, 0.707, 0.707, 0]],
+                    F=[[0.707, 0, -0.707, 0], [0.707, 0, 0.707, 0]]
                 ),
             )
         ],
         positions_by_type=dict(
             A=[[10, 0, 0]],
-            C=[[0, 10, 0], [0, 20, 0]]
+            D=[[0, 10, 0], [0, 20, 0]]
         ),
         orientations_by_type=dict(
             A=[[1,0,0,0]],
-            C=[[0, 0.707, 0.707, 0], [0.707, 0, 0.707, 0]]
+            D=[[0, 0.707, 0.707, 0], [0.707, 0, 0.707, 0]]
         )
     )
 ]
@@ -289,8 +291,8 @@ def test_from_hoomd_snapshot(kwargs):
 REFERENCE_FOLDER = Path(__file__).parent / "data"
 
 @pytest.mark.parametrize("kwargs,filename,index", [
-    [VALID_KWARGS[0], "single-particle-arrangement.gsd", 0],
-    [VALID_KWARGS[1], "multi-particle-arrangement.gsd", 0],
+    [VALID_KWARGS[0], "single-particle-arrangement-sphere.gsd", 0],
+    [VALID_KWARGS[1], "multi-particle-arrangement-ellipsoid-cpolyhedron-polyhedron.gsd", 0],
     [VALID_KWARGS[0], "multi-frame-single-particle-arrangement.gsd", 1],
 ])
 def test_from_gsd(kwargs, filename, index):
@@ -345,17 +347,73 @@ def test_to_hoomd_snapshot(kwargs):
     assert ref_snap.particles.types == a_snap.particles.types
     assert all(row in a_data for row in ref_data)
 
-@pytest.mark.parametrize("kwargs,ref_filename", [
-    [VALID_KWARGS[0], "single-particle-arrangement.gsd"],
-    [VALID_KWARGS[1], "multi-particle-arrangement.gsd"],
+CUBE_VERTICES = [
+    [-1/4, -1/4, -1/4],
+    [-1/4, -1/4,  1/4],
+    [-1/4,  1/4, -1/4],
+    [-1/4,  1/4,  1/4],
+    [ 1/4, -1/4, -1/4],
+    [ 1/4, -1/4,  1/4],
+    [ 1/4,  1/4, -1/4],
+    [ 1/4,  1/4,  1/4]
+]
+CUBE_FACES = [
+    [0, 2, 6, 4],
+    [0, 4, 5, 1],
+    [4, 6, 7, 5],
+    [0, 1, 3, 2],
+    [2, 3, 7, 6],
+    [1, 5, 7, 3]
+]
+
+CONCAVE_VERTICES = np.array(
+    [
+        [-1/4, -1/4, -1/4],
+        [-1/4,  1/4, -1/4],
+        [ 1/4,  1/4, -1/4],
+        [ 1/4, -1/4, -1/4],
+        [-1/4,  0,  0],
+        [ 1/4,  0,  0],
+        [-1/4, -1/4,  1/4],
+        [-1/4,  1/4,  1/4],
+        [ 1/4,  1/4,  1/4],
+        [ 1/4, -1/4,  1/4],
+    ],
+    dtype=np.float32
+)
+CONCAVE_FACES = [
+    [0, 1, 2, 3],
+    [0, 3, 5, 4],
+    [4, 5, 9, 6],
+    [3, 2, 8, 9, 5],
+    [2, 1, 7, 8],
+    [1, 0, 4, 6, 7],
+    [6, 9, 8, 7],
+]
+
+@pytest.mark.parametrize("kwargs,ref_filename,type_shapes", [
+    [
+        VALID_KWARGS[0],
+        "single-particle-arrangement-sphere.gsd",
+        dict(A=coxeter.shapes.Sphere(0.5))
+    ],
+    [
+        VALID_KWARGS[1],
+        "multi-particle-arrangement-ellipsoid-cpolyhedron-polyhedron.gsd",
+        dict(
+            A=coxeter.shapes.Ellipsoid(a=0.25, b=4, c=6),
+            E=coxeter.shapes.ConvexPolyhedron(vertices=CUBE_VERTICES),
+            F=coxeter.shapes.Polyhedron(vertices=CONCAVE_VERTICES, faces=CONCAVE_FACES)
+        )
+    ],
 ])
-def test_to_gsd(kwargs, ref_filename):
+def test_to_gsd(kwargs, ref_filename, type_shapes):
     """Ensure export to GSD file produces the expected output."""
     arrangement = p4.Arrangement(**kwargs)
 
     with tempfile.TemporaryDirectory(dir=REFERENCE_FOLDER) as tempdir:
         test_path = Path(tempdir) / f"test_arrangement.gsd"
-        arrangement.to_gsd(test_path)
+        arrangement.to_gsd(test_path, type_shapes=type_shapes)
 
         with gsd.hoomd.open(test_path, "r") as test_file:
             test_frame = test_file[0]
@@ -368,3 +426,4 @@ def test_to_gsd(kwargs, ref_filename):
         assert np.array_equal(test_frame.particles.typeid, ref_frame.particles.typeid)
         assert np.array_equal(test_frame.particles.position, ref_frame.particles.position)
         assert np.array_equal(test_frame.particles.orientation, ref_frame.particles.orientation)
+        assert test_frame.particles.type_shapes == ref_frame.particles.type_shapes

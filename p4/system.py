@@ -171,13 +171,15 @@ class System:
         if not any(b.primary_type == probe_primary_type for b in bodies):
             probe = Body(probe_primary_type)
         else:
-            probe = [b.primary_type == probe_primary_type for b in bodies][0]
+            probe = [
+                b for b in bodies if b.primary_type == probe_primary_type
+            ][0]
 
         if not any(b.primary_type == analyte_primary_type for b in bodies):
             analyte = Body(analyte_primary_type)
         else:
             analyte = [
-                b.primary_type == analyte_primary_type for b in bodies
+                b for b in bodies if b.primary_type == analyte_primary_type
             ][0]
         
         return cls(

@@ -16,8 +16,7 @@ import hoomd
 import numpy as np
 import plotly
 
-import p4.util
-
+from . import util
 
 class Interaction:
     """The data for making and parameterizing a `HOOMD-blue MD pair potential`_.
@@ -127,8 +126,8 @@ class Interaction:
         )
         box_length = 10 * max(max_r_cut, 1.0)
         simulation.state.set_box([box_length, box_length, box_length, 0, 0, 0])
-        simulation = p4.util.add_integrator(simulation)
-        simulation = p4.util.add_interaction(
+        simulation = util.add_integrator(simulation)
+        simulation = util.add_interaction(
             simulation=simulation,
             nlist=nlist,
             interaction=self,
@@ -847,6 +846,12 @@ class Interaction:
         figure, traces
             The plot figure and its associated traces.
         """
+        # TODO: check if there's another way to structure package to prevent
+        # imports here
+        from .body import Body
+        from .field import Field
+        from .system import System
+        
         # Defaults
         DEFAULT_COLORSCALE = "pastel"
         DEFAULT_STYLE = dict(
@@ -912,23 +917,23 @@ class Interaction:
 
         for i, pair in enumerate(type_pairs):
             if pair == "default":
-                probe=p4.Body("skvblejy")
-                analyte=p4.Body("dhytkgvle")
+                probe=Body("skvblejy")
+                analyte=Body("dhytkgvle")
             else:
-                probe=p4.Body(pair[0])
-                analyte=p4.Body(pair[1])
+                probe=Body(pair[0])
+                analyte=Body(pair[1])
             
-            system = p4.System(probe, analyte, [self])
+            system = System(probe, analyte, [self])
             
-            table = p4.util.measure(
+            table = util.measure(
                 system=system,
                 nlist=hoomd.md.nlist.Tree(2),
                 **kwargs
             )
-            table = p4.util.clean_header(table)
+            table = util.clean_header(table)
             table.seek(0)
 
-            field = p4.Field(
+            field = Field(
                 np.rec.array(
                     np.genfromtxt(
                         table,
@@ -972,7 +977,7 @@ class Interaction:
         # Build figure and style it
         figure = plotly.graph_objects.Figure()
         figure.add_traces(traces)
-        layout = p4.Field._plot_layout( # TODO: refactor to put this in util
+        layout = Field._plot_layout( # TODO: refactor to put this in util
             self=None,
             quantity="U",
             slice=dict(z=0, y=0),
@@ -1019,8 +1024,8 @@ class Interaction:
         )
         s = 10 * max_r_cut
         simulation.state.set_box([s, s, s, 0, 0, 0])
-        simulation = p4.util.add_integrator(simulation)
-        simulation = p4.util.add_interaction(
+        simulation = util.add_integrator(simulation)
+        simulation = util.add_interaction(
             simulation=simulation,
             nlist=nlist,
             interaction=interaction,

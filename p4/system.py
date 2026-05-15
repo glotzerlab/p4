@@ -5,14 +5,15 @@ from copy import copy, deepcopy
 import json
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Iterable, Literal
+from typing import Iterable, Literal
 import multiprocessing
 
-import coxeter
 import hoomd
 
-import p4.util
-from p4 import Body, Interaction
+from . import util
+from .body import Body
+from .interaction import Interaction
+from .arrangement import Arrangement
 
 class System:
     """A System is defined by a probe, an analyte, and their interactions.
@@ -470,20 +471,20 @@ class System:
             n_processes = os.process_cpu_count()
         
         # Calculate the probe positions and orientations
-        probe_positions = p4.util.get_probe_positions(
+        probe_positions = util.get_probe_positions(
             probe_box,
             position_resolutions
         )
-        probe_orientations = p4.util.get_probe_orientations(
+        probe_orientations = util.get_probe_orientations(
             orientation_resolutions,
             symmetries
         )
 
         # Remove positions that are too far away
-        probe_positions = p4.util.exclude_positions_by_shape(
+        probe_positions = util.exclude_positions_by_shape(
             positions=probe_positions,
             exclude_inside=False,
-            shape=p4.util.get_cube(outside_cutoff),
+            shape=util.get_cube(outside_cutoff),
             buffer=0.0
         )
 
@@ -502,7 +503,7 @@ class System:
                 args = zip(
                     [deepcopy(self) for _ in range(n_processes)],
                     [quantities for _ in range(n_processes)],
-                    p4.util.subdivide(probe_positions, n_processes),
+                    util.subdivide(probe_positions, n_processes),
                     [probe_orientations for _ in range(n_processes)],
                     [self.active_interactions for _ in range(n_processes)],
                     [nlist for _ in range(n_processes)],
@@ -510,9 +511,9 @@ class System:
                     [simulation_box for _ in range(n_processes)],
                     gsd_filenames,
                 )
-                tables = pool.starmap(p4.util.measure, args)
+                tables = pool.starmap(util.measure, args)
             
-            table = p4.util.clean_header(p4.util.merge_tables(tables))
+            table = util.clean_header(util.merge_tables(tables))
         
         # If not multiprocessing, don't initialize a pool (easier for debugging)
         else:
@@ -520,7 +521,7 @@ class System:
                 gsd_filename = csv_filename.rsplit(".", 1)[0] + ".gsd"
             else:
                 gsd_filename = None
-            table = p4.util.measure(
+            table = util.measure(
                 system=self,
                 quantities=quantities,
                 positions=probe_positions,
@@ -532,7 +533,7 @@ class System:
                 gsd_filename=gsd_filename
             )
 
-            table = p4.util.clean_header(table)
+            table = util.clean_header(table)
 
         with open(csv_filename, "w") as file:
             table.seek(0)

@@ -4,7 +4,7 @@ import gsd
 import hoomd
 import numpy as np
 import pytest
-from p4 import Body, Interaction
+import p4
 from copy import copy, deepcopy
 import coxeter
 from pathlib import Path
@@ -64,7 +64,7 @@ VALID_KWARGS = [
 @pytest.mark.parametrize("kwargs", VALID_KWARGS)
 def test_valid_instantiation(kwargs):
     """Ensure instantiation works with valid arguments."""
-    _ = Body(**kwargs)
+    _ = p4.Body(**kwargs)
 
 INVALID_KWARGS = [
     # Secondary types given with no orientations, position keys are missing/wrong
@@ -206,7 +206,7 @@ INVALID_KWARGS = [
 def test_invalid_instantiation(kwargs):
     """Ensure instantiation fails predictably with invalid arguments."""
     with pytest.raises((TypeError, ValueError)):
-        _ = Body(**kwargs)
+        _ = p4.Body(**kwargs)
 
 VALID_INTERACTION_KWARGS = dict(
     hoomd_class=hoomd.md.pair.LJ,
@@ -227,7 +227,7 @@ VALID_INTERACTION_KWARGS = dict(
 @pytest.mark.parametrize("variant", ["none", "some", "all"])
 def test_is_rigid(kwargs, variant):
     """Ensure method returns True if the body has any secondary types in common with an interction."""
-    b = Body(**kwargs)
+    b = p4.Body(**kwargs)
     interaction_kwargs = deepcopy(VALID_INTERACTION_KWARGS)
 
     if variant == "none":
@@ -249,7 +249,7 @@ def test_is_rigid(kwargs, variant):
                         interaction_kwargs["typed_params"][pair] = param_dict
                     del interaction_kwargs["typed_params"][type_name]
 
-    i = Interaction(**interaction_kwargs)
+    i = p4.Interaction(**interaction_kwargs)
 
     if variant == "none" or "secondary_types" not in kwargs.keys() or len(kwargs["secondary_types"]) == 0:
         assert not b._is_rigid([i])
@@ -306,12 +306,12 @@ def make_rigid_and_expected_bodies_for_variant(
 
     if single_or_multi_body == "single" and single_or_multi_particle == "single":
         rigid.body["A"] = None
-        expected_bodies = [Body("A")]
+        expected_bodies = [p4.Body("A")]
 
     elif single_or_multi_body == "multi" and single_or_multi_particle == "single":
         rigid.body["A"] = None
         rigid.body["B"] = dict(constituent_types=[], positions=[], orientations=[])
-        expected_bodies = [Body("A"), Body("B")]
+        expected_bodies = [p4.Body("A"), p4.Body("B")]
 
     elif single_or_multi_body == "single" and single_or_multi_particle == "multi":
         rigid.body["A"] = dict(
@@ -320,7 +320,7 @@ def make_rigid_and_expected_bodies_for_variant(
             orientations=[[0, 1, 0, 0], [0, 0, 1, 0]]
         )
         expected_bodies = [
-            Body(
+            p4.Body(
                 primary_type="A",
                 secondary_types=["B", "C"],
                 positions_by_type=dict(B=[[1, 0, 0]], C=[[2, 0, 0]]),
@@ -340,13 +340,13 @@ def make_rigid_and_expected_bodies_for_variant(
             orientations=[(0, -1, 0, 0), (0, 0, -1, 0)]
         )
         expected_bodies = [
-            Body(
+            p4.Body(
                 primary_type="A",
                 secondary_types=["B", "C"],
                 positions_by_type=dict(B=[[1, 0, 0]], C=[[2, 0, 0]]),
                 orientations_by_type=dict(B=[[0, 1, 0, 0]], C=[[0, 0, 1, 0]])
             ),
-            Body(
+            p4.Body(
                 primary_type="D",
                 secondary_types=["E", "F"],
                 positions_by_type=dict(E=[[-1, 0, 0]], F=[[-2, 0, 0]]),
@@ -382,9 +382,9 @@ def test_from_hoomd_rigid(
         single_or_multi_particle,
     )
     if single_or_multi_particle == "single" and not include_singles:
-        assert Body.from_hoomd_rigid(rigid, include_singles) == []
+        assert p4.Body.from_hoomd_rigid(rigid, include_singles) == []
     else:
-        assert Body.from_hoomd_rigid(rigid, include_singles) == expected_bodies
+        assert p4.Body.from_hoomd_rigid(rigid, include_singles) == expected_bodies
 
 def make_simulation(
     primary_type,
@@ -430,7 +430,7 @@ def test_from_hoomd_simulation_without_rigid(
     """Ensure parsing from a simulation without a rigid constraint produces the expected output."""
     if has_particles_in_state:
         simulation = hoomd.util.make_example_simulation(particle_types=["A", "B"])
-        expected_bodies = [Body("A"), Body("B")] if include_singles else []
+        expected_bodies = [p4.Body("A"), p4.Body("B")] if include_singles else []
     else:
         simulation = hoomd.Simulation(device=hoomd.device.CPU())
         simulation.create_state_from_snapshot(hoomd.Snapshot())
@@ -439,7 +439,7 @@ def test_from_hoomd_simulation_without_rigid(
     if has_integrator:
         simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
     
-    assert Body.from_hoomd_simulation(simulation, include_singles) == expected_bodies
+    assert p4.Body.from_hoomd_simulation(simulation, include_singles) == expected_bodies
 
 def make_snapshot_for_variant(
     single_or_multi_body,
@@ -551,10 +551,10 @@ def test_from_hoomd_simulation_with_rigid(
                 pass
 
             elif single_or_multi_body == "single" and single_or_multi_particle == "multi":
-                expected_bodies.extend([Body("B"), Body("C")])
+                expected_bodies.extend([p4.Body("B"), p4.Body("C")])
 
             elif single_or_multi_body == "multi" and single_or_multi_particle == "multi":
-                expected_bodies.extend([Body("B"), Body("C"), Body("E"), Body("F")])
+                expected_bodies.extend([p4.Body("B"), p4.Body("C"), p4.Body("E"), p4.Body("F")])
 
     else:
         simulation.create_state_from_snapshot(hoomd.Snapshot())
@@ -564,9 +564,9 @@ def test_from_hoomd_simulation_with_rigid(
 
     # Test
     if single_or_multi_particle == "single" and not include_singles:
-        assert Body.from_hoomd_simulation(simulation, include_singles) == []
+        assert p4.Body.from_hoomd_simulation(simulation, include_singles) == []
     else:
-        actual_bodies = Body.from_hoomd_simulation(simulation, include_singles)
+        actual_bodies = p4.Body.from_hoomd_simulation(simulation, include_singles)
         assert len(actual_bodies) == len(expected_bodies)
         assert all(b in actual_bodies for b in expected_bodies)
 
@@ -582,7 +582,7 @@ def test_to_hoomd_rigid(kwargs):
     """Ensure converting to hoomd.md.constrain.Rigid produces the expected output."""
     kwargs = copy(kwargs)
 
-    body = Body(**kwargs)
+    body = p4.Body(**kwargs)
     
     # Skip case when there are not secondary types
     if "secondary_types" not in kwargs.keys():
@@ -623,7 +623,7 @@ def test_to_hoomd_rigid(kwargs):
 @pytest.mark.parametrize("kwargs", VALID_KWARGS)
 def test_to_hoomd_snapshot(kwargs):
     """Ensure export to snapshot produces the expected output."""
-    arrangement = Body(**kwargs)
+    arrangement = p4.Body(**kwargs)
     simulation = make_simulation(**kwargs)
     ref_snap = simulation.state.get_snapshot()
     test_snap = arrangement.to_hoomd_snapshot()
@@ -679,7 +679,7 @@ CUBE_VERTICES = [
 ])
 def test_to_gsd(kwargs, ref_filename, type_shapes):
     """Ensure export to GSD file produces the expected output."""
-    body = Body(**kwargs)
+    body = p4.Body(**kwargs)
 
     with tempfile.TemporaryDirectory(dir=REFERENCE_FOLDER) as tempdir:
         test_path = Path(tempdir) / f"test_body.gsd"

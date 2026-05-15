@@ -13,14 +13,7 @@ from copy import copy
 from pathlib import Path
 
 import rowan
-from .util import (
-    WONG_COLORS,
-    point_segment_distance,
-    point_plane_distance,
-    polyhedron_plane_intersection,
-    polyhedron_line_intersection
-)
-from p4 import util
+from . import util
 
 class Body:
     """The names and spatial data for a body's primary and secondary types.
@@ -625,7 +618,7 @@ class Body:
         show_legend : bool, default=True
             Whether to show the legend.
         """
-        default_colors = WONG_COLORS
+        default_colors = util.WONG_COLORS
 
         # Make a list of all types that will be plotted
         all_types = copy(self.secondary_types)
@@ -1058,7 +1051,7 @@ class Body:
             # Types without shapes must be within the distance tolerance to be
             # included
             if t not in type_shapes:
-                if point_plane_distance([px, py, pz], plane) < point_size_for_slice:
+                if util.point_plane_distance([px, py, pz], plane) < point_size_for_slice:
                     slice_data.append((t, np.array([[px, py, pz]]), np.array([[q0, q1, q2, q3]]), np.array([[px, py, pz]]), "point"))
 
             # Types with shapes must be sliced
@@ -1077,7 +1070,7 @@ class Body:
 
                 # Create shape and slice it
                 row_shape = coxeter.shapes.Polyhedron(row_vertices, faces)            
-                slice_geometries = polyhedron_plane_intersection(
+                slice_geometries = util.polyhedron_plane_intersection(
                     row_shape, plane
                 )
 
@@ -1311,7 +1304,7 @@ class Body:
             # Types without shapes must be within the distance tolerance to be
             # included
             if t not in type_shapes:
-                if point_segment_distance([px, py, pz], line) < point_size_for_slice:
+                if util.point_segment_distance([px, py, pz], line) < point_size_for_slice:
                     slice_data.append((t, np.array([[px, py, pz]]), np.array([[q0, q1, q2, q3]]), np.array([[px, py, pz]]), "point"))
 
             # Types with shapes must be sliced
@@ -1330,7 +1323,7 @@ class Body:
 
                 # Create shape and slice it
                 row_shape = coxeter.shapes.Polyhedron(row_vertices, faces)            
-                slice_geometries = polyhedron_line_intersection(
+                slice_geometries = util.polyhedron_line_intersection(
                     row_shape, [plane1, plane2]
                 )
 

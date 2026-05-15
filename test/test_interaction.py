@@ -8,7 +8,7 @@ import pkgutil
 import importlib
 from typing import Literal, Iterable
 import numpy as np
-from p4 import Interaction
+import p4
 import pytest
 
 
@@ -889,7 +889,7 @@ def pairs_are_equivalent(one, other):
 def test_instantiation_valid(cls, required_or_all):
     """Ensure every covered hoomd class can be instantiated and exported to hoomd instances with valid parameters."""    
     kwargs = get_kwargs(cls, required_or_all)
-    _ = Interaction(**kwargs)
+    _ = p4.Interaction(**kwargs)
 
 INVALID_KWARGS = [
     # Initial args
@@ -1225,7 +1225,7 @@ def test_invalid_instantiation(kwargs):
     Only one hoomd class is tested.
     """
     with pytest.raises((TypeError, ValueError)):
-        _ = Interaction(**kwargs)
+        _ = p4.Interaction(**kwargs)
 
 @pytest.mark.parametrize("kwargs,expected_singles,expected_pairs", [
     [   # 0 singles, 1 pair
@@ -1316,7 +1316,7 @@ def test_invalid_instantiation(kwargs):
 ])
 def test_type_properties(kwargs, expected_singles, expected_pairs):
     """Ensure single and pair type properties return expected values."""
-    interaction = Interaction(**kwargs)
+    interaction = p4.Interaction(**kwargs)
     
     expected_all = deepcopy(expected_singles)
     for p in expected_pairs:
@@ -1333,7 +1333,7 @@ def test_type_properties(kwargs, expected_singles, expected_pairs):
 def test_to_hoomd_pair_not_parameterized(cls, required_or_all):
     """Ensure for every coverted hoomd class an Interaction can be converted to an unparameterized hoomd instance."""
     kwargs = get_kwargs(cls, required_or_all)
-    interaction = Interaction(**kwargs)
+    interaction = p4.Interaction(**kwargs)
 
     pair = cls(nlist=NLIST, **kwargs["initial_args"])
     assert pairs_are_equivalent(pair, interaction.to_hoomd_pair(NLIST, parameterize=False))
@@ -1345,7 +1345,7 @@ def test_to_hoomd_pair_parameterized(cls, required_or_all):
     # Review: is there a better way to test this? I'm basically just copying the
     # actual implementation...
     kwargs = get_kwargs(cls, required_or_all)
-    interaction = Interaction(**kwargs)
+    interaction = p4.Interaction(**kwargs)
 
     pair = cls(nlist=NLIST, **kwargs["initial_args"])
 
@@ -1383,9 +1383,9 @@ def test_to_hoomd_pair_parameterized(cls, required_or_all):
 def test_from_hoomd_pair_valid(cls):
     """Ensure every covered hoomd class can be parsed into an Interaction."""
     kwargs = get_kwargs(cls, "all")
-    interaction = Interaction(**kwargs)
+    interaction = p4.Interaction(**kwargs)
     pair = interaction.to_hoomd_pair(nlist=hoomd.md.nlist.Cell(0), parameterize=True, all_types=interaction.interacting_types("all"))
-    other = Interaction.from_hoomd_pair(pair)
+    other = p4.Interaction.from_hoomd_pair(pair)
     assert interaction == other
 
 @pytest.mark.parametrize("cls", [hoomd.md.pair.LJ, hoomd.md.pair.aniso.ALJ])
@@ -1396,24 +1396,24 @@ def test_from_hoomd_integrator_valid(cls, multiple_forces):
     forces = []
 
     kwargs = get_kwargs(cls, "required")
-    interaction = Interaction(**kwargs)
+    interaction = p4.Interaction(**kwargs)
     pair = interaction.to_hoomd_pair(nlist=NLIST, parameterize=True, all_types=interaction.interacting_types("all"))
     
     forces.append(pair)
 
     if multiple_forces:
         kwargs = get_kwargs(hoomd.md.pair.DPD, "required")
-        interaction = Interaction(**kwargs)
+        interaction = p4.Interaction(**kwargs)
         pair = interaction.to_hoomd_pair(nlist=NLIST, parameterize=True, all_types=interaction.interacting_types("all"))
         forces.append(pair)
     
     integrator.forces = forces
-    assert [Interaction.from_hoomd_pair(f) for f in forces] == Interaction.from_hoomd_integrator(integrator)
+    assert [p4.Interaction.from_hoomd_pair(f) for f in forces] == p4.Interaction.from_hoomd_integrator(integrator)
 
 def test_from_hoomd_integrator_invalid():
     """Ensure integrator parsing fails expectedly when given an empty integrator."""
     with pytest.raises(ValueError):
-        _ = Interaction.from_hoomd_integrator(hoomd.md.Integrator(dt=0.1))
+        _ = p4.Interaction.from_hoomd_integrator(hoomd.md.Integrator(dt=0.1))
 
 @pytest.mark.parametrize("cls", [hoomd.md.pair.LJ, hoomd.md.pair.aniso.ALJ])
 @pytest.mark.parametrize("multiple_forces", [False, True])
@@ -1423,14 +1423,14 @@ def test_from_hoomd_simulation_valid(cls, multiple_forces):
     forces = []
 
     kwargs = get_kwargs(cls, "required")
-    interaction = Interaction(**kwargs)
+    interaction = p4.Interaction(**kwargs)
     pair = interaction.to_hoomd_pair(nlist=NLIST, parameterize=True, all_types=interaction.interacting_types("all"))
     
     forces.append(pair)
 
     if multiple_forces:
         kwargs = get_kwargs(hoomd.md.pair.DPD, "required")
-        interaction = Interaction(**kwargs)
+        interaction = p4.Interaction(**kwargs)
         pair = interaction.to_hoomd_pair(nlist=NLIST, parameterize=True, all_types=interaction.interacting_types("all"))
         forces.append(pair)
     
@@ -1441,14 +1441,14 @@ def test_from_hoomd_simulation_valid(cls, multiple_forces):
     )
     simulation.operations.integrator = integrator
 
-    assert [Interaction.from_hoomd_pair(f) for f in forces] == Interaction.from_hoomd_simulation(simulation)
+    assert [p4.Interaction.from_hoomd_pair(f) for f in forces] == p4.Interaction.from_hoomd_simulation(simulation)
 
 def test_from_hoomd_simulation_invalid():
     """Ensure hoomd simulation parsing fails expectedly when given a simulation with no integrator or an empty integrator."""
     simulation = hoomd.util.make_example_simulation()
     with pytest.raises(ValueError):
-        _ = Interaction.from_hoomd_simulation(simulation)
+        _ = p4.Interaction.from_hoomd_simulation(simulation)
 
     simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
     with pytest.raises(ValueError):
-        _ = Interaction.from_hoomd_simulation(simulation)
+        _ = p4.Interaction.from_hoomd_simulation(simulation)

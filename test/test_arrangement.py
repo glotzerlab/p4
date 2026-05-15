@@ -392,13 +392,47 @@ CONCAVE_FACES = [
 ]
 
 @pytest.mark.parametrize("kwargs,ref_filename,type_shapes", [
-    [
-        VALID_KWARGS[0],
+    [   # 1 single-particle body, without orientations, type_shapes are a sphere
+        dict(
+            bodies=[p4.Body("A")],
+            positions_by_type=dict(A=[[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
+        ),
         "single-particle-arrangement-sphere.gsd",
         dict(A=coxeter.shapes.Sphere(0.5))
     ],
-    [
-        VALID_KWARGS[1],
+    [   # 2 multi-particle bodies, with orientations, multiple type_shapes, some not specified
+        dict(
+            bodies=[
+                p4.Body(
+                    primary_type="A",
+                    secondary_types=["B", "C"],
+                    positions_by_type=dict(
+                        B=[[-1,0,0]],
+                        C=[[1,0,0]]
+                    )
+                ),
+                p4.Body(
+                    primary_type="D",
+                    secondary_types=["E", "F"],
+                    positions_by_type=dict(
+                        E=[[0, -1, 0], [0, 1, 0]],
+                        F=[[0, 0, -1], [0, 0, 1]]
+                    ),
+                    orientations_by_type=dict(
+                        E=[[1,0,0,0], [0, 0.707, 0.707, 0]],
+                        F=[[0.707, 0, -0.707, 0], [0.707, 0, 0.707, 0]]
+                    ),
+                )
+            ],
+            positions_by_type=dict(
+                A=[[10, 0, 0]],
+                D=[[0, 10, 0], [0, 20, 0]]
+            ),
+            orientations_by_type=dict(
+                A=[[1,0,0,0]],
+                D=[[0, 0.707, 0.707, 0], [0.707, 0, 0.707, 0]]
+            )
+        ),
         "multi-particle-arrangement-ellipsoid-cpolyhedron-polyhedron.gsd",
         dict(
             A=coxeter.shapes.Ellipsoid(a=0.25, b=4, c=6),

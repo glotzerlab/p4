@@ -307,8 +307,39 @@ class Arrangement:
         # Use the rigid constraint to add all secondary particles
         rigid.create_bodies(simulation.state)
 
+        # Add particle masses and moments of inertia
+        snapshot = simulation.state.get_snapshot()
+        types = snapshot.particles.types
+        masses_by_type = {}
+        moi_by_type = {}
+        for t in snapshot.particles.types:
+            if any(t in b.mass_by_type for b in self.bodies): # [Review]
+                body = [
+                    b
+                    for b in self.bodies
+                    if t == b.primary_type or t in b.secondary_types
+                ][0]
+
+                masses_by_type[t] = body.mass_by_type[t]
+
+            if any(t in b.moi_by_type for b in self.bodies): # [Review]
+                body = [
+                    b
+                    for b in self.bodies
+                    if t == b.primary_type or t in b.secondary_types
+                ][0]
+
+                moi_by_type[t] = body.moi_by_type[t]
+        
+        for i, tid in enumerate(snapshot.particles.typeid):
+            t = types[tid]
+            if t in masses_by_type:
+                snapshot.particles.mass[i] = masses_by_type[t]
+            if t in moi_by_type:
+                snapshot.particles.moment_inertia[i] = moi_by_type[t]
+
         # Parse the simulation state to get the snapshot
-        return simulation.state.get_snapshot()
+        return snapshot
 
     def to_gsd(
         self,

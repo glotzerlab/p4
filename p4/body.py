@@ -23,8 +23,13 @@ class Body:
     
     When secondary types **are** provided, the body represents a rigid body
     with a central particle (``primary_type``) and one or more constituent
-    particles (``secondary_types``). In this case, the positions (and
-    optionally orientations) for each secondary type must also be provided.
+    particles (``secondary_types``). In this case, the positions for each
+    secondary type must also be provided.
+
+    Optionally, the user may provide orientations (for each secondary type),
+    and masses and moments of inertia (for the primary type and each
+    secondary type). If not provided, orientation defaults to ``(1, 0, 0, 0)``,
+    mass defaults to ``1``, and moment of inertia defaults to ``[1, 1, 1]``.
 
     .. code-block:: python
         :caption: A cubic body with primary particle 'A' at the center and secondary particles 'B' at the vertices.
@@ -60,14 +65,28 @@ class Body:
     orientations_by_type : dict[str, list[list[float]]], optional
         A mapping of secondary particle type names to orientation(s) in
         quaternion form. Can only be provided if ``secondary_types`` and
-        ``positions_by_type`` are also provided.
+        ``positions_by_type`` are also provided. If not provided,
+        secondary types have a default orientation of ``(1, 0, 0, 0)``.
+    mass_by_type : dict[str, float], optional
+        A mapping of primary and secondary particle type names to mass.
+        If not provided for a given type, that type's mass defaults to ``1``.
+        In contrast to positions and orientations, only one mass is allowed per
+        type.
+    moi_by_type : dict[str, list[float]], optional
+        A mapping of primary and secondary particle type names to moment of
+        inertia (MoI), expressed as a 3-vector containing the diagonal terms of
+        the MoI tensor. If not provided for a given type, that
+        type's MoI defaults to ``[1, 1, 1]``. In contrast to positions and
+        orientations, only one MoI is allowed per type.
     """
     def __init__(
         self,
         primary_type: str,
         secondary_types: list[str] = [],
         positions_by_type: dict[str, list[list[float]]] = {},
-        orientations_by_type: dict[str, list[list[float]]] = {}
+        orientations_by_type: dict[str, list[list[float]]] = {},
+        mass_by_type: dict[str, float] = {},
+        moi_by_type: dict[str, list[float]] = {}
     ):
         # Ensure positions are provided if secondary types are provided
         if secondary_types != [] and not positions_by_type:
@@ -118,6 +137,8 @@ class Body:
         self.secondary_types = [str(t) for t in secondary_types]
         self.positions_by_type = positions_by_type
         self.orientations_by_type = orientations_by_type
+        self.mass_by_type = mass_by_type
+        self.moi_by_type = moi_by_type
 
     # --------------------------------- IMPORT ---------------------------------
 
@@ -141,6 +162,12 @@ class Body:
             
             p4.Body.from_hoomd_rigid(simulation.operations.integrator.rigid)
 
+        .. note:
+
+            If the simulation state specifies multiple masses or moments of
+            inertia for a single particle type, the parser instead chooses the
+            default value. (See above.)
+
         Parameters
         ----------
         simulation : hoomd.Simulation
@@ -161,8 +188,57 @@ class Body:
                 include_singles
             )
         
-        bodies_from_state = [cls(t) for t in simulation.state.get_snapshot().particles.types]
-        
+        bodies_from_state = []
+        snapshot = simulation.state.get_snapshot()
+        for i, t in enumerate(snapshot.particles.types):
+            t_indices = np.where(snapshot.particles.typeid == i)[0].tolist()
+            
+            if t_indices:
+                # If all masses are the same for this type, include the value
+                # in mass_by_type
+                first_mass = snapshot.particles.mass[t_indices[0]]
+                if (
+                    len(t_indices) == 1
+                    or all(
+                        other_mass == first_mass
+                        for other_mass in snapshot.particles.mass[t_indices[1:]]
+                    )
+                ):
+                    mass_by_type=dict(t=float(first_mass))
+                else:
+                    mass_by_type=dict()
+
+                # If all MoIs are the same for this type, include the value
+                # in moi_by_type
+                first_moi = snapshot.particles.moment_inertia[
+                    t_indices[0]
+                ].tolist()
+                if (
+                    len(t_indices) == 1
+                    or all(
+                        other_moi.tolist() == first_moi
+                        for other_moi in snapshot.particles.moment_inertia[t_indices[1:]]
+                    )
+                ):
+                    # NOTE: the default mass in hoomd-blue is [0, 0, 0].
+                    # If that's detected here, reset it to [1, 1, 1].
+                    moi_by_type=dict(
+                        t=first_moi if first_moi != [0, 0, 0] else [1, 1, 1]
+                    )
+                else:
+                    moi_by_type=dict()
+
+                bodies_from_state.append(
+                    cls(
+                        t,
+                        mass_by_type=mass_by_type,
+                        moi_by_type=moi_by_type
+                    )
+                )
+            
+            else:
+                bodies_from_state.append(cls(t))
+                    
         if not include_singles:
             return bodies_from_rigid
         
@@ -379,14 +455,23 @@ class Body:
         typeids = [0]
         positions = np.array([[0, 0, 0]], dtype=np.float32)
         orientations = np.array([[1, 0, 0, 0]], dtype=np.float32)
+        masses = self.mass_by_type.get(self.primary_type, [1])
+        mois = np.array(
+            [self.mass_by_type.get(self.primary_type, [1, 1, 1])],
+            dtype=np.float32
+        )
 
         for t, ps in self.positions_by_type.items():
             os = self.orientations_by_type.get(t, [[1, 0, 0, 0] for _ in ps])
+            m = self.mass_by_type.get(t, 1)
+            moi = self.moi_by_type.get(t, [1, 1, 1])
             tid = types.index(t)
 
             typeids.extend([tid for _ in ps])
             positions = np.vstack((positions, ps))
             orientations = np.vstack((orientations, os))
+            masses.extend([m for _ in ps])
+            mois = np.vstack((mois, [moi for _ in ps]))
 
         frame.configuration.box = [
             3*max(np.abs(positions[:,0].max()), np.abs(positions[:,0].min())+1),
@@ -401,6 +486,8 @@ class Body:
         frame.particles.typeid = typeids
         frame.particles.position = positions
         frame.particles.orientation = orientations
+        frame.particles.mass = masses
+        frame.particles.moment_inertia = mois
 
         return hoomd.Snapshot.from_gsd_frame(
             gsd_snap=frame,
@@ -1525,9 +1612,64 @@ class Body:
             )
         )
 
+        masses_same = (
+            self.mass_by_type == other.mass_by_type
+        )
+        masses_missing_from_self = (
+            set(other.mass_by_type) - set(self.mass_by_type)
+        )
+        masses_missing_from_other = (
+            set(self.mass_by_type) - set(other.mass_by_type)
+        )
+        common_types = set(self.mass_by_type).intersection(
+            set(other.mass_by_type)
+        )
+        masses_equivalent = (
+            all(
+                self.mass_by_type[t] == other.mass_by_type[t]
+                for t in common_types
+            )
+            and all(
+                other.mass_by_type[t] == 1.0 for t in masses_missing_from_self
+            )
+            and all(
+                self.mass_by_type[t] == 1.0 for t in masses_missing_from_other
+            )
+        )
+
+        moi_same = (
+            self.moi_by_type == other.moi_by_type
+        )
+        moi_missing_from_self = (
+            set(other.moi_by_type) - set(self.moi_by_type)
+        )
+        moi_missing_from_other = (
+            set(self.moi_by_type) - set(other.moi_by_type)
+        )
+        common_types = set(self.moi_by_type).intersection(
+            set(other.moi_by_type)
+        )
+        moi_equivalent = (
+            all(
+                self.moi_by_type[t] == other.moi_by_type[t]
+                for t in common_types
+            )
+            and
+            all(
+                other.moi_by_type[t] == [1, 1, 1]
+                for t in moi_missing_from_self
+            )
+            and all(
+                self.moi_by_type[t] == [1, 1, 1]
+                for t in moi_missing_from_other
+            )
+        )
+
         return (
             primary_same and secondary_same and positions_same
             and (orientations_same or orientations_equivalent)
+            and (masses_same or masses_equivalent)
+            and (moi_same or moi_equivalent)
         )
     
     def __repr__(self):
@@ -1537,5 +1679,7 @@ class Body:
             + f"\n\tsecondary_types={self.secondary_types},"
             + f"\n\tpositions_by_type={self.positions_by_type},"
             + f"\n\torientations_by_type={self.orientations_by_type},"
+            + f"\n\tmass_by_type={self.mass_by_type},"
+            + f"\n\tmoi_by_type={self.moi_by_type},"
             + "\n)"
         )

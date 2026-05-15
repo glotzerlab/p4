@@ -8,7 +8,6 @@
   - [ ] dynamical meshing?
 
 `Interaction`
-- [x] add plotting
 - [ ] add autogenerate dict method
 
 Other
@@ -17,13 +16,12 @@ Other
   - [ ] Support VTK in Field IO (plotly can't handle datasets that large)
   - [ ] Body saving to VTK
 - [ ] Add state/frame plotting
-- [x] write basic error-checking tests for plotting
 - [ ] add validation tests
+- [ ] fix problem that happens if user passes numpy arrays for positions/orientations and then attempts to save to json
+- [ ] add masses and mois to body and arrangement tests
 
 Docs
 - [ ] switch to MyST
-- [x] move HTML to separate build step
-- [x] fix syntax highlighting for bash and license
 
 ## Roadmap
 

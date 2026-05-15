@@ -396,7 +396,6 @@ class Body:
     def to_hoomd_rigid(
         self,
         rigid: hoomd.md.constrain.Rigid | None = None,
-        included_secondary_types: list[str] | None = None,
     ) -> hoomd.md.constrain.Rigid:
         """Convert the body to a HOOMD-blue `rigid constraint`_.
 
@@ -408,28 +407,22 @@ class Body:
         Parameters
         ----------
         rigid : hoomd.md.constrain.Rigid, optional
-            An existing constraint instance to use. If not provided, a new one is
-            created.
-        included_secondary_types : list[str], optional
-            The names of the secondary types to include in the rigid body. If not
-            provided, all secondary types are included.
+            An existing constraint instance to use. If not provided, a new one
+            is created.
         """
         if rigid is None:
             rigid = hoomd.md.constrain.Rigid()
-    
-        if included_secondary_types is None:
-            included_secondary_types = self.secondary_types
         
         types_and_positions = [
             [t, position]
-            for t in included_secondary_types
+            for t in self.secondary_types
             for position in self.positions_by_type[t]
         ]
 
         if self.orientations_by_type:
             orientations = [
                 orientation
-                for t in included_secondary_types
+                for t in self.secondary_types
                 for orientation in self.orientations_by_type[t]
             ]
         else:

@@ -570,12 +570,11 @@ def test_from_hoomd_simulation_with_rigid(
         assert len(actual_bodies) == len(expected_bodies)
         assert all(b in actual_bodies for b in expected_bodies)
 
-def rigids_are_equal(rigid1, rigid2):
-    """Whether two rigid constraints are equivalent."""
+def assert_rigids_are_equal(rigid1, rigid2):
+    """Assert that two rigid constraints are equivalent."""
     r1_body = rigid1.body.to_base()
     r2_body = rigid2.body.to_base()
-
-    return r1_body == r2_body
+    assert r1_body == r2_body
 
 @pytest.mark.parametrize("kwargs", VALID_KWARGS)
 def test_to_hoomd_rigid(kwargs):
@@ -590,12 +589,12 @@ def test_to_hoomd_rigid(kwargs):
 
     # Test with all secondary types and no existing rigid constraint
     rigid = make_rigid(**kwargs)
-    assert rigids_are_equal(rigid, body.to_hoomd_rigid())
+    assert_rigids_are_equal(rigid, body.to_hoomd_rigid())
 
     # Test with existing rigid constraint
     existing_rigid = make_rigid("X", ["Y"], dict(Y=[[0,0,1], [0,0,-1]]))
     merged_rigid = merge_rigids(existing_rigid, rigid)
-    assert rigids_are_equal(merged_rigid, body.to_hoomd_rigid(rigid=existing_rigid))
+    assert_rigids_are_equal(merged_rigid, body.to_hoomd_rigid(rigid=existing_rigid))
 
     # Test with partial secondary types...
     if len(kwargs["secondary_types"]) > 1:
@@ -603,7 +602,7 @@ def test_to_hoomd_rigid(kwargs):
         
         # ... and no existing constraint...
         rigid = make_rigid(**kwargs)
-        assert rigids_are_equal(
+        assert_rigids_are_equal(
             rigid,
             body.to_hoomd_rigid(
                 included_secondary_types=kwargs["secondary_types"]
@@ -612,7 +611,7 @@ def test_to_hoomd_rigid(kwargs):
 
         # .. and an existing constraint
         merged_rigid = merge_rigids(existing_rigid, rigid)
-        assert rigids_are_equal(
+        assert_rigids_are_equal(
             merged_rigid,
             body.to_hoomd_rigid(
                 rigid=existing_rigid,

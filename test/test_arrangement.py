@@ -144,54 +144,24 @@ def test_invalid_instantiation(kwargs):
     with pytest.raises((TypeError, ValueError)):
         _ = p4.Arrangement(**kwargs)
 
-def make_simulation(
-    bodies,
-    positions_by_type,
-    orientations_by_type={}
-):
-    """Create a simulation with a state that matches the kwargs for an Arrangement."""
+def test_sanitized_instantiation():
+    # Sanitize as follows: np -> list, 
+    # TODO
+    pass
+
+def make_simulation(arrangement_kwargs, filename, index=0):
+    """Create a simulation with a state from a named GSD file.
+    
+    A rigid constraint is created from arrangement kwargs and attached to the
+    simulation.
+    """
     # Create rigid
-    rigid = hoomd.md.constrain.Rigid()
-
-    for b in bodies:
-        rigid = b.to_hoomd_rigid(rigid)
+    rigid = p4.Arrangement(**arrangement_kwargs).to_hoomd_rigid()
     
-    # Create simulation state via GSD frame
-    frame = gsd.hoomd.Frame()
+    # Create simulation with a state from the GSD file
+    with gsd.hoomd.open(filename, "r") as f:
+        frame = f[index]
 
-    # types = list(positions_by_type.keys())
-    types = []
-    for b in bodies:
-        types.append(b.primary_type)
-        types.extend(b.secondary_types)
-
-    typeids = []
-    positions = []#np.empty((1,3), dtype=np.float32)
-    orientations = []#np.empty((1,4), dtype=np.float32)
-
-    for t, ps in positions_by_type.items():
-        os = orientations_by_type.get(t, [[1,0,0,0] for _ in ps])
-        
-        tid = types.index(t)
-
-        typeids.extend([tid for _ in ps])
-        positions.extend(ps)
-        orientations.extend(os)
-
-    frame.particles.N = len(positions)
-    frame.particles.types = types
-    frame.particles.typeid = typeids
-    frame.particles.position = np.array(positions)
-    frame.particles.orientation = np.array(orientations)
-    frame.configuration.box = [
-        10 * frame.particles.position[:,0].max(),
-        10 * frame.particles.position[:,1].max(),
-        10 * frame.particles.position[:,2].max(),
-        0.0,
-        0.0,
-        0.0
-    ]
-    
     snapshot = hoomd.Snapshot.from_gsd_frame(
         gsd_snap=frame,
         communicator=hoomd.communicator.Communicator()
@@ -199,9 +169,6 @@ def make_simulation(
 
     simulation = hoomd.Simulation(device=hoomd.device.CPU())
     simulation.create_state_from_snapshot(snapshot)
-
-    # Add secondary types to simulation state via rigid.create_bodies
-    rigid.create_bodies(simulation.state)
 
     # Ensure it runs
     simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
@@ -249,21 +216,29 @@ def assert_arrangements_are_equal(a, b):
         )
     )
 
-@pytest.mark.parametrize("kwargs", VALID_KWARGS)
-def test_from_hoomd_simulation(kwargs):
+REFERENCE_FOLDER = Path(__file__).parent / "data"
+
+@pytest.mark.parametrize("kwargs,ref_filename", [
+    [VALID_KWARGS[0], "single-particle-arrangement-sphere.gsd"],
+    [VALID_KWARGS[1], "multi-particle-arrangement-ellipsoid-cpolyhedron-polyhedron.gsd"]
+])
+def test_from_hoomd_simulation(kwargs, ref_filename):
     """Ensure parsing from hoomd simulation produces the expected output."""
     arrangement = p4.Arrangement(**kwargs)
-    simulation = make_simulation(**kwargs)
+    simulation = make_simulation(kwargs, REFERENCE_FOLDER / ref_filename)
     include_singles = any(b.secondary_types == [] for b in kwargs["bodies"])
     assert_arrangements_are_equal(
         arrangement,
         p4.Arrangement.from_hoomd_simulation(simulation, include_singles)
     )
 
-@pytest.mark.parametrize("kwargs", VALID_KWARGS)
-def test_from_hoomd_snapshot(kwargs):
+@pytest.mark.parametrize("kwargs,ref_filename", [
+    [VALID_KWARGS[0], "single-particle-arrangement-sphere.gsd"],
+    [VALID_KWARGS[1], "multi-particle-arrangement-ellipsoid-cpolyhedron-polyhedron.gsd"]
+])
+def test_from_hoomd_snapshot(kwargs, ref_filename):
     """Ensure parsing from hoomd snapshot produces the expected output."""
-    simulation = make_simulation(**kwargs)
+    simulation = make_simulation(kwargs, REFERENCE_FOLDER / ref_filename)
 
     snapshot = simulation.state.get_snapshot()
     typeids = snapshot.particles.typeid
@@ -290,16 +265,14 @@ def test_from_hoomd_snapshot(kwargs):
         p4.Arrangement.from_hoomd_snapshot(snapshot)
     )
 
-REFERENCE_FOLDER = Path(__file__).parent / "data"
-
-@pytest.mark.parametrize("kwargs,filename,index", [
+@pytest.mark.parametrize("kwargs,ref_filename,index", [
     [VALID_KWARGS[0], "single-particle-arrangement-sphere.gsd", 0],
     [VALID_KWARGS[1], "multi-particle-arrangement-ellipsoid-cpolyhedron-polyhedron.gsd", 0],
     [VALID_KWARGS[0], "multi-frame-single-particle-arrangement.gsd", 1],
 ])
-def test_from_gsd(kwargs, filename, index):
+def test_from_gsd(kwargs, ref_filename, index):
     """Ensure parsing from GSD file produces the expected output."""
-    simulation = make_simulation(**kwargs)
+    simulation = make_simulation(kwargs, REFERENCE_FOLDER / ref_filename, index)
 
     snapshot = simulation.state.get_snapshot()
     typeids = snapshot.particles.typeid
@@ -323,7 +296,7 @@ def test_from_gsd(kwargs, filename, index):
 
     assert_arrangements_are_equal(
         expected_arrangement,
-        p4.Arrangement.from_gsd(REFERENCE_FOLDER / filename, index)
+        p4.Arrangement.from_gsd(REFERENCE_FOLDER / ref_filename, index)
     )
 
 def assert_rigids_are_equal(rigid1, rigid2):
@@ -331,7 +304,6 @@ def assert_rigids_are_equal(rigid1, rigid2):
     r1_body = rigid1.body.to_base()
     r2_body = rigid2.body.to_base()
     assert r1_body == r2_body
-
 
 @pytest.mark.parametrize("kwargs", VALID_KWARGS)
 @pytest.mark.parametrize("variant", ["with_rigid", "without_rigid"])
@@ -368,25 +340,33 @@ def test_to_hoomd_rigid(kwargs, variant):
     
     assert_rigids_are_equal(ref_rigid, test_rigid)
 
-@pytest.mark.parametrize("kwargs", VALID_KWARGS)
-def test_to_hoomd_snapshot(kwargs):
+@pytest.mark.parametrize("kwargs,ref_filename", [
+    [VALID_KWARGS[0], "single-particle-arrangement-sphere.gsd"],
+    [VALID_KWARGS[1], "multi-particle-arrangement-ellipsoid-cpolyhedron-polyhedron.gsd"]
+])
+def test_to_hoomd_snapshot(kwargs, ref_filename):
     """Ensure export to snapshot produces the expected output."""
     arrangement = p4.Arrangement(**kwargs)
-    simulation = make_simulation(**kwargs)
+    simulation = make_simulation(kwargs, REFERENCE_FOLDER / ref_filename)
     ref_snap = simulation.state.get_snapshot()
     test_snap = arrangement.to_hoomd_snapshot()
 
     ref_typeids = ref_snap.particles.typeid.tolist()
     ref_positions = np.round(ref_snap.particles.position, 3).tolist()       # rounded because run(0) warps the exact values
     ref_orientations = np.round(ref_snap.particles.orientation, 3).tolist()
+    ref_masses = ref_snap.particles.mass.tolist()
+    ref_mois = ref_snap.particles.moment_inertia.tolist()
+    ref_bodyids = ref_snap.particles.body.tolist()
     
     test_typeids = test_snap.particles.typeid.tolist()
     test_positions = np.round(test_snap.particles.position, 3).tolist()
     test_orientations = np.round(test_snap.particles.orientation, 3).tolist()
+    test_masses = test_snap.particles.mass.tolist()
+    test_mois = test_snap.particles.moment_inertia.tolist()
+    test_bodyids = test_snap.particles.body.tolist()
 
-    ref_data = list(zip(ref_typeids, ref_positions, ref_orientations))
-    test_data = list(zip(test_typeids, test_positions, test_orientations))
-    
+    ref_data = list(zip(ref_typeids, ref_positions, ref_orientations, ref_masses, ref_mois, ref_bodyids))
+    test_data = list(zip(test_typeids, test_positions, test_orientations, test_masses, test_mois, test_bodyids))
     assert ref_snap.particles.N == test_snap.particles.N
     assert ref_snap.particles.types == test_snap.particles.types
     assert all(row in test_data for row in ref_data)
@@ -436,47 +416,13 @@ CONCAVE_FACES = [
 ]
 
 @pytest.mark.parametrize("kwargs,ref_filename,type_shapes", [
-    [   # 1 single-particle body, without orientations, type_shapes are a sphere
-        dict(
-            bodies=[p4.Body("A")],
-            positions_by_type=dict(A=[[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
-        ),
+    [
+        VALID_KWARGS[0],
         "single-particle-arrangement-sphere.gsd",
         dict(A=coxeter.shapes.Sphere(0.5))
     ],
-    [   # 2 multi-particle bodies, with orientations, multiple type_shapes, some not specified
-        dict(
-            bodies=[
-                p4.Body(
-                    primary_type="A",
-                    secondary_types=["B", "C"],
-                    positions_by_type=dict(
-                        B=[[-1,0,0]],
-                        C=[[1,0,0]]
-                    )
-                ),
-                p4.Body(
-                    primary_type="D",
-                    secondary_types=["E", "F"],
-                    positions_by_type=dict(
-                        E=[[0, -1, 0], [0, 1, 0]],
-                        F=[[0, 0, -1], [0, 0, 1]]
-                    ),
-                    orientations_by_type=dict(
-                        E=[[1,0,0,0], [0, 0.707, 0.707, 0]],
-                        F=[[0.707, 0, -0.707, 0], [0.707, 0, 0.707, 0]]
-                    ),
-                )
-            ],
-            positions_by_type=dict(
-                A=[[10, 0, 0]],
-                D=[[0, 10, 0], [0, 20, 0]]
-            ),
-            orientations_by_type=dict(
-                A=[[1,0,0,0]],
-                D=[[0, 0.707, 0.707, 0], [0.707, 0, 0.707, 0]]
-            )
-        ),
+    [
+        VALID_KWARGS[1],
         "multi-particle-arrangement-ellipsoid-cpolyhedron-polyhedron.gsd",
         dict(
             A=coxeter.shapes.Ellipsoid(a=0.25, b=4, c=6),
@@ -505,3 +451,6 @@ def test_to_gsd(kwargs, ref_filename, type_shapes):
         assert np.array_equal(test_frame.particles.position, ref_frame.particles.position)
         assert np.array_equal(test_frame.particles.orientation, ref_frame.particles.orientation)
         assert test_frame.particles.type_shapes == ref_frame.particles.type_shapes
+        assert np.array_equal(test_frame.particles.mass, ref_frame.particles.mass)
+        assert np.array_equal(test_frame.particles.moment_inertia, ref_frame.particles.moment_inertia)
+        assert np.array_equal(test_frame.particles.body, ref_frame.particles.body)

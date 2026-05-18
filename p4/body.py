@@ -535,7 +535,7 @@ class Body:
         typeids = [0]
         positions = np.array([[0, 0, 0]], dtype=np.float32)
         orientations = np.array([[1, 0, 0, 0]], dtype=np.float32)
-        masses = self.mass_by_type.get(self.primary_type, [1])
+        masses = [self.mass_by_type.get(self.primary_type, 1)]
         mois = np.array(
             [self.mass_by_type.get(self.primary_type, [1, 1, 1])],
             dtype=np.float32
@@ -544,14 +544,14 @@ class Body:
 
         for t, ps in self.positions_by_type.items():
             os = self.orientations_by_type.get(t, [[1, 0, 0, 0] for _ in ps])
-            m = self.mass_by_type.get(t, 1)
+            mass = self.mass_by_type.get(t, 1)
             moi = self.moi_by_type.get(t, [1, 1, 1])
             tid = types.index(t)
 
             typeids.extend([tid for _ in ps])
             positions = np.vstack((positions, ps))
             orientations = np.vstack((orientations, os))
-            masses.extend([m for _ in ps])
+            masses.extend([mass for _ in ps])
             mois = np.vstack((mois, [moi for _ in ps]))
             bodyids.extend([0 for _ in ps])
 

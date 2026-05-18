@@ -286,21 +286,75 @@ class Arrangement:
         typeids = []
         positions = np.empty((0, 3), dtype=np.float32)
         orientations = np.empty((0, 4), dtype=np.float32)
+        masses = []
+        mois = np.empty((0, 3), dtype=np.float32)
+        bodyids = []
 
+        # Loop over each type of body
         for body in self.bodies:
             types.extend([body.primary_type] + body.secondary_types)
             
-            body_typeid = types.index(body.primary_type)
-            body_positions = self.positions_by_type[body.primary_type]
-            body_orientations = self.orientations_by_type.get(
+            # Calculate quantities that do not vary between instances
+            body_typeids = [types.index(body.primary_type)]
+            body_masses = [body.mass_by_type.get(body.primary_type, 1)]
+            body_mois = np.array(
+                [body.moi_by_type.get(body.primary_type, [1, 1, 1])],
+                dtype=np.float32
+            )
+            for t, ps in body.positions_by_type.items():
+                body_typeids.extend([types.index(t) for _ in ps])
+                body_masses.extend([body.mass_by_type.get(t, 1) for _ in ps])
+                body_mois = np.vstack((
+                    body_mois,
+                    [body.moi_by_type.get(t, [1, 1, 1]) for _ in ps]
+                ))
+
+            # Add quantities that do not vary between instances
+            for _ in self.positions_by_type[body.primary_type]:
+                typeids.extend(body_typeids)
+                masses.extend(body_masses)
+                mois = np.vstack((mois, body_mois))
+
+            # Calculate the positions and orientations for all instances of
+            # this body
+            instance_primary_positions = self.positions_by_type[
+                body.primary_type
+            ]
+            instance_primary_orientations = self.orientations_by_type.get(
                 body.primary_type,
-                np.array([[1, 0, 0, 0] for _ in body_positions])
+                np.array([[1, 0, 0, 0] for _ in instance_primary_positions])
             )
             
-            typeids.extend([body_typeid for _ in body_positions])
-            positions = np.vstack((positions, body_positions))
-            orientations = np.vstack((orientations, body_orientations))
+            # Loop over each instance
+            for i, primary_p in enumerate(instance_primary_positions):
+                body_instance_id = positions.shape[0]    # equals primary's tag
+                primary_o = instance_primary_orientations[i]
 
+                # Add primary particle's bodyid, position and orientation
+                bodyids.append(body_instance_id)
+                positions = np.vstack((positions, primary_p))
+                orientations = np.vstack((orientations, primary_o))
+                
+                # Add secondary particles' bodyids, positions and orientations
+                for secondary_t in body.secondary_types:
+                    secondary_ps = body.positions_by_type[secondary_t]
+                    secondary_os = body.orientations_by_type.get(
+                        secondary_t,
+                        [(1, 0, 0, 0) for _ in secondary_ps]
+                    )
+
+                    bodyids.extend([body_instance_id for _ in secondary_ps])
+                    positions = np.vstack((
+                        positions,
+                        rowan.rotate(primary_o, secondary_ps) + primary_p
+                    ))
+                    orientations = np.vstack((
+                        orientations,
+                        rowan.multiply(primary_o, secondary_os)
+                    ))
+
+        # Insert the calculated particle data into a GSD Frame, then convert the
+        # Frame to a HOOMD Snapshot
         frame = gsd.hoomd.Frame()
         frame.configuration.box = [
             3*max(np.abs(positions[:,0].max()), np.abs(positions[:,0].min())+1),
@@ -315,57 +369,14 @@ class Arrangement:
         frame.particles.typeid = typeids
         frame.particles.position = positions
         frame.particles.orientation = orientations
+        frame.particles.mass = masses
+        frame.particles.moment_inertia = mois
+        frame.particles.body = bodyids
 
-        # Create a simulation from the initial state
-        snapshot = hoomd.Snapshot.from_gsd_frame(
+        return hoomd.Snapshot.from_gsd_frame(
             gsd_snap=frame,
             communicator=hoomd.communicator.Communicator()
         )
-
-        simulation = hoomd.Simulation(device=hoomd.device.CPU())
-        simulation.create_state_from_snapshot(snapshot)
-
-        # Create a rigid constraint from all of the bodies
-        rigid = hoomd.md.constrain.Rigid()
-        for b in self.bodies:
-            rigid = b.to_hoomd_rigid(rigid)
-
-        # Use the rigid constraint to add all secondary particles
-        rigid.create_bodies(simulation.state)
-
-        # Add particle masses and moments of inertia
-        snapshot = simulation.state.get_snapshot()
-        types = snapshot.particles.types
-        masses_by_type = {}
-        moi_by_type = {}
-        for t in snapshot.particles.types:
-            if any(t in b.mass_by_type for b in self.bodies): # [Review]
-                body = [
-                    b
-                    for b in self.bodies
-                    if t == b.primary_type or t in b.secondary_types
-                ][0]
-
-                masses_by_type[t] = body.mass_by_type[t]
-
-            if any(t in b.moi_by_type for b in self.bodies): # [Review]
-                body = [
-                    b
-                    for b in self.bodies
-                    if t == b.primary_type or t in b.secondary_types
-                ][0]
-
-                moi_by_type[t] = body.moi_by_type[t]
-        
-        for i, tid in enumerate(snapshot.particles.typeid):
-            t = types[tid]
-            if t in masses_by_type:
-                snapshot.particles.mass[i] = masses_by_type[t]
-            if t in moi_by_type:
-                snapshot.particles.moment_inertia[i] = moi_by_type[t]
-
-        # Parse the simulation state to get the snapshot
-        return snapshot
 
     def to_gsd(
         self,

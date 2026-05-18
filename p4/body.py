@@ -2,6 +2,7 @@
 # This file is from the p4 project, released under the BSD 3-Clause License.
 
 from __future__ import annotations
+from collections import defaultdict
 import json
 import os
 import coxeter
@@ -180,75 +181,162 @@ class Body:
             simulation.operations.integrator is None
             or simulation.operations.integrator.rigid is None
         ):
-            bodies_from_rigid = []
+            bodies = cls.from_hoomd_snapshot(
+                simulation.state.get_snapshot(),
+                include_singles
+            )
         
         else:
             bodies_from_rigid = cls.from_hoomd_rigid(
                 simulation.operations.integrator.rigid,
                 include_singles
             )
-        
-        bodies_from_state = []
-        snapshot = simulation.state.get_snapshot()
-        for i, t in enumerate(snapshot.particles.types):
-            t_indices = np.where(snapshot.particles.typeid == i)[0].tolist()
-            
-            if t_indices:
-                # If all masses are the same for this type, include the value
-                # in mass_by_type
-                first_mass = snapshot.particles.mass[t_indices[0]]
-                if (
-                    len(t_indices) == 1
-                    or all(
-                        other_mass == first_mass
-                        for other_mass in snapshot.particles.mass[t_indices[1:]]
-                    )
-                ):
-                    mass_by_type=dict(t=float(first_mass))
-                else:
-                    mass_by_type=dict()
+            bodies_from_state = cls.from_hoomd_snapshot(
+                simulation.state.get_snapshot(),
+                include_singles
+            )
 
-                # If all MoIs are the same for this type, include the value
-                # in moi_by_type
-                first_moi = snapshot.particles.moment_inertia[
-                    t_indices[0]
-                ].tolist()
-                if (
-                    len(t_indices) == 1
-                    or all(
-                        other_moi.tolist() == first_moi
-                        for other_moi in snapshot.particles.moment_inertia[t_indices[1:]]
-                    )
-                ):
-                    # NOTE: the default mass in hoomd-blue is [0, 0, 0].
-                    # If that's detected here, reset it to [1, 1, 1].
-                    moi_by_type=dict(
-                        t=first_moi if first_moi != [0, 0, 0] else [1, 1, 1]
-                    )
-                else:
-                    moi_by_type=dict()
-
-                bodies_from_state.append(
-                    cls(
-                        t,
-                        mass_by_type=mass_by_type,
-                        moi_by_type=moi_by_type
-                    )
-                )
-            
-            else:
-                bodies_from_state.append(cls(t))
-                    
-        if not include_singles:
-            return bodies_from_rigid
-        
-        else:
-            bodies = copy(bodies_from_rigid)
-            for body in bodies_from_state:
+            # Bodies from state take precedence
+            bodies = copy(bodies_from_state)
+            for body in bodies_from_rigid:
                 if not any(b.primary_type == body.primary_type for b in bodies):
                     bodies.append(body)
-            
+        
+        if include_singles:
             return bodies
+        
+        else:
+            return [b for b in bodies if b.secondary_types]
+
+    @classmethod
+    def from_hoomd_snapshot(
+        cls,
+        snapshot: hoomd.Snapshot,
+        include_singles: bool = False
+    ):
+        """Parse a HOOMD-blue `Snapshot`_ to create one or more bodies.
+
+        .. _Snapshot: https://hoomd-blue.readthedocs.io/en/latest/hoomd/snapshot.html
+
+        A snapshot's body data is stored in ``particles.body``.
+        
+        Parameters
+        ----------
+        snapshot : hoomd.Snapshot
+            The snapshot to parse.
+        include_singles : bool, default=False
+            Whether to include single-particle bodies when parsing the
+            simulation.
+        """
+        pdata = snapshot.particles
+        
+        bodies = []
+        for bodyid in np.unique(pdata.body):
+            # -1 indicates single-particle - process it later
+            if bodyid == -1:
+                continue
+
+            body_indices = np.argwhere(pdata.body == bodyid).flatten()
+            primary_index = body_indices.min()
+            secondary_indices = [i for i in body_indices if i != primary_index]
+            
+            # Primary particle
+            primary_type = pdata.types[pdata.typeid[primary_index]]
+            primary_position = pdata.position[primary_index]
+            primary_orientation = pdata.orientation[primary_index]
+            primary_mass = pdata.mass[primary_index]
+            primary_moi = pdata.moment_inertia[primary_index]
+
+            # Only add single particle bodies if singles are included and there
+            # isn't already one with the same primary type
+            if (
+                not secondary_indices
+                and include_singles
+                and not any(b.primary_type == primary_type for b in bodies)
+            ):
+                bodies.append(Body(
+                    primary_type=primary_type,
+                    mass_by_type=(
+                        dict()
+                        if primary_mass != 1
+                        else dict(primary_type=primary_mass)
+                    ),
+                    moi_by_type=(
+                        dict()
+                        if primary_moi.tolist() in [[0, 0, 0], [1, 1, 1]]
+                        else dict(primary_type=primary_moi)
+                    ),
+                ))
+            
+            # Only add multi-particle bodies if there isn't already one with the
+            # same primary type
+            elif not any(b.primary_type == primary_type for b in bodies):
+                secondary_types = []
+                positions_by_type = defaultdict(list)
+                orientations_by_type = defaultdict(list)
+                mass_by_type = {}
+                moi_by_type = {}
+
+                for i in secondary_indices:
+                    t = pdata.types[pdata.typeid[i]]
+                    if t not in secondary_types:
+                        secondary_types.append(t)
+                    
+                    positions_by_type[t].append(
+                        (pdata.position[i] - primary_position).tolist()
+                    )
+                    orientations_by_type[t].append(
+                        rowan.divide(pdata.orientation[i], primary_orientation) # TODO: test order
+                            .tolist()
+                    )
+                    
+                    mass_by_type[t] = pdata.mass[i]
+                    moi_by_type[t] = pdata.moment_inertia[i]
+                
+                for t, mass in copy(mass_by_type).items():
+                    if mass == 1:
+                        del mass_by_type[t]
+
+                for t, moi in copy(moi_by_type).items():
+                    if moi.tolist() in [[0, 0, 0], [1, 1, 1]]:
+                        del moi_by_type[t]
+
+                bodies.append(Body(
+                    primary_type=primary_type,
+                    secondary_types=secondary_types,
+                    positions_by_type=dict(positions_by_type),
+                    orientations_by_type=dict(orientations_by_type),
+                    mass_by_type=mass_by_type,
+                    moi_by_type=moi_by_type
+                ))
+            
+        # Particles with bodyid == -1 are all guaranteed to be single-particles.
+        # For each one, only add it if there isn't already a body with its
+        # primary type
+        if include_singles:
+            single_indices = np.argwhere(pdata.body == -1).flatten()
+
+            for i in single_indices:
+                primary_type = pdata.types[pdata.typeid[i]]
+                primary_mass = pdata.mass[i]
+                primary_moi = pdata.moment_inertia[i]
+
+                if not any(b.primary_type == primary_type for b in bodies):
+                    bodies.append(Body(
+                        primary_type=primary_type,
+                        mass_by_type=(
+                            dict()
+                            if primary_mass != 1
+                            else dict(primary_type=primary_mass)
+                        ),
+                        moi_by_type=(
+                            dict()
+                            if primary_moi.tolist() in [[0, 0, 0], [1, 1, 1]]
+                            else dict(primary_type=primary_moi)
+                        ),
+                    ))
+
+        return bodies
 
     @classmethod
     def from_hoomd_rigid(
@@ -293,7 +381,6 @@ class Body:
         
         # Construct bodies
         bodies = []
-        # breakpoint()
         empty_dict = dict(constituent_types=[], positions=[], orientations=[])
         for p_t in rigid.body.keys():
             if rigid.body[p_t] is not None and rigid.body[p_t] != empty_dict:

@@ -1449,6 +1449,7 @@ def snapshot_to_frame(snapshot: hoomd.Snapshot):
     frame.particles.orientation = snapshot.particles.orientation
     frame.particles.mass = snapshot.particles.mass
     frame.particles.moment_inertia = snapshot.particles.moment_inertia
+    frame.particles.body = snapshot.particles.body
 
     return frame
 
@@ -1483,6 +1484,7 @@ def get_initial_frame(
     """
     # Create separate frames
     probe_frame = snapshot_to_frame(probe.to_hoomd_snapshot())
+    breakpoint()
     analyte_frame = snapshot_to_frame(analyte.to_hoomd_snapshot())
 
     # Recalculate the position data for the probe frame, moving the probe

@@ -453,6 +453,7 @@ class Body:
             [self.mass_by_type.get(self.primary_type, [1, 1, 1])],
             dtype=np.float32
         )
+        bodyids = [0]
 
         for t, ps in self.positions_by_type.items():
             os = self.orientations_by_type.get(t, [[1, 0, 0, 0] for _ in ps])
@@ -465,6 +466,7 @@ class Body:
             orientations = np.vstack((orientations, os))
             masses.extend([m for _ in ps])
             mois = np.vstack((mois, [moi for _ in ps]))
+            bodyids.extend([0 for _ in ps])
 
         frame.configuration.box = [
             3*max(np.abs(positions[:,0].max()), np.abs(positions[:,0].min())+1),
@@ -481,6 +483,7 @@ class Body:
         frame.particles.orientation = orientations
         frame.particles.mass = masses
         frame.particles.moment_inertia = mois
+        frame.particles.body = bodyids
 
         return hoomd.Snapshot.from_gsd_frame(
             gsd_snap=frame,

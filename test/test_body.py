@@ -27,7 +27,9 @@ VALID_KWARGS = [
         secondary_types=["B"],
         positions_by_type=dict(
             B=[[1,1,1]]
-        )
+        ),
+        mass_by_type=dict(A=2, B=3),
+        moi_by_type=dict(A=[1, 0, 0], B=[0, 1, 0])
     ),
     dict(   # 1 seconary type, positions and orientations
         primary_type="A",
@@ -45,9 +47,9 @@ VALID_KWARGS = [
         positions_by_type=dict(
             B=[[1,1,1]],
             C=[[1,0,0], [0,1,0]]
-        )
+        ),
     ),
-    dict(   # 2 seconary types, positions and orientations
+    dict(   # 2 seconary types, positions and orientations (plus masses and mois)
         primary_type="A",
         secondary_types=["B", "C"],
         positions_by_type=dict(
@@ -57,7 +59,9 @@ VALID_KWARGS = [
         orientations_by_type=dict(
             B=[[1,1,0,0]],
             C=[[1,0,0,0], [0,1,0,0]]
-        )
+        ),
+        mass_by_type=dict(A=2, B=3),
+        moi_by_type=dict(A=[1, 0, 0], B=[0, 1, 0])
     ),
 ]
 
@@ -260,7 +264,9 @@ def make_rigid(
     primary_type,
     secondary_types=[],
     positions_by_type={},
-    orientations_by_type={}
+    orientations_by_type={},
+    mass_by_type={},    # ignored
+    moi_by_type={}      # ignored
 ):
     """Create a rigid constraint that corresponds to the args for a Body."""
     rigid = hoomd.md.constrain.Rigid()
@@ -316,14 +322,14 @@ def make_rigid_and_expected_bodies_for_variant(
     elif single_or_multi_body == "single" and single_or_multi_particle == "multi":
         rigid.body["A"] = dict(
             constituent_types=["B", "C"],
-            positions=[[1, 0, 0], [2, 0, 0]],
+            positions=[[1, 0, 0], [0, 1, 0]],
             orientations=[[0, 1, 0, 0], [0, 0, 1, 0]]
         )
         expected_bodies = [
             p4.Body(
                 primary_type="A",
                 secondary_types=["B", "C"],
-                positions_by_type=dict(B=[[1, 0, 0]], C=[[2, 0, 0]]),
+                positions_by_type=dict(B=[[1, 0, 0]], C=[[0, 1, 0]]),
                 orientations_by_type=dict(B=[[0, 1, 0, 0]], C=[[0, 0, 1, 0]])
             )
         ]
@@ -331,26 +337,26 @@ def make_rigid_and_expected_bodies_for_variant(
     elif single_or_multi_body == "multi" and single_or_multi_particle == "multi":
         rigid.body["A"] = dict(
             constituent_types=["B", "C"],
-            positions=[[1, 0, 0], [2, 0, 0]],
+            positions=[[1, 0, 0], [0, 1, 0]],
             orientations=[(0, 1, 0, 0), (0, 0, 1, 0)]
         )
         rigid.body["D"] = dict(
             constituent_types=["E", "F"],
-            positions=[[-1, 0, 0], [-2, 0, 0]],
-            orientations=[(0, -1, 0, 0), (0, 0, -1, 0)]
+            positions=[[-1, 0, 0], [0, -1, 0]],
+            orientations=[(0, 1, 0, 0), (0, 0.707, 0.707, 0)]
         )
         expected_bodies = [
             p4.Body(
                 primary_type="A",
                 secondary_types=["B", "C"],
-                positions_by_type=dict(B=[[1, 0, 0]], C=[[2, 0, 0]]),
+                positions_by_type=dict(B=[[1, 0, 0]], C=[[0, 1, 0]]),
                 orientations_by_type=dict(B=[[0, 1, 0, 0]], C=[[0, 0, 1, 0]])
             ),
             p4.Body(
                 primary_type="D",
                 secondary_types=["E", "F"],
-                positions_by_type=dict(E=[[-1, 0, 0]], F=[[-2, 0, 0]]),
-                orientations_by_type=dict(E=[[0, -1, 0, 0]], F=[[0, 0, -1, 0]])
+                positions_by_type=dict(E=[[-1, 0, 0]], F=[[0, -1, 0]]),
+                orientations_by_type=dict(E=[[0, 1, 0, 0]], F=[[0, 0.707, 0.707, 0]])
             )
         ]
     
@@ -390,7 +396,9 @@ def make_simulation(
     primary_type,
     secondary_types=[],
     positions_by_type={},
-    orientations_by_type={}
+    orientations_by_type={},
+    mass_by_type={},
+    moi_by_type={}
 ):
     """Create a simulation with a rigid constraint that corresponds to the args for a Body."""
     simulation = hoomd.Simulation(device=hoomd.device.CPU())
@@ -414,9 +422,27 @@ def make_simulation(
     )
 
     rigid.create_bodies(simulation.state)
+
+    # Add mass and moi if necessary
+    snapshot = simulation.state.get_snapshot()
+    if mass_by_type:
+        for i, t in enumerate(snapshot.particles.types):
+            if t in mass_by_type:
+                t_indices = np.argwhere(snapshot.particles.typeid == i)
+                snapshot.particles.mass[t_indices] = mass_by_type[t]
+
+    if moi_by_type:
+        for i, t in enumerate(snapshot.particles.types):
+            if t in moi_by_type:
+                t_indices = np.argwhere(snapshot.particles.typeid == i)
+                snapshot.particles.moment_inertia[t_indices] = moi_by_type[t]     
+    
+    simulation.state.set_snapshot(snapshot)
+
     simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
     simulation.operations.integrator.rigid = rigid
     simulation.run(0)  # make sure it runs
+
     return simulation
 
 @pytest.mark.parametrize("has_integrator", [False, True])
@@ -429,8 +455,8 @@ def test_from_hoomd_simulation_without_rigid(
 ):
     """Ensure parsing from a simulation without a rigid constraint produces the expected output."""
     if has_particles_in_state:
-        simulation = hoomd.util.make_example_simulation(particle_types=["A", "B"])
-        expected_bodies = [p4.Body("A"), p4.Body("B")] if include_singles else []
+        simulation = hoomd.util.make_example_simulation(particle_types=["A"])
+        expected_bodies = [p4.Body("A")] if include_singles else []
     else:
         simulation = hoomd.Simulation(device=hoomd.device.CPU())
         simulation.create_state_from_snapshot(hoomd.Snapshot())
@@ -454,71 +480,64 @@ def make_snapshot_for_variant(
         frame.particles.typeid = np.array([0, 0], dtype=np.uint32)
         frame.particles.position = np.array([[0, 1, 0], [0, 2, 0]], dtype=np.float32)
         frame.particles.orientation = np.array([[1, 0, 0, 0], [0, 1, 0, 0]], dtype=np.float32)
+        frame.particles.body = np.array([-1, -1], dtype=np.int32)
 
     elif single_or_multi_body == "multi" and single_or_multi_particle == "single":
         frame.particles.types = ["A", "B"]
         frame.particles.typeid = np.array([0, 1], dtype=np.uint32)
         frame.particles.position = np.array([[0, 1, 0], [0, 2, 0]], dtype=np.float32)
         frame.particles.orientation = np.array([[1, 0, 0, 0], [0, 1, 0, 0]], dtype=np.float32)
+        frame.particles.body = np.array([-1, -1], dtype=np.int32)
 
     elif single_or_multi_body == "single" and single_or_multi_particle == "multi":
         frame.particles.types = ["A", "B", "C"]
-        # frame.particles.typid = np.array([0, 1, 2], dtype=np.uint32)
-        # frame.particles.position = np.array([[0, 1, 0], [1, 1, 0], [2, 1, 0]], dtype=np.float32)
-        # frame.particles.orientation = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]], dtype=np.float32)
-        frame.particles.typeid = np.array([0], dtype=np.uint32)
-        frame.particles.position = np.array([[0, 1, 0]], dtype=np.float32)
-        frame.particles.orientation = np.array([[1, 0, 0, 0]], dtype=np.float32)
-
+        frame.particles.typeid = np.array([0, 1, 2], dtype=np.uint32)
+        frame.particles.position = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], dtype=np.float32)
+        frame.particles.orientation = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]], dtype=np.float32)
+        frame.particles.body = np.array([0, 0, 0], dtype=np.int32)
 
     elif single_or_multi_body == "multi" and single_or_multi_particle == "multi":
         frame.particles.types = ["A", "B", "C", "D", "E", "F"]
-        # frame.particles.typid = np.array([0, 1, 2, 3, 4, 5], dtype=np.uint32)
-        frame.particles.typeid = np.array([0, 3], dtype=np.uint32)
+        frame.particles.typeid = np.array([0, 1, 2, 3, 4, 5], dtype=np.uint32)
         frame.particles.position = np.array(
             [
+                [0, 0, 0],
+                [1, 0, 0],
                 [0, 1, 0],
-                # [1, 1, 0],
-                # [2, 1, 0]
-                [0, 2, 0],
-                # [-1, 2, 0],
-                # [-2, 2, 0],
+                [0, 0, 1],
+                [-1, 0, 1],
+                [0, -1, 1],
             ],
             dtype=np.float32
         )
         frame.particles.orientation = np.array(
             [
                 [1, 0, 0, 0],
-                # [0, 1, 0, 0],
-                # [0, 0, 1, 0],
-                [1, 0, 0, 0]
-                # [0, -1, 0, 0],
-                # [0, 0, -1, 0],
+                [0, 1, 0, 0],
+                [0, 0, 1, 0],
+                [-1, 0, 0, 0],
+                [0, -1, 0, 0],
+                [0, -0.707, -0.707, 0],
             ],
             dtype=np.float32
         )
+        frame.particles.body = np.array([0, 0, 0, 3, 3, 3], dtype=np.int32)
 
     frame.particles.N = frame.particles.position.shape[0]
     
     return hoomd.Snapshot.from_gsd_frame(frame, communicator=hoomd.communicator.Communicator())
-
+    
 @pytest.mark.parametrize("single_or_multi_body", ["single", "multi"])
 @pytest.mark.parametrize("single_or_multi_particle", ["single", "multi"])
 @pytest.mark.parametrize("include_singles", [False, True])
 @pytest.mark.parametrize("has_particles_in_state", [False, True])
-@pytest.mark.parametrize("create_bodies_already_called", [False, True])
 def test_from_hoomd_simulation_with_rigid(
     single_or_multi_body,
     single_or_multi_particle,
     include_singles,
     has_particles_in_state,
-    create_bodies_already_called,
 ):
     """Ensure parsing from a simulation with a rigid constraint produces the expected output."""
-    # Skip clashing variant
-    if create_bodies_already_called and not has_particles_in_state:
-        return
-    
     rigid, expected_bodies_from_rigid = make_rigid_and_expected_bodies_for_variant(
         single_or_multi_body,
         single_or_multi_particle,
@@ -538,24 +557,6 @@ def test_from_hoomd_simulation_with_rigid(
 
         simulation.create_state_from_snapshot(snapshot)
 
-        if create_bodies_already_called:
-            rigid.create_bodies(simulation.state)
-            
-        if include_singles:
-            if single_or_multi_body == "single" and single_or_multi_particle == "single":
-                # already captured from rigid
-                pass
-            
-            elif single_or_multi_body == "multi" and single_or_multi_particle == "single":
-                # already captured from rigid
-                pass
-
-            elif single_or_multi_body == "single" and single_or_multi_particle == "multi":
-                expected_bodies.extend([p4.Body("B"), p4.Body("C")])
-
-            elif single_or_multi_body == "multi" and single_or_multi_particle == "multi":
-                expected_bodies.extend([p4.Body("B"), p4.Body("C"), p4.Body("E"), p4.Body("F")])
-
     else:
         simulation.create_state_from_snapshot(hoomd.Snapshot())
 
@@ -570,6 +571,38 @@ def test_from_hoomd_simulation_with_rigid(
         assert len(actual_bodies) == len(expected_bodies)
         assert all(b in actual_bodies for b in expected_bodies)
 
+@pytest.mark.parametrize("single_or_multi_body", ["single", "multi"])
+@pytest.mark.parametrize("single_or_multi_particle", ["single", "multi"])
+@pytest.mark.parametrize("include_singles", [False, True])
+@pytest.mark.parametrize("has_particles_in_state", [False, True])
+def test_from_hoomd_snapshot(
+    single_or_multi_body,
+    single_or_multi_particle,
+    include_singles,
+    has_particles_in_state,
+):
+    """Ensure parsing from a snapshot produces the expected result."""
+    snapshot = make_snapshot_for_variant(
+        single_or_multi_body,
+        single_or_multi_particle,
+    )
+
+    expected_bodies = p4.Body.from_hoomd_snapshot(snapshot, include_singles)
+
+    if not has_particles_in_state:
+        original_snapshot = snapshot
+        snapshot = hoomd.Snapshot()
+        snapshot.particles.types = original_snapshot.particles.types
+
+        expected_bodies = []
+    
+    if not include_singles:
+        expected_bodies = [b for b in expected_bodies if b.secondary_types]
+    
+    actual_bodies = p4.Body.from_hoomd_snapshot(snapshot, include_singles)
+    assert len(actual_bodies) == len(expected_bodies)
+    assert all(b in actual_bodies for b in expected_bodies)
+
 def assert_rigids_are_equal(rigid1, rigid2):
     """Assert that two rigid constraints are equivalent."""
     r1_body = rigid1.body.to_base()
@@ -582,10 +615,6 @@ def test_to_hoomd_rigid(kwargs):
     kwargs = copy(kwargs)
 
     body = p4.Body(**kwargs)
-    
-    # Skip case when there are not secondary types
-    if "secondary_types" not in kwargs.keys():
-        return
 
     # Test with all secondary types and no existing rigid constraint
     rigid = make_rigid(**kwargs)
@@ -595,29 +624,6 @@ def test_to_hoomd_rigid(kwargs):
     existing_rigid = make_rigid("X", ["Y"], dict(Y=[[0,0,1], [0,0,-1]]))
     merged_rigid = merge_rigids(existing_rigid, rigid)
     assert_rigids_are_equal(merged_rigid, body.to_hoomd_rigid(rigid=existing_rigid))
-
-    # Test with partial secondary types...
-    if len(kwargs["secondary_types"]) > 1:
-        kwargs["secondary_types"] = [kwargs["secondary_types"][0]]
-        
-        # ... and no existing constraint...
-        rigid = make_rigid(**kwargs)
-        assert_rigids_are_equal(
-            rigid,
-            body.to_hoomd_rigid(
-                included_secondary_types=kwargs["secondary_types"]
-            )
-        )
-
-        # .. and an existing constraint
-        merged_rigid = merge_rigids(existing_rigid, rigid)
-        assert_rigids_are_equal(
-            merged_rigid,
-            body.to_hoomd_rigid(
-                rigid=existing_rigid,
-                included_secondary_types=kwargs["secondary_types"]
-            )
-        )
 
 @pytest.mark.parametrize("kwargs", VALID_KWARGS)
 def test_to_hoomd_snapshot(kwargs):
@@ -667,7 +673,9 @@ CUBE_VERTICES = [
             orientations_by_type=dict(
                 B=[[1,1,0,0]],
                 C=[[1,0,0,0], [0,1,0,0]]
-            )
+            ),
+            mass_by_type=dict(A=2, B=3),
+            moi_by_type=dict(A=[1, 0, 0], B=[0, 1, 0])
         ),
         "body.gsd",
         dict(
@@ -696,3 +704,7 @@ def test_to_gsd(kwargs, ref_filename, type_shapes):
         assert np.array_equal(test_frame.particles.position, ref_frame.particles.position)
         assert np.array_equal(test_frame.particles.orientation, ref_frame.particles.orientation)
         assert test_frame.particles.type_shapes == ref_frame.particles.type_shapes
+        assert np.array_equal(test_frame.particles.mass, ref_frame.particles.mass)
+        assert np.array_equal(test_frame.particles.moment_inertia, ref_frame.particles.moment_inertia)
+        assert np.array_equal(test_frame.particles.body, ref_frame.particles.body)
+

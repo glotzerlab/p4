@@ -537,7 +537,7 @@ class Body:
         orientations = np.array([[1, 0, 0, 0]], dtype=np.float32)
         masses = [self.mass_by_type.get(self.primary_type, 1)]
         mois = np.array(
-            [self.mass_by_type.get(self.primary_type, [1, 1, 1])],
+            [self.moi_by_type.get(self.primary_type, [1, 1, 1])],
             dtype=np.float32
         )
         bodyids = [0]

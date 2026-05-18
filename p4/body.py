@@ -246,8 +246,8 @@ class Body:
             primary_type = pdata.types[pdata.typeid[primary_index]]
             primary_position = pdata.position[primary_index]
             primary_orientation = pdata.orientation[primary_index]
-            primary_mass = pdata.mass[primary_index]
-            primary_moi = pdata.moment_inertia[primary_index]
+            primary_mass = float(pdata.mass[primary_index])
+            primary_moi = pdata.moment_inertia[primary_index].tolist()
 
             # Only add single particle bodies if singles are included and there
             # isn't already one with the same primary type
@@ -265,7 +265,7 @@ class Body:
                     ),
                     moi_by_type=(
                         dict()
-                        if primary_moi.tolist() in [[0, 0, 0], [1, 1, 1]]
+                        if primary_moi in [[0, 0, 0], [1, 1, 1]]
                         else dict(primary_type=primary_moi)
                     ),
                 ))
@@ -292,15 +292,15 @@ class Body:
                             .tolist()
                     )
                     
-                    mass_by_type[t] = pdata.mass[i]
-                    moi_by_type[t] = pdata.moment_inertia[i]
+                    mass_by_type[t] = float(pdata.mass[i])
+                    moi_by_type[t] = pdata.moment_inertia[i].tolist()
                 
                 for t, mass in copy(mass_by_type).items():
                     if mass == 1:
                         del mass_by_type[t]
 
                 for t, moi in copy(moi_by_type).items():
-                    if moi.tolist() in [[0, 0, 0], [1, 1, 1]]:
+                    if moi in [[0, 0, 0], [1, 1, 1]]:
                         del moi_by_type[t]
 
                 bodies.append(Body(
@@ -320,8 +320,8 @@ class Body:
 
             for i in single_indices:
                 primary_type = pdata.types[pdata.typeid[i]]
-                primary_mass = pdata.mass[i]
-                primary_moi = pdata.moment_inertia[i]
+                primary_mass = float(pdata.mass[i])
+                primary_moi = pdata.moment_inertia[i].tolist()
 
                 if not any(b.primary_type == primary_type for b in bodies):
                     bodies.append(Body(
@@ -333,7 +333,7 @@ class Body:
                         ),
                         moi_by_type=(
                             dict()
-                            if primary_moi.tolist() in [[0, 0, 0], [1, 1, 1]]
+                            if primary_moi in [[0, 0, 0], [1, 1, 1]]
                             else dict(primary_type=primary_moi)
                         ),
                     ))
@@ -1745,7 +1745,7 @@ class Body:
         )
         moi_equivalent = (
             all(
-                self.moi_by_type[t] == other.moi_by_type[t]
+                np.isclose(self.moi_by_type[t], other.moi_by_type[t]).all()
                 for t in common_types
             )
             and

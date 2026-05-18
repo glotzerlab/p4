@@ -16,6 +16,8 @@ from pathlib import Path
 import rowan
 from . import util
 
+# TODO: check default moi
+
 class Body:
     """The names and spatial data for a body's primary and secondary types.
    
@@ -528,7 +530,6 @@ class Body:
         
         .. _Snapshot: https://hoomd-blue.readthedocs.io/en/latest/hoomd/snapshot.html
         """
-        # TODO - use this instead of the corresponding function in util
         frame = gsd.hoomd.Frame()
         
         types = [self.primary_type] + self.secondary_types

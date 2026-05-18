@@ -24,9 +24,11 @@ VALID_KWARGS = [
                 primary_type="A",
                 secondary_types=["B", "C"],
                 positions_by_type=dict(
-                    B=[[-1,0,0]],
-                    C=[[1,0,0]]
-                )
+                    B=[[-1, 0, 0]],
+                    C=[[1, 0, 0]]
+                ),
+                mass_by_type=dict(A=1, B=2, C=3),
+                moi_by_type=dict(A=[1, 1, 1], B=[1, 0, 0], C=[0, 1, 0])
             ),
             p4.Body(
                 primary_type="D",
@@ -36,7 +38,7 @@ VALID_KWARGS = [
                     F=[[0, 0, -1], [0, 0, 1]]
                 ),
                 orientations_by_type=dict(
-                    E=[[1,0,0,0], [0, 0.707, 0.707, 0]],
+                    E=[[1, 0, 0, 0], [0, 0.707, 0.707, 0]],
                     F=[[0.707, 0, -0.707, 0], [0.707, 0, 0.707, 0]]
                 ),
             )
@@ -46,7 +48,7 @@ VALID_KWARGS = [
             D=[[0, 10, 0], [0, 20, 0]]
         ),
         orientations_by_type=dict(
-            A=[[1,0,0,0]],
+            A=[[1, 0, 0, 0]],
             D=[[0, 0.707, 0.707, 0], [0.707, 0, 0.707, 0]]
         )
     )

@@ -166,6 +166,9 @@ class Arrangement:
         A Frame does not contain rigid body constraint data, so it is parsed
         into single-particle bodies.
         
+        TODO: mention that box must be big enough to prevent image problem because images
+        are not present in GSD file - the onus for this is on the user
+
         Parameters
         ----------
         filename : os.PathLike
@@ -579,7 +582,7 @@ class Arrangement:
         )
     
     def __eq__(self, other):
-        """Arrangements are equal if their properties are equivalent."""
+        """Arrangements are equal if their properties are identical."""
         bodies_equivalent = (
             len(self.bodies) == len(other.bodies)
             and all([i in other.bodies for i in self.bodies])
@@ -587,19 +590,16 @@ class Arrangement:
         positions_by_type_equivalent = (
             self.positions_by_type.keys() == other.positions_by_type.keys()
             and all(
-                np.isclose(
-                    self.positions_by_type[t],
-                    other.positions_by_type[t]
-                ).all()
+                self.positions_by_type[t] == other.positions_by_type[t]
                 for t in self.positions_by_type
             )
         )
         orientations_by_type_equivalent =  (
             all(
-                np.isclose(
-                    self.orientations_by_type.get(t, [1, 0, 0, 0]),
-                    other.orientations_by_type.get(t, [1, 0, 0, 0])
-                ).all()
+                (
+                    self.orientations_by_type.get(t, [1, 0, 0, 0])
+                    == other.orientations_by_type.get(t, [1, 0, 0, 0])
+                )
                 for t in set(
                     self.orientations_by_type.keys()
                 ).union(other.orientations_by_type.keys())

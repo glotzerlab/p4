@@ -18,7 +18,7 @@ class Arrangement:
         self,
         bodies: list[Body],
         positions_by_type: dict[str, list[list[float]]],
-        orientations_by_type: dict[str, list[list[float]]] = {}
+        orientations_by_type: dict[str, list[list[float]]] | None = None
     ):
         # Ensure bodies is the right type
         if not (
@@ -67,7 +67,10 @@ class Arrangement:
 
         self.bodies = bodies
         self.positions_by_type = positions_by_type
-        self.orientations_by_type = orientations_by_type
+        if orientations_by_type:
+            self.orientations_by_type = orientations_by_type
+        else:
+            self.orientations_by_type = {}
 
     # --------------------------------- IMPORT ---------------------------------
 
@@ -381,7 +384,7 @@ class Arrangement:
     def to_gsd(
         self,
         filename: os.PathLike,
-        type_shapes: dict = {}
+        type_shapes: dict | None = None
     ):
         """Export the arrangement to a frame in a GSD file.
 
@@ -508,10 +511,10 @@ class Arrangement:
 
     def plot(
         self,
-        type_shapes: dict[str, coxeter.shapes.Polyhedron] = {},
-        type_styles: dict[str, dict] = {},
-        ignore_types: list[str] = [],
-        slice: dict[str, float] = {},
+        type_shapes: dict[str, coxeter.shapes.Polyhedron] | None = None,
+        type_styles: dict[str, dict] | None = None,
+        ignore_types: list[str] | None = None,
+        slice: dict[str, float] | None = None,
         schematic_slice: bool = False,
         schematic_slice_scale: float = 1,
         schematic_slice_color: str = "red",

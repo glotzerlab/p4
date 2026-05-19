@@ -85,14 +85,14 @@ class Body:
     def __init__(
         self,
         primary_type: str,
-        secondary_types: list[str] = [],
-        positions_by_type: dict[str, list[list[float]]] = {},
-        orientations_by_type: dict[str, list[list[float]]] = {},
-        mass_by_type: dict[str, float] = {},
-        moi_by_type: dict[str, list[float]] = {}
+        secondary_types: list[str] | None = None,
+        positions_by_type: dict[str, list[list[float]]] | None = None,
+        orientations_by_type: dict[str, list[list[float]]] | None = None,
+        mass_by_type: dict[str, float] | None = None,
+        moi_by_type: dict[str, list[float]] | None = None
     ):
         # Ensure positions are provided if secondary types are provided
-        if secondary_types != [] and not positions_by_type:
+        if secondary_types and not positions_by_type:
             raise TypeError(
                 "Missing required argument: 'positions_by_type' is required if "
                 + "'secondary_types' is provided"
@@ -136,12 +136,28 @@ class Body:
                     + "numbers of positions and orientations must be the same."
                 )
 
+        # Set instance attributes
         self.primary_type = str(primary_type)
-        self.secondary_types = [str(t) for t in secondary_types]
-        self.positions_by_type = positions_by_type
-        self.orientations_by_type = orientations_by_type
-        self.mass_by_type = copy(mass_by_type)
-        self.moi_by_type = copy(moi_by_type)
+        if secondary_types:
+            self.secondary_types = [str(t) for t in secondary_types]
+        else:
+            self.secondary_types = []
+        if positions_by_type:
+            self.positions_by_type = positions_by_type
+        else:
+            self.positions_by_type = {}
+        if orientations_by_type:
+            self.orientations_by_type = orientations_by_type
+        else:
+            self.orientations_by_type = {}
+        if mass_by_type:
+            self.mass_by_type = mass_by_type
+        else:
+            self.mass_by_type = {}
+        if moi_by_type:
+            self.moi_by_type = moi_by_type
+        else:
+            self.moi_by_type = {}
 
     # --------------------------------- IMPORT ---------------------------------
 
@@ -591,7 +607,7 @@ class Body:
     def to_gsd(
         self,
         filename: os.PathLike,
-        type_shapes: dict = {}
+        type_shapes: dict | None = None
     ):
         """Export the body to GSD.
         
@@ -722,10 +738,10 @@ class Body:
 
     def plot(
         self,
-        type_shapes: dict[str, coxeter.shapes.Polyhedron] = {},
-        type_styles: dict[str, dict] = {},
-        ignore_types: list[str] = [],
-        slice: dict[str, float] = {},
+        type_shapes: dict[str, coxeter.shapes.Polyhedron] | None = None,
+        type_styles: dict[str, dict] | None = None,
+        ignore_types: list[str] | None = None,
+        slice: dict[str, float] | None = None,
         schematic_slice: bool = False,
         schematic_slice_scale: float = 1,
         schematic_slice_color: str = "red",
@@ -767,17 +783,17 @@ class Body:
 
         Parameters
         ----------
-        type_shapes : dict, default={}
+        type_shapes : dict, optional
             A mapping from particle type name [``str``] to shape
             [``coxeter.shapes.Polyhedron``]. If no shape is provided for a type,
             it will be plotted as a sphere.
-        type_styles : dict, default={}
+        type_styles : dict, optional
             A mapping from particle type name to style, where style is given as
             a dictionary which may have the keys 'color', 'opacity', and 'size'.
             See above for more information.
-        ignore_types : list[str], default=[]
+        ignore_types : list[str], optional
             The names of the particle types to exclude from the plot.
-        slice : dict, default={}
+        slice : dict, optional
             Axes and positions along which to slice. Keys are limited to 'x',
             'y', and 'z'. There can be at most two keys.
         schematic_slice : bool, default=False
@@ -799,6 +815,16 @@ class Body:
         show_legend : bool, default=True
             Whether to show the legend.
         """
+        # Set defaults
+        if not type_shapes:
+            type_shapes = {},
+        if not type_styles:
+            type_styles = {},
+        if not ignore_types:
+            ignore_types = [],
+        if not slice:
+            slice = {},
+
         default_colors = util.WONG_COLORS
 
         # Make a list of all types that will be plotted

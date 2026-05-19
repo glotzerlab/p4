@@ -130,7 +130,7 @@ class Field:
         self,
         quantity: Literal["U", "F", "T", "Fx", "Fy", "Fz", "Tx", "Ty", "Tz"] | None = None,
         vectors: bool = False,
-        slice: dict[str, float] = {},
+        slice: dict[str, float] | None = None,
         clim: list[float] | None = None,
         contours: int | None = 10,
         cmap: str = "RdYlBu_r",
@@ -166,7 +166,7 @@ class Field:
         vectors : bool, default=False
             Whether to plot the quantity as a scalar or vector. If ``quantity``
             is not 'F' or 'T', this is always False.
-        slice : dict, default={}
+        slice : dict, optional
             Axes and positions along which to slice. Keys are limited to 'x',
             'y', and 'z'. There can be at most two keys. If the slice contains
             a position that does not exactly match the grid, the nearest grid
@@ -213,6 +213,10 @@ class Field:
         figure, traces
             The Plotly figure and associated traces.
         """
+        # Default slice
+        if not slice:
+            slice = {}
+
         # Ensure there is no ambiguity around orientations
         if self.orientations is not None and self.orientations.shape[0] > 1:
             raise ValueError(

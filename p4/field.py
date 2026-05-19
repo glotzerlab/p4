@@ -1231,7 +1231,6 @@ class Field:
         q3 : float or array of floats, optional
             Restrict the new Field to these ``q3`` values.
         
-        
         Returns
         -------
         np.recarray
@@ -1643,4 +1642,3 @@ class Field:
     def __eq__(self, other) -> bool:
         """Whether this field and another are equivalent."""
         return (self._table == other._table).view(np.ndarray).all()
-

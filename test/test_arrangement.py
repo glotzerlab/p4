@@ -17,7 +17,7 @@ VALID_KWARGS = [
         positions_by_type=dict(A=[[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
     ),
 
-    # 2 multi-particle bodies, with orientations
+    # 2 multi-particle bodies, with orientations, masses, and mois
     dict(
         bodies=[
             p4.Body(
@@ -177,40 +177,163 @@ def make_simulation(arrangement_kwargs, filename, index=0):
 
     return simulation
 
-def assert_arrangements_are_equal(a, b):
-    """Arrangements are equivalent if their bodies, positions, and orientations are equivalent."""
+def assert_bodies_equivalent(body1, body2):
+    """Ensure that two bodies are essentially equivalent, accounting for floating point issues etc."""
+    # primary same
+    assert body1.primary_type == body2.primary_type
+    
+    # secondary same
+    assert body1.secondary_types == body2.secondary_types
+    
+    # positions same
     assert (
-        len(a.bodies) == len(b.bodies)
-        and all([i in b.bodies for i in a.bodies])
-    )
-    assert (
-        a.positions_by_type.keys() == b.positions_by_type.keys()
+        len(body1.positions_by_type) == len(body2.positions_by_type)
         and all(
-            np.isclose(a.positions_by_type[t], b.positions_by_type[t]).all()
-            for t in a.positions_by_type
+            (
+                np.round(body1.positions_by_type[t], 3)
+                == np.round(body2.positions_by_type[t], 3)
+            ).all()
+            for t in body1.positions_by_type
+        )
+    )
+    
+    # orientations same or equivalent
+    orientations_same = (
+        len(body1.orientations_by_type) == len(body2.orientations_by_type)
+        and all(
+            (
+                np.round(body1.orientations_by_type[t], 3)
+                == np.round(body2.orientations_by_type[t], 3)
+            ).all()
+            for t in body1.orientations_by_type
+        )
+    )
+
+    orientations_missing_from_self = (
+        set(body2.orientations_by_type) - set(body1.orientations_by_type)
+    )
+    orientations_missing_from_other = (
+        set(body1.orientations_by_type) - set(body2.orientations_by_type)
+    )
+    common_types = set(body1.orientations_by_type).intersection(
+        set(body2.orientations_by_type)
+    )
+    orientations_equivalent = (
+        all(
+            (
+                np.round(body1.orientations_by_type[t], 3)
+                == np.round(body2.orientations_by_type[t], 3)
+            ).all()
+            for t in common_types
+        )
+        and
+        all(
+            all(list(i) == [1,0,0,0] for i in body2.orientations_by_type[t])
+            for t in orientations_missing_from_self
+        )
+        and
+        all(
+            all(list(i) == [1,0,0,0] for i in body1.orientations_by_type[t])
+            for t in orientations_missing_from_other
+        )
+    )
+
+    # masses same or equivalent
+    masses_same = (
+        body1.mass_by_type == body2.mass_by_type
+    )
+    masses_missing_from_self = (
+        set(body2.mass_by_type) - set(body1.mass_by_type)
+    )
+    masses_missing_from_other = (
+        set(body1.mass_by_type) - set(body2.mass_by_type)
+    )
+    common_types = set(body1.mass_by_type).intersection(
+        set(body2.mass_by_type)
+    )
+    masses_equivalent = (
+        all(
+            body1.mass_by_type[t] == body2.mass_by_type[t]
+            for t in common_types
+        )
+        and all(
+            body2.mass_by_type[t] == 1.0 for t in masses_missing_from_self
+        )
+        and all(
+            body1.mass_by_type[t] == 1.0 for t in masses_missing_from_other
+        )
+    )
+
+    # moi same or equivalent
+    moi_same = (
+        body1.moi_by_type == body2.moi_by_type
+    )
+    moi_missing_from_self = (
+        set(body2.moi_by_type) - set(body1.moi_by_type)
+    )
+    moi_missing_from_other = (
+        set(body1.moi_by_type) - set(body2.moi_by_type)
+    )
+    common_types = set(body1.moi_by_type).intersection(
+        set(body2.moi_by_type)
+    )
+    moi_equivalent = (
+        all(
+            (
+                np.round(body1.moi_by_type[t], 3)
+                == np.round(body2.moi_by_type[t], 3)
+            ).all()
+            for t in common_types
+        )
+        and
+        all(
+            body2.moi_by_type[t] == [1, 1, 1]
+            for t in moi_missing_from_self
+        )
+        and all(
+            body1.moi_by_type[t] == [1, 1, 1]
+            for t in moi_missing_from_other
+        )
+    )
+
+    assert orientations_same or orientations_equivalent    
+    assert masses_same or masses_equivalent
+    assert moi_same or moi_equivalent
+
+def assert_arrangements_are_equal(arrangement1, arrangement2):
+    """Arrangements are equivalent if their bodies, positions, and orientations are equivalent."""
+    assert len(arrangement1.bodies) == len(arrangement2.bodies)
+    for b1 in arrangement1.bodies:
+        b2 = [b for b in arrangement2.bodies if b.primary_type == b1.primary_type][0]
+        assert_bodies_equivalent(b1, b2)
+    assert (
+        arrangement1.positions_by_type.keys() == arrangement2.positions_by_type.keys()
+        and all(
+            np.isclose(arrangement1.positions_by_type[t], arrangement2.positions_by_type[t]).all()
+            for t in arrangement1.positions_by_type
         )
     )
     assert (
         all(
             np.isclose(
-                a.orientations_by_type.get(t, [1, 0, 0, 0]),
-                b.orientations_by_type.get(t, [1, 0, 0, 0])
+                arrangement1.orientations_by_type.get(t, [1, 0, 0, 0]),
+                arrangement2.orientations_by_type.get(t, [1, 0, 0, 0])
             ).all()
-            for t in set(a.orientations_by_type.keys()).union(b.orientations_by_type.keys())
+            for t in set(arrangement1.orientations_by_type.keys()).union(arrangement2.orientations_by_type.keys())
         )
         or (
-            a.orientations_by_type == {}
+            arrangement1.orientations_by_type == {}
             and all(
                 list(i) == [1, 0, 0, 0]
-                for v in b.orientations_by_type.values()
+                for v in arrangement2.orientations_by_type.values()
                 for i in v
             )
         )
         or (
-            b.orientations_by_type == {}
+            arrangement2.orientations_by_type == {}
             and all(
                 list(i) == [1, 0, 0, 0]
-                for v in a.orientations_by_type.values()
+                for v in arrangement1.orientations_by_type.values()
                 for i in v
             )
         )

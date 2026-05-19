@@ -1064,10 +1064,10 @@ class Field:
         self,
         quantity: Literal["U", "F", "T", "Fx", "Fy", "Fz", "Tx", "Ty", "Tz"],
         vectors: bool = False,
-        q: None | tuple[float] = None,
-        x: None | float = None,
-        y: None | float = None,
-        z: None | float = None,
+        q: tuple[float] | None = None,
+        x: float | None = None,
+        y: float | None = None,
+        z: float | None = None,
     ) -> np.ndarray:
         """Return a gridded array of a given scalar or vector quantity.
 

@@ -1897,7 +1897,6 @@ def measure(
     # Calculate the index of the probe's central particle
     n_probe = system.probe.to_hoomd_snapshot().particles.N
     probe_index = simulation.state.N_particles - n_probe
-    breakpoint()
 
     # Iterate over positions
     for p in positions:

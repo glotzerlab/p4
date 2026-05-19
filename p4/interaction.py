@@ -772,7 +772,7 @@ class Interaction:
         self,
         r: list[float],
         type_pairs: list[tuple] | None = None,
-        pair_styles: dict[tuple, dict] | None,
+        pair_styles: dict[tuple, dict] | None = None,
         cmap: str | None = None,
         ylim: list[float] | None = None,
         include_default: bool = False,

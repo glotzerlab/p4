@@ -107,7 +107,7 @@ class System:
         elif (
             isinstance(analyte, Arrangement)
             and any(
-                b.primary_types == probe.primary_type for b in analyte.bodies
+                b.primary_type == probe.primary_type for b in analyte.bodies
             )
         ):
             # TODO: check if this can be allowed if the bodies are the same
@@ -428,9 +428,7 @@ class System:
         else:
             analyte_types = []
             for b in self.analyte.bodies:
-                analyte_types.extend(
-                    [self.analyte.primary_type] + self.analyte.secondary_types
-                )
+                analyte_types.extend([b.primary_type] + b.secondary_types)
         
         included_interactions = []
 

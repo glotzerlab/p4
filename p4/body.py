@@ -1672,14 +1672,7 @@ class Body:
             return False
 
         orientations_same = (
-            len(self.orientations_by_type) == len(other.orientations_by_type)
-            and all(
-                np.isclose(
-                    self.orientations_by_type[t],
-                    other.orientations_by_type[t]
-                ).all()
-                for t in self.orientations_by_type
-            )
+            self.orientations_by_type == other.orientations_by_type
         )
 
         orientations_missing_from_self = (
@@ -1693,10 +1686,7 @@ class Body:
         )
         orientations_equivalent = (
             all(
-                np.isclose(
-                    self.orientations_by_type[t],
-                    other.orientations_by_type[t]
-                ).all()
+                self.orientations_by_type[t] == other.orientations_by_type[t]
                 for t in common_types
             )
             and
@@ -1750,7 +1740,7 @@ class Body:
         )
         moi_equivalent = (
             all(
-                np.isclose(self.moi_by_type[t], other.moi_by_type[t]).all()
+                self.moi_by_type[t] == other.moi_by_type[t]
                 for t in common_types
             )
             and

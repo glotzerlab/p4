@@ -258,14 +258,14 @@ class Body:
                 bodies.append(Body(
                     primary_type=primary_type,
                     mass_by_type=(
-                        dict()
-                        if primary_mass != 1
-                        else dict(primary_type=primary_mass)
+                        {}
+                        if primary_mass == 1
+                        else {f"{primary_type}": primary_mass}
                     ),
                     moi_by_type=(
-                        dict()
+                        {}
                         if primary_moi in [[0, 0, 0], [1, 1, 1]]
-                        else dict(primary_type=primary_moi)
+                        else {f"{primary_type}": primary_moi}
                     ),
                 ))
             
@@ -275,8 +275,14 @@ class Body:
                 secondary_types = []
                 positions_by_type = defaultdict(list)
                 orientations_by_type = defaultdict(list)
-                mass_by_type = {}
-                moi_by_type = {}
+                if primary_mass == 1:
+                    mass_by_type = {} 
+                else:
+                    mass_by_type = {f"{primary_type}": primary_mass}
+                if primary_moi in [[0, 0, 0], [1, 1, 1]]:
+                    moi_by_type = {} 
+                else:
+                    moi_by_type = {f"{primary_type}": primary_moi}
 
                 for i in secondary_indices:
                     t = pdata.types[pdata.typeid[i]]
@@ -326,14 +332,14 @@ class Body:
                     bodies.append(Body(
                         primary_type=primary_type,
                         mass_by_type=(
-                            dict()
-                            if primary_mass != 1
-                            else dict(primary_type=primary_mass)
+                            {}
+                            if primary_mass == 1
+                            else {f"{primary_type}": primary_mass}
                         ),
                         moi_by_type=(
-                            dict()
+                            {}
                             if primary_moi in [[0, 0, 0], [1, 1, 1]]
-                            else dict(primary_type=primary_moi)
+                            else {f"{primary_type}": primary_moi}
                         ),
                     ))
 

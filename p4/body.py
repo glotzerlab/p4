@@ -155,14 +155,11 @@ class Body:
 
         .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
 
-        If ``include_singles`` is set to ``True``, the returned list of bodies
-        includes both those defined in the simulation's rigid constraint and
-        single-particle bodies with types matching those defined in the
-        simulation's current state.
-
-        TODO: describe how snapshot is parsed.
-
-        TODO: describe how state has precedence
+        The returned list contains bodies defined in the simulation's state
+        (see :py:meth:`~p4.Body.from_hoomd_snapshot`) and in the rigid
+        constraint if there is one (see py:meth:`~p4.Body.from_hoomd_rigid`). If
+        the constraint and the state have contradictory body definitions, the
+        state takes precedence.
 
         .. note:
 
@@ -219,7 +216,11 @@ class Body:
 
         .. _Snapshot: https://hoomd-blue.readthedocs.io/en/latest/hoomd/snapshot.html
 
-        A snapshot's body data is stored in ``particles.body``.
+        Body definitions in a snapshot are encoded in `particles.data`_, an
+        array of integers that specify body ids as the indices of central
+        particles.
+
+        .. _particles.data: https://gsd.readthedocs.io/en/latest/schema-hoomd.html#chunk-particles-body
         
         Parameters
         ----------
@@ -354,6 +355,10 @@ class Body:
         """Parse a HOOMD-blue `rigid constraint`_ to create bodies.
 
         .. _rigid constraint: https://hoomd-blue.readthedocs.io/en/stable/hoomd/md/constrain/rigid.html
+        
+        Body definitions in a rigid constraint are encoded in `body`_.
+
+        .. _body: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/constrain/rigid.html#hoomd.md.constrain.Rigid.body
         
         Parameters
         ----------

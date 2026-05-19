@@ -1523,6 +1523,16 @@ def get_initial_frame(
         analyte_frame.particles.moment_inertia,
         probe_frame.particles.moment_inertia
     ))
+    if probe_frame.particles.body[0] == -1:
+        merged_frame.particles.body = np.hstack((
+            analyte_frame.particles.body,
+            probe_frame.particles.body
+        ))
+    else:
+        merged_frame.particles.body = np.hstack((
+            analyte_frame.particles.body,
+            probe_frame.particles.body + len(analyte_frame.particles.body)
+        ))
 
     return merged_frame
 
@@ -1802,7 +1812,8 @@ def get_simulation(
 
     # Create rigid constraint   [TODO: refactor to make this less hacky]
     rigid = system.analyte.to_hoomd_rigid()
-    rigid = system.probe.to_hoomd_rigid(rigid)
+    if system.probe._is_rigid(system.interactions):
+        rigid = system.probe.to_hoomd_rigid(rigid)
 
     # Add integrator
     simulation = add_integrator(simulation, rigid)

@@ -567,7 +567,7 @@ class Body:
             [self.moi_by_type.get(self.primary_type, [1, 1, 1])],
             dtype=np.float32
         )
-        bodyids = [0]
+        bodyids = [0] if self.secondary_types else [-1]
 
         for t, ps in self.positions_by_type.items():
             os = self.orientations_by_type.get(t, [[1, 0, 0, 0] for _ in ps])

@@ -158,12 +158,11 @@ class Body:
         If ``include_singles`` is set to ``True``, the returned list of bodies
         includes both those defined in the simulation's rigid constraint and
         single-particle bodies with types matching those defined in the
-        simulation's current state. When set to ``False``, this method becomes
-        equivalent to
-        
-        .. code-block::
-            
-            p4.Body.from_hoomd_rigid(simulation.operations.integrator.rigid)
+        simulation's current state.
+
+        TODO: describe how snapshot is parsed.
+
+        TODO: describe how state has precedence
 
         .. note:
 

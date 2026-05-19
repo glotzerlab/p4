@@ -78,16 +78,26 @@ class System:
         analyte: Body | Arrangement,
         interactions: list[Interaction],
     ):
+        self._probe = probe
+        self._analyte = analyte
+        self._interactions = interactions
+
+        self.validate()
+
+    def validate(self):
+        """Ensure this system adheres to the :ref:`system schema`."""
         # Ensure types are correct
-        if not isinstance(probe, Body):
+        if not isinstance(self.probe, Body):
             raise TypeError("`probe` must be an instance of 'Body'.")
-        if not isinstance(analyte, (Body, Arrangement)):
+        
+        if not isinstance(self.analyte, (Body, Arrangement)):
             raise TypeError(
                 "`analyte` must be an instance of 'Body' or 'Arrangement'."
             )
+        
         if (
-            not isinstance(interactions, Iterable)
-            or not all(type(i) is Interaction for i in interactions)
+            not isinstance(self.interactions, Iterable)
+            or not all(type(i) is Interaction for i in self.interactions)
         ):
             raise TypeError(
                 "`interactions` must be a list of Interaction instances."
@@ -95,19 +105,21 @@ class System:
         
         # Ensure there is no rigid body clash
         if (
-            isinstance(analyte, Body)
-            and probe.primary_type == analyte.primary_type
+            isinstance(self.analyte, Body)
+            and self.probe.primary_type == self.analyte.primary_type
         ):
-            if probe != analyte:
+            if self.probe != self.analyte:
                 raise ValueError(
                     "If the probe and analyte have the same primary_type, they "
                     + "must also have the same secondary types, positions, and "
                     + "orientations."
                 )
+        
         elif (
-            isinstance(analyte, Arrangement)
+            isinstance(self.analyte, Arrangement)
             and any(
-                b.primary_type == probe.primary_type for b in analyte.bodies
+                b.primary_type == self.probe.primary_type
+                for b in self.analyte.bodies
             )
         ):
             # TODO: check if this can be allowed if the bodies are the same
@@ -119,30 +131,31 @@ class System:
         # Ensure there is no particle type clash between probe and analyte
         if (
             (
-                isinstance(analyte, Body)
-                and probe.primary_type in analyte.secondary_types
+                isinstance(self.analyte, Body)
+                and self.probe.primary_type in self.analyte.secondary_types
             )
             or (
-                isinstance(analyte, Arrangement)
+                isinstance(self.analyte, Arrangement)
                 and any(
-                    probe.primary_type in b.secondary_types
-                    for b in analyte.bodies
+                    self.probe.primary_type in b.secondary_types
+                    for b in self.analyte.bodies
                 )
             )
         ):
             raise ValueError(
                 "Probe primary type cannot appear in analyte secondary types."
             )
+        
         if (
             (
-                isinstance(analyte, Body)
-                and analyte.primary_type in probe.secondary_types
+                isinstance(self.analyte, Body)
+                and self.analyte.primary_type in self.probe.secondary_types
             )
             or (
-                isinstance(analyte, Arrangement)
+                isinstance(self.analyte, Arrangement)
                 and any(
-                    b.primary_type in probe.secondary_types
-                    for b in analyte.bodies
+                    b.primary_type in self.probe.secondary_types
+                    for b in self.analyte.bodies
                 )
             )
         ):
@@ -150,9 +163,49 @@ class System:
                 "Analyte primary type cannot appear in probe secondary types."
             )
 
-        self.probe = probe
-        self.analyte = analyte
-        self.interactions = interactions
+    # ------------------------------- PROPERTIES -------------------------------
+
+    @property
+    def probe(self) -> Body:
+        """The system's probe.
+        
+        Measurements correspond to the energies and forces experienced by the
+        probe.
+        """
+        return self._probe
+
+    @probe.setter
+    def probe(self, value):
+        """Set the system's probe."""
+        self._probe = value
+        self.validate()
+        
+    @property
+    def analyte(self) -> Body | Arrangement:
+        """The system's analyte.
+        
+        The analyte is a static entity (either a :py:class:`~p4.Body` or a
+        :py:class:`~p4.Arrangement`) whose effective energy and force fields
+        are measured by the probe.
+        """
+        return self._analyte
+
+    @analyte.setter
+    def analyte(self, value):
+        """Set the system's analyte."""
+        self._analyte = value
+        self.validate()
+        
+    @property
+    def interactions(self) -> list[Interaction]:
+        """The interactions between particles in the probe and analyte."""
+        return self._interactions
+
+    @interactions.setter
+    def interactions(self, value):
+        """Set the interactions between particles in the probe and analyte."""
+        self._interactions = value
+        self.validate()
 
     # --------------------------------- IMPORT ---------------------------------
 

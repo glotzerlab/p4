@@ -1997,3 +1997,26 @@ def clean_header(table: StringIO):
         writer.writerow(row)
     
     return cleaned_table
+
+
+# ------------------------------------ OTHER -----------------------------------
+
+
+def sanitize(d: dict):
+    """Traverse a dictionary, converting numpy types to native python analogues.
+    
+    Parameters
+    ----------
+    d : dict
+        The dictionary to traverse.
+    """
+    for k, v in d.items():
+        if isinstance(v, dict):
+            sanitize(v)
+        else:
+            if isinstance(v, np.ndarray):
+                d[k] = v.tolist()
+            elif isinstance(v, np.number):
+                d[k] = v.item()
+        
+    return d

@@ -20,16 +20,27 @@ class Arrangement:
         positions_by_type: dict[str, list[list[float]]],
         orientations_by_type: dict[str, list[list[float]]] | None = None
     ):
+        self._bodies = bodies
+        self._positions_by_type = positions_by_type
+        if orientations_by_type:
+            self._orientations_by_type = orientations_by_type
+        else:
+            self._orientations_by_type = {}
+        
+        self.validate()
+
+    def validate(self):
+        """Ensure this arrangement adheres to the :ref:`arrangement schema`."""
         # Ensure bodies is the right type
         if not (
-            isinstance(bodies, Iterable)
-            and all(isinstance(b, Body) for b in bodies)
+            isinstance(self.bodies, Iterable)
+            and all(isinstance(b, Body) for b in self.bodies)
         ):
             raise TypeError("`bodies` must be a list of Bodies.")
 
         # Ensure positions are provided for all primary types
-        primary_types = [b.primary_type for b in bodies]
-        if ts := [t for t in primary_types if t not in positions_by_type]:
+        primary_types = [b.primary_type for b in self.bodies]
+        if ts := [t for t in primary_types if t not in self.positions_by_type]:
             raise ValueError(
                 "Missing required keys in `positions_by_type`: "
                 + f"'{"', '".join(ts)}'. Positions must be "
@@ -38,9 +49,9 @@ class Arrangement:
 
         # Ensure orientations are either provided for all primary types, or
         # not provided at all
-        if orientations_by_type:
+        if self.orientations_by_type:
             ts = [
-                t for t in primary_types if t not in orientations_by_type
+                t for t in primary_types if t not in self.orientations_by_type
             ]
             if ts:
                 raise ValueError(
@@ -51,11 +62,14 @@ class Arrangement:
 
         # Ensure that for every secondary type, the number of provided
         # orientations matches the number of provided positions
-        if orientations_by_type:
+        if self.orientations_by_type:
             ts = [
                 t
                 for t in primary_types
-                if len(positions_by_type[t]) != len(orientations_by_type[t])
+                if (
+                    len(self.positions_by_type[t])
+                    != len(self.orientations_by_type[t])
+                )
             ]
             if ts:
                 raise ValueError(
@@ -65,12 +79,42 @@ class Arrangement:
                     + "numbers of positions and orientations must be the same."
                 )
 
-        self.bodies = bodies
-        self.positions_by_type = positions_by_type
-        if orientations_by_type:
-            self.orientations_by_type = orientations_by_type
-        else:
-            self.orientations_by_type = {}
+    # ------------------------------- PROPERTIES -------------------------------
+
+    @property
+    def bodies(self) -> list[Body]:
+        """The bodies present in this arrangement."""
+        return self._bodies
+
+    @bodies.setter
+    def bodies(self, value):
+        """Set the bodies present in this arrangement."""
+        self._bodies = value
+
+    @property
+    def positions_by_type(self) -> dict[str, list[list[float]]]:
+        """A mapping from body primary types to positions in 3D space."""
+        return self._positions_by_type
+
+    @positions_by_type.setter
+    def positions_by_type(self, value):
+        """Set a mapping from body primary types to positions in 3D space."""
+        self._positions_by_type = util.sanitize(value)
+
+    @property
+    def orientations_by_type(self) -> dict[str, list[list[float]]]:
+        """A mapping from body primary types to orientations as quaternions.
+        
+        If not specified for a type, defaults to an array of ``(1,0,0,0)``
+        quaternions.
+        """
+        return self._orientations_by_type
+
+    @orientations_by_type.setter
+    def orientations_by_type(self, value):
+        """Set a mapping from body primary types to orientations as quaternions.
+        """
+        self._orientations_by_type = util.sanitize(value)
 
     # --------------------------------- IMPORT ---------------------------------
 

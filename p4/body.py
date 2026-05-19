@@ -91,16 +91,45 @@ class Body:
         mass_by_type: dict[str, float] | None = None,
         moi_by_type: dict[str, list[float]] | None = None
     ):
-        # Ensure positions are provided if secondary types are provided
-        if secondary_types and not positions_by_type:
-            raise TypeError(
-                "Missing required argument: 'positions_by_type' is required if "
-                + "'secondary_types' is provided"
-            )
-
-        # Ensure positions are provided for every secondary type
+        self._primary_type = str(primary_type)
+        
         if secondary_types:
-            if ts := [t for t in secondary_types if t not in positions_by_type]:
+            self._secondary_types = [str(t) for t in secondary_types]
+        else:
+            self._secondary_types = []
+        
+        if positions_by_type:
+            self._positions_by_type = positions_by_type
+        else:
+            self._positions_by_type = {}
+        
+        if orientations_by_type:
+            self._orientations_by_type = orientations_by_type
+        else:
+            self._orientations_by_type = {}
+        
+        if mass_by_type:
+            self._mass_by_type = mass_by_type
+        else:
+            self._mass_by_type = {}
+        
+        if moi_by_type:
+            self._moi_by_type = moi_by_type
+        else:
+            self._moi_by_type = {}
+        
+        self.validate()
+        
+    def validate(self):
+        """Ensure this body adheres to the :ref:`body schema`."""
+        # Ensure positions are provided for every secondary type
+        if self.secondary_types:
+            ts = [
+                t
+                for t in self.secondary_types
+                if t not in self.positions_by_type
+            ]
+            if ts:
                 raise ValueError(
                     f"Missing required keys in `positions_by_type`: "
                     + f"'{"', '".join(ts)}'. Positions must be provided for "
@@ -109,9 +138,11 @@ class Body:
         
         # Ensure orientations are either provided for all secondary types, or
         # not provided at all
-        if secondary_types and orientations_by_type:
+        if self.secondary_types and self.orientations_by_type:
             ts = [
-                t for t in secondary_types if t not in orientations_by_type
+                t
+                for t in self.secondary_types
+                if t not in self.orientations_by_type
             ]
             if ts:
                 raise ValueError(
@@ -122,42 +153,110 @@ class Body:
         
         # Ensure that for every secondary type, the number of provided
         # orientations matches the number of provided positions
-        if secondary_types and positions_by_type and orientations_by_type:
+        if (
+            self.secondary_types
+            and self.positions_by_type
+            and self.orientations_by_type
+        ):
             ts = [
                 t
-                for t in secondary_types
-                if len(positions_by_type[t]) != len(orientations_by_type[t])
+                for t in self.secondary_types
+                if (
+                    len(self.positions_by_type[t])
+                    != len(self.orientations_by_type[t])
+                )
             ]
             if ts:
                 raise ValueError(
                     "Mismatched numbers of orientations and positions for the "
-                    + "following secondary types: "
-                    + f"'{"', '".join(ts)}'. For every secondary type, the "
-                    + "numbers of positions and orientations must be the same."
+                    + f"following secondary types: '{"', '".join(ts)}'. For "
+                    + "every secondary type, the numbers of positions and "
+                    + "orientations must be the same."
                 )
 
-        # Set instance attributes
-        self.primary_type = str(primary_type)
-        if secondary_types:
-            self.secondary_types = [str(t) for t in secondary_types]
-        else:
-            self.secondary_types = []
-        if positions_by_type:
-            self.positions_by_type = positions_by_type
-        else:
-            self.positions_by_type = {}
-        if orientations_by_type:
-            self.orientations_by_type = orientations_by_type
-        else:
-            self.orientations_by_type = {}
-        if mass_by_type:
-            self.mass_by_type = mass_by_type
-        else:
-            self.mass_by_type = {}
-        if moi_by_type:
-            self.moi_by_type = moi_by_type
-        else:
-            self.moi_by_type = {}
+    # ------------------------------- PROPERTIES -------------------------------
+
+    @property
+    def primary_type(self) -> str:
+        """The type of the primary particle."""
+        return self._primary_type
+
+    @primary_type.setter
+    def primary_type(self, value):
+        """Set the type of the primary particle."""
+        self._primary_type = str(value)
+        self.validate()
+
+    @property
+    def secondary_types(self) -> list[str]:
+        """The types of the secondary particles."""
+        return self._secondary_types
+
+    @secondary_types.setter
+    def secondary_types(self, value):
+        """Set the types of the secondary particles."""
+        self._secondary_types = [str(name) for name in value]
+        self.validate()
+
+    @property
+    def positions_by_type(self) -> dict[str, list[list[float]]]:
+        """A mapping from secondary types to positions in 3D space."""
+        return self._positions_by_type
+
+    @positions_by_type.setter
+    def positions_by_type(self, value):
+        """Set a mapping from secondary types to positions in 3D space."""
+        self._positions_by_type = util.sanitize(value)
+        self.validate()
+
+    @property
+    def orientations_by_type(self) -> dict[str, list[list[float]]]:
+        """A mapping from secondary types to orientations as quaternions.
+        
+        If not specified for a type, defaults to an array of ``(1,0,0,0)``
+        quaternions.
+        """
+        return self._orientations_by_type
+
+    @orientations_by_type.setter
+    def orientations_by_type(self, value):
+        """Set a mapping from secondary types to orientations as quaternions."""
+        self._orientations_by_type = util.sanitize(value)
+        self.validate()
+
+    @property
+    def mass_by_type(self) -> dict[str, float]:
+        """A mapping from primary and secondary types to mass.
+        
+        Each type may only have a single mass.
+
+        If not specified for a type, defaults to ``1``.
+        """
+        return self._mass_by_type
+
+    @mass_by_type.setter
+    def mass_by_type(self, value):
+        """Set a mapping from primary and secondary types to mass."""
+        self._mass_by_type = util.sanitize(value)
+        self.validate()
+
+    @property
+    def moi_by_type(self) -> dict[str, list[float]]:
+        """A mapping from primary and secondary types to moment of inertia.
+        
+        Moment of Inertia is expressed as a 3-vector. Each type may only have a
+        single Moment of Inertia.
+
+        If not specified for a type, defaults to ``[1, 1, 1]``.
+        """
+        return self._moi_by_type
+
+    @moi_by_type.setter
+    def moi_by_type(self, value):
+        """Set a mapping from primary and secondary types to moment of inertia."""
+        self._moi_by_type = util.sanitize(value)
+        self.validate()
+
 
     # --------------------------------- IMPORT ---------------------------------
 

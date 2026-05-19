@@ -72,23 +72,30 @@ class Interaction:
         default_params: dict[str, float],
         typed_params: dict[str, float],
     ):
-        self.hoomd_class = hoomd_class
-        self.initial_args = initial_args
-        self.default_params = default_params
-        self.typed_params = typed_params
+        self._hoomd_class = hoomd_class
+        self._initial_args = initial_args
+        self._default_params = default_params
+        self._typed_params = typed_params
 
-        self._validate()
-        # self._simplify()
+        self.validate()
 
-    def _validate(self):
-        """Ensure this Interaction behaves properly."""
+    def validate(self):
+        """Ensure this interaction adheres to the :ref:`interaction schema`."""
+        # Ensure the hoomd_class is the right type
+        if not issubclass(self.hoomd_class, hoomd.md.pair.Pair):
+            raise TypeError(
+                "Incorrect `hoomd_class`: must be a subclass of "
+                + "hoomd.md.pair.Pair"
+            )
+        
         # Ensure the hoomd class can be instantiated
         nlist = hoomd.md.nlist.Tree(2)
         try:
             _ = self.to_hoomd_pair(nlist, parameterize=False)
         except ValueError as e:
-            msg = "Validation failed: the HOOMD class cannot be instantiated."
-            raise ValueError(msg) from e
+            raise ValueError(
+                "Incorrect `initial_args`: HOOMD class cannot be instantiated."
+            ) from e
         
         # Ensure the hoomd class can be parameterized
         nlist = hoomd.md.nlist.Tree(2)
@@ -100,8 +107,10 @@ class Interaction:
                 all_types=test_all_types
             )
         except (AttributeError, KeyError) as e:
-            msg = "Validation failed: the HOOMD class cannot be parameterized."
-            raise ValueError(msg) from e
+            raise ValueError(
+                "Incorrect `default_params` or `typed_params`: an instance of "
+                + "the HOOMD class cannot be parameterized."
+            ) from e
         
         # Ensure the parameterized hoomd class can be used in a simulation
         nlist = hoomd.md.nlist.Tree(2)
@@ -137,80 +146,57 @@ class Interaction:
         try:
            simulation.run(0)
         except RuntimeError as e:
-            msg = (
-                "Validation failed: the parameterized HOOMD instance cannot be "
-                + "used in a running simulation. See traceback for details."
-            )
-            raise ValueError(msg) from e
-        
-    def _simplify(self):
-        """Simplify typed_params where possible, moving repeats into defaults."""
-        # [Review: reduce code duplication here]
-        for type_name, param_dict in deepcopy(self.typed_params).items():
-            for param_name, param_value in param_dict.items():
-                
-                types_with_same_param = []
-                other_params = {
-                    k: v
-                    for k, v in self.typed_params.items()
-                    if k != type_name
-                }
-                for t, d in other_params.items():
-                    if param_name in d:
-                        if d[param_name] == param_value:
-                            types_with_same_param.append(t)
+            raise ValueError(
+                "Incorrect `default_params` or `typed_params`: the "
+                + "parameterized HOOMD instance cannot be used in a running "
+                + "simulation. See traceback for details."
+            ) from e
 
-                # Handle single-typed params
-                if isinstance(type_name, str):
-                    if (
-                        len(types_with_same_param) == len(self.all_types) - 1 and
-                        all(t in self.all_types for t in types_with_same_param)
-                    ):
-                        for k, v in param_dict.items():
-                            self.default_params[k] = v
-                        for t in types_with_same_param:
-                            del self.typed_params[t][param_name]
-                
-                # Handle pair-typed params
-                elif isinstance(type_name, Iterable) and len(type_name) == 2:
-                    all_type_pairs = list(itertools.combinations_with_replacement(
-                        self.all_types, 2
-                    ))
-                    if (
-                        len(types_with_same_param) == len(all_type_pairs) - 1 and
-                        all(p in all_type_pairs for p in types_with_same_param)
-                    ):
-                        for k, v in param_dict.items():
-                            self.default_params[k] = v
-                        for t in types_with_same_param:
-                            try:    # Review: make this less hacky
-                                del self.typed_params[t][param_name]
-                            except KeyError:
-                                continue
-        
-        self.typed_params = {k: v for k, v in self.typed_params.items() if v != {}}
-        
-        # Convert all tuples to lists in values (NOT in keys)
-        # [Review: this implementation is horribly hacky. Improve later.]
-        def tuples_to_lists(item):
-            """Convert item to list if it is a tuple, same for its elements."""
-            if isinstance(item, tuple):
-                item = list(item)
-            if isinstance(item, list):
-                item = [list(i) if isinstance(i, tuple) else i for i in item]
-            return item
-        params = [self.default_params, self.typed_params]
-        for p in params:
-            for k, v in p.items():
-                if isinstance(v, dict):
-                    for sk, sv in v.items():
-                        if isinstance(sv, dict):
-                            for ssk, ssv in sv.items():
-                                p[k][sk][ssk] = tuples_to_lists(ssv)
-                        else:
-                            p[k][sk] = tuples_to_lists(sv)
-                else:
-                    p[k] = tuples_to_lists(v)               
+    # ------------------------------- PROPERTIES -------------------------------
+
+    @property
+    def hoomd_class(self) -> hoomd.md.pair.Pair:
+        """The constructor for the HOOMD-blue class."""
+        return self._hoomd_class
+
+    @hoomd_class.setter
+    def hoomd_class(self, value):
+        """Set the constructor for the HOOMD-blue class."""
+        self._hoomd_class = value
+        self.validate()
+
+    @property
+    def initial_args(self) -> dict:
+        """The parameters for instantiating the HOOMD-blue class."""
+        return self._initial_args
+
+    @initial_args.setter
+    def initial_args(self, value):
+        """Set the parameters for instantiating HOOMD-blue class."""
+        self._initial_args = util.sanitize(value)
+        self.validate()
+
+    @property
+    def default_params(self) -> dict:
+        """The default parameters for all single and pair types."""
+        return self._default_params
+
+    @default_params.setter
+    def default_params(self, value):
+        """Set the default parameters for all single and pair types."""
+        self._default_params = util.sanitize(value)
+        self.validate()
+
+    @property
+    def typed_params(self) -> dict:
+        """Parameters for specific single and pair types."""
+        return self._typed_params
+
+    @typed_params.setter
+    def typed_params(self, value):
+        """Set parameters for specific single and pair types."""
+        self._typed_params = util.sanitize(value)
+        self.validate()
 
     # --------------------------------- IMPORT ---------------------------------
 
@@ -1560,5 +1546,3 @@ class Interaction:
             + f"\n\ttyped_params={self.typed_params}"
             + "\n)"
         )
-
-

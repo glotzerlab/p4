@@ -1484,7 +1484,6 @@ def get_initial_frame(
     """
     # Create separate frames
     probe_frame = snapshot_to_frame(probe.to_hoomd_snapshot())
-    breakpoint()
     analyte_frame = snapshot_to_frame(analyte.to_hoomd_snapshot())
 
     # Recalculate the position data for the probe frame, moving the probe

@@ -140,8 +140,8 @@ class Body:
         self.secondary_types = [str(t) for t in secondary_types]
         self.positions_by_type = positions_by_type
         self.orientations_by_type = orientations_by_type
-        self.mass_by_type = mass_by_type
-        self.moi_by_type = moi_by_type
+        self.mass_by_type = copy(mass_by_type)
+        self.moi_by_type = copy(moi_by_type)
 
     # --------------------------------- IMPORT ---------------------------------
 

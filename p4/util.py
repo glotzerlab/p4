@@ -1779,11 +1779,6 @@ def get_simulation(
         The simulation object, fully prepared and ready to be run.
     """
     # Create initial frame
-    included_secondary_types = [
-        t
-        for t in system.all_types
-        if t in system.probe.secondary_types or t in system.analyte.secondary_types
-    ]
     frame = get_initial_frame(
         system.probe,
         system.analyte,

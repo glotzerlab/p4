@@ -95,6 +95,111 @@ class Field:
         self._orientations = None
         self._table = recarray
 
+    # ------------------------------- PROPERTIES -------------------------------
+
+    @property
+    def table(self) -> np.rec.recarray:
+        """The tabular dataset, returned as a record array."""
+        return self._table
+    
+    @table.setter
+    def table(self, recarray: np.rec.recarray):
+        """Set the table equal to a new record array."""
+        if type(recarray) != np.rec.recarray:
+            raise TypeError("The array must be an instance of np.rec.recarray.")
+        
+        columns = set(list(recarray.dtype.fields.keys()))
+        if {"x", "y", "z"} - columns != set():
+            raise ValueError("The array must have columns 'x', 'y', and 'z'.")
+        
+        if (
+            ("U" not in columns)
+            and ({"Fx", "Fy", "Fz"} - columns != set())
+            and ({"Tx", "Ty", "Tz"} - columns != set())
+        ):
+            raise ValueError(
+                "The array must have columns that contain either "
+                + "'U', or all of 'Fx', 'Fy', and 'Fz', or all of 'Tx', 'Ty', "
+                + "and 'Tz'."
+            )
+        
+        self._positions = None
+        self._orientations = None
+        self._table = recarray
+
+    @property
+    def columns(self) -> list[str]:
+        """The names of the columns in the table."""
+        return list(self.table.dtype.fields.keys())
+
+    @property
+    def positions(self) -> np.ndarray:
+        """The unique positions."""
+        if self._positions is None:
+            self._positions = np.unique(
+                np.column_stack((
+                    self.table["x"],
+                    self.table["y"],
+                    self.table["z"]
+                )),
+                axis=0
+            )
+        
+        return self._positions
+
+    @property
+    def orientations(self) -> np.ndarray | None:
+        """The unique orientations.
+        
+        If the columns do not include all of 'q0', 'q1', 'q2', and 'q3', None is
+        returned.
+        """
+        columns = set(self.table.dtype.fields.keys())
+        if {"q0", "q1", "q2", "q3"} - columns != set():
+            return None
+        
+        else:
+            return np.unique(
+                np.column_stack((
+                    self.table["q0"],
+                    self.table["q1"],
+                    self.table["q2"],
+                    self.table["q3"]
+                )),
+                axis=0
+            )
+    
+    @property
+    def quantities(self) -> list[str]:
+        """The measured quantities."""
+        location_columns = ["x", "y", "z", "q0", "q1", "q2", "q3"]
+        quantities = [f for f in self.columns if f not in location_columns]
+        
+        # Include F and T shorthand names
+        force_names = ["Fx", "Fy", "Fz"]
+        torque_names = ["Tx", "Ty", "Tz"]
+        
+        if all(n in quantities for n in force_names):
+            quantities.append("F")
+        if all(n in quantities for n in torque_names):
+            quantities.append("T")
+        
+        return quantities
+
+    # def has_regular_grid(self) -> bool:
+        # """Whether this Field's grid has constant intervals along each axis."""
+        # positions = self.positions
+        
+        # x = np.unique(positions[:,0])
+        # y = np.unique(positions[:,1])
+        # z = np.unique(positions[:,2])
+        
+        # regular_x = np.nonzero(np.diff(x, n=2))[0].size == 0
+        # regular_y = np.nonzero(np.diff(y, n=2))[1].size == 0
+        # regular_z = np.nonzero(np.diff(z, n=2))[2].size == 0
+
+        # return (regular_x and regular_y and regular_z)
+
     # --------------------------------- IMPORT ---------------------------------
 
     @classmethod
@@ -952,111 +1057,6 @@ class Field:
         )
 
         return fig.data[0]
-
-    # ------------------------------- PROPERTIES -------------------------------
-
-    @property
-    def table(self) -> np.rec.recarray:
-        """The tabular dataset, returned as a record array."""
-        return self._table
-    
-    @table.setter
-    def table(self, recarray: np.rec.recarray):
-        """Set the table equal to a new record array."""
-        if type(recarray) != np.rec.recarray:
-            raise TypeError("The array must be an instance of np.rec.recarray.")
-        
-        columns = set(list(recarray.dtype.fields.keys()))
-        if {"x", "y", "z"} - columns != set():
-            raise ValueError("The array must have columns 'x', 'y', and 'z'.")
-        
-        if (
-            ("U" not in columns)
-            and ({"Fx", "Fy", "Fz"} - columns != set())
-            and ({"Tx", "Ty", "Tz"} - columns != set())
-        ):
-            raise ValueError(
-                "The array must have columns that contain either "
-                + "'U', or all of 'Fx', 'Fy', and 'Fz', or all of 'Tx', 'Ty', "
-                + "and 'Tz'."
-            )
-        
-        self._positions = None
-        self._orientations = None
-        self._table = recarray
-
-    @property
-    def columns(self) -> list[str]:
-        """The names of the columns in the table."""
-        return list(self.table.dtype.fields.keys())
-
-    @property
-    def positions(self) -> np.ndarray:
-        """The unique positions."""
-        if self._positions is None:
-            self._positions = np.unique(
-                np.column_stack((
-                    self.table["x"],
-                    self.table["y"],
-                    self.table["z"]
-                )),
-                axis=0
-            )
-        
-        return self._positions
-
-    @property
-    def orientations(self) -> np.ndarray | None:
-        """The unique orientations.
-        
-        If the columns do not include all of 'q0', 'q1', 'q2', and 'q3', None is
-        returned.
-        """
-        columns = set(self.table.dtype.fields.keys())
-        if {"q0", "q1", "q2", "q3"} - columns != set():
-            return None
-        
-        else:
-            return np.unique(
-                np.column_stack((
-                    self.table["q0"],
-                    self.table["q1"],
-                    self.table["q2"],
-                    self.table["q3"]
-                )),
-                axis=0
-            )
-    
-    @property
-    def quantities(self) -> list[str]:
-        """The measured quantities."""
-        location_columns = ["x", "y", "z", "q0", "q1", "q2", "q3"]
-        quantities = [f for f in self.columns if f not in location_columns]
-        
-        # Include F and T shorthand names
-        force_names = ["Fx", "Fy", "Fz"]
-        torque_names = ["Tx", "Ty", "Tz"]
-        
-        if all(n in quantities for n in force_names):
-            quantities.append("F")
-        if all(n in quantities for n in torque_names):
-            quantities.append("T")
-        
-        return quantities
-
-    # def has_regular_grid(self) -> bool:
-        # """Whether this Field's grid has constant intervals along each axis."""
-        # positions = self.positions
-        
-        # x = np.unique(positions[:,0])
-        # y = np.unique(positions[:,1])
-        # z = np.unique(positions[:,2])
-        
-        # regular_x = np.nonzero(np.diff(x, n=2))[0].size == 0
-        # regular_y = np.nonzero(np.diff(y, n=2))[1].size == 0
-        # regular_z = np.nonzero(np.diff(z, n=2))[2].size == 0
-
-        # return (regular_x and regular_y and regular_z)
 
     # --------------------------------- ARRAYS ---------------------------------
 

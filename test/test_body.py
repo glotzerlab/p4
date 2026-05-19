@@ -323,7 +323,7 @@ INVALID_KWARGS = [
 @pytest.mark.parametrize("kwargs", INVALID_KWARGS)
 def test_invalid_instantiation(kwargs):
     """Ensure instantiation fails predictably with invalid arguments."""
-    with pytest.raises((TypeError, ValueError)):
+    with pytest.raises(ValueError):
         _ = p4.Body(**kwargs)
 
 VALID_INTERACTION_KWARGS = dict(

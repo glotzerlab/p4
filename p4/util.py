@@ -1821,7 +1821,7 @@ def get_simulation(
             interaction=interaction,
             all_types=system.all_types
         )
-    
+
     return simulation
 
 def measure(

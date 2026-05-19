@@ -1105,7 +1105,7 @@ class Field:
             Whether to populate the gridded array with scalars or vectors. If
             `quantity` is 'U', only scalar values are possible and this
             parameter is ignored.
-        q : tuple of 4 floats
+        q : tuple of 4 floats, optional
             If provided, only rows with the corresponding q0, q1, q2, and q3
             values will be used to create the gridded array. Required if
             ``table`` includes multiple orientations.

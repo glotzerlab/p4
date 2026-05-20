@@ -127,7 +127,17 @@ class Arrangement:
         """Parse a HOOMD-blue `Simulation`_ to create an arrangement.
 
         .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
-        
+
+        The returned list contains only bodies defined in the simulation's
+        state. Therefore this method is equivalent to
+
+        .. code-block:: python
+
+            arrangement.from_hoomd_snapshot(
+                simulation.state.get_snapshot(),
+                include_singles
+            )
+
         Parameters
         ----------
         simulation : hoomd.Simulation
@@ -136,64 +146,55 @@ class Arrangement:
             Whether to include single-particle bodies when parsing the
             simulation.
         """
-        bodies = Body.from_hoomd_simulation(simulation, include_singles)
-
-        snapshot = simulation.state.get_snapshot()
-
-        single_particle_arr = cls.from_hoomd_snapshot(snapshot)
-
-        positions_by_type = {
-            t: single_particle_arr.positions_by_type[t]
-            for t in single_particle_arr.positions_by_type
-            if any(t == b.primary_type for b in bodies)
-        }
-        orientations_by_type = {
-            t: single_particle_arr.orientations_by_type[t]
-            for t in single_particle_arr.orientations_by_type
-            if any(t == b.primary_type for b in bodies)
-        }
-
-        return cls(
-            bodies=bodies,
-            positions_by_type=positions_by_type,
-            orientations_by_type=orientations_by_type
+        if not simulation.state:
+            raise ValueError("`simulation` has no state.")
+        return cls.from_hoomd_snapshot(
+            snapshot=simulation.state.get_snapshot(),
+            include_singles=include_singles
         )
 
     @classmethod
-    def from_hoomd_snapshot(cls, snapshot: hoomd.Snapshot):
+    def from_hoomd_snapshot(
+        cls,
+        snapshot: hoomd.Snapshot,
+        include_singles: bool = False
+    ):
         """Parse a HOOMD-blue `Snapshot`_ to create an arrangement.
 
         .. _Snapshot: https://hoomd-blue.readthedocs.io/en/latest/hoomd/snapshot.html
 
-        A snapshot does not contain rigid body constraint data, so it is parsed
-        into single-particle bodies.
+        Body definitions in a snapshot are encoded in `particles.data`_, an
+        array of integers that specify body ids as the indices of central
+        particles.
+
+        .. _particles.data: https://gsd.readthedocs.io/en/latest/schema-hoomd.html#chunk-particles-body
         
         Parameters
         ----------
         snapshot : hoomd.Snapshot
             The snapshot to parse.
+        include_singles : bool, default=False
+            Whether to include single-particle bodies when parsing the
+            snapshot.
         """
-        types = snapshot.particles.types
-        typeids = snapshot.particles.typeid
-        positions = snapshot.particles.position
-        orientations = snapshot.particles.orientation
+        bodies = Body.from_hoomd_snapshot(snapshot, include_singles)
 
-        bodies = [Body(t) for t in types]
+        if not include_singles:
+            bodies = [b for b in bodies if b.secondary_types]
 
         positions_by_type = {}
         orientations_by_type = {}
-        for t in types:
-            positions_by_type[t] = [
-                p.tolist()
-                for tid, p in zip(typeids, positions)
-                if types[tid] == t
-            ]
 
-            orientations_by_type[t] = [
-                p.tolist()
-                for tid, p in zip(typeids, orientations)
-                if types[tid] == t
-            ]
+        for b in bodies:
+            tid = snapshot.particles.types.index(b.primary_type)
+            indices = np.argwhere(snapshot.particles.typeid == tid).flatten()
+            positions = snapshot.particles.position[indices]
+            orientations = snapshot.particles.orientation[indices]
+
+            positions_by_type[b.primary_type] = positions.tolist()
+
+            if not (orientations == [1, 0, 0, 0]).all(axis=1).all():
+                orientations_by_type[b.primary_type] = orientations.tolist()
 
         return cls(
             bodies=bodies,

@@ -228,12 +228,12 @@ def assert_bodies_equivalent(body1, body2):
         )
         and
         all(
-            all(list(i) == [1,0,0,0] for i in body2.orientations_by_type[t])
+            all(list(o) == [1,0,0,0] for o in body2.orientations_by_type[t])
             for t in orientations_missing_from_self
         )
         and
         all(
-            all(list(i) == [1,0,0,0] for i in body1.orientations_by_type[t])
+            all(list(o) == [1,0,0,0] for o in body1.orientations_by_type[t])
             for t in orientations_missing_from_other
         )
     )

@@ -47,19 +47,6 @@ class Arrangement:
                 + "provided for all bodies' primary types."
             )
 
-        # Ensure orientations are either provided for all primary types, or
-        # not provided at all
-        if self.orientations_by_type:
-            ts = [
-                t for t in primary_types if t not in self.orientations_by_type
-            ]
-            if ts:
-                raise ValueError(
-                    f"Missing required keys in `orientations_by_type`: "
-                    + f"'{"', '".join(ts)}'. If orientations are provided at "
-                    " all, they must be provided for all bodies' primary types."
-                )
-
         # Ensure that for every secondary type, the number of provided
         # orientations matches the number of provided positions
         if self.orientations_by_type:
@@ -67,8 +54,11 @@ class Arrangement:
                 t
                 for t in primary_types
                 if (
-                    len(self.positions_by_type[t])
-                    != len(self.orientations_by_type[t])
+                    t in self.orientations_by_type
+                    and (
+                        len(self.positions_by_type[t])
+                        != len(self.orientations_by_type[t])
+                    )
                 )
             ]
             if ts:

@@ -91,29 +91,22 @@ class Body:
         mass_by_type: dict[str, float] | None = None,
         moi_by_type: dict[str, list[float]] | None = None
     ):
-        # Sanitize inputs
-        unique_secondary_types = []
-        if secondary_types:
-            for t in secondary_types:
-                if t not in unique_secondary_types:
-                    unique_secondary_types.append(t)
-        
+        # Create defaults
+        if not secondary_types:
+            secondary_types = []
         if not positions_by_type:
             positions_by_type = {}
-        
         if not orientations_by_type:
             orientations_by_type = {}
-        
         if not mass_by_type:
             mass_by_type = {}
-
         if not moi_by_type:
             moi_by_type = {}
 
         # Validate inputs
         self.validate(
             primary_type=primary_type,
-            secondary_types=unique_secondary_types,
+            secondary_types=secondary_types,
             positions_by_type=positions_by_type,
             orientations_by_type=orientations_by_type,
             mass_by_type=mass_by_type,
@@ -122,7 +115,7 @@ class Body:
 
         # Modify instance attributes
         self._primary_type = str(primary_type)
-        self._secondary_types = unique_secondary_types
+        self._secondary_types = secondary_types
         self._positions_by_type = util.sanitize(positions_by_type)
         self._orientations_by_type = util.sanitize(orientations_by_type)
         self._mass_by_type = util.sanitize(mass_by_type)
@@ -151,9 +144,16 @@ class Body:
                 for t in secondary_types:
                     _ = str(t)
             except:
-                raise TypeError(
-                    "All secondary type names must be strings."
-                )
+                raise TypeError("All secondary type names must be strings.")
+        
+        # Ensure that all secondary types are unique
+        if secondary_types:
+            unique = []
+            for t in secondary_types:
+                if t not in unique:
+                    unique.append(t)
+            if len(unique) != len(secondary_types):
+                raise ValueError("All secondary type names must be unique.")
 
         # Ensure positions are provided for every secondary type
         if secondary_types:
@@ -398,7 +398,7 @@ class Body:
 
     @orientations_by_type.setter
     def orientations_by_type(self, value):
-        """Set a mapping from secondary types to orientations as quaternions."""
+        """Set a mapping from secondary types to orientations."""
         self.validate(
             secondary_types=self._secondary_types,
             positions_by_type=self._positions_by_type,

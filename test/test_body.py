@@ -163,18 +163,18 @@ VALID_KWARGS = [
             C=[[1,0,0], [0,1,0]]
         ),
     ),
-    dict(   # 2 seconary types, positions and orientations (plus masses and mois)
+    dict(   # 2 seconary types, positions and orientations (plus masses and mois), with np dtypes
         primary_type="A",
         secondary_types=["B", "C"],
         positions_by_type=dict(
-            B=[[1,1,1]],
-            C=[[1,0,0], [0,1,0]]
+            B=[np.array([1,1,1])],
+            C=np.array([[1,0,0], [0,1,0]])
         ),
         orientations_by_type=dict(
             B=[[1,1,0,0]],
-            C=[[1,0,0,0], [0,1,0,0]]
+            C=[[np.float32(1),0,0,0], [0,1,0,0]]
         ),
-        mass_by_type=dict(A=2, B=3),
+        mass_by_type=dict(A=2, B=np.float64(3)),
         moi_by_type=dict(A=[1, 0, 0], B=[0, 1, 0])
     ),
 ]

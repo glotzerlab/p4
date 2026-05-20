@@ -32,11 +32,11 @@ def lj_interaction(interacting_types):
         hoomd_class=hoomd.md.pair.LJ,
         initial_args={},
         default_params=dict(
-            r_cut=0,
+            r_cut=np.float32(0),
             params=dict(epsilon=0, sigma=1)
         ),
         typed_params={
-            p: dict(r_cut=5, params=dict(epsilon=1, sigma=1))
+            p: dict(r_cut=5, params=dict(epsilon=1, sigma=np.float64(1)))
             for p in interacting_types
         }
     )

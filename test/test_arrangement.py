@@ -17,7 +17,7 @@ VALID_KWARGS = [
         positions_by_type=dict(A=[[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
     ),
 
-    # 2 multi-particle bodies, with orientations, masses, and mois
+    # 2 multi-particle bodies, with orientations, masses, and mois, with np dtypes
     dict(
         bodies=[
             p4.Body(
@@ -44,12 +44,12 @@ VALID_KWARGS = [
             )
         ],
         positions_by_type=dict(
-            A=[[10, 0, 0]],
-            D=[[0, 10, 0], [0, 20, 0]]
+            A=[np.array([10, 0, 0])],
+            D=np.array([[0, 10, 0], [0, 20, 0]])
         ),
         orientations_by_type=dict(
             A=[[1, 0, 0, 0]],
-            D=[[0, 0.707, 0.707, 0], [0.707, 0, 0.707, 0]]
+            D=[[0, np.float32(0.707), 0.707, 0], [0.707, 0, 0.707, 0]]
         )
     )
 ]

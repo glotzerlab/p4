@@ -388,10 +388,18 @@ def test_from_hoomd_snapshot(kwargs, ref_filename):
         p4.Arrangement.from_hoomd_snapshot(snapshot)
     )
 
+ARRANGEMENT_KWARGS_FOR_GSD_1 = VALID_KWARGS[0]
+ARRANGEMENT_KWARGS_FOR_GSD_2 = VALID_KWARGS[1]
+ARRANGEMENT_KWARGS_FOR_GSD_3 = VALID_KWARGS[0]
+
+GSD_FILENAME_1 = "single-particle-arrangement-sphere.gsd"
+GSD_FILENAME_2 = "multi-particle-arrangement-ellipsoid-cpolyhedron-polyhedron.gsd"
+GSD_FILENAME_3 = "multi-frame-single-particle-arrangement.gsd"
+
 @pytest.mark.parametrize("kwargs,ref_filename,index", [
-    [VALID_KWARGS[0], "single-particle-arrangement-sphere.gsd", 0],
-    [VALID_KWARGS[1], "multi-particle-arrangement-ellipsoid-cpolyhedron-polyhedron.gsd", 0],
-    [VALID_KWARGS[0], "multi-frame-single-particle-arrangement.gsd", 1],
+    [ARRANGEMENT_KWARGS_FOR_GSD_1, GSD_FILENAME_1, 0],
+    [ARRANGEMENT_KWARGS_FOR_GSD_2, GSD_FILENAME_2, 0],
+    [ARRANGEMENT_KWARGS_FOR_GSD_3, GSD_FILENAME_3, 1],
 ])
 def test_from_gsd(kwargs, ref_filename, index):
     """Ensure parsing from GSD file produces the expected output."""
@@ -538,21 +546,16 @@ CONCAVE_FACES = [
     [6, 9, 8, 7],
 ]
 
+TYPE_SHAPES_FOR_GSD_1 = dict(A=coxeter.shapes.Sphere(0.5))
+TYPE_SHAPES_FOR_GSD_2 = dict(
+    A=coxeter.shapes.Ellipsoid(a=0.25, b=4, c=6),
+    E=coxeter.shapes.ConvexPolyhedron(vertices=CUBE_VERTICES),
+    F=coxeter.shapes.Polyhedron(vertices=CONCAVE_VERTICES, faces=CONCAVE_FACES)
+)
+
 @pytest.mark.parametrize("kwargs,ref_filename,type_shapes", [
-    [
-        VALID_KWARGS[0],
-        "single-particle-arrangement-sphere.gsd",
-        dict(A=coxeter.shapes.Sphere(0.5))
-    ],
-    [
-        VALID_KWARGS[1],
-        "multi-particle-arrangement-ellipsoid-cpolyhedron-polyhedron.gsd",
-        dict(
-            A=coxeter.shapes.Ellipsoid(a=0.25, b=4, c=6),
-            E=coxeter.shapes.ConvexPolyhedron(vertices=CUBE_VERTICES),
-            F=coxeter.shapes.Polyhedron(vertices=CONCAVE_VERTICES, faces=CONCAVE_FACES)
-        )
-    ],
+    [ARRANGEMENT_KWARGS_FOR_GSD_1, GSD_FILENAME_1, TYPE_SHAPES_FOR_GSD_1],
+    [ARRANGEMENT_KWARGS_FOR_GSD_2, GSD_FILENAME_2, TYPE_SHAPES_FOR_GSD_2],
 ])
 def test_to_gsd(kwargs, ref_filename, type_shapes):
     """Ensure export to GSD file produces the expected output."""
@@ -577,3 +580,20 @@ def test_to_gsd(kwargs, ref_filename, type_shapes):
         assert np.array_equal(test_frame.particles.mass, ref_frame.particles.mass)
         assert np.array_equal(test_frame.particles.moment_inertia, ref_frame.particles.moment_inertia)
         assert np.array_equal(test_frame.particles.body, ref_frame.particles.body)
+
+
+if __name__ == "__main__":
+    # Regenerate reference files
+    arrangement = p4.Arrangement(**ARRANGEMENT_KWARGS_FOR_GSD_1)
+    file_path = REFERENCE_FOLDER / GSD_FILENAME_1
+    arrangement.to_gsd(file_path, type_shapes=TYPE_SHAPES_FOR_GSD_1)
+
+    arrangement = p4.Arrangement(**ARRANGEMENT_KWARGS_FOR_GSD_2)
+    file_path = REFERENCE_FOLDER / GSD_FILENAME_2
+    arrangement.to_gsd(file_path, type_shapes=TYPE_SHAPES_FOR_GSD_2)
+
+    with gsd.hoomd.open(REFERENCE_FOLDER / GSD_FILENAME_1, "r") as f1:
+        frame = f1[0]
+    with gsd.hoomd.open(REFERENCE_FOLDER / GSD_FILENAME_3, "w") as f2:
+        f2.append(gsd.hoomd.Frame())
+        f2.append(frame)

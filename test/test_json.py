@@ -11,8 +11,6 @@ from pathlib import Path
 
 REFERENCE_FOLDER = Path(__file__).parent / "data"
 
-# TODO: return here - add mass and moi to json tests
-
 def cube_vertices(side_length):
     s = side_length
     return [
@@ -197,7 +195,7 @@ def test_from_json(object_type, place, indent_type):
 
 
 if __name__ == "__main__":
-    # Regenerate control files
+    # Regenerate reference files
     object_types = [
         "interaction",
         "body",

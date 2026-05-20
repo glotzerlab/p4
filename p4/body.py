@@ -257,7 +257,6 @@ class Body:
         self._moi_by_type = util.sanitize(value)
         self.validate()
 
-
     # --------------------------------- IMPORT ---------------------------------
 
     @classmethod

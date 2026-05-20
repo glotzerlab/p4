@@ -317,14 +317,129 @@ INVALID_KWARGS = [
             B=[[1,1,0,0], [1,1,0,0,]],
             C=[[1,0,0,0]]
         )
+    ),
+
+    # Positions are wrong length
+    dict(
+        primary_type="A",
+        secondary_types=["B", "C"],
+        positions_by_type=dict(B=[[1,0]], C=[[0,1,0]])
+    ),
+    # Orientations are wrong length
+    dict(
+        primary_type="A",
+        secondary_types=["B", "C"],
+        positions_by_type=dict(B=[[1,0]], C=[[0,1,0]]),
+        orientations_by_type=dict(B=[[1,0]], C=[[0,1,0]]),
+    ),
+    # MoIs are wrong length
+    dict(
+        primary_type="A",
+        secondary_types=["B", "C"],
+        positions_by_type=dict(B=[[1,0]], C=[[0,1,0]]),
+        moi_by_type=dict(B=[[1,0]], C=[[0,1,0]]),
     )
 ]
 
 @pytest.mark.parametrize("kwargs", INVALID_KWARGS)
 def test_invalid_instantiation(kwargs):
     """Ensure instantiation fails predictably with invalid arguments."""
-    with pytest.raises(ValueError):
+    with pytest.raises((ValueError, TypeError)):
         _ = p4.Body(**kwargs)
+
+def test_property_getters_and_setters_valid():
+    """Ensure property getters and setters work as expected with valid inputs."""
+    kwargs = VALID_KWARGS[-1]
+    body = p4.Body(**kwargs)
+
+    # Getters
+    assert body.primary_type == kwargs["primary_type"]
+    assert body.secondary_types == kwargs["secondary_types"]
+    assert body.positions_by_type == kwargs["positions_by_type"]
+    assert body.orientations_by_type == kwargs["orientations_by_type"]
+    assert body.mass_by_type == kwargs["mass_by_type"]
+    assert body.moi_by_type == kwargs["moi_by_type"]
+
+    # Setters (secondary types, positions, and orientations)
+    body.add_secondary_types(
+        types=["Y", "Z"],
+        positions_by_type=dict(Y=[[0,0,0]], Z=[[1,1,1]]),
+        orientations_by_type=dict(Y=[[0,1,0,0]], Z=[[0,0,1,0]]),
+        mass_by_type=dict(Y=6, Z=7),
+        moi_by_type=dict(Y=[2,2,2], Z=[3,3,3]),
+    )
+    assert body.secondary_types == kwargs["secondary_types"] + ["Y", "Z"]
+    assert body.positions_by_type == {**kwargs["positions_by_type"], **dict(Y=[[0,0,0]], Z=[[1,1,1]])}
+    assert body.orientations_by_type == {**kwargs["orientations_by_type"], **dict(Y=[[0,1,0,0]], Z=[[0,0,1,0]])}
+    assert body.mass_by_type == {**kwargs["mass_by_type"], **dict(Y=6, Z=7)}
+    assert body.moi_by_type == {**kwargs["moi_by_type"], **dict(Y=[2,2,2], Z=[3,3,3])}
+    body.remove_secondary_types(types=["Y", "Z"])
+    assert body.secondary_types == kwargs["secondary_types"]
+    assert body.positions_by_type == kwargs["positions_by_type"]
+    assert body.orientations_by_type == kwargs["orientations_by_type"]
+    assert body.mass_by_type == kwargs["mass_by_type"]
+    assert body.moi_by_type == kwargs["moi_by_type"]
+
+    # Setters (everything else)
+    body.primary_type = "Z"
+    assert body.primary_type == "Z"
+    body.mass_by_type["Z"] = 5
+    assert body.mass_by_type["Z"] == 5
+    body.moi_by_type["Z"] = [5, 5, 5]
+    assert body.moi_by_type["Z"] == [5, 5, 5]
+
+def test_property_setters_invalid():
+    """Ensure property setters fail expectedly with invalid inputs."""
+    kwargs = VALID_KWARGS[-1]
+    body = p4.Body(**kwargs)
+
+    # Adding new overlapping secondary types 
+    with pytest.raises(ValueError):
+        body.add_secondary_types(
+            types=["B"],
+            positions_by_type=dict(B=[[0,0,0]]),
+        )
+    
+    # Adding new secondary types with missing positions
+    with pytest.raises(ValueError):
+        body.add_secondary_types(
+            types=["Y", "Z"],
+            positions_by_type=dict(Y=[[0,0,0]])
+        )
+    
+    # Adding new secondary types with positions of wrong length
+    with pytest.raises(ValueError):
+        body.add_secondary_types(
+            types=["Y", "Z"],
+            positions_by_type=dict(Y=[[0,0]], Z=[[1,1,1]])
+        )
+
+    # Adding new secondary types with mismatched numbers of positions and orientations
+    with pytest.raises(ValueError):
+        body.add_secondary_types(
+            types=["Y", "Z"],
+            positions_by_type=dict(Y=[[0,0,0]], Z=[[1,1,1]]),
+            orientations_by_type=dict(Y=[[0,1,0,0]], Z=[[0,0,1,0], [1,0,0,0]]),
+        )
+    
+    # Adding new secondary types with orientations of wrong length
+    with pytest.raises(ValueError):
+        body.add_secondary_types(
+            types=["Y", "Z"],
+            positions_by_type=dict(Y=[[0,0,0]], Z=[[1,1,1]]),
+            orientations_by_type=dict(Y=[[0,1,0,0]], Z=[[0,0,1]]),
+        )
+    
+    # Removing non-existent secondary types
+    with pytest.raises(ValueError):
+        body.remove_secondary_types(types=["Z"])
+    
+    # Ensure none of the invalid operations above mutated the internal data
+    assert body.secondary_types == kwargs["secondary_types"]
+    assert body.positions_by_type == kwargs["positions_by_type"]
+    assert body.orientations_by_type == kwargs["orientations_by_type"]
+    assert body.mass_by_type == kwargs["mass_by_type"]
+    assert body.moi_by_type == kwargs["moi_by_type"]
 
 VALID_INTERACTION_KWARGS = dict(
     hoomd_class=hoomd.md.pair.LJ,

@@ -5,7 +5,7 @@
         "hoomd_class": "hoomd.md.pair.aniso.ALJ",
         "initial_args": {},
         "default_params": {
-          "r_cut": 0,
+          "r_cut": 0.0,
           "params": {
             "epsilon": 0,
             "sigma_i": 1,

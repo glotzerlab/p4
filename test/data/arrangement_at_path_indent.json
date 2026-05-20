@@ -25,7 +25,9 @@
                 ]
               ]
             },
-            "orientations_by_type": {}
+            "orientations_by_type": {},
+            "mass_by_type": {},
+            "moi_by_type": {}
           },
           {
             "primary_type": "D",
@@ -88,7 +90,9 @@
                   0
                 ]
               ]
-            }
+            },
+            "mass_by_type": {},
+            "moi_by_type": {}
           }
         ],
         "positions_by_type": {

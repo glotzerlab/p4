@@ -50,7 +50,11 @@
             ]
           ]
         },
-        "orientations_by_type": {}
+        "orientations_by_type": {},
+        "mass_by_type": {
+          "B": 2.0
+        },
+        "moi_by_type": {}
       }
     }
   }

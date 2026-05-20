@@ -1,4 +1,5 @@
 import hoomd
+import numpy as np
 import pytest
 import p4
 

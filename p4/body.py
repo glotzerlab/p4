@@ -147,8 +147,11 @@ class Body:
                 t
                 for t in self.secondary_types
                 if (
-                    len(self.positions_by_type[t])
-                    != len(self.orientations_by_type[t])
+                    t in self.orientations_by_type
+                    and (
+                        len(self.positions_by_type[t])
+                        != len(self.orientations_by_type[t])
+                    )
                 )
             ]
             if ts:

@@ -158,7 +158,7 @@ class Body:
         # Ensure positions are provided for every secondary type
         if secondary_types:
             if not positions_by_type:
-                positions_by_type = []
+                positions_by_type = {}
             if ts := [t for t in secondary_types if t not in positions_by_type]:
                 raise ValueError(
                     f"Missing required key(s) in `positions_by_type`: "
@@ -246,54 +246,49 @@ class Body:
         """A mapping from secondary types to positions in 3D space."""
         return self._positions_by_type
 
-    def add_secondary_types(
+    def add(
         self,
-        types: list[str],
-        positions_by_type: dict[str, list[list[float]]],
-        orientations_by_type: dict[str, list[list[float]]] | None = None,
-        mass_by_type: dict[str, list[list[float]]] | None = None,
-        moi_by_type: dict[str, list[list[float]]] | None = None,
+        name: str,
+        positions: list[list[float]],
+        orientations: list[list[float]] | None = None,
+        mass: list[list[float]] | None = None,
+        moi: list[list[float]] | None = None,
     ):
-        """Add secondary types to this body, specifying positions for each.
+        """Add a new secondary particle type.
         
         Parameters
         ----------
-        types : list[str]
-            The names of the secondary types to add. Must not match any of the
-            existing secondary types.
-        positions_by_type : dict[str, list[list[float]]]
-            The ``positions_by_type`` mapping for the new secondary types.
-        orientations_by_type : dict[str, list[list[float]]], optional
-            The ``orientations_by_type`` mapping for the new secondary types.
-        mass_by_type : dict[str, float], optional
-            The ``mass_by_type`` mapping for the new secondary types.
-        moi_by_type : dict[str, list[float]], optional
-            The ``moi_by_type`` mapping for the new secondary types.
+        name : str
+            The name of the secondary type to add.
+        positions : list[list[float]]
+            The positions for the new secondary type.
+        orientations : list[list[float]], optional
+            The orientations for the new secondary type.
+        mass : float, optional
+            The mass for the new secondary type.
+        moi : list[float], optional
+            The moi for the new secondary type.
         """
-        # Sanitize to ensure types are unique
-        unique_types = []
-        for t in types:
-            if t not in unique_types:
-                unique_types.append(t)
-        
-        # Set default values
-        if orientations_by_type is None:
-            orientations_by_type = {}
-        if mass_by_type is None:
-            mass_by_type = {}
-        if moi_by_type is None:
-            moi_by_type = {}
-
-        # Ensure there are no overlaps with existing secondary types
-        if ts := [t for t in types if t in self.secondary_types]:
+        if name in self.secondary_types:
             raise ValueError(
-                f"New type(s) ['{"', '".join(ts)}'] are already included in "
-                + "this body's secondary types."
+                f"The new type is already included in this body's secondary "
+                + "types."
             )
-    
+
+        # Create new data structures
+        positions_by_type = {name: positions}
+        
+        if orientations is None:
+            orientations_by_type = {}
+        else:
+            orientations_by_type = {name: orientations}
+        
+        mass_by_type = {} if mass is None else {name: mass}
+        moi_by_type = {} if moi is None else {name: moi}
+
         # Validate
         self.validate(
-            secondary_types=self._secondary_types + types,
+            secondary_types=self._secondary_types + [name],
             positions_by_type={**self._positions_by_type, **positions_by_type},
             orientations_by_type={
                 **self._orientations_by_type,
@@ -304,42 +299,93 @@ class Body:
         )
         
         # Modify the data
-        self._secondary_types.extend(unique_types)
+        self._secondary_types.append(name)
         self._positions_by_type.update(util.sanitize(positions_by_type))
         self._orientations_by_type.update(util.sanitize(orientations_by_type))
         self._mass_by_type.update(util.sanitize(mass_by_type))
         self._moi_by_type.update(util.sanitize(moi_by_type))
 
-    def remove_secondary_types(self, types: list[str]):
-        """Remove secondary types and their data from this body.
+    def remove(self, name: str):
+        """Remove a secondary particle type.
         
         Parameters
         ----------
-        types : list[str]
-            The names of the secondary types to remove.
+        name : str
+            The name of the secondary type to remove.
         """
-        # Sanitize to ensure types are unique
-        unique_types = []
-        for t in types:
-            if t not in unique_types:
-                unique_types.append(t)
-    
-        # Ensure types are all included in existing secondary types
-        if ts := [t for t in types if t not in self.secondary_types]:
+        if name not in self.secondary_types:
             raise ValueError(
-                f"The type(s) '{"', '".join(ts)}' is/are not included in "
-                + "this body's secondary types."
+                f"The type is not included in this body's secondary types."
             )
+
+        del self._secondary_types[self._secondary_types.index(name)]
+        del self._positions_by_type[name]
+        if name in self._orientations_by_type:
+            del self._orientations_by_type[name]
+        if name in self._mass_by_type:
+            del self._mass_by_type[name]
+        if name in self._moi_by_type:
+            del self._moi_by_type[name]
+
+    def update(
+        self,
+        name: str,
+        positions: list[list[float]] | None = None,
+        orientations: list[list[float]] | None = None,
+        mass: list[list[float]] | None = None,
+        moi: list[list[float]] | None = None,
+    ):
+        """Update data for a secondary particle type.
         
-        for t in types:
-            del self._secondary_types[self._secondary_types.index(t)]
-            del self._positions_by_type[t]
-            if t in self._orientations_by_type:
-                del self._orientations_by_type[t]
-            if t in self._mass_by_type:
-                del self._mass_by_type[t]
-            if t in self._moi_by_type:
-                del self._moi_by_type[t]
+        Parameters
+        ----------
+        name : str
+            The name of the secondary type to update.
+        positions : list[list[float]]
+            The positions for the new secondary type.
+        orientations : list[list[float]], optional
+            The orientations for the new secondary type.
+        mass : float, optional
+            The mass for the new secondary type.
+        moi : list[float], optional
+            The moi for the new secondary type.
+        """
+        if name not in self.secondary_types:
+            raise ValueError(
+                f"The type is not included in this body's secondary types."
+            )
+
+        # Calculate updated data
+        positions_by_type = copy(self._positions_by_type)
+        if positions is not None:
+            positions_by_type.update({name: positions})
+
+        orientations_by_type = copy(self._orientations_by_type)
+        if orientations is not None:
+            orientations_by_type.update({name: orientations})
+        
+        mass_by_type = copy(self._mass_by_type)
+        if mass is not None:
+            mass_by_type.update({name: mass})
+
+        moi_by_type = copy(self._moi_by_type)
+        if moi is not None:
+            moi_by_type.update({name: moi})
+
+        # Validate
+        self.validate(
+            secondary_types=self._secondary_types,
+            positions_by_type=positions_by_type,
+            orientations_by_type=orientations_by_type,
+            mass_by_type=mass_by_type,
+            moi_by_type=moi_by_type,
+        )
+        
+        # Modify the data
+        self._positions_by_type.update(util.sanitize(positions_by_type))
+        self._orientations_by_type.update(util.sanitize(orientations_by_type))
+        self._mass_by_type.update(util.sanitize(mass_by_type))
+        self._moi_by_type.update(util.sanitize(moi_by_type))
 
     @property
     def orientations_by_type(self) -> dict[str, list[list[float]]]:

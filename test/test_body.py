@@ -353,18 +353,18 @@ def test_property_getters_and_setters_valid():
         primary_type="A",
         secondary_types=["B", "C"],
         positions_by_type=dict(
-            B=[np.array([1,1,1])],
-            C=np.array([[1,0,0], [0,1,0]])
+            B=[[1,1,1]],
+            C=[[1,0,0], [0,1,0]]
         ),
         orientations_by_type=dict(
             B=[[1,1,0,0]],
-            C=[[np.float32(1),0,0,0], [0,1,0,0]]
+            C=[[1,0,0,0], [0,1,0,0]]
         ),
-        mass_by_type=dict(A=2, B=np.float64(3)),
+        mass_by_type=dict(A=2, B=3),
         moi_by_type=dict(A=[1, 0, 0], B=[0, 1, 0])
     )
 
-    body = p4.Body(**kwargs)
+    body = p4.Body(**deepcopy(kwargs))
 
     # Getters
     assert body.primary_type == kwargs["primary_type"]
@@ -374,13 +374,13 @@ def test_property_getters_and_setters_valid():
     assert body.mass_by_type == kwargs["mass_by_type"]
     assert body.moi_by_type == kwargs["moi_by_type"]
 
-    # Setters (secondary types, positions, and orientations)
+    # Setters (secondary types, positions, and orientations) (test coercion, too)
     body.add(
         name="Z",
-        positions=[[1,1,1]],
-        orientations=[[0,0,1,0]],
-        mass=7,
-        moi=[3,3,3],
+        positions=[np.array([1,1,1])],
+        orientations=np.array([[0,0,1,0]]),
+        mass=np.float32(7),
+        moi=np.array([3,3,3]),
     )
     assert body.secondary_types == kwargs["secondary_types"] + ["Z"]
     assert body.positions_by_type == {**kwargs["positions_by_type"], **dict(Z=[[1,1,1]])}
@@ -397,10 +397,10 @@ def test_property_getters_and_setters_valid():
 
     body.update(
         name="B",
-        positions=[[0,0,0]],
-        orientations=[[0,1,0,0]],
-        mass=6,
-        moi=[2,2,2],
+        positions=[np.array([0,0,0])],
+        orientations=np.array([[0,1,0,0]]),
+        mass=np.float64(6),
+        moi=np.array([2,2,2]),
     )
     assert body.secondary_types == kwargs["secondary_types"]
     assert body.positions_by_type == dict(B=[[0,0,0]], C=[[1,0,0], [0,1,0]])

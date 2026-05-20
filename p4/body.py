@@ -266,8 +266,7 @@ class Body:
         .. note:
 
             If the simulation state specifies multiple masses or moments of
-            inertia for a single particle type, the parser instead chooses the
-            default value. (See above.)
+            inertia for a single particle type, the first values are used.
 
         Parameters
         ----------

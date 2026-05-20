@@ -999,27 +999,31 @@ CUBE_VERTICES = [
     [ 1/4,  1/4,  1/4]
 ]
 
+BODY_KWARGS_FOR_GSD = dict(
+    primary_type="A",
+    secondary_types=["B", "C"],
+    positions_by_type=dict(
+        B=[[1,1,1]],
+        C=[[1,0,0], [0,1,0]]
+    ),
+    orientations_by_type=dict(
+        B=[[1,1,0,0]],
+        C=[[1,0,0,0], [0,1,0,0]]
+    ),
+    mass_by_type=dict(A=2, B=3),
+    moi_by_type=dict(A=[1, 0, 0], B=[0, 1, 0])
+)
+
+TYPE_SHAPES_FOR_GSD = dict(
+    A=coxeter.shapes.Ellipsoid(a=0.25, b=0.5, c=0.75),
+    B=coxeter.shapes.ConvexPolyhedron(vertices=CUBE_VERTICES),
+)
+
 @pytest.mark.parametrize("kwargs,ref_filename,type_shapes", [
     [    # 2 seconary types, positions and orientations, type shapes are specified
-        dict(
-            primary_type="A",
-            secondary_types=["B", "C"],
-            positions_by_type=dict(
-                B=[[1,1,1]],
-                C=[[1,0,0], [0,1,0]]
-            ),
-            orientations_by_type=dict(
-                B=[[1,1,0,0]],
-                C=[[1,0,0,0], [0,1,0,0]]
-            ),
-            mass_by_type=dict(A=2, B=3),
-            moi_by_type=dict(A=[1, 0, 0], B=[0, 1, 0])
-        ),
+        BODY_KWARGS_FOR_GSD,
         "body.gsd",
-        dict(
-            A=coxeter.shapes.Ellipsoid(a=0.25, b=0.5, c=0.75),
-            B=coxeter.shapes.ConvexPolyhedron(vertices=CUBE_VERTICES),
-        )
+        TYPE_SHAPES_FOR_GSD
     ]
 ])
 def test_to_gsd(kwargs, ref_filename, type_shapes):
@@ -1045,3 +1049,10 @@ def test_to_gsd(kwargs, ref_filename, type_shapes):
         assert np.array_equal(test_frame.particles.mass, ref_frame.particles.mass)
         assert np.array_equal(test_frame.particles.moment_inertia, ref_frame.particles.moment_inertia)
         assert np.array_equal(test_frame.particles.body, ref_frame.particles.body)
+
+
+if __name__ == "__main__":
+    # Regenerate reference file
+    body = p4.Body(**BODY_KWARGS_FOR_GSD)
+    file_path = Path(REFERENCE_FOLDER) / f"body.gsd"
+    body.to_gsd(file_path, TYPE_SHAPES_FOR_GSD)

@@ -136,21 +136,6 @@ class Body:
                     + "all secondary types."
                 )
         
-        # Ensure orientations are either provided for all secondary types, or
-        # not provided at all
-        if self.secondary_types and self.orientations_by_type:
-            ts = [
-                t
-                for t in self.secondary_types
-                if t not in self.orientations_by_type
-            ]
-            if ts:
-                raise ValueError(
-                    f"Missing required keys in `orientations_by_type`: "
-                    + f"'{"', '".join(ts)}'. If orientations are provided at "
-                    " all, they must be provided for all secondary types."
-                )
-        
         # Ensure that for every secondary type, the number of provided
         # orientations matches the number of provided positions
         if (
@@ -625,28 +610,27 @@ class Body:
             An existing constraint instance to use. If not provided, a new one
             is created.
         """
+        types = []
+        positions = []
+        orientations = []
+
+        for t in self.secondary_types:
+            types.extend([t for _ in self.positions_by_type[t]])
+            positions.extend(self.positions_by_type[t])
+            orientations.extend(
+                self.orientations_by_type.get(
+                    t,
+                    [[1, 0, 0, 0] for _ in self.positions_by_type[t]]
+                )
+            )
+
         if rigid is None:
             rigid = hoomd.md.constrain.Rigid()
-        
-        types_and_positions = [
-            [t, position]
-            for t in self.secondary_types
-            for position in self.positions_by_type[t]
-        ]
-
-        if self.orientations_by_type:
-            orientations = [
-                orientation
-                for t in self.secondary_types
-                for orientation in self.orientations_by_type[t]
-            ]
-        else:
-            orientations = [(1, 0, 0, 0) for _ in types_and_positions]
 
         rigid.body[self.primary_type] = {
-            "constituent_types": [t for (t, p) in types_and_positions],
-            "positions": [p for (t, p) in types_and_positions],
-            "orientations": [o for o in orientations]
+            "constituent_types": types,
+            "positions": positions,
+            "orientations": orientations
         }
 
         return rigid

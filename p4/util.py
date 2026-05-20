@@ -2018,5 +2018,23 @@ def sanitize(d: dict):
                 d[k] = v.tolist()
             elif isinstance(v, np.number):
                 d[k] = v.item()
+            elif isinstance(v, (list, tuple)):
+                if v:
+                    new_v = None
+                    if isinstance(v[0], np.ndarray):
+                        new_v = [i.tolist() for i in v]
+                    elif isinstance(v[0], np.floating):
+                        new_v = [float(i) for i in v]
+                    elif isinstance(v[0], np.integer):
+                        new_v = [int(i) for i in v]
+                    
+                    # Convert back to tuple if necessary
+                    if new_v and isinstance(v, tuple):
+                        new_v = tuple(new_v)
+                    
+                    if new_v:
+                        d[k] = new_v
+                    else:
+                        d[k] = v
         
     return d

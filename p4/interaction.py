@@ -73,9 +73,9 @@ class Interaction:
         typed_params: dict[str, float],
     ):
         self._hoomd_class = hoomd_class
-        self._initial_args = initial_args
-        self._default_params = default_params
-        self._typed_params = typed_params
+        self._initial_args = util.sanitize(initial_args)
+        self._default_params = util.sanitize(default_params)
+        self._typed_params = util.sanitize(typed_params)
 
         self.validate()
 

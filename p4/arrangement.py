@@ -21,9 +21,9 @@ class Arrangement:
         orientations_by_type: dict[str, list[list[float]]] | None = None
     ):
         self._bodies = bodies
-        self._positions_by_type = positions_by_type
+        self._positions_by_type = util.sanitize(positions_by_type)
         if orientations_by_type:
-            self._orientations_by_type = orientations_by_type
+            self._orientations_by_type = util.sanitize(orientations_by_type)
         else:
             self._orientations_by_type = {}
         

@@ -99,22 +99,22 @@ class Body:
             self._secondary_types = []
         
         if positions_by_type:
-            self._positions_by_type = positions_by_type
+            self._positions_by_type = util.sanitize(positions_by_type)
         else:
             self._positions_by_type = {}
         
         if orientations_by_type:
-            self._orientations_by_type = orientations_by_type
+            self._orientations_by_type = util.sanitize(orientations_by_type)
         else:
             self._orientations_by_type = {}
         
         if mass_by_type:
-            self._mass_by_type = mass_by_type
+            self._mass_by_type = util.sanitize(mass_by_type)
         else:
             self._mass_by_type = {}
         
         if moi_by_type:
-            self._moi_by_type = moi_by_type
+            self._moi_by_type = util.sanitize(moi_by_type)
         else:
             self._moi_by_type = {}
         

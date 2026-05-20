@@ -550,9 +550,11 @@ class Arrangement:
 
     def _to_json_dict(self):
         """Return a JSON-compliant dictionary representing this arrangement."""
-        data = copy(self.__dict__)
-        data["bodies"] = [b._to_json_dict() for b in self.bodies]
-        return data
+        return dict(
+            bodies=[b._to_json_dict() for b in self.bodies],
+            positions_by_type=self.positions_by_type,
+            orientations_by_type=self.orientations_by_type
+        )
 
     # -------------------------------- PLOTTING --------------------------------
 

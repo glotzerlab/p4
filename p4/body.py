@@ -581,7 +581,9 @@ class Body:
             "primary_type",
             "secondary_types",
             "positions_by_type",
-            "orientations_by_type"
+            "orientations_by_type",
+            "mass_by_type",
+            "moi_by_type"
         ]
         for required_arg in required_args:
             if required_arg not in data:
@@ -825,13 +827,15 @@ class Body:
             json.dump(existing_data, f, indent=indent)
 
     def _to_json_dict(self):
-        """Return a JSON-compliant dictionary representing this body.
-        
-        NOTE: this apparently useless method is included here for convenience
-        in the JSON export method in System. It may be refactored out of
-        existence later.
-        """
-        return copy(self.__dict__)
+        """Return a JSON-compliant dictionary representing this body."""
+        return dict(
+            primary_type=self.primary_type,
+            secondary_types=self.secondary_types,
+            positions_by_type=self.positions_by_type,
+            orientations_by_type=self.orientations_by_type,
+            mass_by_type=self.mass_by_type,
+            moi_by_type=self.moi_by_type
+        )
 
     # -------------------------------- PLOTTING --------------------------------
 

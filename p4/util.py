@@ -1501,11 +1501,21 @@ def get_initial_frame(
         probe_frame.particles.N + analyte_frame.particles.N
     )
     merged_frame.particles.types = (
-        analyte_frame.particles.types + probe_frame.particles.types
+        analyte_frame.particles.types
+        + [
+            t
+            for t in probe_frame.particles.types
+            if t not in analyte_frame.particles.types
+        ]
     )
     merged_frame.particles.typeid = np.hstack((
         analyte_frame.particles.typeid,
-        probe_frame.particles.typeid + len(analyte_frame.particles.types)
+        [
+            merged_frame.particles.types.index(
+                probe_frame.particles.types[tid]
+            )
+            for tid in probe_frame.particles.typeid
+        ]
     ))
     merged_frame.particles.position = np.vstack((
         analyte_frame.particles.position,

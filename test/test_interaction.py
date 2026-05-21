@@ -887,6 +887,19 @@ def test_instantiation_valid(cls, required_or_all):
     _ = p4.Interaction(**kwargs)
 
 INVALID_KWARGS = [
+    # Wrong class
+    dict(   # different module
+        hoomd_class=hoomd.hpmc.pair.LennardJones,
+        initial_args=dict(),
+        default_params=dict(),
+        typed_params=dict()
+    ),
+    dict(   # excluded type
+        hoomd_class=hoomd.md.pair.aniso.AnisotropicPair,
+        initial_args=dict(),
+        default_params=dict(),
+        typed_params=dict()
+    ),
     # Initial args
     dict(   # missing required names
         hoomd_class=hoomd.md.pair.DPD,
@@ -1221,6 +1234,60 @@ def test_invalid_instantiation(kwargs):
     """
     with pytest.raises((TypeError, ValueError)):
         _ = p4.Interaction(**kwargs)
+
+def test_property_getters_and_setters_valid():
+    """Ensure property getters and setters work as expected with valid inputs."""
+    kwargs = dict(
+        hoomd_class=hoomd.md.pair.LJ,
+        initial_args=dict(default_r_cut=0),
+        default_params=dict(r_cut=1, params=dict(epsilon=2, sigma=3)),
+        typed_params={
+            ("A", "B"): dict(r_cut=4, params=dict(epsilon=5, sigma=6))
+        }
+    )
+    interaction = p4.Interaction(**kwargs)
+
+    # Getters
+    assert interaction.hoomd_class == kwargs["hoomd_class"]
+    assert interaction.initial_args == kwargs["initial_args"]
+    assert interaction.default_params == kwargs["default_params"]
+    assert interaction.typed_params == kwargs["typed_params"]
+
+    # Setters
+    interaction.initial_args = {}
+    assert interaction.initial_args == {}
+    interaction.default_params = dict(r_cut=1.1, params=dict(epsilon=2.1, sigma=3.1))
+    assert interaction.default_params == dict(r_cut=1.1, params=dict(epsilon=2.1, sigma=3.1))
+    interaction.typed_params = {("A", "B"): dict(r_cut=4.1, params=dict(epsilon=5.1, sigma=6.1))}
+    assert interaction.typed_params == {("A", "B"): dict(r_cut=4.1, params=dict(epsilon=5.1, sigma=6.1))}
+
+def test_property_setters_invalid():
+    """Ensure property setters fail expectedly with invalid inputs."""
+    kwargs = dict(
+        hoomd_class=hoomd.md.pair.LJ,
+        initial_args=dict(default_r_cut=0),
+        default_params=dict(r_cut=1, params=dict(epsilon=2, sigma=3)),
+        typed_params={
+            ("A", "B"): dict(r_cut=4, params=dict(epsilon=5, sigma=6))
+        }
+    )
+    interaction = p4.Interaction(**kwargs)
+
+    # Setting hoomd_class
+    with pytest.raises(AttributeError):
+        interaction.hoomd_class = hoomd.md.pair.DPD
+
+    # Setting new wrong initial_args
+    with pytest.raises(ValueError):
+        interaction.initial_args = dict(wrong=None)
+
+    # Setting new wrong default_params
+    with pytest.raises(ValueError):
+        interaction.default_params = dict(wrong=None)
+
+    # Setting new wrong typed_params
+    with pytest.raises(ValueError):
+        interaction.typed_params = dict(wrong=None)
 
 @pytest.mark.parametrize("kwargs,expected_singles,expected_pairs", [
     [   # 0 singles, 1 pair

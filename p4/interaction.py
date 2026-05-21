@@ -504,8 +504,18 @@ class Interaction:
             itertools.combinations_with_replacement(all_types, 2)
         )
 
-        single_typed_params = self._parse_params("single", "all")
-        pair_typed_params = self._parse_params("pair", "all")
+        single_typed_params = self._parse_params(
+            hoomd_class=self.hoomd_class,
+            initial_args=self.initial_args,
+            single_or_pair="single",
+            required_or_optional="all"
+        )
+        pair_typed_params = self._parse_params(
+            hoomd_class=self.hoomd_class,
+            initial_args=self.initial_args,
+            single_or_pair="pair",
+            required_or_optional="all"
+        )
 
         # Set default single type params
         for t in all_types:
@@ -559,7 +569,14 @@ class Interaction:
 
         return instance
 
-    def _parse_params(self, single_or_pair, required_or_optional):
+    @classmethod
+    def _parse_params(
+        cls,
+        hoomd_class: hoomd.md.pair.Pair,
+        initial_args: dict,
+        single_or_pair: Literal["single", "pair"],
+        required_or_optional: Literal["required", "optional", "all"]
+    ):
         """Return a param dictionary for a given hoomd class.
 
         Parameters
@@ -628,9 +645,9 @@ class Interaction:
             return subdict
         
         params = {}
-        tpd = self.hoomd_class(
+        tpd = hoomd_class(
             nlist=hoomd.md.nlist.Tree(2),
-            **self.initial_args
+            **initial_args
         )._typeparam_dict
 
         for name, typeparam in tpd.items():

@@ -411,6 +411,8 @@ def test_property_getters_and_setters_valid():
     # Setters (everything else)
     body.primary_type = "Z"
     assert body.primary_type == "Z"
+    body.orientations_by_type = {}
+    assert body.orientations_by_type == {}
     body.mass_by_type["Z"] = 5
     assert body.mass_by_type["Z"] == 5
     body.moi_by_type["Z"] = [5, 5, 5]

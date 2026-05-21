@@ -80,7 +80,7 @@ class Interaction:
         default_params: dict[str, float],
         typed_params: dict[str, float],
     ):
-        # Ensure the hoomd_class is the right type
+        # Validate inputs
         def cls_to_str(cls):
             """A string representation of the class path, including its name."""
             return cls.__module__ + "." + cls.__name__
@@ -96,11 +96,13 @@ class Interaction:
                 + f"{cls_to_str(hoomd_class)}"
             )
         
+        # Set instance attributes
         self._hoomd_class = hoomd_class
         self._initial_args = util.sanitize(initial_args)
         self._default_params = util.sanitize(default_params)
         self._typed_params = util.sanitize(typed_params)
 
+        # Validate instance attributes
         self.validate()
 
     def validate(self):

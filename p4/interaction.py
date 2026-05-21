@@ -482,20 +482,8 @@ class Interaction:
         AttributeError
             If the ``typed_params`` is wrong.
         """
-        def wrong_type_msg(param, default_or_typed, single_or_pair, hoomd_class):
-            return (
-                f"'{param}' was provided as a {default_or_typed} "
-                f"{single_or_pair}-typed-param, but no such param was found in "
-                f"hoomd class '{hoomd_class}'."
-            )
+        instance = self.hoomd_class(nlist, **self.initial_args)
 
-        try:
-            instance = self.hoomd_class(nlist, **self.initial_args)
-        
-        except (TypeError, hoomd.error.TypeConversionError) as e:
-            msg = "'initial_args' are wrong. See traceback for details."
-            raise ValueError(msg) from e
-        
         if not parameterize:
             return instance
         
@@ -521,52 +509,24 @@ class Interaction:
         for t in all_types:
             for name, typed_param in self.default_params.items():
                 if name in single_typed_params:
-                    try:    # TODO: probably don't need try-block if there's a parsing method
-                        getattr(instance, name)[t] = typed_param
-                    except AttributeError:
-                        raise AttributeError(
-                            wrong_type_msg(
-                                name, "default", "single", self.hoomd_class
-                            )
-                        )
+                    getattr(instance, name)[t] = typed_param
 
         # Set default pair type params
         for p in all_type_pairs:
             for name, typed_param in self.default_params.items():
                 if name in pair_typed_params:
-                    try:
-                        getattr(instance, name)[p] = typed_param
-                    except AttributeError:
-                        raise AttributeError(
-                            wrong_type_msg(
-                                name, "default", "pair", self.hoomd_class
-                            )
-                        )
+                    getattr(instance, name)[p] = typed_param
 
         # Modify typed single type params
         for t in self.interacting_types("single"):
             for param_name, param_value in self.typed_params[t].items():
-                try:
-                    getattr(instance, param_name)[t] = param_value
-                except AttributeError:
-                    raise AttributeError(
-                        wrong_type_msg(
-                            param_name, "typed", "single", self.hoomd_class
-                        )
-                    )
+                getattr(instance, param_name)[t] = param_value
 
         # Modify typed pair type params
         for p in self.interacting_types("pair"):
             for param_name, param_value in self.typed_params[p].items():
-                try:
-                    getattr(instance, param_name)[p] = param_value
-                except AttributeError:
-                    raise AttributeError(
-                        wrong_type_msg(
-                            param_name, "typed", "pair", self.hoomd_class
-                        )
-                    )
-
+                getattr(instance, param_name)[p] = param_value
+                
         return instance
 
     @classmethod

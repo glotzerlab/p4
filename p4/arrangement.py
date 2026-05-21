@@ -35,7 +35,7 @@ class Arrangement:
             orientations_by_type=orientations_by_type
         )
 
-        # Modify instance attributes
+        # Set instance attributes
         self._bodies = bodies
         self._positions_by_type = positions_by_type
         self._orientations_by_type = orientations_by_type

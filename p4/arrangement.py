@@ -40,8 +40,9 @@ class Arrangement:
         self._positions_by_type = positions_by_type
         self._orientations_by_type = orientations_by_type
 
+    @classmethod
     def validate(
-        self,
+        cls,
         bodies: list[Body] | None = None,
         positions_by_type: dict[str, list[list[float]]] | None = None,
         orientations_by_type: dict[str, list[list[float]]] | None = None

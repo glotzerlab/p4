@@ -92,16 +92,22 @@ class Body:
         moi_by_type: dict[str, list[float]] | None = None
     ):
         # Create defaults
-        if not secondary_types:
+        if secondary_types is None:
             secondary_types = []
-        if not positions_by_type:
+        if positions_by_type is None:
             positions_by_type = {}
-        if not orientations_by_type:
+        if orientations_by_type is None:
             orientations_by_type = {}
-        if not mass_by_type:
+        if mass_by_type is None:
             mass_by_type = {}
-        if not moi_by_type:
+        if moi_by_type is None:
             moi_by_type = {}
+        
+        # Sanitize input dictionaries
+        positions_by_type = util.sanitize(positions_by_type)
+        orientations_by_type = util.sanitize(orientations_by_type)
+        mass_by_type = util.sanitize(mass_by_type)
+        moi_by_type = util.sanitize(moi_by_type)
 
         # Validate inputs
         self.validate(

@@ -517,6 +517,24 @@ def test_probe_potential_valid():
     # TODO
     pass
 
+def make_example_snapshot(primary_types: list[str], other_types: list[str]):
+    """Return a small example snapshot with particles matching primary_types arranged in a line."""
+    frame = gsd.hoomd.Frame()
+
+    frame.configuration.box = [3*len(primary_types), 100, 100, 0, 0, 0]
+    frame.particles.N = len(primary_types)
+    frame.particles.types = primary_types + other_types
+    frame.particles.typeid = list(range(len(primary_types)))
+    frame.particles.position = [[i, 0, 0] for i, _ in enumerate(primary_types)]
+    frame.particles.orientation = [[1, 0, 0, 0] for i, _ in enumerate(primary_types)]
+    
+    snapshot = hoomd.Snapshot.from_gsd_frame(
+        gsd_snap=frame,
+        communicator=hoomd.communicator.Communicator()
+    )
+
+    return snapshot
+
 def get_valid_simulations_and_kwargs():
     """Return an array of valid simulations with corresponding kwargs.
     
@@ -527,7 +545,9 @@ def get_valid_simulations_and_kwargs():
     simulations_and_kwargs = []
 
     # single-particle probe, single-particle analyte
-    simulation = hoomd.util.make_example_simulation(particle_types=["A", "C"])
+    snapshot = make_example_snapshot(["A", "C"], [])
+    simulation = hoomd.Simulation(device=hoomd.device.CPU())
+    simulation.create_state_from_snapshot(snapshot)
     simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
     lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2))
     lj.r_cut[("A", "A")] = 0
@@ -545,7 +565,9 @@ def get_valid_simulations_and_kwargs():
     simulations_and_kwargs.append([simulation, kwargs])
 
     # single-particle probe, multi-particle analyte
-    simulation = hoomd.util.make_example_simulation(particle_types=["A", "C", "D"])
+    snapshot = make_example_snapshot(["A", "C"], ["D"])
+    simulation = hoomd.Simulation(device=hoomd.device.CPU())
+    simulation.create_state_from_snapshot(snapshot)
     simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
     lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2))
     lj.r_cut[("A", "A")] = 0
@@ -567,12 +589,13 @@ def get_valid_simulations_and_kwargs():
         "positions": [(1,0,0)],
         "orientations": [(1, 0, 0, 0)],
     }
+    rigid.create_bodies(simulation.state)
     simulation.operations.integrator.rigid = rigid
     kwargs = dict(
         probe=p4.Body("A"),
         analyte=p4.Body(
             primary_type="C",
-            secondary_types="D",
+            secondary_types=["D"],
             positions_by_type={"D": [[1,0,0]]}
         ),
         interactions=[lj_interaction([("A", "D")])]
@@ -580,7 +603,9 @@ def get_valid_simulations_and_kwargs():
     simulations_and_kwargs.append([simulation, kwargs])
 
     # multi-particle probe, single-particle analyte
-    simulation = hoomd.util.make_example_simulation(particle_types=["A", "B", "C"])
+    snapshot = make_example_snapshot(["A", "C"], ["B"])
+    simulation = hoomd.Simulation(device=hoomd.device.CPU())
+    simulation.create_state_from_snapshot(snapshot)
     simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
     lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2))
     lj.r_cut[("C", "C")] = 0
@@ -602,11 +627,12 @@ def get_valid_simulations_and_kwargs():
         "positions": [(1,0,0)],
         "orientations": [(1, 0, 0, 0)],
     }
+    rigid.create_bodies(simulation.state)
     simulation.operations.integrator.rigid = rigid
     kwargs = dict(
         probe=p4.Body(
             primary_type="A",
-            secondary_types="B",
+            secondary_types=["B"],
             positions_by_type={"B": [[1,0,0]]}
         ),
         analyte=p4.Body("C"),
@@ -615,7 +641,9 @@ def get_valid_simulations_and_kwargs():
     simulations_and_kwargs.append([simulation, kwargs])
 
     # multi-particle probe, multi-particle analyte
-    simulation = hoomd.util.make_example_simulation(particle_types=["A", "B", "C", "D"])
+    snapshot = make_example_snapshot(["A", "C"], ["B", "D"])
+    simulation = hoomd.Simulation(device=hoomd.device.CPU())
+    simulation.create_state_from_snapshot(snapshot)
     simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
     lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2))
     lj.r_cut[("A", "A")] = 0
@@ -650,6 +678,7 @@ def get_valid_simulations_and_kwargs():
         "positions": [(0,1,0)],
         "orientations": [(1, 0, 0, 0)],
     }
+    rigid.create_bodies(simulation.state)
     simulation.operations.integrator.rigid = rigid
     kwargs = dict(
         probe=p4.Body(
@@ -659,7 +688,7 @@ def get_valid_simulations_and_kwargs():
         ),
         analyte=p4.Body(
             primary_type="C",
-            secondary_types="D",
+            secondary_types=["D"],
             positions_by_type={"D": [[0,1,0]]}
         ),
         interactions=[lj_interaction([("B", "D")])]
@@ -671,9 +700,9 @@ def get_valid_simulations_and_kwargs():
 @pytest.mark.parametrize("simulation,kwargs", get_valid_simulations_and_kwargs())
 def test_from_hoomd_simulation_valid(simulation, kwargs):
     """Ensure parsing from hoomd simulations works for valid simulations."""
-    a = p4.System.from_hoomd_simulation(simulation, "A", "C")
-    b = p4.System(**kwargs)
-    assert a == b
+    ref_system = p4.System(**kwargs)
+    test_system = p4.System.from_hoomd_simulation(simulation, "A", "C")
+    assert test_system == ref_system
 
 @pytest.mark.parametrize("variant", ["no-forces", "no-integrator", "missing-probe-type", "missing-analyte-type"])
 def test_from_hoomd_simulation_invalid(variant):

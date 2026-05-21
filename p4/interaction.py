@@ -181,14 +181,11 @@ class Interaction:
 
     @property
     def hoomd_class(self) -> hoomd.md.pair.Pair:
-        """The constructor for the HOOMD-blue class."""
+        """The constructor for the HOOMD-blue class.
+        
+        To change the constructor, create a new ``Interaction`` instance.
+        """
         return self._hoomd_class
-
-    @hoomd_class.setter
-    def hoomd_class(self, value):
-        """Set the constructor for the HOOMD-blue class."""
-        self._hoomd_class = value
-        self.validate()
 
     @property
     def initial_args(self) -> dict:

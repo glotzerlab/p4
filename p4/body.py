@@ -122,10 +122,10 @@ class Body:
         # Set instance attributes
         self._primary_type = str(primary_type)
         self._secondary_types = secondary_types
-        self._positions_by_type = util.sanitize(positions_by_type)
-        self._orientations_by_type = util.sanitize(orientations_by_type)
-        self._mass_by_type = util.sanitize(mass_by_type)
-        self._moi_by_type = util.sanitize(moi_by_type)
+        self._positions_by_type = positions_by_type
+        self._orientations_by_type = orientations_by_type
+        self._mass_by_type = mass_by_type
+        self._moi_by_type = moi_by_type
         
     @classmethod
     def validate(

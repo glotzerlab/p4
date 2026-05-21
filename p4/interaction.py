@@ -133,7 +133,8 @@ class Interaction:
         except (AttributeError, KeyError) as e:
             raise ValueError(
                 "Incorrect `default_params` or `typed_params`: an instance of "
-                + "the HOOMD class cannot be parameterized."
+                + "the HOOMD class cannot be parameterized. See traceback for "
+                + "details."
             ) from e
         
         # Ensure the parameterized hoomd class can be used in a simulation

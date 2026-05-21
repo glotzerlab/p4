@@ -118,7 +118,8 @@ class Interaction:
             _ = self.to_hoomd_pair(nlist, parameterize=False)
         except ValueError as e:
             raise ValueError(
-                "Incorrect `initial_args`: HOOMD class cannot be instantiated."
+                "Incorrect `initial_args`: HOOMD class cannot be instantiated. "
+                + "See traceback for details."
             ) from e
         
         # Ensure the hoomd class can be parameterized

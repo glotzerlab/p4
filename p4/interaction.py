@@ -18,6 +18,14 @@ import plotly
 
 from . import util
 
+REQUIRED_PARENT_CLASS = hoomd.md.pair.pair.Pair
+EXCLUDED_TYPE_STRINGS = [
+    "hoomd.md.pair.pair.Pair",
+    "hoomd.md.pair.aniso.AnisotropicPair",
+    "hoomd.md.pair.aniso.Patchy",
+    "hoomd.md.pair.friction.FrictionalPair"
+]
+
 class Interaction:
     """The data for making and parameterizing a `HOOMD-blue MD pair potential`_.
 
@@ -72,6 +80,22 @@ class Interaction:
         default_params: dict[str, float],
         typed_params: dict[str, float],
     ):
+        # Ensure the hoomd_class is the right type
+        def cls_to_str(cls):
+            """A string representation of the class path, including its name."""
+            return cls.__module__ + "." + cls.__name__
+        
+        if not issubclass(hoomd_class, hoomd.md.pair.Pair):
+            raise TypeError(
+                "Incorrect `hoomd_class`: must be a subclass of "
+                + "hoomd.md.pair.Pair"
+            )
+        if cls_to_str(hoomd_class) in EXCLUDED_TYPE_STRINGS:
+            raise TypeError(
+                "Incorrect `hoomd_class`: must be a subclass of "
+                + f"{cls_to_str(hoomd_class)}"
+            )
+        
         self._hoomd_class = hoomd_class
         self._initial_args = util.sanitize(initial_args)
         self._default_params = util.sanitize(default_params)
@@ -80,14 +104,14 @@ class Interaction:
         self.validate()
 
     def validate(self):
-        """Ensure this interaction adheres to the :ref:`interaction schema`."""
-        # Ensure the hoomd_class is the right type
-        if not issubclass(self.hoomd_class, hoomd.md.pair.Pair):
-            raise TypeError(
-                "Incorrect `hoomd_class`: must be a subclass of "
-                + "hoomd.md.pair.Pair"
-            )
+        """Ensure this interaction adheres to the :ref:`interaction schema`.
         
+        .. note:
+            Unlike :py:class:`~p4.Body` and :py:class:`~p4.Arrangement`,
+            interaction validation requires instance methods and so it is an
+            instance method that evaluates the instance's attributes, rather
+            than a class method that evaluates keyword arguments.
+        """
         # Ensure the hoomd class can be instantiated
         nlist = hoomd.md.nlist.Tree(2)
         try:

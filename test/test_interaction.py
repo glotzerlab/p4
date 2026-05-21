@@ -15,13 +15,8 @@ import pytest
 # 1. Get all hoomd md pair classes for testing
 
 
-REQUIRED_PARENT_CLASS = hoomd.md.pair.pair.Pair
-EXCLUDED_TYPE_STRINGS = [
-    "hoomd.md.pair.pair.Pair",
-    "hoomd.md.pair.aniso.AnisotropicPair",
-    "hoomd.md.pair.aniso.Patchy",
-    "hoomd.md.pair.friction.FrictionalPair"
-]
+REQUIRED_PARENT_CLASS = p4.interaction.REQUIRED_PARENT_CLASS
+EXCLUDED_TYPE_STRINGS = p4.interaction.EXCLUDED_TYPE_STRINGS
 
 def cls_to_str(cls):
     """Return a string representation of the class' path, including its name."""

@@ -11,21 +11,15 @@
 - [ ] add autogenerate dict method
 
 Other
-- [ ] Add support for Frame analytes. This would require
-  - [ ] Writing measurements concurrently to disk, rather than storing in StringIO
-  - [ ] Support VTK in Field IO (plotly can't handle datasets that large)
-  - [ ] Body saving to VTK
+- [ ] Change from StringIO to some other data storage/retention approach
+- [ ] Support VTK in Field IO
+- [ ] Support VTK in Body IO
+- [ ] Support VTK in Arrangement IO
 - [ ] Add state/frame plotting
 - [ ] fix failing arrangement test
 
 Docs
 - [ ] switch to MyST
-
-## Roadmap
-
-### Open to group members
-tests
-  - [ ] non-validation coverage 100%
 
 ### Open to public
 TBD

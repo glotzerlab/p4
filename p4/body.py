@@ -119,7 +119,7 @@ class Body:
             moi_by_type=moi_by_type,
         )
 
-        # Modify instance attributes
+        # Set instance attributes
         self._primary_type = str(primary_type)
         self._secondary_types = secondary_types
         self._positions_by_type = util.sanitize(positions_by_type)

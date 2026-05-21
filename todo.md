@@ -16,9 +16,7 @@ Other
   - [ ] Support VTK in Field IO (plotly can't handle datasets that large)
   - [ ] Body saving to VTK
 - [ ] Add state/frame plotting
-- [ ] add validation tests
-- [ ] fix problem that happens if user passes numpy arrays for positions/orientations and then attempts to save to json
-- [ ] add masses and mois to body and arrangement tests
+- [ ] fix failing arrangement test
 
 Docs
 - [ ] switch to MyST

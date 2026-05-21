@@ -1,4 +1,5 @@
 from collections import defaultdict
+from copy import deepcopy
 from pathlib import Path
 import tempfile
 
@@ -148,6 +149,158 @@ def test_sanitized_instantiation():
     # Sanitize as follows: np -> list, 
     # TODO
     pass
+
+def test_property_getters_and_setters_valid():
+    """Ensure property getters and setters work as expected with valid inputs."""
+    body1 = p4.Body(
+        primary_type="A",
+        secondary_types=["B", "C"],
+        positions_by_type=dict(
+            B=[[-1, 0, 0]],
+            C=[[1, 0, 0]]
+        ),
+        mass_by_type=dict(A=1, B=2, C=3),
+        moi_by_type=dict(A=[1, 1, 1], B=[1, 0, 0], C=[0, 1, 0])
+    )
+    body2 = p4.Body(
+        primary_type="D",
+        secondary_types=["E", "F"],
+        positions_by_type=dict(
+            E=[[0, -1, 0], [0, 1, 0]],
+            F=[[0, 0, -1], [0, 0, 1]]
+        ),
+        orientations_by_type=dict(
+            E=[[1, 0, 0, 0], [0, 0.707, 0.707, 0]],
+            F=[[0.707, 0, -0.707, 0], [0.707, 0, 0.707, 0]]
+        ),
+    )
+    kwargs = dict(
+        bodies=[body1, body2],
+        positions_by_type=dict(
+            A=[[10, 0, 0]],
+            D=[[0, 10, 0], [0, 20, 0]]
+        ),
+        orientations_by_type=dict(
+            A=[[1, 0, 0, 0]],
+            D=[[0, 0.707, 0.707, 0], [0.707, 0, 0.707, 0]]
+        )
+    )
+
+    arrangement = p4.Arrangement(**deepcopy(kwargs))
+
+    # Getters
+    assert arrangement.bodies == kwargs["bodies"]
+    assert arrangement.positions_by_type == kwargs["positions_by_type"]
+    assert arrangement.orientations_by_type == kwargs["orientations_by_type"]
+
+    # Setters (secondary types, positions, and orientations) (test coercion, too)
+    for body in ["D", 1, body2]:
+        arrangement2 = deepcopy(arrangement)
+        arrangement2.update(
+            body=body,
+            positions=[np.array([0,15,0])],
+            orientations=np.array([[0,1,0,0]]),
+        )
+        assert arrangement2.bodies == kwargs["bodies"]
+        assert arrangement2.positions_by_type == dict(A=[[10, 0, 0]], D=[[0,15,0]])
+        assert arrangement2.orientations_by_type == dict(A=[[1, 0, 0, 0]], D=[[0,1,0,0]])
+
+    new_body = p4.Body(
+        primary_type="Z",
+        secondary_types=["Y"],
+        positions_by_type=dict(Y=[np.array([1,0,0])]),
+        orientations_by_type=dict(Y=np.array([[0,1,0,0]]))
+    )
+    arrangement.add(body=new_body, positions=[[1,1,1]], orientations=[[0,0,1,0]])
+    assert arrangement.bodies == kwargs["bodies"] + [new_body]
+    assert arrangement.positions_by_type == {**kwargs["positions_by_type"], **dict(Z=[[1,1,1]])}
+    assert arrangement.orientations_by_type == {**kwargs["orientations_by_type"], **dict(Z=[[0,0,1,0]])}
+    
+    
+    for body in ["Z", 2, new_body]:
+        arrangement2 = deepcopy(arrangement)
+        arrangement2.remove(body=body)
+        assert arrangement2.bodies == kwargs["bodies"]
+        assert arrangement2.positions_by_type == kwargs["positions_by_type"]
+        assert arrangement2.orientations_by_type == kwargs["orientations_by_type"]
+
+    # Setters (everything else)
+    arrangement.orientations_by_type = {}
+    assert arrangement.orientations_by_type == {}
+
+def test_property_setters_invalid():
+    """Ensure property setters fail expectedly with invalid inputs."""
+    body1 = p4.Body(
+        primary_type="A",
+        secondary_types=["B", "C"],
+        positions_by_type=dict(
+            B=[[-1, 0, 0]],
+            C=[[1, 0, 0]]
+        ),
+        mass_by_type=dict(A=1, B=2, C=3),
+        moi_by_type=dict(A=[1, 1, 1], B=[1, 0, 0], C=[0, 1, 0])
+    )
+    body2 = p4.Body(
+        primary_type="D",
+        secondary_types=["E", "F"],
+        positions_by_type=dict(
+            E=[[0, -1, 0], [0, 1, 0]],
+            F=[[0, 0, -1], [0, 0, 1]]
+        ),
+        orientations_by_type=dict(
+            E=[[1, 0, 0, 0], [0, 0.707, 0.707, 0]],
+            F=[[0.707, 0, -0.707, 0], [0.707, 0, 0.707, 0]]
+        ),
+    )
+    kwargs = dict(
+        bodies=[body1, body2],
+        positions_by_type=dict(
+            A=[[10, 0, 0]],
+            D=[[0, 10, 0], [0, 20, 0]]
+        ),
+        orientations_by_type=dict(
+            A=[[1, 0, 0, 0]],
+            D=[[0, 0.707, 0.707, 0], [0.707, 0, 0.707, 0]]
+        )
+    )
+
+    arrangement = p4.Arrangement(**deepcopy(kwargs))
+
+    # Adding/removing/updating clashing body
+    with pytest.raises(ValueError):
+        arrangement.add(body=body1, positions=[[0,0,0]])
+    for body in ["Z", 2, p4.Body("Z")]:
+        with pytest.raises((ValueError, IndexError)):
+            arrangement.remove(body=body)
+        with pytest.raises((ValueError, IndexError)):
+            arrangement.update(body=body, positions=[[0,0,0]])
+
+    # Adding with missing positions
+    with pytest.raises(TypeError):
+        arrangement.add(body=p4.Body("Z"))
+
+    # Adding/updating with positions of wrong length
+    with pytest.raises(ValueError):
+        arrangement.add(body=p4.Body("Z"), positions=[[0,0]])
+    with pytest.raises(ValueError):
+        arrangement.update(body=body1, positions=[[0,0]])
+
+    # Adding/updating with mismatched numbers of positions and orientations
+    with pytest.raises(ValueError):
+        arrangement.add(body=p4.Body("Z"), positions=[[0,0,0]], orientations=[[0,0,1,0], [1,0,0,0]])
+    with pytest.raises(ValueError):
+        arrangement.update(body=body1, positions=[[0,0,0]], orientations=[[0,0,1,0], [1,0,0,0]])
+
+    # Adding/updating with orientations of wrong length
+    with pytest.raises(ValueError):
+        arrangement.add(body=p4.Body("Z"), positions=[[1,1,1]], orientations=[[0,0,1]])
+    with pytest.raises(ValueError):
+        arrangement.update(body=body1, positions=[[1,1,1]], orientations=[[0,0,1]])
+    
+    # Ensure none of the invalid operations above mutated the internal data
+    assert arrangement.bodies == kwargs["bodies"]
+    assert arrangement.positions_by_type == kwargs["positions_by_type"]
+    assert arrangement.orientations_by_type == kwargs["orientations_by_type"]
 
 def make_simulation(arrangement_kwargs, filename, index=0):
     """Create a simulation with a state from a named GSD file.

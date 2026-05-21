@@ -127,8 +127,9 @@ class Body:
         self._mass_by_type = util.sanitize(mass_by_type)
         self._moi_by_type = util.sanitize(moi_by_type)
         
+    @classmethod
     def validate(
-        self,
+        cls,
         primary_type: str | None = None,
         secondary_types: list[str] | None = None,
         positions_by_type: dict[str, list[list[float]]] | None = None,

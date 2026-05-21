@@ -1,3 +1,4 @@
+import gsd
 import hoomd
 import numpy as np
 import pytest
@@ -222,6 +223,13 @@ VALID_KWARGS = [
             lj_interaction([("A", "C"), ("E", "F")])
         ]
     ),
+
+    # Arrangement analyte
+    dict(
+        probe=p4.Body("A"),
+        analyte=p4.Arrangement([p4.Body("B", ["C"], {"C": [[1,0,0]]})], dict(B=[[0, 0, 0]])),
+        interactions=[lj_interaction([("A", "B")])]
+    ),
 ]
 
 @pytest.mark.parametrize("kwargs", VALID_KWARGS)
@@ -230,28 +238,31 @@ def test_instantiation_valid(kwargs):
     _ = p4.System(**kwargs)
 
 INVALID_KWARGS = [
+    # Wrong types
     dict(   # wrong probe type
         probe="wrong",
-        analyte=p4.Body(primary_type="A"),
+        analyte=p4.Body("A"),
         interactions=[lj_interaction([("A", "A")])]
     ),
     dict(   # wrong analyte type
-        probe=p4.Body(primary_type="A"),
+        probe=p4.Body("A"),
         analyte="wrong",
         interactions=[lj_interaction([("A", "A")])]
     ),
     dict(   # wrong interactions type
-        probe=p4.Body(primary_type="A"),
-        analyte=p4.Body(primary_type="A"),
+        probe=p4.Body("A"),
+        analyte=p4.Body("A"),
         interactions="wrong"
     ),
     dict(   # wrong interactions item type
-        probe=p4.Body(primary_type="A"),
-        analyte=p4.Body(primary_type="A"),
+        probe=p4.Body("A"),
+        analyte=p4.Body("A"),
         interactions=["wrong"]
     ),
-    dict(   # same primary type but are otherwise different
-        probe=p4.Body(primary_type="A"),
+
+    # Clashing bodies
+    dict(   # primary-primary clash (analyte is a body)
+        probe=p4.Body("A"),
         analyte=p4.Body(
             primary_type="A",
             secondary_types=["B"],
@@ -259,8 +270,13 @@ INVALID_KWARGS = [
         ),
         interactions=[lj_interaction([("A", "B")])]
     ),
-    dict(   # probe primary type is in analyte secondary types
-        probe=p4.Body(primary_type="A"),
+    dict(   # primary-primary clash (analyte is an arrangement)
+        probe=p4.Body("A"),
+        analyte=p4.Arrangement([p4.Body("A", ["B"], {"B": [[1,0,0]]})], dict(A=[[0, 0, 0]])),
+        interactions=[lj_interaction([("A", "B")])]
+    ),
+    dict(   # probe primary-analyte secondary clash (analyte is a body)
+        probe=p4.Body("A"),
         analyte=p4.Body(
             primary_type="B",
             secondary_types=["A"],
@@ -268,13 +284,31 @@ INVALID_KWARGS = [
         ),
         interactions=[lj_interaction([("A", "B")])]
     ),
-    dict(   # analyte primary type is in probe secondary types
+    dict(   # probe primary-analyte secondary clash (analyte is an arrangement)
+        probe=p4.Body("A"),
+        analyte=p4.Arrangement([p4.Body("B", ["A"], {"A": [[1,0,0]]})], dict(B=[[0, 0, 0]])),
+        interactions=[lj_interaction([("A", "B")])]
+    ),
+    dict(   # analyte primary-probe secondary clash (analyte is a body)
         probe=p4.Body(
-            primary_type="B",
+            primary_type="C",
             secondary_types=["A"],
             positions_by_type={"A": [[1,0,0]]}
         ),
-        analyte=p4.Body(primary_type="A"),
+        analyte=p4.Body(
+            primary_type="A",
+            secondary_types=["B"],
+            positions_by_type={"B": [[1,0,0]]}
+        ),
+        interactions=[lj_interaction([("A", "B")])]
+    ),
+    dict(   # analyte primary-probe secondary clash (analyte is an arrangement)
+        probe=p4.Body(
+            primary_type="C",
+            secondary_types=["B"],
+            positions_by_type={"B": [[1,0,0]]}
+        ),
+        analyte=p4.Arrangement([p4.Body("B", ["A"], {"A": [[1,0,0]]})], dict(B=[[0, 0, 0]])),
         interactions=[lj_interaction([("A", "B")])]
     ),
 ]
@@ -284,6 +318,98 @@ def test_instantiation_invalid(kwargs):
     """Ensure instantiation fails expectedly for invalid kwargs."""
     with pytest.raises((ValueError, TypeError)):
         _ = p4.System(**kwargs)
+
+def test_property_getters_and_setters_valid():
+    """Ensure property getters and setters work as expected with valid inputs."""
+    body1 = p4.Body(
+        primary_type="A",
+        secondary_types=["B"],
+        positions_by_type={"B": [[0,1,0]]},
+    )
+    body2 = p4.Body(
+        primary_type="C",
+        secondary_types=["D"],
+        positions_by_type={"D": [[1,0,0]]},
+    )
+    kwargs = dict(
+        probe=body1,
+        analyte=body2,
+        interactions=[
+            lj_interaction([("B", "D")]),
+            lj_interaction([("A", "C")])
+        ]
+    )
+
+    system = p4.System(**kwargs)
+
+    # Getters
+    assert system.probe == kwargs["probe"]
+    assert system.analyte == kwargs["analyte"]
+    assert system.interactions == kwargs["interactions"]
+
+    # Setters
+    system.probe = p4.Body("X")
+    assert system.probe == p4.Body("X")
+    system.probe = body2
+    assert system.probe == body2
+    system.analyte = p4.Arrangement([p4.Body("Y"), p4.Body("Z")], dict(Y=[[0,0,0]], Z=[[1,1,1]]))
+    assert system.analyte == p4.Arrangement([p4.Body("Y"), p4.Body("Z")], dict(Y=[[0,0,0]], Z=[[1,1,1]]))
+    system.interactions = []
+    assert system.interactions == []
+
+def test_property_setters_invalid():
+    """Ensure property setters fail expectedly with invalid inputs."""
+    body1 = p4.Body(
+        primary_type="A",
+        secondary_types=["B"],
+        positions_by_type={"B": [[0,1,0]]},
+    )
+    body2 = p4.Body(
+        primary_type="C",
+        secondary_types=["D"],
+        positions_by_type={"D": [[1,0,0]]},
+    )
+    kwargs = dict(
+        probe=body1,
+        analyte=body2,
+        interactions=[
+            lj_interaction([("B", "D")]),
+            lj_interaction([("A", "C")])
+        ]
+    )
+
+    system = p4.System(**kwargs)
+
+    # Setting probe with wrong type
+    with pytest.raises(TypeError):
+        system.probe = p4.Arrangement([p4.Body("Y"), p4.Body("Z")], dict(Y=[[0,0,0]], Z=[[1,1,1]]))
+        
+    # Setting analyte with wrong type
+    with pytest.raises(TypeError):
+        system.analyte = None
+
+    # Setting probe with type clash (analyte is a body)
+    with pytest.raises(ValueError):
+        system.probe = p4.Body("C")
+    with pytest.raises(ValueError):
+        system.probe = p4.Body("A", ["C"], dict(A=[[1,0,0]]))
+    
+    # Setting probe with type clash (analyte is an arrangement)
+    system.analyte = p4.Arrangement([p4.Body("C", ["D"], dict(D=[[0,0,1]]))], dict(C=[[1,0,0]]))
+    with pytest.raises(ValueError):
+        system.probe = p4.Body("C")
+    with pytest.raises(ValueError):
+        system.probe = p4.Body("A", ["C"], dict(C=[[1,0,0]]))
+    system.analyte = body2
+
+    # Setting analyte with type clash
+    with pytest.raises(ValueError):
+        system.analyte = p4.Body("A")
+
+    # Ensure none of the invalid operations above mutated the internal data
+    assert system.probe == kwargs["probe"]
+    assert system.analyte == kwargs["analyte"]
+    assert system.interactions == kwargs["interactions"]
 
 @pytest.mark.parametrize("kwargs,expected", [
     # one active

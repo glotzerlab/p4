@@ -571,7 +571,7 @@ class Interaction:
             Whether to return parameters that are required, optional, or both.
         """
         def flatten(array):
-            """Recursively flatten arbitrarily nested arrays, ignoring strings and bytes."""
+            """Flatten arbitrarily nested arrays, ignoring strings and bytes."""
             for item in array:
                 if isinstance(item, Iterable) and not isinstance(item, (str, bytes)):
                     yield from flatten(item)
@@ -579,7 +579,7 @@ class Interaction:
                     yield item
 
         def is_required(tp_default_item):
-            """Return True if input is a required arg or 1+ arbitrarily nested arrays thereof."""
+            """Whether input is a required arg or 1+ nested arrays thereof."""
             return (
                 (tp_default_item is hoomd.data.typeconverter.RequiredArg)
                 or (

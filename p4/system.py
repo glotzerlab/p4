@@ -115,33 +115,54 @@ class System:
                 "`interactions` must be a list of Interaction instances."
             )
         
-        # Ensure there is no body clash
-        if (
-            isinstance(analyte, Body)
-            and (
+        # Ensure there are no body clashes
+        if isinstance(analyte, Body):
+            if (
                 probe.primary_type == analyte.primary_type
-            )
-            and (
-                probe != analyte
-            )
-        ):
-            raise ValueError(
-                "Clashing body definitions: if `probe` and `analyte` have the "
-                + "same primary type, they must be identical bodies."
-            )
+                and probe != analyte
+            ):
+                raise ValueError(
+                    "Clashing body definitions: if `probe` and `analyte` have "
+                    + "the same primary type, they must be identical bodies."
+                )
+            if probe.primary_type in analyte.secondary_types:
+                raise ValueError(
+                    "Clashing body definitions: probe primary type must not "
+                    + "be included in analyte secondary types."
+                )
+            if analyte.primary_type in probe.secondary_types:
+                raise ValueError(
+                    "Clashing body definitions: analyte primary type must not "
+                    + "be included in probe secondary types."
+                )
 
-        elif (
-            isinstance(analyte, Arrangement)
-            and any(
-                probe.primary_type == b.primary_type for b in analyte.bodies
-            )
-            and probe not in analyte.bodies
-        ):
-            raise ValueError(
-                "Clashing body definitions: if `probe` and has the same "
-                + "primary type as a body in `analyte`, the probe must be "
-                + "identical to that body."
-            )
+        elif isinstance(analyte, Arrangement):
+            if (
+                any(
+                    probe.primary_type == b.primary_type for b in analyte.bodies
+                )
+                and probe not in analyte.bodies
+            ):
+                raise ValueError(
+                    "Clashing body definitions: if `probe` and has the same "
+                    + "primary type as a body in `analyte`, the probe must be "
+                    + "identical to that body."
+                )
+            if any(
+                probe.primary_type in b.secondary_types for b in analyte.bodies
+            ):
+                raise ValueError(
+                    "Clashing body definitions: probe primary type must not "
+                    + "be included in any analyte body's secondary types."
+                )
+            if any(
+                b.primary_type in probe.secondary_types for b in analyte.bodies
+            ):
+                raise ValueError(
+                    "Clashing body definitions: the probe secondary types "
+                    + "must not include any of the analyte bodies' primary "
+                    + "types."
+                )
 
     # ------------------------------- PROPERTIES -------------------------------
 

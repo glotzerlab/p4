@@ -198,8 +198,14 @@ class Interaction:
     @initial_args.setter
     def initial_args(self, value):
         """Set the parameters for instantiating HOOMD-blue class."""
+        original_value = copy(self._initial_args)
         self._initial_args = util.sanitize(value)
-        self.validate()
+        try:
+            self.validate()
+        except:
+            self._initial_args = original_value
+            raise
+
 
     @property
     def default_params(self) -> dict:
@@ -209,8 +215,13 @@ class Interaction:
     @default_params.setter
     def default_params(self, value):
         """Set the default parameters for all single and pair types."""
+        original_value = self._default_params
         self._default_params = util.sanitize(value)
-        self.validate()
+        try:
+            self.validate()
+        except:
+            self._default_params = original_value
+            raise
 
     @property
     def typed_params(self) -> dict:
@@ -220,8 +231,13 @@ class Interaction:
     @typed_params.setter
     def typed_params(self, value):
         """Set parameters for specific single and pair types."""
+        original_value = self._typed_params
         self._typed_params = util.sanitize(value)
-        self.validate()
+        try:
+            self.validate()
+        except:
+            self._typed_params = original_value
+            raise
 
     # --------------------------------- IMPORT ---------------------------------
 

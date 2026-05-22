@@ -1288,6 +1288,12 @@ def test_property_setters_invalid():
     # Setting new wrong typed_params
     with pytest.raises(ValueError):
         interaction.typed_params = dict(wrong=None)
+    
+    # Ensure none of the invalid operations above mutated the internal data
+    assert interaction.hoomd_class == kwargs["hoomd_class"]
+    assert interaction.initial_args == kwargs["initial_args"]
+    assert interaction.default_params == kwargs["default_params"]
+    assert interaction.typed_params == kwargs["typed_params"]
 
 @pytest.mark.parametrize("kwargs,expected_singles,expected_pairs", [
     [   # 0 singles, 1 pair

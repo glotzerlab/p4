@@ -638,11 +638,6 @@ def test_all_types(kwargs, expected):
     assert len(system.all_types) == len(expected)
     assert set(system.all_types) == set(expected)
 
-def test_probe_potential_valid():
-    """Ensure probe_potential method works and returns expected results for valid kwargs."""
-    # TODO
-    pass
-
 def make_example_snapshot(primary_types: list[str], other_types: list[str]):
     """Return a small example snapshot with particles matching primary_types arranged in a line."""
     frame = gsd.hoomd.Frame()

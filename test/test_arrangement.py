@@ -155,11 +155,6 @@ def test_invalid_instantiation(kwargs):
     with pytest.raises((TypeError, ValueError)):
         _ = p4.Arrangement(**kwargs)
 
-def test_sanitized_instantiation():
-    # Sanitize as follows: np -> list, 
-    # TODO
-    pass
-
 def test_property_getters_and_setters_valid():
     """Ensure property getters and setters work as expected with valid inputs."""
     body1 = p4.Body(

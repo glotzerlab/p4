@@ -7,6 +7,7 @@ In general, these functions have no defaults and do not protect themselves
 from wrong/fallible inputs.
 """
 
+from __future__ import annotations
 import csv
 from io import StringIO, TextIOWrapper
 import itertools

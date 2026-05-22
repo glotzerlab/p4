@@ -407,7 +407,12 @@ class Arrangement:
         )
 
     @classmethod
-    def from_gsd(cls, filename: os.PathLike, index: int = -1):
+    def from_gsd(
+        cls,
+        filename: os.PathLike,
+        index: int = -1,
+        include_singles: bool = False
+    ):
         """Parse a GSD file to create an arrangement from an indexed frame.
 
         .. _Frame: https://gsd.readthedocs.io/en/latest/python-module-gsd.hoomd.html#gsd.hoomd.Frame
@@ -425,6 +430,8 @@ class Arrangement:
         index : int, default=-1
             The index of the frame to parse. Defaults to the last frame in the
             file.
+        include_singles : bool, default=False
+            Whether to include single-particle bodies when parsing the frame.
         """
         with gsd.hoomd.open(filename, "r") as f:
             frame = f[index]
@@ -434,7 +441,7 @@ class Arrangement:
             communicator=hoomd.communicator.Communicator()
         )
         
-        return cls.from_hoomd_snapshot(snapshot)
+        return cls.from_hoomd_snapshot(snapshot, include_singles)
 
     @classmethod
     def from_json(
@@ -582,7 +589,14 @@ class Arrangement:
             
             # Loop over each instance
             for i, primary_p in enumerate(instance_primary_positions):
-                body_instance_id = positions.shape[0]    # equals primary's tag
+                # For bodies with secondary particles, the id is primary's tag
+                if body.secondary_types:
+                    body_instance_id = positions.shape[0]
+                
+                # For single-particle bodies, the id is -1
+                else:
+                    body_instance_id = -1
+
                 primary_o = instance_primary_orientations[i]
 
                 # Add primary particle's bodyid, position and orientation

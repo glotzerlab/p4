@@ -1,5 +1,5 @@
 from collections import defaultdict
-from copy import deepcopy
+from copy import copy, deepcopy
 from pathlib import Path
 import tempfile
 
@@ -18,7 +18,7 @@ VALID_KWARGS = [
         positions_by_type=dict(A=[[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
     ),
 
-    # 2 multi-particle bodies, with orientations, masses, and mois, with np dtypes
+    # 2 multi-particle bodies, with orientations, masses, and mois,♣ with np dtypes
     dict(
         bodies=[
             p4.Body(
@@ -35,22 +35,32 @@ VALID_KWARGS = [
                 primary_type="D",
                 secondary_types=["E", "F"],
                 positions_by_type=dict(
-                    E=[[0, -1, 0], [0, 1, 0]],
-                    F=[[0, 0, -1], [0, 0, 1]]
+                    E=[[1, 0, 0], [0, 1, 0]],
+                    F=[[0, 0, 1]]
                 ),
                 orientations_by_type=dict(
-                    E=[[1, 0, 0, 0], [0, 0.707, 0.707, 0]],
-                    F=[[0.707, 0, -0.707, 0], [0.707, 0, 0.707, 0]]
+                    E=[[0.5, 0.5, -0.5, -0.5], [1, 0, 0, 0]],
+                    F=[[1, 0, 0, 0]]
                 ),
             )
         ],
         positions_by_type=dict(
-            A=[np.array([10, 0, 0])],
-            D=np.array([[0, 10, 0], [0, 20, 0]])
+            A=[np.array([5, 0, 0])],
+            D=np.array(
+                [
+                    [ 0, 5, 0], [ 0, 10, 0], [ 0, 15, 0],  # for rotation about x
+                    [ 5, 5, 0], [ 5, 10, 0], [ 5, 15, 0],  # for rotation about y
+                    [10, 5, 0], [10, 10, 0], [10, 15, 0],  # for rotation about z
+                ]
+            )
         ),
         orientations_by_type=dict(
             A=[[1, 0, 0, 0]],
-            D=[[0, np.float32(0.707), 0.707, 0], [0.707, 0, 0.707, 0]]
+            D=[
+                [1, 0, 0, 0], [0.924, -0.383, 0, 0], [0.707, -0.707, 0, 0], # rotation about x
+                [1, 0, 0, 0], [0.924, 0, -0.383, 0], [0.707, 0, -0.707, 0], # rotation about y
+                [1, 0, 0, 0], [0.924, 0, 0, -0.383], [0.707, 0, 0, -0.707], # rotation about z
+            ]
         )
     )
 ]
@@ -494,53 +504,6 @@ def assert_arrangements_are_equal(arrangement1, arrangement2):
 
 REFERENCE_FOLDER = Path(__file__).parent / "data"
 
-@pytest.mark.parametrize("kwargs,ref_filename", [
-    [VALID_KWARGS[0], "single-particle-arrangement-sphere.gsd"],
-    [VALID_KWARGS[1], "multi-particle-arrangement-ellipsoid-cpolyhedron-polyhedron.gsd"]
-])
-def test_from_hoomd_simulation(kwargs, ref_filename):
-    """Ensure parsing from hoomd simulation produces the expected output."""
-    arrangement = p4.Arrangement(**kwargs)
-    simulation = make_simulation(kwargs, REFERENCE_FOLDER / ref_filename)
-    include_singles = any(b.secondary_types == [] for b in kwargs["bodies"])
-    assert_arrangements_are_equal(
-        arrangement,
-        p4.Arrangement.from_hoomd_simulation(simulation, include_singles)
-    )
-
-@pytest.mark.parametrize("kwargs,ref_filename", [
-    [VALID_KWARGS[0], "single-particle-arrangement-sphere.gsd"],
-    [VALID_KWARGS[1], "multi-particle-arrangement-ellipsoid-cpolyhedron-polyhedron.gsd"]
-])
-def test_from_hoomd_snapshot(kwargs, ref_filename):
-    """Ensure parsing from hoomd snapshot produces the expected output."""
-    simulation = make_simulation(kwargs, REFERENCE_FOLDER / ref_filename)
-
-    snapshot = simulation.state.get_snapshot()
-    typeids = snapshot.particles.typeid
-    positions = snapshot.particles.position
-    orientations = snapshot.particles.orientation
-
-    bodies = [p4.Body(t) for t in simulation.state.particle_types]
-    positions_by_type = defaultdict(list)
-    orientations_by_type = defaultdict(list)
-    
-    for tid, p, o in zip(typeids, positions, orientations):
-        t = snapshot.particles.types[tid]
-        positions_by_type[t].append(p)
-        orientations_by_type[t].append(o)
-    
-    expected_arrangement = p4.Arrangement(
-        bodies=bodies,
-        positions_by_type=positions_by_type,
-        orientations_by_type=orientations_by_type
-    )
-    
-    assert_arrangements_are_equal(
-        expected_arrangement,
-        p4.Arrangement.from_hoomd_snapshot(snapshot)
-    )
-
 ARRANGEMENT_KWARGS_FOR_GSD_1 = VALID_KWARGS[0]
 ARRANGEMENT_KWARGS_FOR_GSD_2 = VALID_KWARGS[1]
 ARRANGEMENT_KWARGS_FOR_GSD_3 = VALID_KWARGS[0]
@@ -549,39 +512,57 @@ GSD_FILENAME_1 = "single-particle-arrangement-sphere.gsd"
 GSD_FILENAME_2 = "multi-particle-arrangement-ellipsoid-cpolyhedron-polyhedron.gsd"
 GSD_FILENAME_3 = "multi-frame-single-particle-arrangement.gsd"
 
+@pytest.mark.parametrize("kwargs,ref_filename", [
+    [ARRANGEMENT_KWARGS_FOR_GSD_1, GSD_FILENAME_1],
+    [ARRANGEMENT_KWARGS_FOR_GSD_2, GSD_FILENAME_2]
+])
+def test_from_hoomd_simulation(kwargs, ref_filename):
+    """Ensure parsing from hoomd simulation produces the expected output."""
+    ref_arrangement = p4.Arrangement(**kwargs)
+    simulation = make_simulation(kwargs, REFERENCE_FOLDER / ref_filename)
+    include_singles = any(b.secondary_types == [] for b in kwargs["bodies"])
+    test_arrangement = p4.Arrangement.from_hoomd_simulation(simulation, include_singles)
+    assert_arrangements_are_equal(test_arrangement, ref_arrangement)
+
+@pytest.mark.parametrize("kwargs,ref_filename", [
+    [ARRANGEMENT_KWARGS_FOR_GSD_1, GSD_FILENAME_1],
+    [ARRANGEMENT_KWARGS_FOR_GSD_2, GSD_FILENAME_2]
+])
+@pytest.mark.parametrize("include_singles", [False, True])
+def test_from_hoomd_snapshot(kwargs, ref_filename, include_singles):
+    """Ensure parsing from hoomd snapshot produces the expected output."""
+    simulation = make_simulation(kwargs, REFERENCE_FOLDER / ref_filename)
+    snapshot = simulation.state.get_snapshot()
+
+    ref_arrangement = p4.Arrangement(**deepcopy(kwargs))
+
+    if not include_singles:
+        for b in ref_arrangement.bodies:
+            if not b.secondary_types:
+                ref_arrangement.remove(b)
+    
+    test_arrangement = p4.Arrangement.from_hoomd_snapshot(snapshot, include_singles)
+
+    assert_arrangements_are_equal(test_arrangement, ref_arrangement)
+
 @pytest.mark.parametrize("kwargs,ref_filename,index", [
     [ARRANGEMENT_KWARGS_FOR_GSD_1, GSD_FILENAME_1, 0],
     [ARRANGEMENT_KWARGS_FOR_GSD_2, GSD_FILENAME_2, 0],
     [ARRANGEMENT_KWARGS_FOR_GSD_3, GSD_FILENAME_3, 1],
 ])
-def test_from_gsd(kwargs, ref_filename, index):
+@pytest.mark.parametrize("include_singles", [False, True])
+def test_from_gsd(kwargs, ref_filename, index, include_singles):
     """Ensure parsing from GSD file produces the expected output."""
-    simulation = make_simulation(kwargs, REFERENCE_FOLDER / ref_filename, index)
+    ref_arrangement = p4.Arrangement(**deepcopy(kwargs))
 
-    snapshot = simulation.state.get_snapshot()
-    typeids = snapshot.particles.typeid
-    positions = snapshot.particles.position
-    orientations = snapshot.particles.orientation
+    if not include_singles:
+        for b in ref_arrangement.bodies:
+            if not b.secondary_types:
+                ref_arrangement.remove(b)
 
-    bodies = [p4.Body(t) for t in simulation.state.particle_types]
-    positions_by_type = defaultdict(list)
-    orientations_by_type = defaultdict(list)
-    
-    for tid, p, o in zip(typeids, positions, orientations):
-        t = snapshot.particles.types[tid]
-        positions_by_type[t].append(p)
-        orientations_by_type[t].append(o)
-    
-    expected_arrangement = p4.Arrangement(
-        bodies=bodies,
-        positions_by_type=positions_by_type,
-        orientations_by_type=orientations_by_type
-    )
+    test_arrangement = p4.Arrangement.from_gsd(REFERENCE_FOLDER / ref_filename, index, include_singles)
 
-    assert_arrangements_are_equal(
-        expected_arrangement,
-        p4.Arrangement.from_gsd(REFERENCE_FOLDER / ref_filename, index)
-    )
+    assert_arrangements_are_equal(test_arrangement, ref_arrangement)
 
 def assert_rigids_are_equal(rigid1, rigid2):
     """Assert that two rigid constraints are equivalent."""
@@ -702,8 +683,8 @@ CONCAVE_FACES = [
 TYPE_SHAPES_FOR_GSD_1 = dict(A=coxeter.shapes.Sphere(0.5))
 TYPE_SHAPES_FOR_GSD_2 = dict(
     A=coxeter.shapes.Ellipsoid(a=0.25, b=4, c=6),
-    E=coxeter.shapes.ConvexPolyhedron(vertices=CUBE_VERTICES),
-    F=coxeter.shapes.Polyhedron(vertices=CONCAVE_VERTICES, faces=CONCAVE_FACES)
+    E=coxeter.shapes.Polyhedron(vertices=CONCAVE_VERTICES, faces=CONCAVE_FACES),
+    F=coxeter.families.PlatonicFamily.get_shape("Octahedron")
 )
 
 @pytest.mark.parametrize("kwargs,ref_filename,type_shapes", [

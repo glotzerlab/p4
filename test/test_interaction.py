@@ -1278,7 +1278,7 @@ def test_property_setters_invalid():
         interaction.hoomd_class = hoomd.md.pair.DPD
 
     # Setting new wrong initial_args
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         interaction.initial_args = dict(wrong=None)
 
     # Setting new wrong default_params

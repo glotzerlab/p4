@@ -1108,13 +1108,13 @@ class Body:
         """
         # Set defaults
         if not type_shapes:
-            type_shapes = {},
+            type_shapes = {}
         if not type_styles:
-            type_styles = {},
+            type_styles = {}
         if not ignore_types:
-            ignore_types = [],
+            ignore_types = []
         if not slice:
-            slice = {},
+            slice = {}
 
         default_colors = util.WONG_COLORS
 

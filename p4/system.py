@@ -693,7 +693,7 @@ class System:
     # --------------------------------- OTHER ----------------------------------
 
     def __eq__(self, other):
-        """Two Systems are equivalent if their settable properties are, too."""
+        """Systems are equal if their settable properties are equal."""
         return (
             self.interactions == other.interactions
             and self.probe == other.probe

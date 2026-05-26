@@ -62,7 +62,7 @@ class Interaction:
         The constructor for the HOOMD class. Must be in the ``hoomd.md.pair``
         module or one of its submodules.
     initial_args : dict[str, float | str]
-        All parameters (that aren't ``nlist``) needed for instantiating
+        All parameters (except for ``nlist``) that are needed for instantiating
         the class from its constructor.
     default_params : dict
         The names and values of parameters that will be set by default for

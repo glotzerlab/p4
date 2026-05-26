@@ -2010,7 +2010,7 @@ def clean_header(table: StringIO):
     return cleaned_table
 
 
-# ------------------------------------ OTHER -----------------------------------
+# --------------------------------- VALIDATION ---------------------------------
 
 
 def sanitize(d: dict):

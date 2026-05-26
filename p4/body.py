@@ -1980,7 +1980,7 @@ class Body:
         return common_single_types or common_pair_types or nonzero_default_r_cut
 
     def __eq__(self, other):
-        """Bodies are equal if their attributes are the same or equivalent."""
+        """Bodies are equal if their properties are equal or equivalent."""
         primary_same = self.primary_type == other.primary_type
         if not primary_same:
             return False

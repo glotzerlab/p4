@@ -542,7 +542,7 @@ class Body:
             if bodyid == -1:
                 continue
 
-            body_indices = np.argwhere(pdata.body == bodyid).flatten()
+            body_indices = np.nonzero(pdata.body == bodyid)[0]
             primary_index = body_indices.min()
             secondary_indices = [i for i in body_indices if i != primary_index]
             
@@ -626,7 +626,7 @@ class Body:
         # For each one, only add it if there isn't already a body with its
         # primary type
         if include_singles:
-            single_indices = np.argwhere(pdata.body == -1).flatten()
+            single_indices = np.nonzero(pdata.body == -1)[0]
 
             for i in single_indices:
                 primary_type = pdata.types[pdata.typeid[i]]

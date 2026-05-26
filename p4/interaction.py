@@ -292,10 +292,7 @@ class Interaction:
         return [cls.from_hoomd_pair(p) for p in integrator.forces]
 
     @classmethod
-    def from_hoomd_pair(
-        cls,
-        pair: hoomd.md.pair.Pair
-    ) -> Interaction:
+    def from_hoomd_pair(cls, pair: hoomd.md.pair.Pair) -> Interaction:
         """Parse a HOOMD-blue `MD pair potential`_ to create an interaction.
 
         .. _MD pair potential: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/pair/pair.html
@@ -305,67 +302,55 @@ class Interaction:
         pair : hoomd.md.pair.Pair
             The pair potential.
         """
-        def get_particle_types(typeparam_dict, interacting_or_all):
-            """Return a list of particle type names in a typeparameter dictionary.
-            
-            'interacting' types are defined as having non-zero r_cut values and
-            are returned in pairs. 'all' types are returned as a flat list of
-            names.
-            """
-            if interacting_or_all == "interacting":
-                particle_types = []
-                for type_pair, value in typeparam_dict["r_cut"].items():
-                    if value != 0:
-                        particle_types.append(type_pair)
-                return particle_types
-
-            particle_types = []
-            for param_name, typeparam in typeparam_dict.items():
-                for type_name in typeparam:
-                    if isinstance(type_name, tuple):
-                        for i in type_name:
-                            if i not in particle_types:
-                                particle_types.append(i)
-                    elif isinstance(type_name, str):
-                        if type_name not in particle_types:
-                            particle_types.append(i)
-                    else:
-                        raise ValueError(
-                            f"Malformed typeparam dict: the value for key "
-                            + f"'{param_name}' must be a dict with tuples or "
-                            + "strings for keys, but it has a "
-                            + f"key '{type_name}'."
-                        )
-            return particle_types
-
         # Get typeparam dict as a native Python object
         tpd = {k: v.to_base() for k, v in pair._typeparam_dict.items()}
 
         # Constructor
         hoomd_class = type(pair)
         
-        # Initial args
+        # Parse initial args
         initial_args = pair._param_dict.to_base()
+
+        # Delete wrongly identified initial args [Review]
+        if initial_args.get("mode") == "none":
+            del initial_args["mode"]
+
+        # Parse default params
+        base_instance = hoomd_class(**initial_args)
+        default_params = {}
+        for param_name in tpd:
+            pair_param_default = getattr(pair, param_name).default
+            base_param_default = getattr(base_instance, param_name).default
+            if pair_param_default != base_param_default:
+                default_params[param_name] = pair_param_default
         
         # Delete unnecessary initial args
         del initial_args["nlist"]
-        if "mode" in initial_args and initial_args["mode"] == "none":
-            del initial_args["mode"]
+        if initial_args.get("tail_correction") is False:
+            del initial_args["tail_correction"]
         
-        # Params
-        specific_types = get_particle_types(tpd, "interacting")  # includes singles AND pairs
+        # Get a list of pairs of interacting types. Pairs of types are
+        # 'interacting' if they have non-zero r_cut values.
+        interacting_types = [
+            type_pair for type_pair, value in tpd["r_cut"].items() if value > 0
+        ]
 
-        default_params = {}
+        # Parse typed params. It is possible that the pair might specify
+        # non-default param values for types that are also not interacting. In
+        # such cases, put those param values into default_params only if the
+        # param name is not already there.
         typed_params = {}
 
         for param_name, typeparam in tpd.items():
             for type_name, param_value in typeparam.items():
                 # Typed params
-                if type_name in specific_types:
+                if type_name in interacting_types:
                     if type_name not in typed_params:
                         typed_params[type_name] = {}
                     if hasattr(param_value, "to_base"):
-                        typed_params[type_name][param_name] = param_value.to_base()
+                        typed_params[type_name][param_name] = (
+                            param_value.to_base()
+                        )
                     else:
                         typed_params[type_name][param_name] = param_value
 

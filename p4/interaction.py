@@ -117,7 +117,7 @@ class Interaction:
         # Ensure the hoomd class can be instantiated
         nlist = hoomd.md.nlist.Tree(2)
         try:
-            _ = self.to_hoomd_pair(nlist, parameterize=False)
+            _ = self.hoomd_class(nlist=nlist, **self.initial_args)
         except ValueError as e:
             raise ValueError(
                 "Incorrect `initial_args`: HOOMD class cannot be instantiated. "
@@ -126,13 +126,8 @@ class Interaction:
         
         # Ensure the hoomd class can be parameterized
         nlist = hoomd.md.nlist.Tree(2)
-        test_all_types = self.interacting_types("all")
         try:
-            _ = self.to_hoomd_pair(
-                nlist=nlist,
-                parameterize=True,
-                all_types=test_all_types
-            )
+            _ = self.to_hoomd_pair()
         except (AttributeError, KeyError) as e:
             raise ValueError(
                 "Incorrect `default_params` or `typed_params`: an instance of "
@@ -474,24 +469,22 @@ class Interaction:
 
     def to_hoomd_pair(
         self,
-        nlist: hoomd.md.nlist.NeighborList,
-        parameterize: bool,
         all_types: list[str] | None = None,
+        nlist: hoomd.md.nlist.NeighborList | None = None,
     ) -> hoomd.md.pair.Pair:
         """Return an instance of the HOOMD-blue class.
         
         Parameters
         ----------
-        nlist : hoomd.md.nlist.NeighborList
-            The neighbor list to use.
-        parameterize : bool
-            Whether to parameterize the hoomd-blue ``pair`` instance. If False,
-            then the class is merely instantiated with ``initial_args`` and
-            returned as-is.
         all_types : list[str]
             The names of all the particle types for which the instance should be
             parameterized. Required if ``parameterize`` is True, otherwise
             ignored.
+        nlist : hoomd.md.nlist.NeighborList, optional
+            The neighbor list with which to instantiate the class. Pass an
+            existing neighbor list to add it to the instance. If not provided,
+            a bounding volume hierarchy-based neighbor list is created on the
+            fly.
 
         Raises
         ------
@@ -500,10 +493,10 @@ class Interaction:
         AttributeError
             If the ``typed_params`` is wrong.
         """
-        instance = self.hoomd_class(nlist, **self.initial_args)
+        if nlist is None:
+            nlist = hoomd.md.nlist.Tree(2)
 
-        if not parameterize:
-            return instance
+        instance = self.hoomd_class(nlist, **self.initial_args)
         
         # Calculate the pairwise combinations of all types and interacting types
         all_type_pairs = list(

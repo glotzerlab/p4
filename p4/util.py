@@ -1841,10 +1841,10 @@ def measure(
     positions: list[list[float]],
     orientations: list[list[float]],
     included_interactions: list["Interaction"],
-    nlist: hoomd.md.nlist.NeighborList,
     measurement_box: list[float],
     simulation_box: list[float],
-    gsd_filename: str | None = None,
+    gsd_filename: str | None,
+    nlist: hoomd.md.nlist.NeighborList,
 ) -> StringIO:
     """Measure named quantities for a system.
 
@@ -1865,17 +1865,17 @@ def measure(
         The Interactions to include in the simulation.
     gsd_filename : str
         The name of the final output CSV file. This is not used to actually
-        write 
-    nlist : hoomd.md.nlist.NeighborList
-        The neighbor list to use for the interactions.
+        write.
     measurement_box : list[float]
         The side lengths $[Lx, Ly, Lz]$ of the box containing the positions to
         measure at.
     simulation_box : list[float]
         The simulation's box in HOOMD notation. $[Lx, Ly, Lz, xy, xz, yz]$
-    gsd_filename : str, optional
+    gsd_filename : str
         The name of the GSD file to save. If not provided, no GSD file will be
         saved.
+    nlist : hoomd.md.nlist.NeighborList
+        The neighbor list to use for the interactions.
 
     Returns
     -------

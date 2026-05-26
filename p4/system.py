@@ -555,11 +555,11 @@ class System:
         orientation_resolutions: list[list[float]],
         symmetries: list[int],
         csv_filename: str,
-        nlist: hoomd.md.nlist.NeighborList,
         outside_cutoff: float,
         box_safety_factor: float = 100,
         n_processes: int = 1,
         save_gsd: bool = False,
+        nlist: hoomd.md.nlist.NeighborList | None = None,
     ):
         """Measure named quantities for the system.
 
@@ -581,8 +581,6 @@ class System:
             C1 symmetry is assumed for every axis. 
         csv_filename : str
             The name of the CSV file to save.
-        nlist : hoomd.md.nlist.NeighborList
-            The neighbor list to use for the interactions.
         outside_cutoff : float
             The cutoff distance outside which no positions will be probed. This
             distance represents the side lengths of a cube centered on the
@@ -605,7 +603,15 @@ class System:
             be almost identical to that of the CSV file, with a suffix
             the process whose simulation wrote the GSD file. This option is
             available for debugging purposes, but generally should not be used.
+        nlist : hoomd.md.nlist.NeighborList, optional
+            The neighbor list with which to instantiate the class. If not
+            provided, a bounding volume hierarchy-based neighbor list is created
+            on the fly. This neighbor list is sufficient in most cases.
         """
+        # Default nlist
+        if nlist is None:
+            nlist = hoomd.md.nlist.Tree(2)
+        
         # Calculate probe box based on cutoff distances
         probe_box = [outside_cutoff, outside_cutoff, outside_cutoff]
         
@@ -657,10 +663,10 @@ class System:
                     util.subdivide(probe_positions, n_processes),
                     [probe_orientations for _ in range(n_processes)],
                     [self.active_interactions for _ in range(n_processes)],
-                    [nlist for _ in range(n_processes)],
                     [probe_box for _ in range(n_processes)],
                     [simulation_box for _ in range(n_processes)],
                     gsd_filenames,
+                    [nlist for _ in range(n_processes)],
                 )
                 tables = pool.starmap(util.measure, args)
             
@@ -678,10 +684,10 @@ class System:
                 positions=probe_positions,
                 orientations=probe_orientations,
                 included_interactions=self.active_interactions,
-                nlist=nlist,
                 measurement_box=probe_box,
                 simulation_box=simulation_box,
-                gsd_filename=gsd_filename
+                gsd_filename=gsd_filename,
+                nlist=nlist,
             )
 
             table = util.clean_header(table)

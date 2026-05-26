@@ -1699,7 +1699,6 @@ def add_interaction(
     simulation: hoomd.Simulation,
     nlist: hoomd.md.nlist.NeighborList,
     interaction: "Interaction",
-    all_types: list[str]
 ) -> hoomd.Simulation:
     """Add an interaction to the simulation.
 
@@ -1711,22 +1710,14 @@ def add_interaction(
         The neighborlist to use for the interaction.
     interaction : Interaction
         The interaction to add.
-    all_types : list[str]
-        The names of the particle types to parameterize the interaction for.
 
     Returns
     -------
     simulation
         The modified simulation.
     """
-    force = interaction.to_hoomd_pair(
-        nlist=nlist,
-        parameterize=True,
-        all_types=all_types
-    )
-
+    force = interaction.to_hoomd_pair(nlist=nlist)
     simulation.operations.integrator.forces.append(force)
-
     return simulation
 
 def add_integrator(
@@ -1829,8 +1820,7 @@ def get_simulation(
         simulation = add_interaction(
             simulation=simulation,
             nlist=nlist,
-            interaction=interaction,
-            all_types=system.all_types
+            interaction=interaction
         )
 
     return simulation

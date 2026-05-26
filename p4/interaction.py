@@ -168,8 +168,7 @@ class Interaction:
         simulation = util.add_interaction(
             simulation=simulation,
             nlist=nlist,
-            interaction=self,
-            all_types=test_types
+            interaction=self
         )
 
         try:
@@ -501,6 +500,9 @@ class Interaction:
         """
         if nlist is None:
             nlist = hoomd.md.nlist.Tree(2)
+        
+        if all_types is None:
+            all_types = ["A", "B"]
 
         instance = self.hoomd_class(nlist, **self.initial_args)
         
@@ -522,27 +524,39 @@ class Interaction:
             required_or_optional="all"
         )
 
-        # Set default single type params
-        for t in all_types:
-            for name, typed_param in self.default_params.items():
-                if name in single_typed_params:
-                    getattr(instance, name)[t] = typed_param
+        # if self.hoomd_class is hoomd.md.pair.Table:
+        #     breakpoint()
 
-        # Set default pair type params
-        for p in all_type_pairs:
-            for name, typed_param in self.default_params.items():
-                if name in pair_typed_params:
-                    getattr(instance, name)[p] = typed_param
+        # # Set default single type params
+        # for t in all_types:
+        #     for name, typed_param in self.default_params.items():
+        #         if name in single_typed_params:
+        #             getattr(instance, name)[t] = typed_param
 
-        # Modify typed single type params
-        for t in self.interacting_types("single"):
-            for param_name, param_value in self.typed_params[t].items():
-                getattr(instance, param_name)[t] = param_value
+        # # Set default pair type params
+        # for p in all_type_pairs:
+        #     for name, typed_param in self.default_params.items():
+        #         if name in pair_typed_params:
+        #             getattr(instance, name)[p] = typed_param
 
-        # Modify typed pair type params
-        for p in self.interacting_types("pair"):
-            for param_name, param_value in self.typed_params[p].items():
-                getattr(instance, param_name)[p] = param_value
+        # Set default params
+        for param_name, param_value in self.default_params.items():
+            getattr(instance, param_name).default = param_value
+
+        # # Modify typed single type params
+        # for t in self.interacting_types("single"):
+        #     for param_name, param_value in self.typed_params[t].items():
+        #         getattr(instance, param_name)[t] = param_value
+
+        # # Modify typed pair type params
+        # for p in self.interacting_types("pair"):
+        #     for param_name, param_value in self.typed_params[p].items():
+        #         getattr(instance, param_name)[p] = param_value
+        
+        # Set typed params
+        for type_name, type_params in self.typed_params.items():
+            for param_name, param_value in type_params.items():
+                getattr(instance, param_name)[type_name] = param_value
                 
         return instance
 

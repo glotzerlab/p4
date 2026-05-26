@@ -135,7 +135,8 @@ class Interaction:
                 + "details."
             ) from e
         
-        # Ensure the parameterized hoomd class can be used in a simulation
+        # Ensure the parameterized hoomd class can be used in a simple example
+        # simulation
         nlist = hoomd.md.nlist.Tree(2)
         test_types = self.interacting_types("all")
         if not test_types:
@@ -459,84 +460,26 @@ class Interaction:
 
     def to_hoomd_pair(
         self,
-        all_types: list[str] | None = None,
         nlist: hoomd.md.nlist.NeighborList | None = None,
     ) -> hoomd.md.pair.Pair:
         """Return an instance of the HOOMD-blue class.
         
         Parameters
         ----------
-        all_types : list[str]
-            The names of all the particle types for which the instance should be
-            parameterized. Required if ``parameterize`` is True, otherwise
-            ignored.
         nlist : hoomd.md.nlist.NeighborList, optional
             The neighbor list with which to instantiate the class. Pass an
             existing neighbor list to add it to the instance. If not provided,
             a bounding volume hierarchy-based neighbor list is created on the
             fly.
-
-        Raises
-        ------
-        ValueError
-            If the ``initial_args`` is wrong.
-        AttributeError
-            If the ``typed_params`` is wrong.
         """
         if nlist is None:
             nlist = hoomd.md.nlist.Tree(2)
         
-        if all_types is None:
-            all_types = ["A", "B"]
-
         instance = self.hoomd_class(nlist, **self.initial_args)
-        
-        # Calculate the pairwise combinations of all types and interacting types
-        all_type_pairs = list(
-            itertools.combinations_with_replacement(all_types, 2)
-        )
-
-        single_typed_params = self._parse_params(
-            hoomd_class=self.hoomd_class,
-            initial_args=self.initial_args,
-            single_or_pair="single",
-            required_or_optional="all"
-        )
-        pair_typed_params = self._parse_params(
-            hoomd_class=self.hoomd_class,
-            initial_args=self.initial_args,
-            single_or_pair="pair",
-            required_or_optional="all"
-        )
-
-        # if self.hoomd_class is hoomd.md.pair.Table:
-        #     breakpoint()
-
-        # # Set default single type params
-        # for t in all_types:
-        #     for name, typed_param in self.default_params.items():
-        #         if name in single_typed_params:
-        #             getattr(instance, name)[t] = typed_param
-
-        # # Set default pair type params
-        # for p in all_type_pairs:
-        #     for name, typed_param in self.default_params.items():
-        #         if name in pair_typed_params:
-        #             getattr(instance, name)[p] = typed_param
 
         # Set default params
         for param_name, param_value in self.default_params.items():
             getattr(instance, param_name).default = param_value
-
-        # # Modify typed single type params
-        # for t in self.interacting_types("single"):
-        #     for param_name, param_value in self.typed_params[t].items():
-        #         getattr(instance, param_name)[t] = param_value
-
-        # # Modify typed pair type params
-        # for p in self.interacting_types("pair"):
-        #     for param_name, param_value in self.typed_params[p].items():
-        #         getattr(instance, param_name)[p] = param_value
         
         # Set typed params
         for type_name, type_params in self.typed_params.items():

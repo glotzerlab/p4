@@ -150,12 +150,18 @@ class Interaction:
                 v.get("r_cut", 0) for v in self.typed_params.values()
             ])
         
-        simulation = self._get_test_simulation(
-            particle_types=test_types,
-            max_r_cut=max_r_cut,
-            nlist=hoomd.md.nlist.Tree(2),
+        simulation = hoomd.util.make_example_simulation(
+            particle_types=test_types
+        )
+        s = 10 * max_r_cut
+        simulation.state.set_box([s, s, s, 0, 0, 0])
+        simulation = util.add_integrator(simulation)
+        simulation = util.add_interaction(
+            simulation=simulation,
+            nlist=nlist,
             interaction=self
         )
+
         box_length = 10 * max(max_r_cut, 1.0)
         simulation.state.set_box([box_length, box_length, box_length, 0, 0, 0])
         simulation = util.add_integrator(simulation)
@@ -1018,26 +1024,6 @@ class Interaction:
         return figure, traces
 
     # ---------------------------------- OTHER ---------------------------------
-
-    @staticmethod
-    def _get_test_simulation(particle_types, max_r_cut, nlist, interaction):
-        """Return a small example simulation with an interaction that is ready to run.
-        TODO
-        """
-        simulation = hoomd.util.make_example_simulation(
-            particle_types=particle_types
-        )
-        s = 10 * max_r_cut
-        simulation.state.set_box([s, s, s, 0, 0, 0])
-        simulation = util.add_integrator(simulation)
-        simulation = util.add_interaction(
-            simulation=simulation,
-            nlist=nlist,
-            interaction=interaction,
-            all_types=particle_types
-        )
-        
-        return simulation
 
     def interacting_types(self, category=Literal["single", "pair", "all"]):
         """A list of particle types from ``typed_params``.

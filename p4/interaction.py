@@ -12,6 +12,8 @@ import json
 import os
 from pathlib import Path
 from typing import Iterable, Literal
+from packaging.version import Version
+
 import hoomd
 import numpy as np
 import plotly
@@ -94,6 +96,14 @@ class Interaction:
             raise TypeError(
                 "Incorrect `hoomd_class`: must be a subclass of "
                 + f"{cls_to_str(hoomd_class)}"
+            )
+        if (
+            hoomd_class is hoomd.md.pair.Table
+            and Version(hoomd.version.version) < Version("7.0.2")
+        ):
+            raise TypeError(
+                "`hoomd.md.pair.Table` is not compatible with p4 below "
+                + "HOOMD-blue version 7.0.2."
             )
         
         # Set instance attributes

@@ -10,6 +10,7 @@ from typing import Literal, Iterable
 import numpy as np
 import p4
 import pytest
+from packaging.version import Version
 
 
 # 1. Get all hoomd md pair classes for testing
@@ -17,6 +18,9 @@ import pytest
 
 REQUIRED_PARENT_CLASS = p4.interaction.REQUIRED_PARENT_CLASS
 EXCLUDED_TYPE_STRINGS = p4.interaction.EXCLUDED_TYPE_STRINGS
+
+if Version(hoomd.version.version) < Version("7.0.2"):
+    EXCLUDED_TYPE_STRINGS.append("hoomd.md.pair.Table")
 
 def cls_to_str(cls):
     """Return a string representation of the class' path, including its name."""

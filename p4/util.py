@@ -12,6 +12,7 @@ import csv
 from io import StringIO, TextIOWrapper
 import itertools
 from typing import Literal, Tuple
+import warnings
 import coxeter
 import gsd.hoomd
 import hoomd
@@ -1873,6 +1874,14 @@ def measure(
         The tabular results of the measurement simulation, formatted as a CSV
         and stored in a string buffer.
     """
+    # Warn if there is a risk of table writer erroring
+    if Version(hoomd.version.version) < Version("6.1.0"):
+        warnings.warn(
+            f"Outdated HOOMD-blue version: {hoomd.version.version}. Table "
+            + "writer will error if U, F, or T are NaN or Inf. Resolve this "
+            + "issue by upgrading to the latest version of HOOMD-blue."
+        )
+
     # Create simulation
     simulation = get_simulation(
         system,

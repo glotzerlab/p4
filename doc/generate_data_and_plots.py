@@ -123,7 +123,7 @@ body = p4.Body(
 )
 fig, _ = body.plot()
 fig.update_layout(**BODY_3D_LAYOUT)
-fig.write_html(data_path+"/body-1type.html", include_plotlyjs='cdn')
+fig.write_html(data_path+"/body-2types.html", include_plotlyjs='cdn')
 
 # %%
 fig, _ = body.plot(

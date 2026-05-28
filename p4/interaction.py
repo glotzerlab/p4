@@ -209,7 +209,7 @@ class Interaction:
     @initial_args.setter
     def initial_args(self, value: dict[str, Any]):
         """Set the parameters for instantiating HOOMD-blue class."""
-        original_value = copy(self._initial_args)
+        original_value = deepcopy(self._initial_args)
         self._initial_args = util.sanitize(value)
         try:
             self.validate()
@@ -226,7 +226,7 @@ class Interaction:
     @default_params.setter
     def default_params(self, value: dict[str, Any]):
         """Set the default parameters for all single and pair types."""
-        original_value = self._default_params
+        original_value = deepcopy(self._default_params)
         self._default_params = util.sanitize(value)
         try:
             self.validate()
@@ -242,7 +242,7 @@ class Interaction:
     @typed_params.setter
     def typed_params(self, value: dict):
         """Set parameters for specific single and pair types."""
-        original_value = self._typed_params
+        original_value = deepcopy(self._typed_params)
         self._typed_params = util.sanitize(value)
         try:
             self.validate()

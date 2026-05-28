@@ -872,7 +872,8 @@ class Interaction:
             orientations=[(1,0,0,0)],
             measurement_box=[0, 0, 0], # TODO: refactor to remove this parameter
             simulation_box=[100*max(r), 100*max(r), 100*max(r), 0, 0, 0],
-            included_interactions=[self]
+            included_interactions=[self],
+            gsd_filename=None
         )
 
         # Build plot traces pair by pair

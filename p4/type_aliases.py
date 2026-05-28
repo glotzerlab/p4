@@ -13,8 +13,6 @@ import numpy as np
 
 type state_like = (hoomd.State | hoomd.Snapshot | gsd.hoomd.Frame)
 
-type bodies_holder = (hoomd.md.constrain.Rigid | state_like)
-
 type axis_like = (
     list[float]
     | tuple[float, float, float]

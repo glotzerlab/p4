@@ -11,7 +11,7 @@ import importlib
 import json
 import os
 from pathlib import Path
-from typing import Iterable, Literal
+from typing import Any, Iterable, Literal
 from packaging.version import Version
 
 import hoomd
@@ -207,7 +207,7 @@ class Interaction:
         return self._initial_args
 
     @initial_args.setter
-    def initial_args(self, value):
+    def initial_args(self, value: dict[str, Any]):
         """Set the parameters for instantiating HOOMD-blue class."""
         original_value = copy(self._initial_args)
         self._initial_args = util.sanitize(value)
@@ -224,7 +224,7 @@ class Interaction:
         return self._default_params
 
     @default_params.setter
-    def default_params(self, value):
+    def default_params(self, value: dict[str, Any]):
         """Set the default parameters for all single and pair types."""
         original_value = self._default_params
         self._default_params = util.sanitize(value)
@@ -240,7 +240,7 @@ class Interaction:
         return self._typed_params
 
     @typed_params.setter
-    def typed_params(self, value):
+    def typed_params(self, value: dict):
         """Set parameters for specific single and pair types."""
         original_value = self._typed_params
         self._typed_params = util.sanitize(value)
@@ -256,7 +256,7 @@ class Interaction:
     def from_hoomd_simulation(
         cls,
         simulation: hoomd.Simulation,
-    ) -> list[Interaction] | Interaction:
+    ) -> list[Interaction]:
         """Parse a HOOMD-blue `Simulation`_ to create interactions.
 
         .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
@@ -701,7 +701,7 @@ class Interaction:
         with open(path, "w") as f:
             json.dump(existing_data, f, indent=indent)
 
-    def _to_json_dict(self):
+    def _to_json_dict(self) -> dict:
         """Return a JSON-compliant dictionary representing this interaction."""
         data = dict(
             hoomd_class=self.hoomd_class,
@@ -743,7 +743,7 @@ class Interaction:
         show_ticks: bool = True,
         show_grid: bool = False,
         show_border: bool = True,
-    ):
+    ) -> tuple[plotly.graph_objects.Figure, list]:
         """Plot the interaction potential energy curve for pairs of types.
         
         Plotting is only supported for isotropic interactions.
@@ -977,7 +977,10 @@ class Interaction:
 
     # ---------------------------------- OTHER ---------------------------------
 
-    def interacting_types(self, category=Literal["single", "pair", "all"]):
+    def interacting_types(
+        self,
+        category=Literal["single", "pair", "all"]
+    ) -> list[str] | list[tuple[str, str]]:
         """A list of particle types from ``typed_params``.
         
         Parameters
@@ -1008,7 +1011,7 @@ class Interaction:
                         types.append(t)
             return types
         
-    def __eq__(self, other: Interaction):
+    def __eq__(self, other) -> bool:
         """Interactions are equal if their properties are equal."""
         return (
             type(self.hoomd_class) is type(other.hoomd_class)
@@ -1017,7 +1020,7 @@ class Interaction:
             and self.typed_params == other.typed_params
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             "Interaction ("
             + f"\n\thoomd_class={self.hoomd_class},"

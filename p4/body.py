@@ -15,8 +15,10 @@ from pathlib import Path
 
 import rowan
 from . import util
+from .type_aliases import positions_like, orientations_like, moi_like
 
 # TODO: check default moi
+
 
 class Body:
     """The names and spatial data for a body's primary and secondary types.
@@ -62,10 +64,10 @@ class Body:
         The name of the primary type.
     secondary_types : list[str], optional
         The names of the secondary types.
-    positions_by_type : dict[str, list[list[float]]], optional
+    positions_by_type : dict[str, positions_like], optional
         A mapping of secondary particle type names to positions. Required if
         ``secondary_types`` is provided, otherwise ignored.
-    orientations_by_type : dict[str, list[list[float]]], optional
+    orientations_by_type : dict[str, orientations_like], optional
         A mapping of secondary particle type names to orientation(s) in
         quaternion form. Can only be provided if ``secondary_types`` and
         ``positions_by_type`` are also provided. If not provided,
@@ -75,7 +77,7 @@ class Body:
         If not provided for a given type, that type's mass defaults to ``1``.
         In contrast to positions and orientations, only one mass is allowed per
         type.
-    moi_by_type : dict[str, list[float]], optional
+    moi_by_type : dict[str, moi_like], optional
         A mapping of primary and secondary particle type names to moment of
         inertia (MoI), expressed as a 3-vector containing the diagonal terms of
         the MoI tensor. If not provided for a given type, that
@@ -86,10 +88,10 @@ class Body:
         self,
         primary_type: str,
         secondary_types: list[str] | None = None,
-        positions_by_type: dict[str, list[list[float]]] | None = None,
-        orientations_by_type: dict[str, list[list[float]]] | None = None,
+        positions_by_type: dict[str, positions_like] | None = None,
+        orientations_by_type: dict[str, orientations_like] | None = None,
         mass_by_type: dict[str, float] | None = None,
-        moi_by_type: dict[str, list[float]] | None = None
+        moi_by_type: dict[str, moi_like] | None = None
     ):
         # Create defaults
         if secondary_types is None:
@@ -132,10 +134,10 @@ class Body:
         cls,
         primary_type: str | None = None,
         secondary_types: list[str] | None = None,
-        positions_by_type: dict[str, list[list[float]]] | None = None,
-        orientations_by_type: dict[str, list[list[float]]] | None = None,
+        positions_by_type: dict[str, positions_like] | None = None,
+        orientations_by_type: dict[str, orientations_like] | None = None,
         mass_by_type: dict[str, float] | None = None,
-        moi_by_type: dict[str, list[float]] | None = None,
+        moi_by_type: dict[str, moi_like] | None = None,
     ):
         """Ensure the keyword arguments adhere to the :ref:`body schema`."""
         # Ensure primary type is coercable to str
@@ -238,7 +240,7 @@ class Body:
         return self._primary_type
 
     @primary_type.setter
-    def primary_type(self, value):
+    def primary_type(self, value: str):
         """Set the type of the primary particle."""
         self.validate(primary_type=value)
         self._primary_type = str(value)
@@ -256,10 +258,10 @@ class Body:
     def add(
         self,
         name: str,
-        positions: list[list[float]],
-        orientations: list[list[float]] | None = None,
-        mass: list[list[float]] | None = None,
-        moi: list[list[float]] | None = None,
+        positions: positions_like,
+        orientations: orientations_like | None = None,
+        mass: float | None = None,
+        moi: moi_like | None = None,
     ):
         """Add a new secondary particle type.
         
@@ -337,10 +339,10 @@ class Body:
     def update(
         self,
         name: str,
-        positions: list[list[float]] | None = None,
-        orientations: list[list[float]] | None = None,
+        positions: positions_like | None = None,
+        orientations: orientations_like | None = None,
         mass: list[list[float]] | None = None,
-        moi: list[list[float]] | None = None,
+        moi: moi_like | None = None,
     ):
         """Update data for a secondary particle type.
         
@@ -348,13 +350,13 @@ class Body:
         ----------
         name : str
             The name of the secondary type to update.
-        positions : list[list[float]]
+        positions : positions_like
             The positions for the new secondary type.
-        orientations : list[list[float]], optional
+        orientations : orientations_like, optional
             The orientations for the new secondary type.
         mass : float, optional
             The mass for the new secondary type.
-        moi : list[float], optional
+        moi : moi_like, optional
             The moi for the new secondary type.
         """
         if name not in self.secondary_types:
@@ -404,7 +406,7 @@ class Body:
         return self._orientations_by_type
 
     @orientations_by_type.setter
-    def orientations_by_type(self, value):
+    def orientations_by_type(self, value: dict[str, orientations_like]):
         """Set a mapping from secondary types to orientations."""
         self.validate(
             secondary_types=self._secondary_types,
@@ -424,7 +426,7 @@ class Body:
         return self._mass_by_type
 
     @mass_by_type.setter
-    def mass_by_type(self, value):
+    def mass_by_type(self, value: dict[str, float]):
         """Set a mapping from primary and secondary types to mass."""
         self.validate(mass_by_type=value)
         self._mass_by_type = util.sanitize(value)
@@ -441,7 +443,7 @@ class Body:
         return self._moi_by_type
 
     @moi_by_type.setter
-    def moi_by_type(self, value):
+    def moi_by_type(self, value: dict[str, moi_like]):
         """Set a mapping from primary and secondary types to moment of inertia."""
         self.validate(moi_by_type=value)
         self._moi_by_type = util.sanitize(value)
@@ -513,7 +515,7 @@ class Body:
         cls,
         snapshot: hoomd.Snapshot,
         include_singles: bool = False
-    ):
+    ) -> list[Body]:
         """Parse a HOOMD-blue `Snapshot`_ to create one or more bodies.
 
         .. _Snapshot: https://hoomd-blue.readthedocs.io/en/latest/hoomd/snapshot.html
@@ -728,7 +730,7 @@ class Body:
         cls,
         filename: os.PathLike,
         json_path: str = "p4.body"
-    ):
+    ) -> Body:
         """Create a body from JSON.
 
         a JSON path may be provided to control the location that the body data
@@ -787,7 +789,7 @@ class Body:
         return cls(**data)
 
     @classmethod
-    def _convert_json_dict(cls, json_dict: dict):
+    def _convert_json_dict(cls, json_dict: dict) -> dict:
         """Convert a JSON-compliant dict into an instantiation-ready dict.
         
         NOTE: this apparently useless method is included here for convenience
@@ -840,7 +842,7 @@ class Body:
 
         return rigid
 
-    def to_hoomd_snapshot(self):
+    def to_hoomd_snapshot(self) -> hoomd.Snapshot:
         """Export the body to a HOOMD-blue `Snapshot`_.
         
         .. _Snapshot: https://hoomd-blue.readthedocs.io/en/latest/hoomd/snapshot.html
@@ -1014,7 +1016,7 @@ class Body:
         with open(path, "w") as f:
             json.dump(existing_data, f, indent=indent)
 
-    def _to_json_dict(self):
+    def _to_json_dict(self) -> dict:
         """Return a JSON-compliant dictionary representing this body."""
         return dict(
             primary_type=self.primary_type,
@@ -1039,7 +1041,7 @@ class Body:
         schematic_slice_opacity: float = 1,
         schematic_slice_line_width: float = 10,
         show_legend: bool = True,
-    ):
+    ) -> tuple[plotly.graph_objects.Figure, list]:
         """Interactively plot the body using `Plotly`_.
 
         Slicing is supported along the X, Y, and Z axes via the ``slice``
@@ -1979,7 +1981,7 @@ class Body:
         )
         return common_single_types or common_pair_types or nonzero_default_r_cut
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """Bodies are equal if their properties are equal or equivalent."""
         primary_same = self.primary_type == other.primary_type
         if not primary_same:
@@ -2083,7 +2085,7 @@ class Body:
             and (moi_same or moi_equivalent)
         )
     
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             "Body ("
             + f"\n\tprimary_type='{self.primary_type}',"

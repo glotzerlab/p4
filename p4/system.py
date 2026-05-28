@@ -176,7 +176,7 @@ class System:
         return self._probe
 
     @probe.setter
-    def probe(self, value):
+    def probe(self, value: Body):
         """Set the system's probe."""
         self.validate(
             probe=value,
@@ -197,7 +197,7 @@ class System:
         return self._analyte
 
     @analyte.setter
-    def analyte(self, value):
+    def analyte(self, value: Body | Arrangement):
         """Set the system's analyte."""
         self.validate(
             probe=self.probe,
@@ -212,7 +212,7 @@ class System:
         return self._interactions
 
     @interactions.setter
-    def interactions(self, value):
+    def interactions(self, value: list[Interaction]):
         """Set the interactions between particles in the probe and analyte."""
         self.validate(
             probe=self.probe,
@@ -229,7 +229,7 @@ class System:
         simulation: hoomd.Simulation,
         probe_primary_type: str,
         analyte_primary_type: str | None = None
-    ):
+    ) -> System:
         """Parse a HOOMD-blue `Simulation`_ to create a system.
 
         .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
@@ -312,7 +312,7 @@ class System:
         cls,
         filename: os.PathLike,
         json_path: str = "p4.system"
-    ):
+    ) -> System:
         """Create a system from JSON.
 
         a JSON path may be provided to control the location that the system
@@ -376,7 +376,7 @@ class System:
         return cls(**data)
 
     @classmethod
-    def _convert_json_dict(cls, data: dict):
+    def _convert_json_dict(cls, data: dict) -> dict:
         """Convert a JSON-compliant dict into an instantiation-ready dict."""
         data["probe"] = Body._convert_json_dict(data["probe"])
         
@@ -698,7 +698,7 @@ class System:
 
     # --------------------------------- OTHER ----------------------------------
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """Systems are equal if their settable properties are equal."""
         return (
             self.interactions == other.interactions

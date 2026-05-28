@@ -12,13 +12,15 @@ import rowan
 
 from . import util
 from .body import Body
+from .type_aliases import positions_like, orientations_like
+
 
 class Arrangement:
     def __init__(
         self,
         bodies: list[Body],
-        positions_by_type: dict[str, list[list[float]]],
-        orientations_by_type: dict[str, list[list[float]]] | None = None
+        positions_by_type: dict[str, positions_like],
+        orientations_by_type: dict[str, orientations_like] | None = None
     ):
         # Create defaults
         if orientations_by_type is None:
@@ -44,8 +46,8 @@ class Arrangement:
     def validate(
         cls,
         bodies: list[Body] | None = None,
-        positions_by_type: dict[str, list[list[float]]] | None = None,
-        orientations_by_type: dict[str, list[list[float]]] | None = None
+        positions_by_type: dict[str, positions_like] | None = None,
+        orientations_by_type: dict[str, orientations_like] | None = None
     ):
         """Ensure the keyword arguments adhere to the :ref:`arrangement schema`.
         """
@@ -142,8 +144,8 @@ class Arrangement:
     def add(
         self,
         body: Body,
-        positions: list[list[float]],
-        orientations: list[list[float]] | None = None,
+        positions: positions_like,
+        orientations: orientations_like | None = None,
     ):
         """Add a new body.
         
@@ -237,8 +239,8 @@ class Arrangement:
     def update(
         self,
         body: str | int | Body,
-        positions: list[list[float]] | None = None,
-        orientations: list[list[float]] | None = None,
+        positions: positions_like | None = None,
+        orientations: orientations_like | None = None,
     ):
         """Update data for a body.
         
@@ -311,7 +313,7 @@ class Arrangement:
         return self._orientations_by_type
 
     @orientations_by_type.setter
-    def orientations_by_type(self, value):
+    def orientations_by_type(self, value: orientations_like):
         """Set a mapping from body primary types to orientations."""
         self.validate(
             bodies=self._bodies,
@@ -327,7 +329,7 @@ class Arrangement:
         cls,
         simulation: hoomd.Simulation,
         include_singles: bool = False
-    ):
+    ) -> Arrangement:
         """Parse a HOOMD-blue `Simulation`_ to create an arrangement.
 
         .. _Simulation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/simulation.html
@@ -362,7 +364,7 @@ class Arrangement:
         cls,
         snapshot: hoomd.Snapshot,
         include_singles: bool = False
-    ):
+    ) -> Arrangement:
         """Parse a HOOMD-blue `Snapshot`_ to create an arrangement.
 
         .. _Snapshot: https://hoomd-blue.readthedocs.io/en/latest/hoomd/snapshot.html
@@ -412,7 +414,7 @@ class Arrangement:
         filename: os.PathLike,
         index: int = -1,
         include_singles: bool = False
-    ):
+    ) -> Arrangement:
         """Parse a GSD file to create an arrangement from an indexed frame.
 
         .. _Frame: https://gsd.readthedocs.io/en/latest/python-module-gsd.hoomd.html#gsd.hoomd.Frame
@@ -448,7 +450,7 @@ class Arrangement:
         cls,
         filename: os.PathLike,
         json_path: str = "p4.arrangement"
-    ):
+    ) -> Arrangement:
         """Create an arrangement from JSON.
 
         a JSON path may be provided to control the location that the
@@ -505,7 +507,7 @@ class Arrangement:
         return cls(**data)
 
     @classmethod
-    def _convert_json_dict(cls, json_dict: dict):
+    def _convert_json_dict(cls, json_dict: dict) -> dict:
         """Convert a JSON-compliant dict into an instantiation-ready dict."""
         data = copy(json_dict)
         data["bodies"] = [Body(**b) for b in data["bodies"]]
@@ -538,7 +540,7 @@ class Arrangement:
 
         return rigid 
 
-    def to_hoomd_snapshot(self):
+    def to_hoomd_snapshot(self) -> hoomd.Snapshot:
         """Convert the arrangement to a HOOMD-blue `Snapshot`_.
         
         .. _Snapshot: https://hoomd-blue.readthedocs.io/en/latest/hoomd/snapshot.html
@@ -767,7 +769,7 @@ class Arrangement:
         with open(path, "w") as f:
             json.dump(existing_data, f, indent=indent)
 
-    def _to_json_dict(self):
+    def _to_json_dict(self) -> dict:
         """Return a JSON-compliant dictionary representing this arrangement."""
         return dict(
             bodies=[b._to_json_dict() for b in self.bodies],
@@ -789,9 +791,7 @@ class Arrangement:
         schematic_slice_opacity: float = 1,
         schematic_slice_line_width: float = 10,
         show_legend: bool = True,
-    ):
-        # TODO
-        pass
+    ) -> tuple[plotly.graph_objects.Figure, list]:
 
     def _plot_traces_schematic_slice(
         self,
@@ -837,7 +837,7 @@ class Arrangement:
 
     # --------------------------------- OTHER ----------------------------------
     
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             "Arrangement ("
             + f"\n\tbodies='{self.bodies}',"
@@ -846,8 +846,8 @@ class Arrangement:
             + "\n)"
         )
     
-    def __eq__(self, other):
-        """Arrangements are equal if their properties are identical."""
+    def __eq__(self, other) -> bool:
+        """Arrangements are equal if their properties are equal."""
         bodies_equivalent = (
             len(self.bodies) == len(other.bodies)
             and all([i in other.bodies for i in self.bodies])

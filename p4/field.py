@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 from copy import copy
+import os
 from types import NoneType
 from typing import Iterable, Literal
 import csv
@@ -203,7 +204,7 @@ class Field:
     # --------------------------------- IMPORT ---------------------------------
 
     @classmethod
-    def from_csv(cls, filename):
+    def from_csv(cls, filename: os.PathLike):
         """Create a Field from a CSV file."""
         with open(filename) as f:
             columns = f.readline().strip("\n").split(",")
@@ -222,7 +223,7 @@ class Field:
 
     # --------------------------------- EXPORT ---------------------------------
 
-    def to_csv(self, filename):
+    def to_csv(self, filename: os.PathLike):
         """Save this field to CSV."""
         with open(filename, "w") as f:
             writer = csv.writer(f)
@@ -250,7 +251,8 @@ class Field:
         marker_color_1d: str = "black",
         marker_size_1d: float = 6,
         line_width_1d: float = 2,
-    ):
+        template: str | None = "simple_white",
+    ) -> tuple[plotly.graph_objects.Figure, list]:
         """Interactively plot the field using `Plotly`_.
         
         Slicing is supported along the X, Y, and Z axes via the ``slice``

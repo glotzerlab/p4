@@ -1,0 +1,351 @@
+# Copyright (c) 2025-2026, The Regents of the University of Michigan
+# This file is from the p4 project, released under the BSD 3-Clause License.
+
+import itertools
+
+import numpy as np
+import plotly
+import rowan
+import coxeter
+import scipy
+
+from . import util
+from .type_aliases import (
+    axis_like,
+    positions_like,
+    orientations_like
+)
+
+
+# ---------------------------------- SAMPLING ----------------------------------
+
+
+def positions_on_regular_grid(
+    box: list[float] | tuple[float, float, float],
+    resolution: list[int] | tuple[int, int, int]
+) -> np.ndarray:
+    """Return a regular grid of positions bounded by a box.
+
+    Parameters
+    ----------
+    box : (3,) array of floats
+        The lengths of the sides of the box in X, Y, Z order.
+    resolution : (3,) array of ints
+        The resolution of the point grid for each dimension in X, Y, Z order.
+    
+    Returns
+    -------
+    (..., 3) np.ndarray
+    """
+    positions = np.array(list(itertools.product(
+        np.linspace(-box[0]/2, box[0]/2, resolution[0], endpoint=False),
+        np.linspace(-box[1]/2, box[1]/2, resolution[1], endpoint=False),
+        np.linspace(-box[2]/2, box[2]/2, resolution[2], endpoint=False),
+    )))
+
+    positions[:,0] += (box[0]/resolution[0])/2
+    positions[:,1] += (box[1]/resolution[1])/2
+    positions[:,2] += (box[2]/resolution[2])/2
+
+    return positions
+
+def exclude_positions_by_shape(
+    positions: positions_like,
+    shape: coxeter.shapes.Polyhedron,
+    inside: bool = True,
+):
+    """Remove positions inside or outside a shape with an optional buffer.
+
+    Parameters
+    ----------
+    positions : positions_like
+        The positions to filter.
+    shape : coxeter.shapes.Polyhedron
+        The shape to check against positions.
+    inside : bool, default=True
+        Whether to exclude positions that are inside the shape (``True``) or
+        outside (``False``).
+    
+    Returns
+    -------
+    (..., 3) np.ndarray
+    """
+    if inside:
+        return np.array(positions)[~shape.is_inside(positions)]
+    else:
+        return np.array(positions)[shape.is_inside(positions)]
+
+def orientations_about_axis(n: int, axis: axis_like, k: int = 1) -> np.ndarray:
+    """Return an array of quaternions sampling orientation about a given axis.
+
+    Parameters
+    ----------
+    n : int
+        The number of samples.
+    axis : (3,) array of floats
+        The axis of rotation. For example, ``[1, 0, 0]`` is the x-axis.
+    k : int, default=1
+        The order of the rotational symmetry about the axis. Samples are
+        constrained to the range ``0 - 360/k``. ``1`` corresponds to **C1**
+        symmetry, ``2`` to **C2**, and so on.
+
+    Returns
+    -------
+    (..., 4) np.ndarray
+    """
+    return rowan.from_axis_angle(
+        axes=axis,
+        angles=np.linspace(0, 2*np.pi/k, n, endpoint=False)
+    )
+
+def orientations_from_fibonacci_lattice(
+    n: int,
+    group: str | None = None,
+    ideal_group_index = 0
+    # symmetries: list[int] | None = None,
+    # symmetry_offsets: list[float] | None = None
+) -> np.ndarray:
+    """A near-uniform grid of `n` quaternions.
+
+    This is equivalent to a Fibonacci lattice on the 3-sphere. See
+    `this paper <https://ieeexplore.ieee.org/document/9878746>`_ for a
+    derivation.
+
+    To sample only a section of the 3-sphere, pass an array representing the
+    rotational symmetry about each axis.
+
+    Parameters
+    ----------
+    n : int
+        The number of points in the lattice.
+    symmetries : list[int], optional
+        The rotational symmetry for each axis. If not provided, C1 symmetry is
+        assumed for every axis. [X, Y, Z]
+    symmetry_offsets : list[float], optional
+        An angular offset to apply for each rotational symmetry. If not,
+        provided, offsets default to 0 for each axis.
+    
+    Returns
+    -------
+    (..., 4) np.ndarray
+    """
+    if group is not None:
+        group_quaternions = (
+            scipy.spatial.transform.Rotation
+                .create_group(group)
+                .as_quat(scalar_first=True)
+        )
+        n *= group_quaternions.shape[0]
+
+    PSI = 1.533751168755204288118041413  # Solution to ψ**4 = ψ + 4
+    s = np.arange(n) + 1 / 2
+    t = s / n
+    d = 2 * np.pi * s
+    r0, r1 = (np.sqrt(t), np.sqrt(1 - t))
+    a, b = (d / np.sqrt(2), d / PSI)
+
+    # Allocate as rows and then transpose, rather than stacking columns
+    result = np.empty((4, n))
+    result[...] = r0 * np.sin(a), r0 * np.cos(a), r1 * np.sin(b), r1 * np.cos(b)
+    quaternions = result.T
+    
+    # Filter quaternions, only keeping ones which are "closest" to the same
+    # group quaternion. The chosen group quaternion is the first one, and
+    # distance is evaluated as the symmetric intrinsic distance.
+    # TODO: this doesn't really work yet
+    if group is not None:
+        filtered_quaternions = []
+        for q in quaternions:
+            best_group_index = -1
+            best_distance = float("inf")
+            for i, g in enumerate(group_quaternions):
+                d = rowan.geometry.sym_intrinsic_distance(g, q)
+                if d < best_distance:
+                    best_distance = d
+                    best_group_index = i
+            
+            if best_group_index == ideal_group_index:
+                filtered_quaternions.append(q)
+
+        return filtered_quaternions
+    
+    else:
+        return quaternions
+
+# def exclude_orientations_with_shape_overlap(
+#     positions,
+#     probe,
+#     analyte,
+#     probe_type_shapes,
+#     analyte_type_shapes
+# ):
+#     pass
+
+
+# ---------------------------------- PLOTTING ----------------------------------
+
+
+def plot_positions(
+    positions: positions_like,
+    box: list[float] | None = None,
+    color: str = "cornflowerblue",
+    opacity: float = 1.0,
+    size: float = 5.0,
+    box_color: str = "grey",
+    box_opacity: float = 1.0,
+    box_line_width: float = 4.0,
+    **layout_kwargs # TODO
+):
+    """Plot positions in 3D space.
+    
+    Informally evaluate sampling coverage by plotting sampled positions.
+
+    Parameters
+    ----------
+    positions : positions_like
+        The positions to plot.
+    box : list[float], optional
+        The size of the system box, expressed as a (3,) array of side lengths.
+        If not provided, no box is plotted.
+    color : str, default='cornflowerblue'
+        The color of the position markers.
+    opacity : float, default=1.0
+        The opacity of the position markers.
+    size : float, default=5.0
+        The size of the position markers.
+    box_color : str, default='grey'
+        The color of the box.
+    box_opacity : float, default=1.0
+        The opacity of the box.
+    box_line_width : float, default=4.0
+        The line width of the box.
+    """
+    positions = np.asarray(positions)
+
+    figure = plotly.graph_objects.Figure()
+
+    positions_trace = plotly.graph_objects.Scatter3d(
+        x=positions[:,0],
+        y=positions[:,1],
+        z=positions[:,2],
+        mode="markers",
+        marker=dict(
+            size=size,
+            color=color,
+            opacity=opacity,
+            line=dict(width=2, color="DarkSlateGrey")
+        ),
+        showlegend=False
+    )
+
+    figure.add_trace(positions_trace)
+
+    if box is not None:
+        cube = coxeter.families.PlatonicFamily.get_shape("Cube")
+
+        vertices = np.asarray(box) * cube.vertices
+        edges = cube.edges
+    
+        data = []   # TODO: make this numpy
+
+        for edge in edges:
+            data.append([vertices[edge[0], i] for i in [0, 1, 2]])
+            data.append([vertices[edge[1], i] for i in [0, 1, 2]])
+            data.append([None, None, None])
+        
+        data = np.asarray(data)
+        
+        figure.add_trace(
+            plotly.graph_objects.Scatter3d(
+                x=data[:, 0],
+                y=data[:, 1],
+                z=data[:, 2],
+                mode='lines',
+                opacity=box_opacity,
+                line=dict(color=box_color, width=box_line_width),
+                showlegend=False
+            )
+        )
+    
+    figure.update_layout(util.plot_layout(**layout_kwargs))
+
+    return figure, positions_trace
+
+def plot_orientations(
+    orientations: orientations_like,
+    sphere_radius: float = 1.0,
+    show_sphere: bool = True,
+    color: str = "cornflowerblue",
+    opacity: float = 1.0,
+    size: float = 5.0,
+    sphere_color: str = "grey",
+    sphere_opacity: float = 0.2,
+    **layout_kwargs # TODO
+):
+    """Plot quaternion orientations on the surface of a sphere.
+    
+    Informally evaluate sampling coverage by plotting sampled orientations as
+    locations on the surface of a sphere. Locations are calculated by rotating a
+    reference vector [r, 0, 0] by each quaternion, where r is the sphere's
+    radius.
+
+    Parameters
+    ----------
+    orientations : orientations_like
+        The orientations to plot.
+    sphere_radius : float, default=1.0
+        The radius of the sphere on which to plot the orientations.
+    show_sphere : bool, default=True
+        Whether to show the sphere.
+    color : str, default='cornflowerblue'
+        The color of the orientation markers.
+    opacity : float, default=1.0
+        The opacity of the orientation markers.
+    size : float, default=5.0
+        The size of the orientation markers.
+    sphere_color : str, default='grey'
+        The color of the sphere.
+    sphere_opacity : float, default=0.2
+        The opacity of the sphere.
+    """
+    ref_vector = np.array([1, 0, 0]) * sphere_radius
+    positions = rowan.rotate(orientations, ref_vector)
+
+    figure = plotly.graph_objects.Figure()
+
+    orientations_trace = plotly.graph_objects.Scatter3d(
+        x=positions[:,0],
+        y=positions[:,1],
+        z=positions[:,2],
+        customdata=orientations,
+        mode="markers",
+        marker=dict(
+            size=size,
+            color=color,
+            opacity=opacity,
+            line=dict(width=2, color="DarkSlateGrey")
+        ),
+        hovertemplate=
+            "<b>q</b> (%{customdata[0]:.2f}, %{customdata[1]:.2f}, " +
+            "%{customdata[2]:.2f}, %{customdata[3]:.2f})"
+    )
+    
+    figure.add_trace(orientations_trace)
+
+    if show_sphere:
+        theta, phi = np.mgrid[0:2*np.pi:100j, 0:2*np.pi:100j]
+
+        figure.add_trace(
+            plotly.graph_objects.Surface(
+                x=sphere_radius * np.cos(theta) * np.sin(phi),
+                y=sphere_radius * np.sin(theta) * np.sin(phi),
+                z=sphere_radius * np.cos(phi),
+                colorscale=[[0, sphere_color], [1, sphere_color]],
+                showscale=False,
+                opacity=sphere_opacity
+            )
+        )
+    
+    figure.update_layout(util.plot_layout(**layout_kwargs))
+    
+    return figure, orientations_trace

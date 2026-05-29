@@ -23,6 +23,7 @@ from copy import copy
 from scipy.spatial import Delaunay
 from packaging.version import Version
 
+from .type_aliases import positions_like
 
 # ------------------------------------ COLOR -----------------------------------
 
@@ -1695,7 +1696,7 @@ def get_simulation(
 def measure(
     system: "System",
     quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
-    positions: list[list[float]],
+    positions: positions_like,
     orientations: list[list[float]],
     included_interactions: list["Interaction"],
     simulation_box: list[float],
@@ -1713,10 +1714,11 @@ def measure(
         the entire system, and is saved as a single scalar quantity. 'F' and
         'T' are the net Force and Torque experienced by the probe, and are
         saved as vector quantities.
-    positions : list[list[float]]
+    positions : (N, 3) array of floats
         The positions to measure at.
-    orientations : list[list[float]]
-        The orientations (in quaternion form) to measure at for each position.
+    orientations : (N, M, 4) array of floats
+        The orientations (in quaternion form) to measure at. A separate array
+        of orientations must be provided for every position.
     included_interactions : list[Interactions]
         The Interactions to include in the simulation.
     gsd_filename : str

@@ -6,13 +6,35 @@ from .body import Body
 from .system import System
 from .field import Field
 from .arrangement import Arrangement
+from .top_level_functions import (
+    positions_on_regular_grid,
+    exclude_positions_by_shape,
+    orientations_about_axis,
+    orientations_from_fibonacci_lattice,
+    # exclude_orientations_with_shape_overlap,
+    plot_positions,
+    # plot_orientations,
+    # plot_state,
+    # plot_bodies,
+    # plot_interactions,
+)
 
 __all__ = [
     "Interaction",
     "Body",
     "System",
     "Field",
-    "Arrangement"
+    "Arrangement",
+    "positions_on_regular_grid",
+    "exclude_positions_by_shape",
+    "orientations_about_axis",
+    "orientations_from_fibonacci_lattice",
+    # "exclude_orientations_with_shape_overlap",
+    "plot_positions",
+    # "plot_orientations",
+    # "plot_state",
+    # "plot_bodies",
+    # "plot_interactions",
 ]
 
 __version__ = "0.0.1"

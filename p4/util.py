@@ -1482,6 +1482,8 @@ def add_table_writer(
     probe_is_rigid : bool
         Whether the probe is a rigid body. Required for proper summing of forces
         and torques.
+    probe_index : int
+        The index of the probe's central particle.
     compute : hoomd.md.compute.ThermodynamicQuantities, optional
         An existing thermodynamic computer instance to use. If not provided, a
         new one is created.
@@ -1492,8 +1494,6 @@ def add_table_writer(
         The modified simulation and its thermodynamic computer.
     """
     logger = hoomd.logging.Logger(categories=["scalar", "string"])
-
-    probe_index = 1 # index of the central/primary particle for the probe
 
     def probe_position():
         with simulation.state.cpu_local_snapshot as snapshot:
@@ -1755,6 +1755,10 @@ def measure(
         simulation_box
     )
 
+    # Calculate the index of the probe's central particle
+    n_probe = system.probe.to_hoomd_snapshot().particles.N
+    probe_index = simulation.state.N_particles - n_probe
+
     # Add file writers
     if gsd_filename is not None:
         simulation, compute = add_gsd_writer(simulation, gsd_filename)
@@ -1765,12 +1769,9 @@ def measure(
         csv_file=table,
         quantities=quantities,
         probe_is_rigid=system.probe._is_rigid(included_interactions),
+        probe_index=probe_index,
         compute=None if gsd_filename is None else compute,
     )
-
-    # Calculate the index of the probe's central particle
-    n_probe = system.probe.to_hoomd_snapshot().particles.N
-    probe_index = simulation.state.N_particles - n_probe
 
     # Iterate over positions
     for p in positions:

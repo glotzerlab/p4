@@ -58,7 +58,7 @@ def exclude_positions_by_shape(
 
     Parameters
     ----------
-    positions : positions_like
+    positions : (N, 3) array of floats
         The positions to filter.
     shape : coxeter.shapes.Polyhedron
         The shape to check against positions.
@@ -111,19 +111,15 @@ def orientations_from_fibonacci_lattice(
     `this paper <https://ieeexplore.ieee.org/document/9878746>`_ for a
     derivation.
 
-    To sample only a section of the 3-sphere, pass an array representing the
-    rotational symmetry about each axis.
+    To sample only a section of the 3-sphere, pass a string representing the
+    symmetry group.
 
     Parameters
     ----------
     n : int
         The number of points in the lattice.
-    symmetries : list[int], optional
-        The rotational symmetry for each axis. If not provided, C1 symmetry is
-        assumed for every axis. [X, Y, Z]
-    symmetry_offsets : list[float], optional
-        An angular offset to apply for each rotational symmetry. If not,
-        provided, offsets default to 0 for each axis.
+    group : str, optional
+        The symmetry group. TODO: elaborate
     
     Returns
     -------
@@ -202,9 +198,9 @@ def plot_positions(
 
     Parameters
     ----------
-    positions : positions_like
+    positions : (N, 3) array of floats
         The positions to plot.
-    box : list[float], optional
+    box : (3,) array of floats, optional
         The size of the system box, expressed as a (3,) array of side lengths.
         If not provided, no box is plotted.
     color : str, default='cornflowerblue'

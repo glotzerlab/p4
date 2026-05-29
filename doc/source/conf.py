@@ -28,7 +28,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
-    "sphinx_autodoc_typehints",
+    "sphinx_autodoc_typehints", # possibly remove for type aliases
     "sphinx_copybutton",
 ]
 

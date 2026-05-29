@@ -1774,8 +1774,8 @@ def measure(
     )
 
     # Iterate over positions
-    for p in positions:
-        for o in orientations:
+    for p, os in zip(positions, orientations):
+        for o in os:
             with simulation.state.cpu_local_snapshot as state:
                 # Note: only probe position and orientation need to be
                 # reset. No forces can change the probe particle's velocity

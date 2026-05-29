@@ -16,7 +16,8 @@ Other
 - [ ] Support VTK in Body IO
 - [ ] Support VTK in Arrangement IO
 - [ ] Add state/frame plotting
-- [ ] fix failing arrangement test
+- [ ] fix body image wrapping problem
+- [ ] switch from nested for-loop to single computation over many spaced-out configurations
 
 Docs
 - [ ] switch to MyST

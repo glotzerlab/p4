@@ -26,6 +26,12 @@ type positions_like = (
     | np.ndarray[tuple[*tuple[int, ...], Literal[3]], np.dtype[np.floating]]
 )
 
+type orientation_like = (
+    list[float]
+    | tuple[float, float, float, float]
+    | np.ndarray[tuple[Literal[4]], np.dtype[np.floating]]
+)
+
 type orientations_like = (
     Iterable[list[float]]
     | Iterable[tuple[float, float, float, float]]

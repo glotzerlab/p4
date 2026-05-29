@@ -607,18 +607,21 @@ class System:
         probe_orientations = np.asarray(orientations)
 
         # Ensure positions is a 2D array in 3D space
-        if len(positions.shape) != 2 or positions.shape[1] != 3:
+        if len(probe_positions.shape) != 2 or probe_positions.shape[1] != 3:
             raise ValueError("Positions must be a (N, 3) array.")
 
         # If necessary, broadcast orientations
-        if len(orientations.shape) < 3 and orientations.shape[-1] == 4:
-            orientations = np.array(
-                [np.atleast_2d(orientations) for _ in positions]
+        if (
+            len(probe_orientations.shape) < 3
+            and probe_orientations.shape[-1] == 4
+        ):
+            probe_orientations = np.array(
+                [np.atleast_2d(probe_orientations) for _ in probe_positions]
             )
         elif (
-            len(orientations.shape) != 3
-            or orientations.shape[0] != positions.shape[0]
-            or orientations.shape[-1] == 4
+            len(probe_orientations.shape) != 3
+            or probe_orientations.shape[0] != probe_positions.shape[0]
+            or probe_orientations.shape[-1] == 4
         ):
             raise ValueError("Could not broadcast orientations onto positions.")
         

@@ -21,6 +21,11 @@ import rowan
 from collections import defaultdict
 from copy import copy
 from scipy.spatial import Delaunay
+from packaging.version import Version
+
+
+# ------------------------------------ COLOR -----------------------------------
+
 
 # https://davidmathlogic.com/colorblind
 # (original source IBM Design Library)
@@ -1292,135 +1297,6 @@ def polyhedron_line_intersection(
     
     return slice_geometries2
 
-# ---------------------------------- SAMPLING ----------------------------------
-
-
-def get_probe_positions(
-    box: list[float],
-    resolutions: list[int]
-) -> np.ndarray:
-    """Return an array of positions in an origin-centered box.
-
-    Parameters
-    ----------
-    box : list[float]
-        The lengths of the sides of the box in X, Y, Z order.
-    resolutions : list[int]
-        The resolution of the point grid for each dimension in X, Y, Z order.
-    
-    Returns
-    -------
-    np.ndarray
-        A numpy array (..., 3) of positions.
-    """
-    positions = np.array(list(itertools.product(
-        np.linspace(-box[0]/2, box[0]/2, resolutions[0], endpoint=False),
-        np.linspace(-box[1]/2, box[1]/2, resolutions[1], endpoint=False),
-        np.linspace(-box[2]/2, box[2]/2, resolutions[2], endpoint=False),
-    )))
-
-    positions[:,0] += (box[0]/resolutions[0])/2
-    positions[:,1] += (box[1]/resolutions[1])/2
-    positions[:,2] += (box[2]/resolutions[2])/2
-
-    return positions
-
-def subdivide(array: list, n: int):
-    """Subdivide an array into some number of chunks of consecutive items.
-
-    Disclaimer: the body of this function was written by ChatGPT.
-
-    Parameters
-    ----------
-    array : list
-        The array to subdivide
-    n : int
-        The number of chunks to subdivide the array into.
-
-    Returns
-    -------
-    subarrays
-        An array of sections of the input array.
-    """
-    k, m = divmod(len(array), n)
-    return [array[i*k + min(i, m):(i+1)*k + min(i+1, m)] for i in range(n)]
-
-def exclude_positions_by_shape(
-    positions: list[list[float]],
-    shape: coxeter.shapes.ConvexPolyhedron,
-    exclude_inside: bool,
-    buffer: float=0.0,
-):
-    """Remove positions inside or outside a shape with an optional buffer.
-
-    Parameters
-    ----------
-    positions : list[list[float]]
-        Array of positions. (..., 3)
-    shape : coxeter.shapes.ConvexPolyhedron
-        The shape to check against positions.
-    exclude_inside : bool
-        Whether to exclude positions that are inside the shape (True) or
-        outside (False).
-    buffer : float, optional
-        An buffer distance for the shape. If greater than zero, the provided
-        `shape` is converted into a ConvexSpheroPolyhedron and exclusion checks
-        are performed on that instead. If smaller than zero, the provided shape
-        is shrunk by the factor ((r+b)/r), where b is the absolute value of the
-        buffer distance and r is the radius of the maximal centered bounded
-        sphere. [TODO: check that this is ok]
-
-    Returns
-    -------
-    np.ndarray
-        The positions that are not excluded.
-    """
-    if buffer > 0:
-        shape = coxeter.shapes.ConvexSpheropolyhedron(shape.vertices, buffer)
-    if buffer < 0:
-        r = shape.maximal_centered_bounded_sphere_radius
-        shape._vertices *= (r + buffer) / r
-    
-    if exclude_inside:
-        return np.array(positions)[~shape.is_inside(positions)]
-    else:
-        return np.array(positions)[shape.is_inside(positions)]
-
-def get_probe_orientations(
-    resolutions: list[int],
-    symmetries: list[int] | None = None,
-) -> np.ndarray:
-    """Calculate an grid of orientations evenly sampling given axes.
-
-    Parameters
-    ----------
-    resolutions : list[int]
-        The number of samples per axis. [X, Y, Z]
-    symmetries : list[int], optional
-        The rotational symmetry for each axis. If not provided, C1 symmetry is
-        assumed for every axis. [X, Y, Z]
-
-    Returns
-    -------
-    orientations
-        A numpy array (..., 4) of orientations as quaternions.
-    """
-    if symmetries is None:
-        symmetries = [1, 1, 1]
-    angles = np.array(list(itertools.product(
-        np.linspace(0, 2*np.pi/symmetries[2], resolutions[2], endpoint=False),
-        np.linspace(0, 2*np.pi/symmetries[1], resolutions[1], endpoint=False),
-        np.linspace(0, 2*np.pi/symmetries[0], resolutions[0], endpoint=False),
-    )))
-    return rowan.from_euler(angles[:,0], angles[:,1], angles[:,2])
-
-def find_nearest(array, value):
-    """Find the item nearest to a given value in an array."""
-    # Ref: https://stackoverflow.com/a/2566508/15426433
-    array = np.asarray(array)
-    idx = (np.abs(array - value)).argmin()
-    return array[idx]
-
 
 # --------------------------------- SIMULATION ---------------------------------
 
@@ -1458,7 +1334,6 @@ def snapshot_to_frame(snapshot: hoomd.Snapshot):
 def get_initial_frame(
     probe: "Body",
     analyte: "Body" | "Arrangement",
-    probe_box: list[float],
     simulation_box: list[float],
 ) -> gsd.hoomd.Frame:
     """Return a simulation frame with analyte at center and probe at edge.
@@ -1474,8 +1349,6 @@ def get_initial_frame(
         The body for the probe.
     analyte : Body | Arrangement
         The body or arrangement for the analyte.
-    probe_box : list[float]
-        The side lengths of the box that will be probed. [Lx, Ly, Lz]
     simulation_box : list[float]
         The side lengths of the simulation box. [Lx, Ly, Lz]
 
@@ -1488,11 +1361,9 @@ def get_initial_frame(
     probe_frame = snapshot_to_frame(probe.to_hoomd_snapshot())
     analyte_frame = snapshot_to_frame(analyte.to_hoomd_snapshot())
 
-    # Recalculate the position data for the probe frame, moving the probe
-    # center to the edge of the probe box
-    probe_frame.particles.position -= np.array(
-        [-probe_box[0]/2, -probe_box[1]/2, -probe_box[2]/2]
-    )
+    # Start with the probe at [0, 0, 0] - this shouldn't be a problem if it is
+    # moved before simulation.run()
+    probe_frame.particles.position -= np.array([0, 0, 0])
 
     # Merge all data together, placing the probe particles after the analyte
     # particles in the frame data
@@ -1756,7 +1627,6 @@ def get_simulation(
     system: "System",
     included_interactions: list["Interaction"],
     nlist: hoomd.md.nlist.NeighborList,
-    measurement_box: list[float],
     simulation_box: list[float]
 ) -> hoomd.Simulation:
     """Return a simulation for a System with specified boxes and interactions.
@@ -1770,9 +1640,6 @@ def get_simulation(
         The interactions to include in the simulation.
     nlist : hoomd.md.nlist.NeighborList
         The neighbor list to use for the interactions in the simulation.
-    measurement_box : list[float]
-        The side lengths $[Lx, Ly, Lz]$ of the box containing the positions to
-        measure at.
     simulation_box : list[float]
         The simulation's box in HOOMD notation. $[Lx, Ly, Lz, xy, xz, yz]$
 
@@ -1785,7 +1652,6 @@ def get_simulation(
     frame = get_initial_frame(
         system.probe,
         system.analyte,
-        measurement_box,
         simulation_box
     )
 
@@ -1832,7 +1698,6 @@ def measure(
     positions: list[list[float]],
     orientations: list[list[float]],
     included_interactions: list["Interaction"],
-    measurement_box: list[float],
     simulation_box: list[float],
     gsd_filename: str | None,
     nlist: hoomd.md.nlist.NeighborList,
@@ -1887,7 +1752,6 @@ def measure(
         system,
         included_interactions,
         nlist,
-        measurement_box,
         simulation_box
     )
 

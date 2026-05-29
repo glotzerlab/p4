@@ -9,8 +9,10 @@ from typing import Iterable, Literal
 import multiprocessing
 
 import hoomd
+import numpy as np
 
 from . import util
+from .type_aliases import positions_like, orientation_like, orientations_like
 from .body import Body
 from .interaction import Interaction
 from .arrangement import Arrangement
@@ -551,12 +553,9 @@ class System:
     def measure(
         self,
         quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
-        position_resolutions: list[float],
-        orientation_resolutions: list[list[float]],
-        symmetries: list[int],
-        csv_filename: str,
-        outside_cutoff: float,
-        box_safety_factor: float = 100,
+        positions: positions_like,
+        orientations: orientation_like | orientations_like | Iterable[orientations_like],
+        csv_filename: os.PathLike,
         n_processes: int = 1,
         save_gsd: bool = False,
         nlist: hoomd.md.nlist.NeighborList | None = None,
@@ -570,33 +569,24 @@ class System:
             the entire system, and is saved as a single scalar quantity. 'F' and
             'T' are the net Force and Torque experienced by the probe, and are
             saved as vector quantities.
-        position_resolutions : list[float]
-            The number of samples along each dimension :math:`[X, Y, Z]` of the
-            position grid.
-        orientation_resolutions : list[float]
-            The number of samples along each dimension :math:`[X, Y, Z]` of the
-            axis-angle orientation grid.
-        orientation_symmetries : list[int]
-            The rotational symmetry for each axis $[X, Y, Z]$. If not provided,
-            C1 symmetry is assumed for every axis. 
+        positions : (N, 3) array of floats
+            The positions at which to measure.
+        orientations : (4,), (M, 4), or (N, M, 4) array of floats
+            The orientations at which to measure. If the array is 1D or 2D, it
+            is broadcast so that each orientation is sampled at each position.
+            If the array is 3D, it and ``positions`` must have identically-sized
+            first axes (i.e., if ``positions`` has the shape ``(N, 3)``,
+            ``orientations`` must have the shape ``(N, M, 4)``).
         csv_filename : str
-            The name of the CSV file to save.
-        outside_cutoff : float
-            The cutoff distance outside which no positions will be probed. This
-            distance represents the side lengths of a cube centered on the
-            origin.
-        box_safety_factor : float, default=100
-            The scale factor for the simulation box, since it must be bigger
-            than the probe box to prevent the minimum image problem. Defaults
-            to 100, which should be sufficient in most cases.
+            The name or path for the output CSV file.
         n_processes : int, default=1
             The number of processes to distribute the probe operation between.
             Parallelization is implemented at the Python level, so each process
             creates and runs its own simulation and then the table results are
             combined in the output CSV. Note that if ``save_gsd`` is set to
             True, each simulation will produce a separate GSD file. Set this
-            parameter to -1 to use the maximum allowed number of processes for
-            your machine.
+            parameter to ``-1`` to use the maximum allowed number of processes
+            for your machine.
         save_gsd : bool, default=False
             Whether to save a GSD file alongside the output CSV file. If True,
             the GSD has the same name as the CSV. The name of the GSD file will
@@ -611,13 +601,59 @@ class System:
         # Default nlist
         if nlist is None:
             nlist = hoomd.md.nlist.Tree(2)
+
+        # Ensure positions and orientations are numpy arrays (TODO: validate)
+        probe_positions = np.asarray(positions)
+        probe_orientations = np.asarray(orientations)
+
+        # Ensure positions is a 2D array in 3D space
+        if len(positions.shape) != 2 or positions.shape[1] != 3:
+            raise ValueError("Positions must be a (N, 3) array.")
+
+        # If necessary, broadcast orientations
+        if len(orientations.shape) < 3 and orientations.shape[-1] == 4:
+            orientations = np.array(
+                [np.atleast_2d(orientations) for _ in positions]
+            )
+        elif (
+            len(orientations.shape) != 3
+            or orientations.shape[0] != positions.shape[0]
+            or orientations.shape[-1] == 4
+        ):
+            raise ValueError("Could not broadcast orientations onto positions.")
         
-        # Calculate probe box based on cutoff distances
-        probe_box = [outside_cutoff, outside_cutoff, outside_cutoff]
+        # Calculate a simulation box that contains all the particles
+        max_distance = probe_positions.max()
+        if isinstance(self.analyte, Body):
+            for ps in self.analyte.positions_by_type.values():
+                max_distance = max(max_distance, np.asarray(ps).max())
+        elif isinstance(self.analyte, Arrangement):
+            for b in self.analyte.bodies:
+                if not b.secondary_types:
+                    continue
+                for primary_p in self.analyte.positions_by_type[b.primary_type]:
+                    max_distance = max(
+                        max_distance,
+                        *[
+                            (np.asarray(primary_p) + np.asarray(ps).max()).max()
+                            for ps in b.positions_by_type.values()
+                        ]
+                    )
+        max_r_cut = 0
+        for i in self.interactions:
+            max_r_cut = max(max_r_cut, i.initial_args.get("default_r_cut", 0))
+            max_r_cut = max(max_r_cut, i.default_params.get("default_r_cut", 0))
+            for param_dict in i.typed_params.values():
+                max_r_cut = max(max_r_cut, param_dict.get("r_cut", 0))
         
-        # Determine the frame's box from the probe box
-        simulation_box = [d * box_safety_factor for d in probe_box]
-        simulation_box.extend([0, 0, 0])
+        simulation_box = 1.1 * np.array([
+            2 * (max_distance + max_r_cut),
+            2 * (max_distance + max_r_cut),
+            2 * (max_distance + max_r_cut),
+            0.0,
+            0.0,
+            0.0
+        ])
 
         # Figure out number of processes that will be used formultiprocessing.
         # Each process will ultimately receive its own simulation.
@@ -626,27 +662,32 @@ class System:
 
         if n_processes == -1:
             n_processes = os.process_cpu_count()
-        
-        # Calculate the probe positions and orientations
-        probe_positions = util.get_probe_positions(
-            probe_box,
-            position_resolutions
-        )
-        probe_orientations = util.get_probe_orientations(
-            orientation_resolutions,
-            symmetries
-        )
-
-        # Remove positions that are too far away
-        probe_positions = util.exclude_positions_by_shape(
-            positions=probe_positions,
-            exclude_inside=False,
-            shape=util.get_cube(outside_cutoff),
-            buffer=0.0
-        )
 
         # If multiprocessing, run copies of the probe simulation with chunks
         # of the set of positions across a collection of processes
+        def subdivide(array: list, n: int):
+            """Subdivide an array into n chunks of consecutive items.
+
+            Disclaimer: the body of this function was written by ChatGPT.
+
+            Parameters
+            ----------
+            array : list
+                The array to subdivide
+            n : int
+                The number of chunks to subdivide the array into.
+
+            Returns
+            -------
+            subarrays
+                An array of sections of the input array.
+            """
+            k, m = divmod(len(array), n)
+            return [
+                array[i*k + min(i, m):(i+1)*k + min(i+1, m)]
+                for i in range(n)
+            ]
+        
         if n_processes != 1:
             with multiprocessing.Pool(processes=n_processes) as pool:
                 if save_gsd:
@@ -660,10 +701,9 @@ class System:
                 args = zip(
                     [deepcopy(self) for _ in range(n_processes)],
                     [quantities for _ in range(n_processes)],
-                    util.subdivide(probe_positions, n_processes),
+                    subdivide(probe_positions, n_processes),
                     [probe_orientations for _ in range(n_processes)],
                     [self.active_interactions for _ in range(n_processes)],
-                    [probe_box for _ in range(n_processes)],
                     [simulation_box for _ in range(n_processes)],
                     gsd_filenames,
                     [nlist for _ in range(n_processes)],
@@ -684,7 +724,6 @@ class System:
                 positions=probe_positions,
                 orientations=probe_orientations,
                 included_interactions=self.active_interactions,
-                measurement_box=probe_box,
                 simulation_box=simulation_box,
                 gsd_filename=gsd_filename,
                 nlist=nlist,

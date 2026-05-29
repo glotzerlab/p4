@@ -9,6 +9,9 @@ import p4
 
 REFERENCE_FOLDER = Path(__file__).parent / "data"
 
+POSITIONS = p4.positions_on_regular_grid(box=[20, 20, 20], resolution=[2, 2, 2])
+ORIENTATIONS = p4.orientations_about_axis(n=2, axis=[0, 0, 1])
+
 def test_measure_same_probe_and_analyte():
     """Ensure System.measure() does not error when the probe and analyte are identical."""
     s = p4.System(
@@ -28,12 +31,9 @@ def test_measure_same_probe_and_analyte():
         test_path = Path(tempdir) / f"test.csv"
         s.measure(
             quantities=["U", "F", "T"],
-            position_resolutions=[2, 2, 2],
-            orientation_resolutions=[2, 2, 2],
-            symmetries=[1, 1, 1],
+            positions=POSITIONS,
+            orientations=ORIENTATIONS,
             csv_filename=test_path,
-            save_gsd=False,
-            outside_cutoff=20,
         )
 
 def test_measure_single_particle_probe_multi_particle_body_analyte():
@@ -58,12 +58,9 @@ def test_measure_single_particle_probe_multi_particle_body_analyte():
         test_path = Path(tempdir) / f"test.csv"
         s.measure(
             quantities=["U", "F", "T"],
-            position_resolutions=[2, 2, 2],
-            orientation_resolutions=[2, 2, 2],
-            symmetries=[1, 1, 1],
+            positions=POSITIONS,
+            orientations=ORIENTATIONS,
             csv_filename=test_path,
-            save_gsd=False,
-            outside_cutoff=20,
         )
 
 def test_measure_multi_particle_probe_single_particle_body_analyte():
@@ -88,12 +85,9 @@ def test_measure_multi_particle_probe_single_particle_body_analyte():
         test_path = Path(tempdir) / f"test.csv"
         s.measure(
             quantities=["U", "F", "T"],
-            position_resolutions=[2, 2, 2],
-            orientation_resolutions=[2, 2, 2],
-            symmetries=[1, 1, 1],
+            positions=POSITIONS,
+            orientations=ORIENTATIONS,
             csv_filename=test_path,
-            save_gsd=False,
-            outside_cutoff=20,
         )
 
 def test_measure_single_particle_probe_single_particle_arrangement_analyte():
@@ -118,12 +112,9 @@ def test_measure_single_particle_probe_single_particle_arrangement_analyte():
         test_path = Path(tempdir) / f"test.csv"
         s.measure(
             quantities=["U", "F", "T"],
-            position_resolutions=[2, 2, 2],
-            orientation_resolutions=[2, 2, 2],
-            symmetries=[1, 1, 1],
+            positions=POSITIONS,
+            orientations=ORIENTATIONS,
             csv_filename=test_path,
-            save_gsd=False,
-            outside_cutoff=20,
         )
 
 def test_measure_single_particle_probe_multi_particle_arrangement_analyte():
@@ -163,10 +154,7 @@ def test_measure_single_particle_probe_multi_particle_arrangement_analyte():
         test_path = Path(tempdir) / f"test.csv"
         s.measure(
             quantities=["U", "F", "T"],
-            position_resolutions=[2, 2, 2],
-            orientation_resolutions=[2, 2, 2],
-            symmetries=[1, 1, 1],
+            positions=POSITIONS,
+            orientations=ORIENTATIONS,
             csv_filename=test_path,
-            save_gsd=False,
-            outside_cutoff=20,
         )

@@ -89,14 +89,16 @@ field of the system using the code below.
 
     data_path = "doc/source/data" # change to your own directory path
 
+    positions = p4.positions_on_regular_grid(
+        box=[10, 10, 10],
+        resolution=[10, 10, 10]
+    )
+
     system.measure(
         quantities=["U"],
-        position_resolutions=[10, 10, 10],   # change to fit your system
-        orientation_resolutions=[1, 1, 1],   # change to fit your system
-        symmetries=[1, 1, 1],                # change to fit your system
-        nlist=hoomd.md.nlist.Tree(2),
-        csv_filename=data_path+"/field.csv",# change to fit your system
-        outside_cutoff=10,                   # change to fit your system
+        positions=positions,                    # change to fit your system
+        orientations=[1, 0, 0, 0],              # change to fit your system
+        csv_filename=data_path+"/field.csv",    # change to fit your system
     )
 
 This method saves a csv file that records the potential energy at each position

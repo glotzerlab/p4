@@ -52,14 +52,16 @@ isotropic, torque will be zero everywhere.)
 
     data_path = "doc/source/data" # change to your own directory path
 
+    positions = p4.positions_on_regular_grid(
+        box=[5, 5, 5],
+        resolution=[30, 30, 30]
+    )
+
     system.measure(
         quantities=["U", "F"],
-        position_resolutions=[30, 30, 30],
-        orientation_resolutions=[1, 1, 1], # <-- note: single orientation
-        symmetries=[1, 1, 1],
-        nlist=hoomd.md.nlist.Tree(2),
+        positions=positions,
+        orientations=[1, 0, 0, 0], # <-- note: single orientation
         csv_filename=data_path+"/ac-lj-uf.csv",
-        outside_cutoff=5,
     )
 
 :py:meth:`~p4.System.measure` writes all of the measurements into a CSV file.
@@ -259,14 +261,15 @@ Let's create the system and measure its energy, and force fields.
         analyte=cubic_body,
         interactions=[attraction, repulsion]
     )
+    positions = p4.positions_on_regular_grid(
+        box=[5, 5, 5],
+        resolution=[20, 20, 20]
+    )
     system.measure(
         quantities=["U", "F", "T"],
-        position_resolutions=[30, 30, 30],
-        orientation_resolutions=[1, 1, 1],
-        symmetries=[1, 1, 1],
-        nlist=hoomd.md.nlist.Tree(2),
+        positions=positions,
+        orientations=[1, 0, 0, 0],
         csv_filename=data_path+"/abd-aljg-uft.csv",
-        outside_cutoff=5,
     )
 
     field = p4.Field.from_csv(data_path+"/abd-aljg-uft.csv")
@@ -341,10 +344,10 @@ repulsive potential that is only active between the cube particle types "A" and
 
 Now we can make a new system, and this time we can measure its energy, force,
 *and* torque fields. Since the probe is anisotropic, it is no longer correct
-to measure at a single probe orientation, so we must specify
-``orientation_resolutions``. The probe has 4-fold symmetry about each axis, so
-and we can use those ``symmetries`` to decrease the number of required
-orientation points to sample.
+to measure at a single probe orientation, so we must specify multiple
+orientations for each position.The probe has octahedral symmetry (point group
+"O\ :sub:`h`"), and we can use that symmetry to reduce the number of
+orientations required for accurate sampling of orientation-space.
 
 .. code-block:: python
 
@@ -353,20 +356,23 @@ orientation points to sample.
         analyte=cubic_body,
         interactions=[attraction, repulsion2]
     )
+    positions = p4.positions_on_regular_grid(
+        box=[10, 10, 10],
+        resolution=[15, 15, 15]
+    )
+    orientations = p4.orientations_from_fibonacci_lattice(n=10, group="O")
     system2.measure(
         quantities=["U", "F", "T"],
-        position_resolutions=[13, 13, 13],
-        orientation_resolutions=[5, 5, 5],  # <--
-        symmetries=[4, 4, 4],               # <--
-        nlist=hoomd.md.nlist.Tree(2),
-        csv_filename=data_path+"/abcd-aljg-uft.csv",
-        outside_cutoff=10,
+        positions=positions,
+        orientations=orientations,
+        csv_filename="abcd-aljg-uft.csv",
     )
 
 .. note::
-    We must double the ``outside_cutoff``, because the effective shape of the
-    repulsive cube (as experienced by another repulsive cube) is double the
-    size of the original cube. This will be evident in a plot below.
+    We must double the size of the box containing the positions, because the
+    effective shape of the repulsive cube (as experienced by another repulsive
+    cube) is double the size of the original cube. This will be evident in a
+    plot below.
 
 .. note::
     Measuring fields with anisotropic probes is much slower than with isotropic

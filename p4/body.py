@@ -1701,7 +1701,7 @@ class Body:
                         name=t,
                         opacity=trace_opacity,
                         line=dict(
-                            opacity=trace_opacity,
+                            color=trace_color,
                             width=default_line_width if trace_size is None else trace_size
                         ),
                         cliponaxis=False,

@@ -1466,6 +1466,7 @@ def add_table_writer(
     csv_file: TextIOWrapper,
     quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
     probe_is_rigid: bool,
+    probe_index: int,
     compute: hoomd.md.compute.ThermodynamicQuantities | None = None
 ) -> Tuple[hoomd.Simulation, hoomd.logging.Logger]:
     """Add a table writer that logs named quantities to the simulation.

@@ -156,9 +156,9 @@ class Arrangement:
         ----------
         body : Body
             The new body to add.
-        positions : list[list[float]]
+        positions : (N, 3) array of floats
             The positions for the new body.
-        orientations : list[list[float]], optional
+        orientations : (N, 4) array of floats, optional
             The orientations for the new body.
         """
         if body.primary_type in [b.primary_type for b in self.bodies]:
@@ -250,13 +250,13 @@ class Arrangement:
         Parameters
         ----------
         name : str or int or Body
-            The body to remove. Specify a body by providing its primary type,
+            The body to update. Specify a body by providing its primary type,
             its index in :py:meth:`~p4.Arrangement.bodies`, or by providing the
             Body directly.
-        positions : list[list[float]], optional
-            The positions for the new body.
-        orientations : list[list[float]], optional
-            The orientations for the new body.
+        positions : (N, 3) array of floats, optional
+            The positions for the body.
+        orientations : (N, 4) array of floats, optional
+            The orientations for the body.
         """
         # Validate body input and calculate data used to find it in self.bodies
         if isinstance(body, str):

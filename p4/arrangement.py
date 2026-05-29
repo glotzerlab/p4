@@ -396,7 +396,7 @@ class Arrangement:
 
         for b in bodies:
             tid = snapshot.particles.types.index(b.primary_type)
-            indices = np.argwhere(snapshot.particles.typeid == tid).flatten()
+            indices = np.nonzero(snapshot.particles.typeid == tid)[0]
             positions = snapshot.particles.position[indices]
             orientations = snapshot.particles.orientation[indices]
 

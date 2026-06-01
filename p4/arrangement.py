@@ -661,6 +661,8 @@ class Arrangement:
     ):
         """Export the arrangement to a frame in a GSD file.
 
+        .. _shapes module: https://coxeter.readthedocs.io/en/latest/package-shapes.html
+
         Parameters
         ----------
         filename : os.PathLike
@@ -668,8 +670,6 @@ class Arrangement:
         type_shapes: dict[str, coxeter.shapes], optional
             If provided, encodes geometry for provided particle types. Specify
             a geometry using Coxeter's `shapes module`_.
-        
-        .. _shapes module: https://coxeter.readthedocs.io/en/latest/package-shapes.html
         """
         snapshot = self.to_hoomd_snapshot()
 

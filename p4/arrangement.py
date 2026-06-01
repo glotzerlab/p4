@@ -144,6 +144,27 @@ class Arrangement:
         """A mapping from body primary types to positions in 3D space."""
         return self._positions_by_type
 
+    @property
+    def orientations_by_type(self) -> dict[str, list[list[float]]]:
+        """A mapping from body primary types to orientations as quaternions.
+        
+        If not specified for a type, defaults to an array of ``(1,0,0,0)``
+        quaternions.
+        """
+        return self._orientations_by_type
+
+    @orientations_by_type.setter
+    def orientations_by_type(self, value: orientations_like):
+        """Set a mapping from body primary types to orientations."""
+        self.validate(
+            bodies=self._bodies,
+            positions_by_type=self._positions_by_type,
+            orientations_by_type=value
+        )
+        self._orientations_by_type = util.sanitize(value)
+
+    # ------------------------------- OPERATIONS -------------------------------
+
     def add(
         self,
         body: Body,
@@ -306,26 +327,7 @@ class Arrangement:
         self._positions_by_type.update(util.sanitize(positions_by_type))
         self._orientations_by_type.update(util.sanitize(orientations_by_type))
 
-    @property
-    def orientations_by_type(self) -> dict[str, list[list[float]]]:
-        """A mapping from body primary types to orientations as quaternions.
-        
-        If not specified for a type, defaults to an array of ``(1,0,0,0)``
-        quaternions.
-        """
-        return self._orientations_by_type
-
-    @orientations_by_type.setter
-    def orientations_by_type(self, value: orientations_like):
-        """Set a mapping from body primary types to orientations."""
-        self.validate(
-            bodies=self._bodies,
-            positions_by_type=self._positions_by_type,
-            orientations_by_type=value
-        )
-        self._orientations_by_type = util.sanitize(value)
-
-    # --------------------------------- IMPORT ---------------------------------
+    # ---------------------------------- FROM ----------------------------------
 
     @classmethod
     def from_hoomd_simulation(
@@ -516,7 +518,7 @@ class Arrangement:
         data["bodies"] = [Body(**b) for b in data["bodies"]]
         return data
 
-    # --------------------------------- EXPORT ---------------------------------
+    # ----------------------------------- TO -----------------------------------
 
     def to_hoomd_rigid(
         self,

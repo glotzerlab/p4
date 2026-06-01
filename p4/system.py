@@ -187,7 +187,6 @@ class System:
         )
         self._probe = value
         
-        
     @property
     def analyte(self) -> Body | Arrangement:
         """The system's analyte.
@@ -223,7 +222,7 @@ class System:
         )
         self._interactions = value
 
-    # --------------------------------- IMPORT ---------------------------------
+    # ---------------------------------- FROM ----------------------------------
 
     @classmethod
     def from_hoomd_simulation(
@@ -396,7 +395,7 @@ class System:
 
         return data
 
-    # --------------------------------- EXPORT ---------------------------------
+    # ----------------------------------- TO -----------------------------------
 
     def to_json(
         self,
@@ -507,11 +506,11 @@ class System:
             if (
                 any(
                     t in probe_types
-                    for t in interaction.interacting_types("single")
+                    for t in interaction._interacting_types("single")
                 )
                 and any(
                     t in analyte_types
-                    for t in interaction.interacting_types("single")
+                    for t in interaction._interacting_types("single")
                 )
             ):
                 included_interactions.append(interaction)
@@ -521,7 +520,7 @@ class System:
             # analyte
             else:
                 straddlers = []
-                for type_pair in interaction.interacting_types("pair"):
+                for type_pair in interaction._interacting_types("pair"):
                     if (
                         any(t in probe_types for t in type_pair)
                         and any(t in analyte_types for t in type_pair)
@@ -548,7 +547,7 @@ class System:
 
         return list(set(all_types))
 
-    # -------------------------------- MEASURE ---------------------------------
+    # --------------------------------- MEASURE --------------------------------
 
     def measure(
         self,

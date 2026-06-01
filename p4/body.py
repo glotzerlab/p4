@@ -256,6 +256,60 @@ class Body:
         """A mapping from secondary types to positions in 3D space."""
         return self._positions_by_type
 
+    @property
+    def orientations_by_type(self) -> dict[str, list[list[float]]]:
+        """A mapping from secondary types to orientations as quaternions.
+        
+        If not specified for a type, defaults to an array of ``(1,0,0,0)``
+        quaternions.
+        """
+        return self._orientations_by_type
+
+    @orientations_by_type.setter
+    def orientations_by_type(self, value: dict[str, orientations_like]):
+        """Set a mapping from secondary types to orientations."""
+        self.validate(
+            secondary_types=self._secondary_types,
+            positions_by_type=self._positions_by_type,
+            orientations_by_type=value
+        )
+        self._orientations_by_type = util.sanitize(value)
+
+    @property
+    def mass_by_type(self) -> dict[str, float]:
+        """A mapping from primary and secondary types to mass.
+        
+        Each type may only have a single mass.
+
+        If not specified for a type, defaults to ``1``.
+        """
+        return self._mass_by_type
+
+    @mass_by_type.setter
+    def mass_by_type(self, value: dict[str, float]):
+        """Set a mapping from primary and secondary types to mass."""
+        self.validate(mass_by_type=value)
+        self._mass_by_type = util.sanitize(value)
+
+    @property
+    def moi_by_type(self) -> dict[str, list[float]]:
+        """A mapping from primary and secondary types to moment of inertia.
+        
+        Moment of Inertia is expressed as a 3-vector. Each type may only have a
+        single Moment of Inertia.
+
+        If not specified for a type, defaults to ``[1, 1, 1]``.
+        """
+        return self._moi_by_type
+
+    @moi_by_type.setter
+    def moi_by_type(self, value: dict[str, moi_like]):
+        """Set a mapping from primary and secondary types to moment of inertia."""
+        self.validate(moi_by_type=value)
+        self._moi_by_type = util.sanitize(value)
+
+    # ------------------------------- OPERATIONS -------------------------------
+
     def add(
         self,
         name: str,
@@ -397,59 +451,7 @@ class Body:
         self._mass_by_type.update(util.sanitize(mass_by_type))
         self._moi_by_type.update(util.sanitize(moi_by_type))
 
-    @property
-    def orientations_by_type(self) -> dict[str, list[list[float]]]:
-        """A mapping from secondary types to orientations as quaternions.
-        
-        If not specified for a type, defaults to an array of ``(1,0,0,0)``
-        quaternions.
-        """
-        return self._orientations_by_type
-
-    @orientations_by_type.setter
-    def orientations_by_type(self, value: dict[str, orientations_like]):
-        """Set a mapping from secondary types to orientations."""
-        self.validate(
-            secondary_types=self._secondary_types,
-            positions_by_type=self._positions_by_type,
-            orientations_by_type=value
-        )
-        self._orientations_by_type = util.sanitize(value)
-
-    @property
-    def mass_by_type(self) -> dict[str, float]:
-        """A mapping from primary and secondary types to mass.
-        
-        Each type may only have a single mass.
-
-        If not specified for a type, defaults to ``1``.
-        """
-        return self._mass_by_type
-
-    @mass_by_type.setter
-    def mass_by_type(self, value: dict[str, float]):
-        """Set a mapping from primary and secondary types to mass."""
-        self.validate(mass_by_type=value)
-        self._mass_by_type = util.sanitize(value)
-
-    @property
-    def moi_by_type(self) -> dict[str, list[float]]:
-        """A mapping from primary and secondary types to moment of inertia.
-        
-        Moment of Inertia is expressed as a 3-vector. Each type may only have a
-        single Moment of Inertia.
-
-        If not specified for a type, defaults to ``[1, 1, 1]``.
-        """
-        return self._moi_by_type
-
-    @moi_by_type.setter
-    def moi_by_type(self, value: dict[str, moi_like]):
-        """Set a mapping from primary and secondary types to moment of inertia."""
-        self.validate(moi_by_type=value)
-        self._moi_by_type = util.sanitize(value)
-
-    # --------------------------------- IMPORT ---------------------------------
+    # ---------------------------------- FROM ----------------------------------
 
     @classmethod
     def from_hoomd_simulation(

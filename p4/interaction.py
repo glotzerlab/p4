@@ -148,7 +148,7 @@ class Interaction:
         # Ensure the parameterized hoomd class can be used in a simple example
         # simulation
         nlist = hoomd.md.nlist.Tree(2)
-        test_types = self.interacting_types("all")
+        test_types = self._interacting_types("all")
         if not test_types:
             test_types = ["A", "B"] # catch case with no typed params
         simulation = hoomd.util.make_example_simulation(
@@ -250,7 +250,7 @@ class Interaction:
             self._typed_params = original_value
             raise
 
-    # --------------------------------- IMPORT ---------------------------------
+    # ---------------------------------- FROM ----------------------------------
 
     @classmethod
     def from_hoomd_simulation(
@@ -466,7 +466,7 @@ class Interaction:
         
         return data
 
-    # --------------------------------- EXPORT ---------------------------------
+    # ----------------------------------- TO -----------------------------------
 
     def to_hoomd_pair(
         self,
@@ -971,7 +971,7 @@ class Interaction:
 
     # ---------------------------------- OTHER ---------------------------------
 
-    def interacting_types(
+    def _interacting_types(
         self,
         category=Literal["single", "pair", "all"]
     ) -> list[str] | list[tuple[str, str]]:
@@ -998,8 +998,8 @@ class Interaction:
             ]
         
         elif category == "all":
-            types = [t for t in self.interacting_types("single")]
-            for p in self.interacting_types("pair"):
+            types = [t for t in self._interacting_types("single")]
+            for p in self._interacting_types("pair"):
                 for t in p:
                     if t not in types:
                         types.append(t)

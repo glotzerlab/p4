@@ -20,7 +20,7 @@ REQUIRED_PARENT_CLASS = p4.interaction.REQUIRED_PARENT_CLASS
 EXCLUDED_TYPE_STRINGS = p4.interaction.EXCLUDED_TYPE_STRINGS
 
 if Version(hoomd.version.version) < Version("7.0.2"):
-    EXCLUDED_TYPE_STRINGS.append("hoomd.md.pair.Table")
+    EXCLUDED_TYPE_STRINGS.append("hoomd.md.pair.pair.Table")
 
 def cls_to_str(cls):
     """Return a string representation of the class' path, including its name."""

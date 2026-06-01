@@ -645,7 +645,7 @@ class System:
         max_r_cut = 0
         for i in self.interactions:
             max_r_cut = max(max_r_cut, i.initial_args.get("default_r_cut", 0))
-            max_r_cut = max(max_r_cut, i.default_params.get("default_r_cut", 0))
+            max_r_cut = max(max_r_cut, i.default_params.get("r_cut", 0))
             for param_dict in i.typed_params.values():
                 max_r_cut = max(max_r_cut, param_dict.get("r_cut", 0))
         

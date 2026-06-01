@@ -1878,9 +1878,9 @@ def test_type_properties(kwargs, expected_singles, expected_pairs):
             if t not in expected_all:
                 expected_all.append(t)
 
-    assert interaction.interacting_types("single") == expected_singles
-    assert interaction.interacting_types("pair") == expected_pairs
-    assert interaction.interacting_types("all") == expected_all
+    assert interaction._interacting_types("single") == expected_singles
+    assert interaction._interacting_types("pair") == expected_pairs
+    assert interaction._interacting_types("all") == expected_all
 
 @pytest.mark.parametrize("cls", CLASSES_TO_TEST)
 @pytest.mark.parametrize("required_or_all", ["required", "all"])

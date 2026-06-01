@@ -1037,7 +1037,6 @@ class Body:
         ignore_types: list[str] | None = None,
         slice: dict[str, float] | None = None,
         schematic_slice: bool = False,
-        template: str | None = "simple_white",
         **kwargs
     ) -> tuple[plotly.graph_objects.Figure, list]:
         """Interactively plot the body using `Plotly`_.
@@ -1091,9 +1090,6 @@ class Body:
             If True, the slice is shown schematically in a 3D view. A 2D slice
             appears like a plane intersecting with the body, while a 1D slice
             appears like a line intersecting with the body.
-        template : str, default='simple_white'
-            The name of a built-in plotly template. Layout parameters passed in
-            ``kwargs`` will override features of this template.
         **kwargs
             Other keyword arguments are passed to the following functions:
 

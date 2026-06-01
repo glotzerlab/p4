@@ -240,7 +240,6 @@ class Field:
         marker_color_1d: str = "black",
         marker_size_1d: float = 6,
         line_width_1d: float = 2,
-        template: str | None = "simple_white",
         **kwargs
     ) -> tuple[plotly.graph_objects.Figure, list]:
         """Interactively plot the field using `Plotly`_.
@@ -294,9 +293,6 @@ class Field:
             In a 1D scalar plot, the size of the marker in pixels.
         line_width_1d : float, default=2
             In a 1D scalar plot, the width of the line in pixels.
-        template : str, default='simple_white'
-            The name of a built-in plotly template to use. Layout parameters
-            passed in ``kwargs`` will override features of this template.
         **kwargs
             Other keyword arguments are passed to ``p4.util.plot_layout()``.
             TODO: add link.
@@ -442,8 +438,6 @@ class Field:
         # Create and style the figure.
         figure = plotly.graph_objects.Figure()
         figure.add_trace(trace)
-        
-        figure.update_layout(template=template)
 
         allowed_kwarg_names = signature(util.plot_layout).parameters.keys()
         layout_kwargs = {

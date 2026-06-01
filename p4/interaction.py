@@ -739,7 +739,6 @@ class Interaction:
         mode: Literal["lines", "marker+lines", "marker"] = "lines",
         marker_size: float = 6,
         line_width: float = 2,
-        template: str = "simple_white",
         **kwargs
     ) -> tuple[plotly.graph_objects.Figure, list]:
         """Plot the interaction potential energy curve for pairs of types.
@@ -790,9 +789,6 @@ class Interaction:
             The size of the marker in pixels.
         line_width : float, default=2
             The width of the line in pixels.
-        template : str, default='simple_white'
-            The name of a built-in plotly template to use. Layout parameters
-            passed in ``kwargs`` will override features of this template.
         **kwargs
             Other keyword arguments are passed to ``p4.util.plot_layout()``.
             TODO: add link.
@@ -940,8 +936,6 @@ class Interaction:
         # Create and style the figure
         figure = plotly.graph_objects.Figure()
         figure.add_traces(traces)
-
-        figure.update_layout(template=template)
 
         allowed_kwarg_names = (
             inspect.signature(util.plot_layout).parameters.keys()

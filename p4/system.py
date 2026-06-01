@@ -561,6 +561,8 @@ class System:
     ):
         """Measure named quantities for the system.
 
+        :meta measure:
+
         Parameters
         ----------
         quantities : one or more of 'U', 'F', 'T'

@@ -28,8 +28,9 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
-    "sphinx_autodoc_typehints", # possibly remove for type aliases
+    # "sphinx_autodoc_typehints", # possibly remove for type aliases
     "sphinx_copybutton",
+    "autoclasstoc",
 ]
 
 # For sphincontrib.bibtex (as of v2.0).
@@ -57,6 +58,11 @@ autodoc_default_options = {
     "inherited-members": False,
     "show-inheritance": False,
     "autosummary": False,
+    "special-members": False,
+    'private-members': False,
+    'inherited-members': False,
+    'undoc-members': False,
+    # 'exclude-members': '__weakref__',
 }
 
 html_theme = "furo"
@@ -68,6 +74,64 @@ html_static_path = ["_static"]
 maximum_signature_line_length = 100
 python_display_short_literal_types = True
 
+
+# Custom sections for autoclasstoc
+# Docs: https://autoclasstoc.readthedocs.io/en/latest/advanced_usage.html
+
+from autoclasstoc import Section, is_method, is_data_attr, is_special
+
+class Properties(Section):
+    key = "properties"
+    title = "Properties"
+
+    def predicate(self, name, attr, meta):
+        return is_data_attr(name, attr) and not is_special(name)
+
+class Operations(Section):
+    key = "operations"
+    title = "Operations"
+
+    def predicate(self, name, attr, meta):
+        return "operation" in meta or name in ["__add__", "__sub__"]
+
+class CreationFrom(Section):
+    key = "creation-from"
+    title = "Creation From"
+
+    def predicate(self, name, attr, meta):
+        return is_method(name, attr) and name.startswith("from_")
+
+class ConversionTo(Section):
+    key = "conversion-to"
+    title = "Conversion To"
+
+    def predicate(self, name, attr, meta):
+        return is_method(name, attr) and name.startswith("to_")
+
+class Plotting(Section):
+    key = "plotting"
+    title = "Plotting"
+
+    def predicate(self, name, attr, meta):
+        return is_method(name, attr) and name == "plot"
+
+class Measure(Section):
+    key = "measure"
+    title = "Measure"
+  
+    def predicate(self, name, attr, meta):
+        return "measure" in meta
+
+autoclasstoc_sections = [
+    "properties",
+    "operations",
+    "creation-from",
+    "conversion-to",
+    "plotting",
+    "measure"
+]
+
+# Custom CSS
 
 def setup(app):
   app.add_css_file("custom.css")

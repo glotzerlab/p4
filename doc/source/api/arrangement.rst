@@ -9,6 +9,8 @@ Describe a collection of bodies with positions and orientations.
 
 .. py:currentmodule:: p4
 
-.. autoclass:: p4.Arrangement
+.. autoclass:: p4.arrangement.Arrangement
     :members:
     :member-order: bysource
+
+    .. autoclasstoc:: p4.Arrangement

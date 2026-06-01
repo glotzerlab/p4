@@ -172,6 +172,8 @@ class Arrangement:
         orientations: orientations_like | None = None,
     ):
         """Add a new body.
+
+        :meta operation:
         
         Parameters
         ----------
@@ -213,7 +215,9 @@ class Arrangement:
 
     def remove(self, body: str | int | Body):
         """Remove a body.
-        
+
+        :meta operation:
+
         Parameters
         ----------
         name : str or int or Body
@@ -267,6 +271,8 @@ class Arrangement:
         orientations: orientations_like | None = None,
     ):
         """Update data for a body.
+
+        :meta operation:
         
         Parameters
         ----------

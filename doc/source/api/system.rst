@@ -10,6 +10,8 @@ types to define a system with a potential energy field that can be probed.
 
 .. py:currentmodule:: p4
 
-.. autoclass:: p4.System
+.. autoclass:: p4.system.System
     :members:
     :member-order: bysource
+
+    .. autoclasstoc:: p4.System

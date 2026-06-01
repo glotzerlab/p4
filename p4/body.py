@@ -320,6 +320,8 @@ class Body:
     ):
         """Add a new secondary particle type.
         
+        :meta operation:
+
         Parameters
         ----------
         name : str
@@ -371,6 +373,8 @@ class Body:
 
     def remove(self, name: str):
         """Remove a secondary particle type.
+
+        :meta operation:
         
         Parameters
         ----------
@@ -400,6 +404,8 @@ class Body:
         moi: moi_like | None = None,
     ):
         """Update data for a secondary particle type.
+
+        :meta operation:
         
         Parameters
         ----------

@@ -242,16 +242,12 @@ class Field:
         cmap: str = "RdYlBu_r",
         fill_nan_with_inf: bool = False,
         show_cbar: bool = True,
-        show_axes: bool = True,
-        show_title: bool = True,
-        show_ticks: bool = True,
-        show_grid: bool = False,
-        show_border: bool = True,
         marker_mode_1d: Literal["lines+markers", "lines", "markers"] = "lines",
         marker_color_1d: str = "black",
         marker_size_1d: float = 6,
         line_width_1d: float = 2,
         template: str | None = "simple_white",
+        **kwargs
     ) -> tuple[plotly.graph_objects.Figure, list]:
         """Interactively plot the field using `Plotly`_.
         
@@ -268,8 +264,8 @@ class Field:
         Parameters
         ----------
         quantity : 'U', 'F', 'T', 'Fx', 'Fy', 'Fz', 'Tx', 'Ty', or 'Tz'
-            The name of the quantity to plot. If this field only contains 'U',
-            'F', or 'T' quantities, this parameter is optional.
+            The name of the quantity to plot. If this field only contains one of
+            'U' or 'F' or 'T' quantities, this parameter is optional.
         vectors : bool, default=False
             Whether to plot the quantity as a scalar or vector. If ``quantity``
             is not 'F' or 'T', this is always False.
@@ -294,16 +290,6 @@ class Field:
             Only used in 3D and 2D scalar plots.
         show_cbar : bool, default=True
             Whether to show the colorbar.
-        show_axes : bool, default=True
-            Whether to show the axes.
-        show_title : bool, default=True
-            Whether to show the title.
-        show_ticks : bool, default=True
-            Whether to show tick marks on the axes.
-        show_grid : bool, default=False
-            Whether to show the axes grid.
-        show_border : bool, default=True
-            Whether to show the plot border.
         marker_mode_1d : 'lines+markers', 'lines', or 'markers', default='lines'
             In a 1D scalar plot, whether to show only lines, only markers, or
             both. Ignored for all other plot types.
@@ -314,6 +300,12 @@ class Field:
             In a 1D scalar plot, the size of the marker in pixels.
         line_width_1d : float, default=2
             In a 1D scalar plot, the width of the line in pixels.
+        template : str, default='simple_white'
+            The name of a built-in plotly template to use. Layout parameters
+            passed in ``kwargs`` will override features of this template.
+        **kwargs
+            Other keyword arguments are passed to ``p4.util.plot_layout()``.
+            TODO: add link.
         
         Returns
         -------

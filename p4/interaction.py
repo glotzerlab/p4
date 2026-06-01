@@ -217,7 +217,6 @@ class Interaction:
             self._initial_args = original_value
             raise
 
-
     @property
     def default_params(self) -> dict:
         """The default parameters for all single and pair types."""

@@ -19,10 +19,6 @@ import plotly.figure_factory
 from . import util
 
 
-AXIS_TITLE_FONT = dict(weight=1000, size=16)
-FIG_TITLE_FONT = dict(style="italic", size=16)
-
-
 class Field:
     """Analyze and plot scalar and vector fields in 3D, 2D, and 1D.
     

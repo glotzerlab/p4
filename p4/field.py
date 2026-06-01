@@ -5,7 +5,7 @@
 # TODO: add support for irregular grids
 
 from __future__ import annotations
-from copy import copy
+from inspect import signature
 import os
 from types import NoneType
 from typing import Iterable, Literal

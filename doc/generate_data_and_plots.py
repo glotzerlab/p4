@@ -411,7 +411,7 @@ system2.measure(
     quantities=["U", "F", "T"],
     positions=positions,
     orientations=orientations,
-    csv_filename="abcd-aljg-uft.csv",
+    csv_filename=data_path+"/abcd-aljg-uft.csv",
 )
 
 # %%

@@ -1,9 +1,6 @@
 ## To-do
 
-`System`
-- [ ] add API for sampling strategies
-  - [ ] uniform grid
-  - [ ] uniform grid with geometrically-defined gap
+- Sampling
   - [ ] shape overlap exclusion
   - [ ] dynamical meshing?
 
@@ -12,12 +9,11 @@
 
 Other
 - [ ] Change from StringIO to some other data storage/retention approach
-- [ ] Support VTK in Field IO
-- [ ] Support VTK in Body IO
-- [ ] Support VTK in Arrangement IO
-- [ ] Add state/frame plotting
+- [ ] Add support for VTK
 - [ ] fix body image wrapping problem
 - [ ] switch from nested for-loop to single computation over many spaced-out configurations
+- [ ] tests for top-level functions
+- [ ] fix broken plotting
 
 Docs
 - [ ] switch to MyST

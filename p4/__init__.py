@@ -8,7 +8,7 @@ from .field import Field
 from .arrangement import Arrangement
 from .top_level_functions import (
     positions_on_regular_grid,
-    exclude_positions_by_shape,
+    # exclude_positions_by_shape,
     orientations_about_axis,
     orientations_from_fibonacci_lattice,
     # exclude_orientations_with_shape_overlap,
@@ -26,7 +26,7 @@ __all__ = [
     "Field",
     "Arrangement",
     "positions_on_regular_grid",
-    "exclude_positions_by_shape",
+    # "exclude_positions_by_shape",
     "orientations_about_axis",
     "orientations_from_fibonacci_lattice",
     # "exclude_orientations_with_shape_overlap",

@@ -49,31 +49,31 @@ def positions_on_regular_grid(
 
     return positions
 
-def exclude_positions_by_shape(
-    positions: positions_like,
-    shape: coxeter.shapes.Polyhedron,
-    inside: bool = True,
-):
-    """Remove positions inside or outside a shape with an optional buffer.
+# def exclude_positions_by_shape(
+#     positions: positions_like,
+#     shape: coxeter.shapes.Polyhedron,
+#     inside: bool = True,
+# ):
+#     """Remove positions inside or outside a shape with an optional buffer.
 
-    Parameters
-    ----------
-    positions : (N, 3) array of floats
-        The positions to filter.
-    shape : coxeter.shapes.Polyhedron
-        The shape to check against positions.
-    inside : bool, default=True
-        Whether to exclude positions that are inside the shape (``True``) or
-        outside (``False``).
+#     Parameters
+#     ----------
+#     positions : (N, 3) array of floats
+#         The positions to filter.
+#     shape : coxeter.shapes.Polyhedron
+#         The shape to check against positions.
+#     inside : bool, default=True
+#         Whether to exclude positions that are inside the shape (``True``) or
+#         outside (``False``).
     
-    Returns
-    -------
-    (..., 3) np.ndarray
-    """
-    if inside:
-        return np.array(positions)[~shape.is_inside(positions)]
-    else:
-        return np.array(positions)[shape.is_inside(positions)]
+#     Returns
+#     -------
+#     (..., 3) np.ndarray
+#     """
+#     if inside:
+#         return np.array(positions)[~shape.is_inside(positions)]
+#     else:
+#         return np.array(positions)[shape.is_inside(positions)]
 
 def orientations_about_axis(n: int, axis: axis_like, k: int = 1) -> np.ndarray:
     """Return an array of quaternions sampling orientation about a given axis.

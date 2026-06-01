@@ -1,8 +1,6 @@
 # Copyright (c) 2025-2026, The Regents of the University of Michigan
 # This file is from the p4 project, released under the BSD 3-Clause License.
 
-# TODO: Add IO support for VTK
-# TODO: add support for irregular grids
 
 from __future__ import annotations
 from inspect import signature

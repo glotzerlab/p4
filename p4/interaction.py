@@ -733,16 +733,14 @@ class Interaction:
         r: list[float],
         type_pairs: list[tuple] | None = None,
         pair_styles: dict[tuple, dict] | None = None,
-        cmap: str | None = None,
+        cmap: str = "Pastel",
         ylim: list[float] | None = None,
         include_default: bool = False,
+        mode: Literal["lines", "marker+lines", "marker"] = "lines",
         marker_size: float = 6,
         line_width: float = 2,
-        mode: Literal["lines", "marker+lines", "marker"] = "lines",
-        show_axes: bool = True,
-        show_ticks: bool = True,
-        show_grid: bool = False,
-        show_border: bool = True,
+        template: str = "simple_white",
+        **kwargs
     ) -> tuple[plotly.graph_objects.Figure, list]:
         """Plot the interaction potential energy curve for pairs of types.
         
@@ -777,7 +775,7 @@ class Interaction:
         pair_styles : dict, optional
             Style dictionaries to apply to the markers. If not provided, a
             default set of styles is used.
-        cmap : str, default='RdYlBu_r'
+        cmap : str, default='Pastel'
             The name of the Plotly colormap to use. This must be a continuous
             or qualitative colorscale.
         ylim : list of floats, optional
@@ -786,20 +784,18 @@ class Interaction:
         include_default : bool, default=False
             Whether to include the curve defined by ``default_params`` in
             the plot.
+        marker_mode : 'lines+markers', 'lines', or 'markers', default='lines'
+            Whether to show only lines, only markers, or both.
         marker_size : float, default=6
             The size of the marker in pixels.
         line_width : float, default=2
             The width of the line in pixels.
-        marker_mode : 'lines+markers', 'lines', or 'markers', default='lines'
-            Whether to show only lines, only markers, or both.
-        show_axes : bool, default=True
-            Whether to show the axes.
-        show_ticks : bool, default=True
-            Whether to show tick marks on the axes.
-        show_grid : bool, default=False
-            Whether to show the axes grid.
-        show_border : bool, default=True
-            Whether to show the plot border.
+        template : str, default='simple_white'
+            The name of a built-in plotly template to use. Layout parameters
+            passed in ``kwargs`` will override features of this template.
+        **kwargs
+            Other keyword arguments are passed to ``p4.util.plot_layout()``.
+            TODO: add link.
         
         Returns
         -------
@@ -816,7 +812,6 @@ class Interaction:
         if not pair_styles:
             pair_styles = {}
             
-        DEFAULT_COLORSCALE = "pastel"
         DEFAULT_STYLE = dict(
             color=None,
             marker_size=marker_size,
@@ -844,8 +839,6 @@ class Interaction:
             )
 
         # Ensure there is a working colormap
-        if cmap is None:
-            cmap = DEFAULT_COLORSCALE
         try:
             _ = plotly.colors.get_colorscale(cmap)
         except plotly.exceptions.PlotlyError:
@@ -866,11 +859,22 @@ class Interaction:
 
         # Calculate kwargs for the measure function call
         # still needed for every call: system, nlist
-        kwargs = dict(
+        positions = np.array([[0 + value, 0, 0] for value in r])
+        orientations = np.array([[[1, 0, 0, 0]] for _ in positions])
+
+        max_r_cut = 0
+        max_r_cut = max(max_r_cut, self.initial_args.get("default_r_cut", 0))
+        max_r_cut = max(max_r_cut, self.default_params.get("r_cut", 0))
+        for param_dict in self.typed_params.values():
+            max_r_cut = max(max_r_cut, param_dict.get("r_cut", 0))
+
+        box_length = 1.1 * 2 * max(max_r_cut, max(r))
+
+        measure_kwargs = dict(
             quantities="U",
-            positions=[[0 + value, 0, 0] for value in r],
-            orientations=[(1,0,0,0)],
-            simulation_box=[100*max(r), 100*max(r), 100*max(r), 0, 0, 0],
+            positions=positions,
+            orientations=orientations,
+            simulation_box=[box_length, box_length, box_length, 0, 0, 0],
             included_interactions=[self],
             gsd_filename=None
         )
@@ -891,7 +895,7 @@ class Interaction:
             table = util.measure(
                 system=system,
                 nlist=hoomd.md.nlist.Tree(2),
-                **kwargs
+                **measure_kwargs
             )
             table = util.clean_header(table)
             table.seek(0)
@@ -927,31 +931,27 @@ class Interaction:
                 marker_mode_1d=style["mode"],
                 marker_size_1d=style["marker_size"],
                 line_width_1d=style["line_width"],
-                show_axes=show_axes,
                 show_title=False,
-                show_ticks=show_ticks,
-                show_grid=show_grid,
-                show_border=show_border,
             )
             trace["name"] = str(pair)
 
             traces.append(trace)
 
-        # Build figure and style it
+        # Create and style the figure
         figure = plotly.graph_objects.Figure()
         figure.add_traces(traces)
-        layout = Field._plot_layout( # TODO: refactor to put this in util
-            self=None,
-            quantity="U",
-            slice=dict(z=0, y=0),
-            clim=[0, 1],    # does not matter in 1D
-            show_axes=show_axes,
-            show_title=False,
-            show_ticks=show_ticks,
-            show_grid=show_grid,
-            show_border=show_border
+
+        figure.update_layout(template=template)
+
+        allowed_kwarg_names = (
+            inspect.signature(util.plot_layout).parameters.keys()
         )
+        layout_kwargs = {
+            k: v for k, v in kwargs.items() if k in allowed_kwarg_names
+        }
+        layout = util.plot_layout(slice=dict(z=0, y=0), **layout_kwargs)
         figure.update_layout(**layout)
+
         figure.update_layout(xaxis=dict(title="r", range=[min(r), max(r)]))
         
         if ylim is None:

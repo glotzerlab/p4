@@ -453,159 +453,23 @@ class Field:
                     marker_color=marker_color_1d,
                 )
 
-        # Create and style the figure
+        # Create and style the figure.
         figure = plotly.graph_objects.Figure()
         figure.add_trace(trace)
-        layout = self._plot_layout(
-            quantity=quantity,
-            slice=slice,
-            clim=clim,
-            show_axes=show_axes,
-            show_title=show_title,
-            show_ticks=show_ticks,
-            show_grid=show_grid,
-            show_border=show_border,
-        )
+        
+        figure.update_layout(template=template)
+
+        allowed_kwarg_names = signature(util.plot_layout).parameters.keys()
+        layout_kwargs = {
+            k: v for k, v in kwargs.items() if k in allowed_kwarg_names
+        }
+        layout = util.plot_layout(slice=slice, **layout_kwargs)
         figure.update_layout(layout)
 
+        if len(slice) == 2:
+            figure.update_layout(yaxis=dict(title=dict(text=quantity)))
+
         return figure, trace
-
-    def _plot_layout(
-        self,
-        quantity: Literal["U", "F", "T", "Fx", "Fy", "Fz", "Tx", "Ty", "Tz"],
-        slice: dict[str, float],
-        clim: list[float],
-        show_axes: bool,
-        show_title: bool,
-        show_ticks: bool,
-        show_grid: bool,
-        show_border: bool,
-    ) -> dict:
-        """Return a Plotly layout dictionary customized for a given slice.
-        
-        Note that ``show_cbar`` is not used here, but rather in the
-        corresponding plot trace method.
-
-        Parameters
-        ----------
-        quantity : 'U', 'F', 'T', 'Fx', 'Fy', 'Fz', 'Tx', 'Ty', or 'Tz'
-            The name of the quantity to plot.
-        slice : dict
-            Axes and positions along which to slice. Keys are limited to 'x',
-            'y', and 'z'. There can be at most two keys.
-        clim : list of floats
-            The lower and upper limits of the colorscale.
-        show_axes : bool
-            Whether to show the axes.
-        show_title : bool
-            Whether to show the title.
-        show_ticks : bool
-            Whether to show tick marks on the axes.
-        show_grid : bool
-            Whether to show the axes grid.
-        show_border : bool
-            Whether to show the plot border.
-
-        Returns
-        -------
-        dict
-            The layout dictionary.        
-        """
-        # Build initial dictionary
-        axis_style = dict(
-            visible=show_axes,
-            ticks="outside" if show_ticks else "",
-            gridcolor="#e5e5e5" if show_grid else "rgba(0,0,0,0)",
-            zerolinecolor="#e5e5e5" if show_grid else "rgba(0,0,0,0)",
-            showline=show_border,
-            linewidth=1,
-            linecolor="black",
-            mirror=True
-        )
-
-        if len(slice) == 0:
-            axis_style["showbackground"] = False
-            layout = dict(
-                scene=dict(
-                    xaxis=axis_style,
-                    yaxis=axis_style,
-                    zaxis=axis_style,
-                ),
-                plot_bgcolor="rgba(0,0,0,0)"
-            )
-        
-        elif len(slice) == 1:
-            layout = dict(
-                xaxis=copy(axis_style),
-                yaxis=copy(axis_style),
-                plot_bgcolor="rgba(0,0,0,0)"
-            )
-            layout["xaxis"].update(
-                scaleanchor="y",
-                scaleratio=1,
-                constrain="domain"
-            )
-            layout["yaxis"].update(
-                scaleanchor="x",
-                scaleratio=1,
-                constrain="domain"
-            )
-
-        elif len(slice) == 2:
-            layout = dict(
-                xaxis=copy(axis_style),
-                yaxis=copy(axis_style),
-                plot_bgcolor="rgba(0,0,0,0)"
-            )
-            if clim is not None:
-                layout["yaxis_range"] = [min(clim), max(clim)]
-
-        # Update layout dictionary with axis and figure titles (only 1D and 2D)
-        if len(slice) == 1:
-            if "x" in slice:
-                x_title = "y"
-                y_title = "z"
-                fig_title = f"x = {float(slice["x"])}"
-            elif "y" in slice:
-                x_title = "x"
-                y_title = "z"
-                fig_title = f"y = {float(slice["y"])}"
-            elif "z" in slice:
-                x_title = "x"
-                y_title = "y"
-                fig_title = f"z = {float(slice["z"])}"
-        
-        elif len(slice) == 2:
-            y_title = quantity
-            if "x" in slice:
-                if "y" in slice:
-                    x_title = "z"
-                    fig_title = f"x = {float(slice["x"])}, y = {float(slice["y"])}"
-                else:
-                    x_title = "y"
-                    fig_title = f"x = {float(slice["x"])}, z = {float(slice["z"])}"
-            else:
-                x_title = "x"
-                fig_title = f"y = {float(slice["y"])}, z = {float(slice["z"])}"
-
-        if len(slice) in (1, 2):
-            layout["xaxis"]["title"] = dict(text=x_title, font=AXIS_TITLE_FONT)
-            layout["yaxis"]["title"] = dict(text=y_title, font=AXIS_TITLE_FONT)
-            layout["title"] = dict(
-                text=fig_title if show_title else "",
-                font=FIG_TITLE_FONT,
-                xanchor="center",
-                yanchor="top",
-                x=0.5,
-            )
-        
-        # Miscellaneous other layout settings
-        layout["autosize"] = False
-        layout["width"] = 500
-        layout["height"] = 500
-        layout["margin"] = dict(t=20, b=20, l=20, r=20)
-        
-        return layout
 
     def _plot_trace_scalar_3d(
         self,
@@ -681,7 +545,7 @@ class Field:
             colorbar=dict(
                 title=dict(
                     text=quantity,
-                    font=AXIS_TITLE_FONT
+                    font=util.AXIS_TITLE_FONT
                 )
             )
         )
@@ -777,7 +641,7 @@ class Field:
                 colorbar=dict(
                     title=dict(
                         text=quantity,
-                        font=AXIS_TITLE_FONT
+                        font=util.AXIS_TITLE_FONT
                     )
                 )
             )
@@ -794,7 +658,7 @@ class Field:
                 colorbar=dict(
                     title=dict(
                         text=quantity,
-                        font=AXIS_TITLE_FONT
+                        font=util.AXIS_TITLE_FONT
                     )
                 )
             )
@@ -949,7 +813,7 @@ class Field:
             colorbar=dict(
                 title=dict(
                     text=f"<b>{quantity}</b>",
-                    font=AXIS_TITLE_FONT
+                    font=util.AXIS_TITLE_FONT
                 ),
                 tickvals=[
                     s_min + (s_max - s_min) * i

@@ -665,9 +665,9 @@ class Body:
 
         .. _rigid constraint: https://hoomd-blue.readthedocs.io/en/stable/hoomd/md/constrain/rigid.html
         
-        Body definitions in a rigid constraint are encoded in `body`_.
+        Body definitions in a rigid constraint are encoded in `Rigid.body`_.
 
-        .. _body: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/constrain/rigid.html#hoomd.md.constrain.Rigid.body
+        .. _Rigid.body: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/constrain/rigid.html#hoomd.md.constrain.Rigid.body
         
         Parameters
         ----------
@@ -908,6 +908,8 @@ class Body:
         The exported GSD file has a single frame with the body centered on
         the origin.
 
+        .. _shapes module: https://coxeter.readthedocs.io/en/latest/package-shapes.html
+
         Parameters
         ----------
         filename : os.PathLike
@@ -915,8 +917,6 @@ class Body:
         type_shapes: dict[str, coxeter.shapes], optional
             If provided, encodes geometry for provided particle types. Specify
             a geometry using Coxeter's `shapes module`_.
-        
-        .. _shapes module: https://coxeter.readthedocs.io/en/latest/package-shapes.html
         """
         snapshot = self.to_hoomd_snapshot()
 

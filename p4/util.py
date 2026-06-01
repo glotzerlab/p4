@@ -42,7 +42,6 @@ IBM_COLORS = [
 # https://davidmathlogic.com/colorblind
 # (original source https://doi.org/10.1038/nmeth.1618)
 WONG_COLORS = [
-    "#000000",
     "#E69F00",
     "#56B4E9",
     "#009E73",
@@ -50,6 +49,7 @@ WONG_COLORS = [
     "#0072B2",
     "#D55E00",
     "#CC79A7",
+    "#000000",
 ]
 
 # https://davidmathlogic.com/colorblind

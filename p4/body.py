@@ -1211,12 +1211,12 @@ class Body:
         common_single_types = any(
             t in self.secondary_types
             for interaction in interactions
-            for t in interaction.interacting_types("single")
+            for t in interaction._interacting_types("single")
         )
         common_pair_types = any(
             p[0] in self.secondary_types or p[1] in self.secondary_types
             for interaction in interactions
-            for p in interaction.interacting_types("pair")
+            for p in interaction._interacting_types("pair")
         )
         nonzero_default_r_cut = any(
             (

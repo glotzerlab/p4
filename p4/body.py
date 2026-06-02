@@ -37,28 +37,6 @@ class Body:
     secondary type). If not provided, orientation defaults to ``(1, 0, 0, 0)``,
     mass defaults to ``1``, and moment of inertia defaults to ``[1, 1, 1]``.
 
-    .. code-block:: python
-        :caption: A cubic body with primary particle 'A' at the center and secondary particles 'B' at the vertices.
-
-        import p4
-
-        body = p4.Body(
-            primary_type="A",
-            secondary_types=["B"],
-            positions_by_type=dict(
-                B=[
-                    [-1, -1, -1],
-                    [-1, -1,  1],
-                    [-1,  1, -1],
-                    [-1,  1,  1],
-                    [ 1, -1, -1],
-                    [ 1, -1,  1],
-                    [ 1,  1, -1],
-                    [ 1,  1,  1]
-                ]
-            )
-        )
-
     Parameters
     ----------
     primary_type : str
@@ -84,6 +62,32 @@ class Body:
         the MoI tensor. If not provided for a given type, that
         type's MoI defaults to ``[1, 1, 1]``. In contrast to positions and
         orientations, only one MoI is allowed per type.
+
+
+    Example
+    -------
+
+    .. code-block:: python
+        :caption: A cubic body with primary particle 'A' at the center and secondary particles 'B' at the vertices.
+
+        import p4
+
+        body = p4.Body(
+            primary_type="A",
+            secondary_types=["B"],
+            positions_by_type=dict(
+                B=[
+                    [-1, -1, -1],
+                    [-1, -1,  1],
+                    [-1,  1, -1],
+                    [-1,  1,  1],
+                    [ 1, -1, -1],
+                    [ 1, -1,  1],
+                    [ 1,  1, -1],
+                    [ 1,  1,  1]
+                ]
+            )
+        )
     """
     def __init__(
         self,

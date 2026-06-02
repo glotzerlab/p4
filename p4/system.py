@@ -23,6 +23,20 @@ class System:
     Measure a system's spatial distributions of potential energy, force, and
     torque using :meth:`~p4.System.measure`.
 
+    Parameters
+    ----------
+    probe : Body
+        The body for the probe.
+    analyte : Body | Arrangement
+        The body or arrangement for the analyte.
+    interactions : list[Interaction]
+        A collection of interactions that define how one or more particle types
+        in the probe interact with one or more types in the analyte.
+
+
+    Example
+    -------
+
     .. code-block:: python
         :caption: A system composed of a probe point particle 'A' and a an analyte cubic body 'B' with secondary particles 'C'. 'A' and 'C' interact via an LJ potential.
 
@@ -63,16 +77,6 @@ class System:
             )
         ]
         system = p4.System(probe, analyte, interactions)
-
-    Parameters
-    ----------
-    probe : Body
-        The body for the probe.
-    analyte : Body | Arrangement
-        The body or arrangement for the analyte.
-    interactions : list[Interaction]
-        A collection of interactions that define how one or more particle types
-        in the probe interact with one or more types in the analyte.
     """
     def __init__(
         self,

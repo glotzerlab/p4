@@ -36,7 +36,28 @@ class Interaction:
     This class is self-validating: when it is successfully instantiated, it is
     guaranteed that it can successfully instantiate and parameterize its
     HOOM-blue potential.
-      
+
+    Parameters
+    ----------
+    hoomd_class : hoomd.md.pair.Pair
+        The constructor for the HOOMD class. Must be in the ``hoomd.md.pair``
+        module or one of its submodules.
+    initial_args : dict[str, float | str]
+        All parameters (except for ``nlist``) that are needed for instantiating
+        the class from its constructor.
+    default_params : dict
+        The names and values of parameters that will be set by default for
+        all single and pair types. To determine the params for a given
+        class, consult the `HOOMD-blue documentation
+        <https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/module-pair.html>`__.
+    typed_params : dict
+        A mapping of single and pair types to parameter names and values. These
+        names and values will override those from ``default_params``.
+
+
+    Example
+    -------
+
     .. code-block:: python
         :caption: A Lennard-Jones potential that allows A-B interactions but not A-A or B-B.
 
@@ -57,23 +78,6 @@ class Interaction:
                 )
             }
         )
-
-    Parameters
-    ----------
-    hoomd_class : hoomd.md.pair.Pair
-        The constructor for the HOOMD class. Must be in the ``hoomd.md.pair``
-        module or one of its submodules.
-    initial_args : dict[str, float | str]
-        All parameters (except for ``nlist``) that are needed for instantiating
-        the class from its constructor.
-    default_params : dict
-        The names and values of parameters that will be set by default for
-        all single and pair types. To determine the params for a given
-        class, consult the `HOOMD-blue documentation
-        <https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/module-pair.html>`__.
-    typed_params : dict
-        A mapping of single and pair types to parameter names and values. These
-        names and values will override those from ``default_params``.
     """
     def __init__(
         self,

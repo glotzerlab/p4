@@ -101,9 +101,7 @@ def orientations_about_axis(n: int, axis: axis_like, k: int = 1) -> np.ndarray:
 def orientations_from_fibonacci_lattice(
     n: int,
     group: str | None = None,
-    ideal_group_index = 0
-    # symmetries: list[int] | None = None,
-    # symmetry_offsets: list[float] | None = None
+    ideal_group_index = 0   # TODO: remove
 ) -> np.ndarray:
     """A near-uniform grid of `n` quaternions.
 

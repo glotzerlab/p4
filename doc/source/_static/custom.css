@@ -38,3 +38,13 @@ dl.field-list.simple dt {
 /* Hide colon after the parameters section title */
 dl.field-list.simple dt.field-odd span.colon {display: none}
 
+/*
+Style the horizontal line separating class autoclasstoc from the actual
+method definitions
+*/
+dl.py.class dd hr {
+  width: 50%;
+  margin-left: auto;
+  margin-right: auto;
+  height: 1.5px;
+}

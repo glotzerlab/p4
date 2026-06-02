@@ -48,3 +48,8 @@ dl.py.class dd hr {
   margin-right: auto;
   height: 1.5px;
 }
+
+/* Scale the section titles down a bit */
+h2 {
+  font-size: x-large;
+}

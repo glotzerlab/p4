@@ -111,10 +111,10 @@ class Body:
             moi_by_type = {}
         
         # Sanitize input dictionaries
-        positions_by_type = util.sanitize(positions_by_type)
-        orientations_by_type = util.sanitize(orientations_by_type)
-        mass_by_type = util.sanitize(mass_by_type)
-        moi_by_type = util.sanitize(moi_by_type)
+        positions_by_type = util.data.sanitize(positions_by_type)
+        orientations_by_type = util.data.sanitize(orientations_by_type)
+        mass_by_type = util.data.sanitize(mass_by_type)
+        moi_by_type = util.data.sanitize(moi_by_type)
 
         # Validate inputs
         self.validate(
@@ -277,7 +277,7 @@ class Body:
             positions_by_type=self._positions_by_type,
             orientations_by_type=value
         )
-        self._orientations_by_type = util.sanitize(value)
+        self._orientations_by_type = util.data.sanitize(value)
 
     @property
     def mass_by_type(self) -> dict[str, float]:
@@ -293,7 +293,7 @@ class Body:
     def mass_by_type(self, value: dict[str, float]):
         """Set a mapping from primary and secondary types to mass."""
         self.validate(mass_by_type=value)
-        self._mass_by_type = util.sanitize(value)
+        self._mass_by_type = util.data.sanitize(value)
 
     @property
     def moi_by_type(self) -> dict[str, list[float]]:
@@ -310,7 +310,7 @@ class Body:
     def moi_by_type(self, value: dict[str, moi_like]):
         """Set a mapping from primary and secondary types to moment of inertia."""
         self.validate(moi_by_type=value)
-        self._moi_by_type = util.sanitize(value)
+        self._moi_by_type = util.data.sanitize(value)
 
     # ------------------------------- OPERATIONS -------------------------------
 
@@ -370,10 +370,12 @@ class Body:
         
         # Modify the data
         self._secondary_types.append(name)
-        self._positions_by_type.update(util.sanitize(positions_by_type))
-        self._orientations_by_type.update(util.sanitize(orientations_by_type))
-        self._mass_by_type.update(util.sanitize(mass_by_type))
-        self._moi_by_type.update(util.sanitize(moi_by_type))
+        self._positions_by_type.update(util.data.sanitize(positions_by_type))
+        self._orientations_by_type.update(
+            util.data.sanitize(orientations_by_type)
+        )
+        self._mass_by_type.update(util.data.sanitize(mass_by_type))
+        self._moi_by_type.update(util.data.sanitize(moi_by_type))
 
     def remove(self, name: str):
         """Remove a secondary particle type.
@@ -456,10 +458,10 @@ class Body:
         )
         
         # Modify the data
-        self._positions_by_type.update(util.sanitize(positions_by_type))
-        self._orientations_by_type.update(util.sanitize(orientations_by_type))
-        self._mass_by_type.update(util.sanitize(mass_by_type))
-        self._moi_by_type.update(util.sanitize(moi_by_type))
+        self._positions_by_type.update(util.data.sanitize(positions_by_type))
+        self._orientations_by_type.update(util.data.sanitize(orientations_by_type))
+        self._mass_by_type.update(util.data.sanitize(mass_by_type))
+        self._moi_by_type.update(util.data.sanitize(moi_by_type))
 
     # ---------------------------------- FROM ----------------------------------
 
@@ -930,7 +932,7 @@ class Body:
         """
         snapshot = self.to_hoomd_snapshot()
 
-        frame = util.snapshot_to_frame(snapshot)
+        frame = util.simulation.snapshot_to_frame(snapshot)
 
         if type_shapes:
             gsd_shape_specs = []
@@ -1105,9 +1107,9 @@ class Body:
         **kwargs
             Other keyword arguments are passed to the following functions:
 
-            * ``p4.util.plot_layout()`` - TODO: add link
+            * ``p4.util.plotting.plot_layout()`` - TODO: add link
 
-            * ``p4.util.snapshot_schematic_slice_trace()``
+            * ``p4.util.plotting.snapshot_schematic_slice_trace()``
         """
         # Set defaults
         if not type_shapes:
@@ -1119,7 +1121,7 @@ class Body:
         if not slice:
             slice = {}
 
-        default_colors = util.WONG_COLORS
+        default_colors = util.colors.WONG_COLORS
 
         # Calculate snapshot
         snapshot = self.to_hoomd_snapshot()
@@ -1128,7 +1130,7 @@ class Body:
         figure = plotly.graph_objects.Figure()
         
         if len(slice) == 0 or schematic_slice:
-            traces = util.snapshot_3D_traces(
+            traces = util.plotting.snapshot_3D_traces(
                 snapshot=snapshot,
                 type_shapes=type_shapes,
                 type_styles=type_styles,
@@ -1138,7 +1140,7 @@ class Body:
 
             if schematic_slice:
                 allowed_kwarg_names = (
-                    signature(util.snapshot_schematic_slice_trace)
+                    signature(util.plotting.snapshot_schematic_slice_trace)
                         .parameters
                         .keys()
                 )
@@ -1146,7 +1148,7 @@ class Body:
                     k: v for k, v in kwargs.items() if k in allowed_kwarg_names
                 }
                 traces.append(
-                    util.snapshot_schematic_slice_trace(
+                    util.plotting.snapshot_schematic_slice_trace(
                         snapshot=snapshot,
                         slice=slice,
                         **schematic_slice_kwargs
@@ -1154,7 +1156,7 @@ class Body:
                 )
         
         elif len(slice) == 1 and not schematic_slice:
-            traces = util.snapshot_2D_traces(
+            traces = util.plotting.snapshot_2D_traces(
                 snapshot=snapshot,
                 slice=slice,
                 type_shapes=type_shapes,
@@ -1164,7 +1166,7 @@ class Body:
             )
         
         elif len(slice) == 2 and not schematic_slice:
-            traces = util.snapshot_1D_traces(
+            traces = util.plotting.snapshot_1D_traces(
                 snapshot=snapshot,
                 slice=slice,
                 type_shapes=type_shapes,
@@ -1178,13 +1180,17 @@ class Body:
                 figure.add_trace(trace)
 
         # Style the plot
-        allowed_kwarg_names = signature(util.plot_layout).parameters.keys()
+        allowed_kwarg_names = (
+            signature(util.plotting.plot_layout)
+            .parameters
+            .keys()
+        )
         layout_kwargs = {
             k: v for k, v in kwargs.items() if k in allowed_kwarg_names
         }
         if "show_grid" not in layout_kwargs:
             layout_kwargs["show_grid"] = True
-        layout = util.plot_layout(slice=slice, **layout_kwargs)
+        layout = util.plotting.plot_layout(slice=slice, **layout_kwargs)
         figure.update_layout(layout)
 
         return figure, traces

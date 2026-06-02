@@ -112,9 +112,9 @@ class Interaction:
         
         # Set instance attributes
         self._hoomd_class = hoomd_class
-        self._initial_args = util.sanitize(initial_args)
-        self._default_params = util.sanitize(default_params)
-        self._typed_params = util.sanitize(typed_params)
+        self._initial_args = util.data.sanitize(initial_args)
+        self._default_params = util.data.sanitize(default_params)
+        self._typed_params = util.data.sanitize(typed_params)
 
         # Validate instance attributes
         self.validate()
@@ -170,8 +170,8 @@ class Interaction:
         )
         s = 10 * max_r_cut
         simulation.state.set_box([s, s, s, 0, 0, 0])
-        simulation = util.add_integrator(simulation)
-        simulation = util.add_interaction(
+        simulation = util.simulation.add_integrator(simulation)
+        simulation = util.simulation.add_interaction(
             simulation=simulation,
             nlist=nlist,
             interaction=self
@@ -179,8 +179,8 @@ class Interaction:
 
         box_length = 10 * max(max_r_cut, 1.0)
         simulation.state.set_box([box_length, box_length, box_length, 0, 0, 0])
-        simulation = util.add_integrator(simulation)
-        simulation = util.add_interaction(
+        simulation = util.simulation.add_integrator(simulation)
+        simulation = util.simulation.add_interaction(
             simulation=simulation,
             nlist=nlist,
             interaction=self
@@ -214,7 +214,7 @@ class Interaction:
     def initial_args(self, value: dict[str, Any]):
         """Set the parameters for instantiating HOOMD-blue class."""
         original_value = deepcopy(self._initial_args)
-        self._initial_args = util.sanitize(value)
+        self._initial_args = util.data.sanitize(value)
         try:
             self.validate()
         except:
@@ -230,7 +230,7 @@ class Interaction:
     def default_params(self, value: dict[str, Any]):
         """Set the default parameters for all single and pair types."""
         original_value = deepcopy(self._default_params)
-        self._default_params = util.sanitize(value)
+        self._default_params = util.data.sanitize(value)
         try:
             self.validate()
         except:
@@ -246,7 +246,7 @@ class Interaction:
     def typed_params(self, value: dict):
         """Set parameters for specific single and pair types."""
         original_value = deepcopy(self._typed_params)
-        self._typed_params = util.sanitize(value)
+        self._typed_params = util.data.sanitize(value)
         try:
             self.validate()
         except:
@@ -793,7 +793,7 @@ class Interaction:
         line_width : float, default=2
             The width of the line in pixels.
         **kwargs
-            Other keyword arguments are passed to ``p4.util.plot_layout()``.
+            Other keyword arguments are passed to ``p4.util.plotting.plot_layout()``.
             TODO: add link.
         
         Returns
@@ -891,12 +891,12 @@ class Interaction:
             
             system = System(probe, analyte, [self])
             
-            table = util.measure(
+            table = util.simulation.measure(
                 system=system,
                 nlist=hoomd.md.nlist.Tree(2),
                 **measure_kwargs
             )
-            table = util.clean_header(table)
+            table = util.data.clean_header(table)
             table.seek(0)
 
             field = Field(
@@ -941,12 +941,15 @@ class Interaction:
         figure.add_traces(traces)
 
         allowed_kwarg_names = (
-            inspect.signature(util.plot_layout).parameters.keys()
+            inspect.signature(util.plotting.plot_layout).parameters.keys()
         )
         layout_kwargs = {
             k: v for k, v in kwargs.items() if k in allowed_kwarg_names
         }
-        layout = util.plot_layout(slice=dict(z=0, y=0), **layout_kwargs)
+        layout = util.plotting.plot_layout(
+            slice=dict(z=0, y=0),
+            **layout_kwargs
+        )
         figure.update_layout(**layout)
 
         figure.update_layout(xaxis=dict(title="r", range=[min(r), max(r)]))

@@ -716,9 +716,9 @@ class System:
                     gsd_filenames,
                     [nlist for _ in range(n_processes)],
                 )
-                tables = pool.starmap(util.measure, args)
+                tables = pool.starmap(util.simulation.measure, args)
             
-            table = util.clean_header(util.merge_tables(tables))
+            table = util.data.clean_header(util.data.merge_tables(tables))
         
         # If not multiprocessing, don't initialize a pool (easier for debugging)
         else:
@@ -726,7 +726,7 @@ class System:
                 gsd_filename = csv_filename.rsplit(".", 1)[0] + ".gsd"
             else:
                 gsd_filename = None
-            table = util.measure(
+            table = util.simulation.measure(
                 system=self,
                 quantities=quantities,
                 positions=probe_positions,
@@ -737,7 +737,7 @@ class System:
                 nlist=nlist,
             )
 
-            table = util.clean_header(table)
+            table = util.data.clean_header(table)
 
         with open(csv_filename, "w") as file:
             table.seek(0)

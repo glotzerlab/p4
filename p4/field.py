@@ -877,7 +877,7 @@ class Field:
         line_width_1d : float, default=2
             In a 1D scalar plot, the width of the line in pixels.
         **kwargs
-            Other keyword arguments are passed to ``p4.util.plot_layout()``.
+            Other keyword arguments are passed to ``p4.util.plotting.plot_layout()``.
             TODO: add link.
         
         Returns
@@ -952,7 +952,7 @@ class Field:
         # Set slice values to the closest values in the recarray
         for dimension, value in slice.items():
             if value not in self.table[dimension]:
-                slice[dimension] = util.find_nearest(
+                slice[dimension] = util.plotting.find_nearest(
                     self.table[dimension], value
                 )
 
@@ -1022,11 +1022,15 @@ class Field:
         figure = plotly.graph_objects.Figure()
         figure.add_trace(trace)
 
-        allowed_kwarg_names = signature(util.plot_layout).parameters.keys()
+        allowed_kwarg_names = (
+            signature(util.plotting.plot_layout)
+                .parameters
+                .keys()
+        )
         layout_kwargs = {
             k: v for k, v in kwargs.items() if k in allowed_kwarg_names
         }
-        layout = util.plot_layout(slice=slice, **layout_kwargs)
+        layout = util.plotting.plot_layout(slice=slice, **layout_kwargs)
         figure.update_layout(layout)
 
         if len(slice) == 2:
@@ -1108,7 +1112,7 @@ class Field:
             colorbar=dict(
                 title=dict(
                     text=quantity,
-                    font=util.AXIS_TITLE_FONT
+                    font=util.plotting.AXIS_TITLE_FONT
                 )
             )
         )
@@ -1204,7 +1208,7 @@ class Field:
                 colorbar=dict(
                     title=dict(
                         text=quantity,
-                        font=util.AXIS_TITLE_FONT
+                        font=util.plotting.AXIS_TITLE_FONT
                     )
                 )
             )
@@ -1221,7 +1225,7 @@ class Field:
                 colorbar=dict(
                     title=dict(
                         text=quantity,
-                        font=util.AXIS_TITLE_FONT
+                        font=util.plotting.AXIS_TITLE_FONT
                     )
                 )
             )
@@ -1376,7 +1380,7 @@ class Field:
             colorbar=dict(
                 title=dict(
                     text=f"<b>{quantity}</b>",
-                    font=util.AXIS_TITLE_FONT
+                    font=util.plotting.AXIS_TITLE_FONT
                 ),
                 tickvals=[
                     s_min + (s_max - s_min) * i

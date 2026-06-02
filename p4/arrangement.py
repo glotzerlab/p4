@@ -30,8 +30,8 @@ class Arrangement:
             orientations_by_type = {}
         
         # Sanitize input dictionaries
-        positions_by_type = util.sanitize(positions_by_type)
-        orientations_by_type = util.sanitize(orientations_by_type)
+        positions_by_type = util.data.sanitize(positions_by_type)
+        orientations_by_type = util.data.sanitize(orientations_by_type)
 
         # Validate inputs
         self.validate(
@@ -161,7 +161,7 @@ class Arrangement:
             positions_by_type=self._positions_by_type,
             orientations_by_type=value
         )
-        self._orientations_by_type = util.sanitize(value)
+        self._orientations_by_type = util.data.sanitize(value)
 
     # ------------------------------- OPERATIONS -------------------------------
 
@@ -210,8 +210,10 @@ class Arrangement:
         
         # Modify the data
         self._bodies.append(body)
-        self._positions_by_type.update(util.sanitize(positions_by_type))
-        self._orientations_by_type.update(util.sanitize(orientations_by_type))
+        self._positions_by_type.update(util.data.sanitize(positions_by_type))
+        self._orientations_by_type.update(
+            util.data.sanitize(orientations_by_type)
+        )
 
     def remove(self, body: str | int | Body):
         """Remove a body.
@@ -330,8 +332,10 @@ class Arrangement:
         )
         
         # Modify the data
-        self._positions_by_type.update(util.sanitize(positions_by_type))
-        self._orientations_by_type.update(util.sanitize(orientations_by_type))
+        self._positions_by_type.update(util.data.sanitize(positions_by_type))
+        self._orientations_by_type.update(
+            util.data.sanitize(orientations_by_type)
+        )
 
     # ---------------------------------- FROM ----------------------------------
 
@@ -679,7 +683,7 @@ class Arrangement:
         """
         snapshot = self.to_hoomd_snapshot()
 
-        frame = util.snapshot_to_frame(snapshot)
+        frame = util.simulation.snapshot_to_frame(snapshot)
 
         if type_shapes:
             gsd_shape_specs = []

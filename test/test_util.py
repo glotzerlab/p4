@@ -4,7 +4,7 @@ import pytest
 from pathlib import Path
 import linecache
 
-from p4 import util # [Review] how should I import util
+import p4
 
 # ---------------------------------- GEOMETRY ----------------------------------
 
@@ -173,7 +173,7 @@ def test_polyhedron_intersection_2d(slice, expected):
     elif slice_axis == "z":
         plane = [0, 0, 1, slice_value]
 
-    actual = util.polyhedron_plane_intersection(shape, plane)
+    actual = p4.util.polyhedron_intersection.polyhedron_plane_intersection(shape, plane)
     actual = [np.array(i) for i in actual]
 
     expected = [np.array(i) for i in expected]
@@ -227,7 +227,7 @@ def test_polyhedron_intersection_1d(filename, expected):
 
     filepath = REFERENCE_FOLDER / filename
     shape = obj_to_polyhedron(filepath)
-    actual = util.polyhedron_line_intersection(shape, line)
+    actual = p4.util.polyhedron_intersection.polyhedron_line_intersection(shape, line)
 
     assert len(actual) == len(expected)
     for e in expected:

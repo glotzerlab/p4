@@ -1,6 +1,8 @@
 util
 ====
 
+.. automodule:: p4.util
+
 .. toctree::
     :maxdepth: 1
 

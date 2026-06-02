@@ -3,6 +3,8 @@
 
 import itertools
 
+import hoomd
+import gsd
 import numpy as np
 import plotly
 import rowan
@@ -12,9 +14,12 @@ import scipy
 from . import util
 from .type_aliases import (
     axis_like,
+    state_like,
     positions_like,
     orientations_like
 )
+from .arrangement import Arrangement
+from .body import Body
 
 
 # ---------------------------------- SAMPLING ----------------------------------
@@ -264,3 +269,96 @@ def plot_positions(
     figure.update_layout(util.plot_layout(**layout_kwargs))
 
     return figure, positions_trace
+
+def plot_state(
+    obj: hoomd.Simulation | state_like,
+    include_singles: bool = False,
+    type_shapes: dict[str, coxeter.shapes.Polyhedron] | None = None,
+    type_styles: dict[str, dict] | None = None,
+    ignore_types: list[str] | None = None,
+    **layout_kwargs
+):
+    """Visualize the state of a system.
+    
+    This convenience function for :py:meth:~p4.Arrangement.plot` accepts any
+    object that resembles or contains a simulation state.
+
+    Parameters
+    ----------
+    TODO
+    """
+    if isinstance(obj, hoomd.Simulation):
+        arrangement = Arrangement.from_hoomd_simulation(obj, include_singles)
+    elif isinstance(obj, hoomd.State):
+        snapshot = obj.get_snapshot()
+        arrangement = Arrangement.from_hoomd_snapshot(snapshot, include_singles)
+    elif isinstance(obj, hoomd.Snapshot):
+        arrangement = Arrangement.from_hoomd_snapshot(obj, include_singles)
+    elif isinstance(obj, gsd.hoomd.Frame):
+        snapshot = hoomd.Snapshot.from_gsd_frame(
+            gsd_snap=obj,
+            communicator=hoomd.communicator.Communicator()
+        )
+        arrangement = Arrangement.from_hoomd_snapshot(snapshot, include_singles)
+    
+    figure, traces = arrangement.plot(
+        type_shapes=type_shapes,
+        type_styles=type_styles,
+        ignore_types=ignore_types,
+        **layout_kwargs
+    )
+
+    figure.show()
+
+    return figure, traces
+        
+
+def plot_bodies(
+    obj: hoomd.Simulation | hoomd.md.constrain.Rigid | state_like,
+    include_singles: bool = False,
+    type_shapes: dict[str, coxeter.shapes.Polyhedron] | None = None,
+    type_styles: dict[str, dict] | None = None,
+    ignore_types: list[str] | None = None,
+    **layout_kwargs
+):
+    """Visualize the types of bodies in a system.
+    
+    Parameters
+    ----------
+    TODO
+    """
+    if isinstance(obj, hoomd.Simulation):
+        bodies = Body.from_hoomd_simulation(obj, include_singles)
+    elif isinstance(obj, hoomd.md.constrain.Rigid):
+        bodies = Body.from_hoomd_rigid(obj, include_singles)
+    elif isinstance(obj, hoomd.State):
+        snapshot = obj.get_snapshot()
+        bodies = Body.from_hoomd_snapshot(snapshot, include_singles)
+    elif isinstance(obj, hoomd.Snapshot):
+        bodies = Body.from_hoomd_snapshot(obj, include_singles)
+    elif isinstance(obj, gsd.hoomd.Frame):
+        snapshot = hoomd.Snapshot.from_gsd_frame(
+            gsd_snap=obj,
+            communicator=hoomd.communicator.Communicator()
+        )
+        bodies = Body.from_hoomd_snapshot(snapshot, include_singles)
+    
+    figure = plotly.subplots.make_subplots(rows=1, cols=len(bodies))
+    for i, body in enumerate(bodies):
+        _, traces = body.plot(
+            type_shapes=type_shapes,
+            type_styles=type_styles,
+            ignore_types=ignore_types,
+            **layout_kwargs
+        )
+        for trace in traces:
+            figure.add_trace(trace, row=1, col=i+1)
+
+    return figure, figure.data
+
+
+# ------------------------------------ OTHER -----------------------------------
+
+
+# def default_params(hoomd_class: hoomd.md.pair.Pair):
+#     pass

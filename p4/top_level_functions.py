@@ -12,7 +12,7 @@ import coxeter
 import scipy
 
 from . import util
-from .type_aliases import (
+from .types import (
     axis_like,
     state_like,
     positions_like,

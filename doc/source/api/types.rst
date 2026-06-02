@@ -1,8 +1,8 @@
-Type Aliases
-============
+types
+=====
 
 .. py:currentmodule:: p4
 
-.. automodule:: p4.type_aliases
+.. automodule:: p4.types
     :members:
     :member-order: bysource

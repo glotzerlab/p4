@@ -12,7 +12,7 @@ import hoomd
 import numpy as np
 
 from . import util
-from .type_aliases import positions_like, orientation_like, orientations_like
+from .types import positions_like, orientation_like, orientations_like
 from .body import Body
 from .interaction import Interaction
 from .arrangement import Arrangement

@@ -14,7 +14,7 @@ import gsd
 import hoomd
 import numpy as np
 
-from ..type_aliases import positions_like
+from ..types import positions_like
 
 
 def snapshot_to_frame(snapshot: hoomd.Snapshot):

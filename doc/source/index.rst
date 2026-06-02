@@ -40,7 +40,7 @@ plotted with methods built on the interactive plotting library `Plotly`_.
 
    api/module-p4
    api/util
-   api/type-aliases
+   api/types
 
 .. toctree::
    :maxdepth: 1

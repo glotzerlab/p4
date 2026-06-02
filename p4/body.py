@@ -16,7 +16,7 @@ from pathlib import Path
 
 import rowan
 from . import util
-from .type_aliases import positions_like, orientations_like, moi_like
+from .types import positions_like, orientations_like, moi_like
 
 # TODO: check default moi
 

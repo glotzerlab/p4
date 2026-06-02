@@ -15,7 +15,7 @@ import rowan
 
 from . import util
 from .body import Body
-from .type_aliases import positions_like, orientations_like
+from .types import positions_like, orientations_like
 
 
 class Arrangement:

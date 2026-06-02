@@ -161,7 +161,7 @@ def orientations_from_fibonacci_lattice(
             if best_group_index == ideal_group_index:
                 filtered_quaternions.append(q)
 
-        return filtered_quaternions
+        return np.asarray(filtered_quaternions)
     
     else:
         return quaternions

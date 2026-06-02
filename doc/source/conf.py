@@ -71,7 +71,7 @@ html_theme_options = {
 }
 html_static_path = ["_static"]
 
-maximum_signature_line_length = 100
+maximum_signature_line_length = 68
 python_display_short_literal_types = True
 
 
@@ -132,6 +132,5 @@ autoclasstoc_sections = [
 ]
 
 # Custom CSS
-
 def setup(app):
-  app.add_css_file("custom.css")
+    app.add_css_file("custom.css")

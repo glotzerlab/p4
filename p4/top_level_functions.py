@@ -146,7 +146,7 @@ def orientations_from_fibonacci_lattice(
     # Filter quaternions, only keeping ones which are "closest" to the same
     # group quaternion. The chosen group quaternion is the first one, and
     # distance is evaluated as the symmetric intrinsic distance.
-    # TODO: this doesn't really work yet
+    # TODO: validate this
     if group is not None:
         filtered_quaternions = []
         for q in quaternions:

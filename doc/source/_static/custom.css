@@ -1,6 +1,6 @@
 /* Center plotly plots */
 .plotly-graph-div {
-    margin: 2em auto;
+  margin: 2em auto;
 }
 
 /* Dirty hack for switching plotly plots to respect dark mode */
@@ -9,3 +9,17 @@
     filter: invert(100%) hue-rotate(180deg); 
   }
 } */
+
+/* Styles for autoclasstoc */
+.autoclasstoc .rubric {
+  text-transform: capitalize;
+  font-weight: bold;
+  font-size: medium;
+  margin-top: 0.75rem;
+  margin-bottom: 0;
+};
+
+.autoclasstoc .table-wrapper.container {
+  margin-top: 0rem;
+  margin-bottom: 0rem;
+};

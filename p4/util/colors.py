@@ -10,9 +10,7 @@ IBM_COLORS = [
     "#ff5f00",
     "#ffb00d",
 ]
-"""list[str]
-
-Colors from `IBM's Color Library`_, published under the CC-By-4.0 license.
+"""Colors from `IBM's Color Library`_, published under the CC-By-4.0 license.
 
 .. _`IBM's Color Library`: https://github.com/IBM-Design/colors
 """
@@ -27,9 +25,7 @@ WONG_COLORS = [
     "#CC79A7",
     "#000000",
 ]
-"""list[str]
-
-Colors from Bang Wong's `2011 paper`_.
+"""Colors from Bang Wong's `2011 paper`_.
 
 .. _`2011 paper`: https://doi.org/10.1038/nmeth.1618
 """
@@ -44,9 +40,7 @@ TOL_COLORS = [
     "#AA4499",
     "#882255",
 ]
-"""list[str]
-
-Colors from Paul Tol's `personal blog`_.
+"""Colors from Paul Tol's `personal blog`_.
 
 .. _`personal blog`: https://sronpersonalpages.nl/~pault/
 """

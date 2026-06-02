@@ -27,11 +27,18 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.viewcode",
     "sphinx.ext.autosummary",
+    "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
     # "sphinx_autodoc_typehints", # possibly remove for type aliases
     "sphinx_copybutton",
     "autoclasstoc",
 ]
+
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable", None),
+    "gsd": ("https://gsd.readthedocs.io/en/stable/", None),
+}
 
 # For sphincontrib.bibtex (as of v2.0).
 # bibtex_bibfiles = []

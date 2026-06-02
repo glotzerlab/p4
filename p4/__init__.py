@@ -20,10 +20,12 @@ from .top_level_functions import (
     # exclude_orientations_with_shape_overlap,
     plot_positions,
     # plot_orientations,
-    # plot_state,
-    # plot_bodies,
+    plot_state,
+    plot_bodies,
     # plot_interactions,
 )
+
+from . import util
 
 __all__ = [
     "body",
@@ -43,9 +45,10 @@ __all__ = [
     # "exclude_orientations_with_shape_overlap",
     "plot_positions",
     # "plot_orientations",
-    # "plot_state",
-    # "plot_bodies",
+    "plot_state",
+    "plot_bodies",
     # "plot_interactions",
+    "util",
 ]
 
 __version__ = "0.0.1"

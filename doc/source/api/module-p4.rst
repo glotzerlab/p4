@@ -1,11 +1,21 @@
-Top-Level Functions
-===================
+p4
+==
 
-General functions located at the top of the package namespace for convenience.
+Classes
++++++++
+
+.. toctree::
+    :maxdepth: 1
+
+    body
+    arrangement
+    interaction
+    system
+    field
 
 
-Sampling
-++++++++
+Sampling Functions
+++++++++++++++++++
 
 Functions for sampling position and orientation space.
 
@@ -18,8 +28,8 @@ Functions for sampling position and orientation space.
 .. autofunction:: p4.orientations_from_fibonacci_lattice
 
 
-Plotting
-++++++++
+Plotting Functions
+++++++++++++++++++
 
 Functions for visualizing samples and HOOMD-blue objects using Plotly.
 

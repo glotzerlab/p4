@@ -38,12 +38,9 @@ plotted with methods built on the interactive plotting library `Plotly`_.
    :caption: API
    :hidden:
 
-   api/top-level-functions
-   api/body
-   api/arrangement
-   api/interaction
-   api/system
-   api/field
+   api/module-p4
+   api/util
+   api/type-aliases
 
 .. toctree::
    :maxdepth: 1

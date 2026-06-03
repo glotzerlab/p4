@@ -15,15 +15,15 @@ import rowan
 
 from . import util
 from .body import Body
-from .types import positions_like, orientations_like
+from .types import PositionsLike, OrientationsLike
 
 
 class Arrangement:
     def __init__(
         self,
         bodies: list[Body],
-        positions_by_type: dict[str, positions_like],
-        orientations_by_type: dict[str, orientations_like] | None = None
+        positions_by_type: dict[str, PositionsLike],
+        orientations_by_type: dict[str, OrientationsLike] | None = None
     ):
         # Create defaults
         if orientations_by_type is None:
@@ -49,8 +49,8 @@ class Arrangement:
     def validate(
         cls,
         bodies: list[Body] | None = None,
-        positions_by_type: dict[str, positions_like] | None = None,
-        orientations_by_type: dict[str, orientations_like] | None = None
+        positions_by_type: dict[str, PositionsLike] | None = None,
+        orientations_by_type: dict[str, OrientationsLike] | None = None
     ):
         """Ensure the keyword arguments adhere to the :ref:`arrangement schema`.
         """
@@ -154,7 +154,7 @@ class Arrangement:
         return self._orientations_by_type
 
     @orientations_by_type.setter
-    def orientations_by_type(self, value: orientations_like):
+    def orientations_by_type(self, value: OrientationsLike):
         """Set a mapping from body primary types to orientations."""
         self.validate(
             bodies=self._bodies,
@@ -168,8 +168,8 @@ class Arrangement:
     def add(
         self,
         body: Body,
-        positions: positions_like,
-        orientations: orientations_like | None = None,
+        positions: PositionsLike,
+        orientations: OrientationsLike | None = None,
     ):
         """Add a new body.
 
@@ -269,8 +269,8 @@ class Arrangement:
     def update(
         self,
         body: str | int | Body,
-        positions: positions_like | None = None,
-        orientations: orientations_like | None = None,
+        positions: PositionsLike | None = None,
+        orientations: OrientationsLike | None = None,
     ):
         """Update data for a body.
 
@@ -284,7 +284,7 @@ class Arrangement:
             Body directly.
         positions : (N, 3) array of floats, optional
             The positions for the body.
-        orientations : (N, 4) array of floats, optional
+        orientations : OrientationsLike, optional
             The orientations for the body.
         """
         # Validate body input and calculate data used to find it in self.bodies

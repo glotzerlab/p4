@@ -739,7 +739,7 @@ class Interaction:
         cmap: str = "Pastel",
         ylim: list[float] | None = None,
         include_default: bool = False,
-        mode: Literal["lines", "marker+lines", "marker"] = "lines",
+        mode: Literal["lines", "lines+markers", "markers"] = "lines",
         marker_size: float = 6,
         line_width: float = 2,
         **kwargs

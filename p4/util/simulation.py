@@ -14,7 +14,7 @@ import gsd
 import hoomd
 import numpy as np
 
-from ..types import PositionsLike
+from ..types import OrientationsLike, PositionsLike
 
 
 def snapshot_to_frame(snapshot: hoomd.Snapshot):
@@ -52,26 +52,21 @@ def get_initial_frame(
     analyte: "Body" | "Arrangement",
     simulation_box: list[float],
 ) -> gsd.hoomd.Frame:
-    """Return a simulation frame with analyte at center and probe at edge.
-
-    All provided types are included in the particle type data, but only primary
-    types specified on the provided particle models are actually placed.
-    Secondary types **are not** placed in the frame and must be added separately
-    using `create_rigid_bodies()`.
+    """Return a simulation frame with the probe and analyte at the origin.
 
     Parameters
     ----------
     probe : Body
-        The body for the probe.
+        The probe body.
     analyte : Body | Arrangement
-        The body or arrangement for the analyte.
+        The analyte body or arrangement.
     simulation_box : list[float]
-        The side lengths of the simulation box. [Lx, Ly, Lz]
+        The dimensions of the simulation box. Must be an array of 6 floats
+        representing ``[Lx, Ly, Lz, xy, xz, yz]``.
 
     Returns
     -------
-    frame
-        The initial frame.
+    gsd.hoomd.Frame
     """
     # Create separate frames
     probe_frame = snapshot_to_frame(probe.to_hoomd_snapshot())
@@ -139,7 +134,7 @@ def add_gsd_writer(
     simulation: hoomd.Simulation,
     gsd_filename: str,
     compute: hoomd.md.compute.ThermodynamicQuantities | None = None
-) -> Tuple[hoomd.Simulation, hoomd.md.compute.ThermodynamicQuantities]:
+) -> tuple[hoomd.Simulation, hoomd.md.compute.ThermodynamicQuantities]:
     """Add a GSD writer that logs potential energy to the simulation.
 
     Parameters
@@ -154,7 +149,7 @@ def add_gsd_writer(
 
     Returns
     -------
-    simulation, compute
+    tuple[hoomd.Simulation, hoomd.md.compute.ThermodynamicQuantities]
         The modified simulation and its thermodynamic computer.
     """
     gsd_writer = hoomd.write.GSD(
@@ -183,7 +178,7 @@ def add_table_writer(
     probe_is_rigid: bool,
     probe_index: int,
     compute: hoomd.md.compute.ThermodynamicQuantities | None = None
-) -> Tuple[hoomd.Simulation, hoomd.logging.Logger]:
+) -> Tuple[hoomd.Simulation, hoomd.md.compute.ThermodynamicQuantities]:
     """Add a table writer that logs named quantities to the simulation.
 
     Parameters
@@ -207,7 +202,7 @@ def add_table_writer(
 
     Returns
     -------
-    simulation, compute
+    tuple[hoomd.Simulation, hoomd.md.compute.ThermodynamicQuantities]
         The modified simulation and its thermodynamic computer.
     """
     logger = hoomd.logging.Logger(categories=["scalar", "string"])
@@ -289,14 +284,14 @@ def add_interaction(
     nlist: hoomd.md.nlist.NeighborList,
     interaction: "Interaction",
 ) -> hoomd.Simulation:
-    """Add an interaction to the simulation.
+    """Add an interaction to a simulation.
 
     Parameters
     ----------
     simulation : hoomd.Simulation
-        The simulation to modify
+        The simulation to modify.
     nlist : hoomd.md.nlist.NeighborList
-        The neighborlist to use for the interaction.
+        The neighbor list to use for the interaction.
     interaction : Interaction
         The interaction to add.
 
@@ -313,14 +308,15 @@ def add_integrator(
     simulation: hoomd.Simulation,
     rigid: hoomd.md.constrain.Rigid | None = None,
 ) -> hoomd.Simulation:
-    """Add a constant Volume MD integrator to the simulation.
+    """Add a constant volume MD integrator to a simulation.
 
     Parameters
     ----------
     simulation : hoomd.Simulation
         The simulation to modify.
     rigid : hoomd.md.constrain.Rigid, optional
-        The rigid constraint.
+        The rigid constraint. If not provided, none is attached to the
+        integrator.
 
     Returns
     -------
@@ -346,24 +342,24 @@ def get_simulation(
     nlist: hoomd.md.nlist.NeighborList,
     simulation_box: list[float]
 ) -> hoomd.Simulation:
-    """Return a simulation for a System with specified boxes and interactions.
+    """Return a simulation for a system with specified boxes and interactions.
 
     Parameters
     ----------
     system : System
-        The system containing the probe and analyte particle models, as well as
-        the interaction model for the simulation.
+        The system.
     interactions_to_include : list[Interaction]
         The interactions to include in the simulation.
     nlist : hoomd.md.nlist.NeighborList
         The neighbor list to use for the interactions in the simulation.
     simulation_box : list[float]
-        The simulation's box in HOOMD notation. $[Lx, Ly, Lz, xy, xz, yz]$
+        The simulation's box in HOOMD notation. Must be an array of 6 floats
+        representing ``[Lx, Ly, Lz, xy, xz, yz]``.
 
     Returns
     -------
     hoomd.Simulation
-        The simulation object, fully prepared and ready to be run.
+        The simulation object.
     """
     # Create initial frame
     frame = get_initial_frame(
@@ -413,7 +409,7 @@ def measure(
     system: "System",
     quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
     positions: PositionsLike,
-    orientations: list[list[float]],
+    orientations: list[OrientationsLike],
     included_interactions: list["Interaction"],
     simulation_box: list[float],
     gsd_filename: str | None,
@@ -430,21 +426,16 @@ def measure(
         the entire system, and is saved as a single scalar quantity. 'F' and
         'T' are the net Force and Torque experienced by the probe, and are
         saved as vector quantities.
-    positions : (N, 3) array of floats
+    positions : PositionsLike
         The positions to measure at.
-    orientations : (N, M, 4) array of floats
+    orientations : list[OrientationsLike]
         The orientations (in quaternion form) to measure at. A separate array
         of orientations must be provided for every position.
     included_interactions : list[Interactions]
-        The Interactions to include in the simulation.
-    gsd_filename : str
-        The name of the final output CSV file. This is not used to actually
-        write.
-    measurement_box : list[float]
-        The side lengths $[Lx, Ly, Lz]$ of the box containing the positions to
-        measure at.
+        The interactions to include in the simulation.
     simulation_box : list[float]
-        The simulation's box in HOOMD notation. $[Lx, Ly, Lz, xy, xz, yz]$
+        The simulation's box in HOOMD notation. Must be an array of 6 floats
+        representing ``[Lx, Ly, Lz, xy, xz, yz]``.
     gsd_filename : str
         The name of the GSD file to save. If not provided, no GSD file will be
         saved.
@@ -453,7 +444,7 @@ def measure(
 
     Returns
     -------
-    table
+    StringIO
         The tabular results of the measurement simulation, formatted as a CSV
         and stored in a string buffer.
     """

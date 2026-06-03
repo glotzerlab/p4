@@ -4,11 +4,8 @@
 """Functions for calculating polyhedron-plane intersections.
 
 These functions are not optimized for performance and require adherence to 
-specific types for representing geometric primitives - see
-:py:type:`~p4.polyhedron_intersection.plane`,
-:py:type:`~p4.polyhedron_intersection.point`,
-:py:type:`~p4.polyhedron_intersection.segment`, and
-:py:type:`~p4.polyhedron_intersection.pointset`.
+specific types for representing geometric primitives - see :py:type:`plane`,
+:py:type:`point`, :py:type:`segment`, and :py:type:`pointset`.
 
 These functions obey the following assumptions:
 

@@ -751,16 +751,16 @@ class Interaction:
         Styles may be specified for specific pairs of types. A style must
         specified as a dictionary which may have the following keys and values:
 
-        * ``mode`` [``'lines'``, ``'lines+markers'``, ``'markers'``] The
+        * **mode** [``'lines'``, ``'lines+markers'``, ``'markers'``] The
           `drawing mode`_ for the plotly trace.
 
-        * ``color`` [``str``] - The symbol's color. Plotly accepts color strings
+        * **color** [``str``] - The symbol's color. Plotly accepts color strings
           in `standard HTML/CSS formats`_ (for example, `rgb`_), as well as
           `many named colors`_.
         
-        * ``marker_size`` [``float`` > 0] - The marker size.
+        * **marker_size** [``float`` > 0] - The marker size.
 
-        * ``line_width`` [``float`` > 0] - The line width.
+        * **line_width** [``float`` > 0] - The line width.
 
         .. _drawing mode: https://plotly.com/python/reference/scatter/#scatter-mode
         .. _standard HTML/CSS formats: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/color

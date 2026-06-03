@@ -850,8 +850,8 @@ def polygon_to_segments(polygon: PointSet) -> list[Segment]:
 def point_in_polygon(point: Point, polygon: PointSet) -> bool:
     """Whether a point is inside a polygon (tangent points count as inside).
     
-    This implementation follows BottleNick's `implementation`_, published on SO
-    under the CC BY-SA 4.0 license.
+    This implementation follows BottleNick's `implementation`_, published on
+    StackOverflow under the CC BY-SA 4.0 license.
     
     .. _`implementation`: https://stackoverflow.com/a/60672266/15426433
 

@@ -467,10 +467,9 @@ class Arrangement:
     ) -> Arrangement:
         """Create an arrangement from JSON.
 
-        a JSON path may be provided to control the location that the
-        arrangement data is retrieved from. See
-        :meth:`~p4.Arrangement.to_json` for an explanation of JSON path
-        formatting.
+        A JSON path may be provided to control the location that the
+        arrangement data is retrieved from. See :py:meth:`to_json` for an
+        explanation of JSON path formatting.
 
         .. note::
             The internal data structures for the ``Arrangement`` class have

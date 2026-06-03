@@ -748,9 +748,9 @@ class Body:
     ) -> Body:
         """Create a body from JSON.
 
-        a JSON path may be provided to control the location that the body data
-        is retrieved from. See :meth:`~p4.Body.to_json` for an explanation of
-        JSON path formatting.
+        A JSON path may be provided to control the location that the body data
+        is retrieved from. See :py:meth:`to_json` for an explanation of JSON
+        path formatting.
 
         .. note::
             The internal data structures for the ``Body`` class have native

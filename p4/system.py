@@ -320,8 +320,8 @@ class System:
     ) -> System:
         """Create a system from JSON.
 
-        a JSON path may be provided to control the location that the system
-        data is retrieved from. See :meth:`~p4.System.to_json` for an
+        A JSON path may be provided to control the location that the
+        system data is retrieved from. See :py:meth:`to_json` for an
         explanation of JSON path formatting.
         
         Parameters

@@ -393,8 +393,8 @@ class Interaction:
     ):
         """Create an interaction from JSON.
 
-        a JSON path may be provided to control the location that the interaction
-        data is retrieved from. See :meth:`~p4.Interaction.to_json` for an
+        A JSON path may be provided to control the location that the
+        interaction data is retrieved from. See :py:meth:`to_json` for an
         explanation of JSON path formatting.
 
         .. note::

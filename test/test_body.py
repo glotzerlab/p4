@@ -438,7 +438,7 @@ def test_property_setters_invalid():
         moi_by_type=dict(A=[1, 0, 0], B=[0, 1, 0])
     )
 
-    body = p4.Body(**kwargs)
+    body = p4.Body(**deepcopy(kwargs))
 
     # Adding/removing/updating clashing secondary type
     with pytest.raises(ValueError):
@@ -472,8 +472,8 @@ def test_property_setters_invalid():
     
     # Ensure none of the invalid operations above mutated the internal data
     assert body.secondary_types == kwargs["secondary_types"]
-    assert body.positions_by_type == kwargs["positions_by_type"]
-    assert body.orientations_by_type == kwargs["orientations_by_type"]
+    assert body.positions_by_type == p4.util.data.sanitize(kwargs["positions_by_type"])
+    assert body.orientations_by_type == p4.util.data.sanitize(kwargs["orientations_by_type"])
     assert body.mass_by_type == kwargs["mass_by_type"]
     assert body.moi_by_type == kwargs["moi_by_type"]
 

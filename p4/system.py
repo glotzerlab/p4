@@ -84,71 +84,62 @@ class System:
         analyte: Body | Arrangement,
         interactions: list[Interaction],
     ):
-        # Validate inputs
-        self.validate(
-            probe=probe,
-            analyte=analyte,
-            interactions=interactions
-        )
-
         # Set instance attributes
         self._probe = probe
         self._analyte = analyte
         self._interactions = interactions
 
-    @classmethod
-    def validate(
-        cls,
-        probe: Body,
-        analyte: Body | Arrangement,
-        interactions: list[Interaction],
-    ):
+        # Validate instance attributes
+        self.validate()
+
+    def validate(self):
         """Ensure this system adheres to the :ref:`system-schema`."""
         # Ensure types are correct
-        if not isinstance(probe, Body):
+        if not isinstance(self.probe, Body):
             raise TypeError("`probe` must be an instance of 'Body'.")
         
-        if not isinstance(analyte, (Body, Arrangement)):
+        if not isinstance(self.analyte, (Body, Arrangement)):
             raise TypeError(
                 "`analyte` must be an instance of 'Body' or 'Arrangement'."
             )
         
         if (
-            not isinstance(interactions, Iterable)
-            or not all(type(i) is Interaction for i in interactions)
+            not isinstance(self.interactions, Iterable)
+            or not all(type(i) is Interaction for i in self.interactions)
         ):
             raise TypeError(
                 "`interactions` must be a list of Interaction instances."
             )
         
         # Ensure there are no body clashes
-        if isinstance(analyte, Body):
+        if isinstance(self.analyte, Body):
             if (
-                probe.primary_type == analyte.primary_type
-                and probe != analyte
+                self.probe.primary_type == self.analyte.primary_type
+                and self.probe != self.analyte
             ):
                 raise ValueError(
                     "Clashing body definitions: if `probe` and `analyte` have "
                     + "the same primary type, they must be identical bodies."
                 )
-            if probe.primary_type in analyte.secondary_types:
+            if self.probe.primary_type in self.analyte.secondary_types:
                 # TODO: is this still necessary for a single-particle probe?
                 raise ValueError(
                     "Clashing body definitions: probe primary type must not "
                     + "be included in analyte secondary types."
                 )
-            if analyte.primary_type in probe.secondary_types:
+            if self.analyte.primary_type in self.probe.secondary_types:
                 raise ValueError(
                     "Clashing body definitions: analyte primary type must not "
                     + "be included in probe secondary types."
                 )
 
-        elif isinstance(analyte, Arrangement):
+        elif isinstance(self.analyte, Arrangement):
             if (
                 any(
-                    probe.primary_type == b.primary_type for b in analyte.bodies
+                    self.probe.primary_type == b.primary_type
+                    for b in self.analyte.bodies
                 )
-                and probe not in analyte.bodies
+                and self.probe not in self.analyte.bodies
             ):
                 raise ValueError(
                     "Clashing body definitions: if `probe` and has the same "
@@ -156,14 +147,16 @@ class System:
                     + "identical to that body."
                 )
             if any(
-                probe.primary_type in b.secondary_types for b in analyte.bodies
+                self.probe.primary_type in b.secondary_types
+                for b in self.analyte.bodies
             ):
                 raise ValueError(
                     "Clashing body definitions: probe primary type must not "
                     + "be included in any analyte body's secondary types."
                 )
             if any(
-                b.primary_type in probe.secondary_types for b in analyte.bodies
+                b.primary_type in self.probe.secondary_types
+                for b in self.analyte.bodies
             ):
                 raise ValueError(
                     "Clashing body definitions: the probe secondary types "
@@ -185,12 +178,13 @@ class System:
     @probe.setter
     def probe(self, value: Body):
         """Set the system's probe."""
-        self.validate(
-            probe=value,
-            analyte=self.analyte,
-            interactions=self.interactions
-        )
+        original_value = self._probe
         self._probe = value
+        try:
+            self.validate()
+        except:
+            self._probe = original_value
+            raise
         
     @property
     def analyte(self) -> Body | Arrangement:
@@ -205,12 +199,13 @@ class System:
     @analyte.setter
     def analyte(self, value: Body | Arrangement):
         """Set the system's analyte."""
-        self.validate(
-            probe=self.probe,
-            analyte=value,
-            interactions=self.interactions
-        )
+        original_value = self._analyte
         self._analyte = value
+        try:
+            self.validate()
+        except:
+            self._analyte = original_value
+            raise
         
     @property
     def interactions(self) -> list[Interaction]:
@@ -220,12 +215,13 @@ class System:
     @interactions.setter
     def interactions(self, value: list[Interaction]):
         """Set the interactions between particles in the probe and analyte."""
-        self.validate(
-            probe=self.probe,
-            analyte=self.analyte,
-            interactions=value
-        )
+        original_value = self._interactions
         self._interactions = value
+        try:
+            self.validate()
+        except:
+            self._interactions = original_value
+            raise
 
     # ---------------------------------- FROM ----------------------------------
 

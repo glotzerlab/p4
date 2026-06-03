@@ -1,7 +1,8 @@
 # Copyright (c) 2025-2026, The Regents of the University of Michigan
 # This file is from the p4 project, released under the BSD 3-Clause License.
 
-from copy import copy
+from copy import copy, deepcopy
+from inspect import signature
 import json
 import os
 from typing import Iterable
@@ -11,6 +12,7 @@ import coxeter
 import gsd
 import hoomd
 import numpy as np
+import plotly
 import rowan
 
 from . import util
@@ -48,46 +50,32 @@ class Arrangement:
         if orientations_by_type is None:
             orientations_by_type = {}
         
-        # Sanitize input dictionaries
-        positions_by_type = util.data.sanitize(positions_by_type)
-        orientations_by_type = util.data.sanitize(orientations_by_type)
-
-        # Validate inputs
-        self.validate(
-            bodies=bodies,
-            positions_by_type=positions_by_type,
-            orientations_by_type=orientations_by_type
-        )
-
         # Set instance attributes
         self._bodies = bodies
-        self._positions_by_type = positions_by_type
-        self._orientations_by_type = orientations_by_type
+        self._positions_by_type = util.data.sanitize(positions_by_type)
+        self._orientations_by_type = util.data.sanitize(orientations_by_type)
 
-    @classmethod
-    def validate(
-        cls,
-        bodies: list[Body] | None = None,
-        positions_by_type: dict[str, PositionsLike] | None = None,
-        orientations_by_type: dict[str, OrientationsLike] | None = None
-    ):
-        """Ensure the keyword arguments adhere to the :ref:`arrangement-schema`.
+        # Validate instance attributes
+        self.validate()
+
+    def validate(self):
+        """Ensure this arrangement adheres to the :ref:`arrangement-schema`.
         """
         # Ensure bodies is the right type
-        if bodies:
+        if self.bodies:
             if not (
-                isinstance(bodies, Iterable)
-                and all(isinstance(b, Body) for b in bodies)
+                isinstance(self.bodies, Iterable)
+                and all(isinstance(b, Body) for b in self.bodies)
             ):
                 raise TypeError("`bodies` must be a list of Bodies.")
 
         # Ensure that all bodies have different primary types
-        if bodies:
-            for i, body in enumerate(bodies):
-                if i == len(bodies) - 1:
-                    other_bodies = bodies[:-1]
+        if self.bodies:
+            for i, body in enumerate(self.bodies):
+                if i == len(self.bodies) - 1:
+                    other_bodies = self.bodies[:-1]
                 else:
-                    other_bodies = bodies[0:i] + bodies[i+1:]
+                    other_bodies = self.bodies[0:i] + self.bodies[i+1:]
                 if any(
                     b.primary_type == body.primary_type for b in other_bodies
                 ):
@@ -96,13 +84,18 @@ class Arrangement:
                     )
 
         # Ensure positions are provided for all primary types
-        if bodies:
-            primary_types = [b.primary_type for b in bodies]
+        if self.bodies:
+            primary_types = [b.primary_type for b in self.bodies]
             
-            if not positions_by_type:
+            if not self.positions_by_type:
                 positions_by_type = {}
+            else:
+                positions_by_type = self.positions_by_type
             
-            if ts := [t for t in primary_types if t not in positions_by_type]:
+            ts = [
+                t for t in primary_types if t not in positions_by_type
+            ]
+            if ts:
                 raise ValueError(
                     "Missing required keys in `positions_by_type`: "
                     + f"'{"', '".join(ts)}'. Positions must be "
@@ -110,27 +103,29 @@ class Arrangement:
                 )
         
         # Ensure that all positions are 3-vectors
-        if positions_by_type:
+        if self.positions_by_type:
             if any(
-                len(p) != 3 for ps in positions_by_type.values() for p in ps
+                len(p) != 3
+                for ps in self.positions_by_type.values()
+                for p in ps
             ):
                 raise ValueError("All positions must be vectors of length 3.")
 
         # Ensure that for every secondary type, the number of provided
         # orientations matches the number of provided positions
         if (
-            bodies
-            and positions_by_type
-            and orientations_by_type
+            self.bodies
+            and self.positions_by_type
+            and self.orientations_by_type
         ):
             ts = [
                 t
                 for t in primary_types
                 if (
-                    t in orientations_by_type
+                    t in self.orientations_by_type
                     and (
-                        len(positions_by_type[t])
-                        != len(orientations_by_type[t])
+                        len(self.positions_by_type[t])
+                        != len(self.orientations_by_type[t])
                     )
                 )
             ]
@@ -143,9 +138,9 @@ class Arrangement:
                 )
         
         # Ensure that all orientations are quaternions
-        if orientations_by_type:
+        if self.orientations_by_type:
             if any(
-                len(o) != 4 for os in orientations_by_type.values() for o in os
+                len(o) != 4 for os in self.orientations_by_type.values() for o in os
             ):
                 raise ValueError(
                     "All orientations must be vectors of length 4."
@@ -175,12 +170,13 @@ class Arrangement:
     @orientations_by_type.setter
     def orientations_by_type(self, value: OrientationsLike):
         """Set a mapping from body primary types to orientations."""
-        self.validate(
-            bodies=self._bodies,
-            positions_by_type=self._positions_by_type,
-            orientations_by_type=value
-        )
+        original_value = deepcopy(self._orientations_by_type)
         self._orientations_by_type = util.data.sanitize(value)
+        try:
+            self.validate()
+        except:
+            self._orientations_by_type = original_value
+            raise
 
     # ------------------------------- OPERATIONS -------------------------------
 
@@ -217,15 +213,10 @@ class Arrangement:
         else:
             orientations_by_type = {body.primary_type: orientations}
 
-        # Validate
-        self.validate(
-            bodies=self._bodies + [body],
-            positions_by_type={**self._positions_by_type, **positions_by_type},
-            orientations_by_type={
-                **self._orientations_by_type,
-                **orientations_by_type
-            }
-        )
+        # Store original data
+        original_bodies = deepcopy(self._bodies)
+        original_positions_by_type = deepcopy(self._positions_by_type)
+        original_orientations_by_type = deepcopy(self._orientations_by_type)
         
         # Modify the data
         self._bodies.append(body)
@@ -233,6 +224,15 @@ class Arrangement:
         self._orientations_by_type.update(
             util.data.sanitize(orientations_by_type)
         )
+
+        # Validate the instance attributes
+        try:
+            self.validate()
+        except:
+            self._bodies = original_bodies
+            self._positions_by_type = original_positions_by_type
+            self._orientations_by_type = original_orientations_by_type
+            raise
 
     def remove(self, body: str | int | Body):
         """Remove a body.
@@ -332,28 +332,31 @@ class Arrangement:
         
         else:
             raise TypeError("`body` must be a string, integer, or Body.")
-        
-        # Calculate updated data
-        positions_by_type = copy(self._positions_by_type)
-        if positions is not None:
-            positions_by_type.update({primary_type: positions})
 
-        orientations_by_type = copy(self._orientations_by_type)
-        if orientations is not None:
-            orientations_by_type.update({primary_type: orientations})
+        # Store original data
+        original_positions_by_type = deepcopy(self._positions_by_type)
+        original_orientations_by_type = deepcopy(self._orientations_by_type)
 
-        # Validate
-        self.validate(
-            bodies=self._bodies,
-            positions_by_type=positions_by_type,
-            orientations_by_type=orientations_by_type
-        )
-        
         # Modify the data
-        self._positions_by_type.update(util.data.sanitize(positions_by_type))
-        self._orientations_by_type.update(
-            util.data.sanitize(orientations_by_type)
-        )
+        if positions is not None:
+            positions_by_type = deepcopy(self._positions_by_type)
+            positions_by_type.update({primary_type: positions})
+            self._positions_by_type = util.data.sanitize(positions_by_type)
+
+        if orientations is not None:
+            orientations_by_type = deepcopy(self._orientations_by_type)
+            orientations_by_type.update({primary_type: orientations})
+            self._orientations_by_type = util.data.sanitize(
+                orientations_by_type
+            )
+
+        # Validate the instance attributes
+        try:
+            self.validate()
+        except:
+            self._positions_by_type = original_positions_by_type
+            self._orientations_by_type = original_orientations_by_type
+            raise
 
     # ---------------------------------- FROM ----------------------------------
 

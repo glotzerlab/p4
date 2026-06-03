@@ -9,24 +9,24 @@ from io import StringIO
 import numpy as np
 
 
-def merge_tables(table_csvs: list[StringIO]):
+def merge_tables(tables: list[StringIO]) -> StringIO:
     """Combine an array of tables stored in string buffers.
 
     Parameters
     ----------
-    table_csvs : list[StringIO]
-        The tables to merge. The tables should be in CSV format and stored
-        in string buffers.
+    tables : list[StringIO]
+        The tables to merge. The tables must be in CSV format and stored in
+        string buffers.
 
     Returns
     -------
-    table
+    StringIO
         The merged table.
     """
     merged_table = StringIO()
     writer = csv.writer(merged_table)
 
-    for i, table in enumerate(table_csvs):
+    for i, table in enumerate(tables):
         table.seek(0)
         
         # skip header for all tables after the first
@@ -40,12 +40,12 @@ def merge_tables(table_csvs: list[StringIO]):
         
     return merged_table
 
-def clean_header(table: StringIO):
+def clean_header(table: StringIO) -> StringIO:
     """Simplify the header of a table string buffer.
 
     This function strips whitespace from column names and if a column named 
     'md.compute.ThermodynamicQuantities.potential_energy' is present, it is
-    rebnamed to 'U'.
+    renamed to 'U'.
 
     Parameters
     ----------
@@ -54,7 +54,8 @@ def clean_header(table: StringIO):
 
     Returns
     -------
-    cleaned_table
+    StringIO
+        The cleaned table.
     """
     # Calculate the clean column names
     table.seek(0)

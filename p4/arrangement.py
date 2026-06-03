@@ -19,6 +19,25 @@ from .types import PositionsLike, OrientationsLike
 
 
 class Arrangement:
+    """Definitions and spatial data for a set of bodies arranged in space.
+
+    An :py:class:`Arrangement` specifies positions and orientations for
+    instances of various bodies, analagous to a GSD Frame or a HOOMD-blue
+    Snapshot.
+    
+    Parameters
+    ----------
+    bodies : list[Body]
+        The body definitions.
+    positions_by_type : dict[str, PositionsLike]
+        A mapping of body primary types to positions. One or more positions must
+        be provided for every body. An instance of the body is located at each
+        position.
+    orientations_by_type : dict[str, OrientationsLike]
+        A mapping of body primary types to orientations. If not provided for a
+        body, all instances of that body have a default orientation of
+        ``(1, 0, 0, 0)``.
+    """
     def __init__(
         self,
         bodies: list[Body],

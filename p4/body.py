@@ -1063,13 +1063,13 @@ class Body:
         specified as a `Coxeter Polyhedron`_. A style must specified as a
         dictionary which may have the following keys and values:
 
-        * ``color`` [``str``] - The symbol's color. Plotly accepts color strings
+        * **color** [``str``] - The symbol's color. Plotly accepts color strings
           in `standard HTML/CSS formats`_ (for example, `rgb`_), as well as
           `many named colors`_.
         
-        * ``opacity`` [``float`` 0 to 1] - The symbol's opacity.
+        * **opacity** [``float`` 0 to 1] - The symbol's opacity.
         
-        * ``size`` [``float`` > 0]- The symbol's size. When the type is
+        * **size** [``float`` > 0] - The symbol's size. When the type is
           represented by a point, this corresponds to the symbol's ``size``
           attribute (see Plotly docs for `2D`_ and `3D`_). When the type is
           represented by a line, this setting corresponds to the line's
@@ -1088,9 +1088,8 @@ class Body:
         Parameters
         ----------
         type_shapes : dict, optional
-            A mapping from particle type name [``str``] to shape
-            [``coxeter.shapes.Polyhedron``]. If no shape is provided for a type,
-            it will be plotted as a sphere.
+            A mapping from particle type name to shape. If no shape is provided
+            for a type, it will be plotted as a sphere.
         type_styles : dict, optional
             A mapping from particle type name to style, where style is given as
             a dictionary which may have the keys 'color', 'opacity', and 'size'.
@@ -1107,9 +1106,9 @@ class Body:
         **kwargs
             Other keyword arguments are passed to the following functions:
 
-            * ``p4.util.plotting.plot_layout()`` - TODO: add link
+            * :py:func:`p4.util.plotting.plot_layout`
 
-            * ``p4.util.plotting.snapshot_schematic_slice_trace()``
+            * :py:func:`p4.util.plotting.snapshot_schematic_slice_trace`
         """
         # Set defaults
         if not type_shapes:

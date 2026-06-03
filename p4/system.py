@@ -132,6 +132,7 @@ class System:
                     + "the same primary type, they must be identical bodies."
                 )
             if probe.primary_type in analyte.secondary_types:
+                # TODO: is this still necessary for a single-particle probe?
                 raise ValueError(
                     "Clashing body definitions: probe primary type must not "
                     + "be included in analyte secondary types."

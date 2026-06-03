@@ -565,6 +565,11 @@ class System:
     ):
         """Measure named quantities for the system.
 
+        This method coordinates the parallelization of the measurement
+        simulations and the merging, cleaning, and formatting of the resulting
+        datasets. For the actual implementation of the simulation loop, see
+        :py:func:`p4.util.simulation.measure`.
+
         :meta measure:
 
         Parameters

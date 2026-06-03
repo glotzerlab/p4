@@ -103,7 +103,7 @@ class System:
         analyte: Body | Arrangement,
         interactions: list[Interaction],
     ):
-        """Ensure this system adheres to the :ref:`system schema`."""
+        """Ensure this system adheres to the :ref:`system-schema`."""
         # Ensure types are correct
         if not isinstance(probe, Body):
             raise TypeError("`probe` must be an instance of 'Body'.")

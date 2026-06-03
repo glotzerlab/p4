@@ -120,7 +120,7 @@ class Interaction:
         self.validate()
 
     def validate(self):
-        """Ensure this interaction adheres to the :ref:`interaction schema`.
+        """Ensure this interaction adheres to the :ref:`interaction-schema`.
         
         .. note:
             Unlike :py:class:`~p4.Body` and :py:class:`~p4.Arrangement`,

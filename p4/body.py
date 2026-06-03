@@ -144,7 +144,7 @@ class Body:
         mass_by_type: dict[str, float] | None = None,
         moi_by_type: dict[str, MoiLike] | None = None,
     ):
-        """Ensure the keyword arguments adhere to the :ref:`body schema`."""
+        """Ensure the keyword arguments adhere to the :ref:`body-schema`."""
         # Ensure primary type is coercable to str
         if primary_type:
             try:

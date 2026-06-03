@@ -1,32 +1,35 @@
-======
-Schema
-======
+=======
+Schemas
+=======
+
+.. _body-schema:
 
 Body Schema
 +++++++++++
 
-.. _body schema:
-
 TODO
+
+
+.. _arrangement-schema:
 
 Arrangement Schema
 ++++++++++++++++++
 
-.. _body schema:
-
 TODO
+
+
+.. _interaction-schema:
 
 Interaction Schema
 ++++++++++++++++++
 
-.. _body schema:
-
 TODO
+
+
+.. _system-schema:
 
 System Schema
 +++++++++++++
-
-.. _body schema:
 
 TODO
 

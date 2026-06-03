@@ -47,7 +47,7 @@ plotted with methods built on the interactive plotting library `Plotly`_.
    :caption: Reference
    :hidden:
 
-   schema
+   schemas
    for-developers
    changelog
    credits

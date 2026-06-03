@@ -71,7 +71,7 @@ class Arrangement:
         positions_by_type: dict[str, PositionsLike] | None = None,
         orientations_by_type: dict[str, OrientationsLike] | None = None
     ):
-        """Ensure the keyword arguments adhere to the :ref:`arrangement schema`.
+        """Ensure the keyword arguments adhere to the :ref:`arrangement-schema`.
         """
         # Ensure bodies is the right type
         if bodies:

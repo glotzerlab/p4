@@ -222,10 +222,10 @@ class Arrangement:
 
         Parameters
         ----------
-        name : str or int or Body
+        body : str or int or Body
             The body to remove. Specify a body by providing its primary type,
-            its index in :py:meth:`~p4.Arrangement.bodies`, or by providing the
-            Body directly.
+            its index in :py:meth:`~p4.Arrangement.bodies`, or by providing an
+            identical body.
         """
         # Validate body input and calculate data used to find it in self.bodies
         if isinstance(body, str):
@@ -278,11 +278,11 @@ class Arrangement:
         
         Parameters
         ----------
-        name : str or int or Body
+        body : str or int or Body
             The body to update. Specify a body by providing its primary type,
-            its index in :py:meth:`~p4.Arrangement.bodies`, or by providing the
-            Body directly.
-        positions : (N, 3) array of floats, optional
+            its index in :py:meth:`~p4.Arrangement.bodies`, or by providing an
+            identical body.
+        positions : PositionsLike
             The positions for the body.
         orientations : OrientationsLike, optional
             The orientations for the body.

@@ -14,7 +14,7 @@ import gsd
 import hoomd
 import numpy as np
 
-from ..types import positions_like
+from ..types import PositionsLike
 
 
 def snapshot_to_frame(snapshot: hoomd.Snapshot):
@@ -412,7 +412,7 @@ def get_simulation(
 def measure(
     system: "System",
     quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
-    positions: positions_like,
+    positions: PositionsLike,
     orientations: list[list[float]],
     included_interactions: list["Interaction"],
     simulation_box: list[float],

@@ -16,7 +16,7 @@ from pathlib import Path
 
 import rowan
 from . import util
-from .types import positions_like, orientations_like, moi_like
+from .types import PositionsLike, OrientationsLike, MoiLike
 
 # TODO: check default moi
 
@@ -43,10 +43,10 @@ class Body:
         The name of the primary type.
     secondary_types : list[str], optional
         The names of the secondary types.
-    positions_by_type : dict[str, positions_like], optional
+    positions_by_type : dict[str, PositionsLike], optional
         A mapping of secondary particle type names to positions. Required if
         ``secondary_types`` is provided, otherwise ignored.
-    orientations_by_type : dict[str, orientations_like], optional
+    orientations_by_type : dict[str, OrientationsLike], optional
         A mapping of secondary particle type names to orientation(s) in
         quaternion form. Can only be provided if ``secondary_types`` and
         ``positions_by_type`` are also provided. If not provided,
@@ -56,7 +56,7 @@ class Body:
         If not provided for a given type, that type's mass defaults to ``1``.
         In contrast to positions and orientations, only one mass is allowed per
         type.
-    moi_by_type : dict[str, moi_like], optional
+    moi_by_type : dict[str, MoiLike], optional
         A mapping of primary and secondary particle type names to moment of
         inertia (MoI), expressed as a 3-vector containing the diagonal terms of
         the MoI tensor. If not provided for a given type, that
@@ -93,10 +93,10 @@ class Body:
         self,
         primary_type: str,
         secondary_types: list[str] | None = None,
-        positions_by_type: dict[str, positions_like] | None = None,
-        orientations_by_type: dict[str, orientations_like] | None = None,
+        positions_by_type: dict[str, PositionsLike] | None = None,
+        orientations_by_type: dict[str, OrientationsLike] | None = None,
         mass_by_type: dict[str, float] | None = None,
-        moi_by_type: dict[str, moi_like] | None = None
+        moi_by_type: dict[str, MoiLike] | None = None
     ):
         # Create defaults
         if secondary_types is None:
@@ -139,10 +139,10 @@ class Body:
         cls,
         primary_type: str | None = None,
         secondary_types: list[str] | None = None,
-        positions_by_type: dict[str, positions_like] | None = None,
-        orientations_by_type: dict[str, orientations_like] | None = None,
+        positions_by_type: dict[str, PositionsLike] | None = None,
+        orientations_by_type: dict[str, OrientationsLike] | None = None,
         mass_by_type: dict[str, float] | None = None,
-        moi_by_type: dict[str, moi_like] | None = None,
+        moi_by_type: dict[str, MoiLike] | None = None,
     ):
         """Ensure the keyword arguments adhere to the :ref:`body schema`."""
         # Ensure primary type is coercable to str
@@ -270,7 +270,7 @@ class Body:
         return self._orientations_by_type
 
     @orientations_by_type.setter
-    def orientations_by_type(self, value: dict[str, orientations_like]):
+    def orientations_by_type(self, value: dict[str, OrientationsLike]):
         """Set a mapping from secondary types to orientations."""
         self.validate(
             secondary_types=self._secondary_types,
@@ -307,7 +307,7 @@ class Body:
         return self._moi_by_type
 
     @moi_by_type.setter
-    def moi_by_type(self, value: dict[str, moi_like]):
+    def moi_by_type(self, value: dict[str, MoiLike]):
         """Set a mapping from primary and secondary types to moment of inertia."""
         self.validate(moi_by_type=value)
         self._moi_by_type = util.data.sanitize(value)
@@ -317,10 +317,10 @@ class Body:
     def add(
         self,
         name: str,
-        positions: positions_like,
-        orientations: orientations_like | None = None,
+        positions: PositionsLike,
+        orientations: OrientationsLike | None = None,
         mass: float | None = None,
-        moi: moi_like | None = None,
+        moi: MoiLike | None = None,
     ):
         """Add a new secondary particle type.
         
@@ -404,10 +404,10 @@ class Body:
     def update(
         self,
         name: str,
-        positions: positions_like | None = None,
-        orientations: orientations_like | None = None,
+        positions: PositionsLike | None = None,
+        orientations: OrientationsLike | None = None,
         mass: list[list[float]] | None = None,
-        moi: moi_like | None = None,
+        moi: MoiLike | None = None,
     ):
         """Update data for a secondary particle type.
 
@@ -417,13 +417,13 @@ class Body:
         ----------
         name : str
             The name of the secondary type to update.
-        positions : positions_like
+        positions : PositionsLike
             The positions for the new secondary type.
-        orientations : orientations_like, optional
+        orientations : OrientationsLike, optional
             The orientations for the new secondary type.
         mass : float, optional
             The mass for the new secondary type.
-        moi : moi_like, optional
+        moi : MoiLike, optional
             The moi for the new secondary type.
         """
         if name not in self.secondary_types:

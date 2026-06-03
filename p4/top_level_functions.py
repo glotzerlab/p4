@@ -13,10 +13,10 @@ import scipy
 
 from . import util
 from .types import (
-    axis_like,
-    state_like,
-    positions_like,
-    orientations_like
+    AxisLike,
+    StateLike,
+    PositionsLike,
+    OrientationsLike
 )
 from .arrangement import Arrangement
 from .body import Body
@@ -55,7 +55,7 @@ def positions_on_regular_grid(
     return positions
 
 # def exclude_positions_by_shape(
-#     positions: positions_like,
+#     positions: PositionsLike,
 #     shape: coxeter.shapes.Polyhedron,
 #     inside: bool = True,
 # ):
@@ -80,7 +80,7 @@ def positions_on_regular_grid(
 #     else:
 #         return np.array(positions)[shape.is_inside(positions)]
 
-def orientations_about_axis(n: int, axis: axis_like, k: int = 1) -> np.ndarray:
+def orientations_about_axis(n: int, axis: AxisLike, k: int = 1) -> np.ndarray:
     """Return an array of quaternions sampling orientation about a given axis.
 
     Parameters
@@ -185,7 +185,7 @@ def orientations_from_fibonacci_lattice(
 
 
 def plot_positions(
-    positions: positions_like,
+    positions: PositionsLike,
     box: list[float] | None = None,
     color: str = "cornflowerblue",
     opacity: float = 1.0,
@@ -271,7 +271,7 @@ def plot_positions(
     return figure, positions_trace
 
 def plot_state(
-    obj: hoomd.Simulation | state_like,
+    obj: hoomd.Simulation | StateLike,
     include_singles: bool = False,
     type_shapes: dict[str, coxeter.shapes.Polyhedron] | None = None,
     type_styles: dict[str, dict] | None = None,
@@ -314,7 +314,7 @@ def plot_state(
         
 
 def plot_bodies(
-    obj: hoomd.Simulation | hoomd.md.constrain.Rigid | state_like,
+    obj: hoomd.Simulation | hoomd.md.constrain.Rigid | StateLike,
     include_singles: bool = False,
     type_shapes: dict[str, coxeter.shapes.Polyhedron] | None = None,
     type_styles: dict[str, dict] | None = None,

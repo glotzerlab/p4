@@ -12,7 +12,7 @@ import hoomd
 import numpy as np
 
 from . import util
-from .types import positions_like, orientation_like, orientations_like
+from .types import PositionsLike, OrientationLike, OrientationsLike
 from .body import Body
 from .interaction import Interaction
 from .arrangement import Arrangement
@@ -556,8 +556,8 @@ class System:
     def measure(
         self,
         quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
-        positions: positions_like,
-        orientations: orientation_like | orientations_like | Iterable[orientations_like],
+        positions: PositionsLike,
+        orientations: OrientationLike | OrientationsLike | Iterable[OrientationsLike],
         csv_filename: os.PathLike,
         n_processes: int = 1,
         save_gsd: bool = False,

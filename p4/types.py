@@ -19,17 +19,17 @@ import gsd.hoomd
 import numpy as np
 
 
-type state_like = (hoomd.State | hoomd.Snapshot | gsd.hoomd.Frame)
+type StateLike = (hoomd.State | hoomd.Snapshot | gsd.hoomd.Frame)
 """Types that either are or are mappable to a HOOMD-blue simulation state."""
 
-type axis_like = (
+type AxisLike = (
     list[float]
     | tuple[float, float, float]
     | np.ndarray[tuple[Literal[3]], np.dtype[np.floating]]
 )
 """Types that represent a cartesian axis as a 3-vector of floats."""
 
-type positions_like = (
+type PositionsLike = (
     Iterable[list[float]]
     | Iterable[tuple[float, float, float]]
     | Iterable[np.ndarray[tuple[Literal[3]], np.dtype[np.floating]]]
@@ -37,14 +37,14 @@ type positions_like = (
 )
 """Types that represent an array of positions in 3D space."""
 
-type orientation_like = (
+type OrientationLike = (
     list[float]
     | tuple[float, float, float, float]
     | np.ndarray[tuple[Literal[4]], np.dtype[np.floating]]
 )
 """Types that represent an orientation as a quaternion."""
 
-type orientations_like = (
+type OrientationsLike = (
     Iterable[list[float]]
     | Iterable[tuple[float, float, float, float]]
     | Iterable[np.ndarray[tuple[Literal[4]], np.dtype[np.floating]]]
@@ -52,7 +52,7 @@ type orientations_like = (
 )
 """Types that represent an array of orientations as quaternions."""
 
-type moi_like = (
+type MoiLike = (
     tuple[float, float, float]
     | np.ndarray[tuple[Literal[3]], np.dtype[np.floating]]
 )

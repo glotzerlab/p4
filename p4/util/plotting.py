@@ -902,12 +902,12 @@ def snapshot_1D_traces(
     draw_order = ["line", "point"]
     merged_type_slice_data = sorted(
         merged_type_slice_data,
-        key=lambda row: draw_order.index(row[3])
+        key=lambda row: draw_order.index(row[4])
     )
 
     # Build trace from slice data
     traces = []
-    for (p, q, geometry, trace_type) in merged_type_slice_data:
+    for (t, p, q, geometry, trace_type) in merged_type_slice_data:
         # Transform geometry's point coordinates to match the plotting axis,
         # assuming that geometry is a 2D array with 3 columns and a row for each
         # point

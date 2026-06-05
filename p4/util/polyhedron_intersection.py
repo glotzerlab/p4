@@ -674,7 +674,7 @@ def segments_to_polygons(
     for p1, p2 in segments:
         adj[p1].append(p2)
         adj[p2].append(p1)
-    
+
     # Isolated pairs can be detected in and culled from the dictionary
     isolated_pairs = []
     for k, v in adj.items():

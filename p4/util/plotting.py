@@ -82,6 +82,7 @@ def plot_layout(
                 xaxis=axis_style,
                 yaxis=axis_style,
                 zaxis=axis_style,
+                aspectmode="data",
             ),
             plot_bgcolor="rgba(0,0,0,0)"
         )

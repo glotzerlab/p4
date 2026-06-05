@@ -1,28 +1,19 @@
-## To-do
-
-- Sampling
-  - [ ] shape overlap exclusion
-  - [ ] dynamical meshing?
-
-`Interaction`
-- [ ] add autogenerate dict method
-
-Other
-- [ ] Change from StringIO to some other data storage/retention approach
-- [ ] Add support for VTK
-- [ ] fix body image wrapping problem
-- [ ] switch from nested for-loop to single computation over many spaced-out configurations
-- [ ] tests for top-level functions
-- [ ] fix broken plotting
-
-Docs
-- [ ] switch to MyST
+# To-do
 
 ### Open to public
-TBD
+- [ ] fix body image wrapping problem
+- [ ] tests for top-level functions
+- [ ] fix broken plotting
 
 ### Publication
 TBD
 
 ### 'Completion'
-TBD
+- [ ] add autogenerate params function for interactions
+- [ ] Change from StringIO to some other data storage/retention approach
+- [ ] Add support for VTK
+- [ ] add shape overlap exclusion sampling
+- [ ] add dynamical mesh sampling
+
+Possible performance improvements:
+  - [ ] switch from nested for-loop to single computation over many spaced-out configurations

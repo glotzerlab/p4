@@ -25,19 +25,9 @@ class Body:
     """The names and spatial data for a body's primary and secondary types.
    
     When there are no secondary types, the body simply represents a single
-    particle.
-    
-    When there are secondary types, the body represents a rigid body with a
-    central particle (:py:attr:`~p4.body.Body.primary_type`) and one or more
-    constituent particles (:py:attr:`~p4.body.Body.secondary_types`). In this
-    case, the positions for each secondary type must also be provided.
-    Optionally, ordientations may also be provided for secondary particle types.
-    If they are not provided for some type, the orientation of that type
-    defaults to ``[1,0,0,0]``.
-    
-    Mass and moment of inertia (MoI) may also be provided for both primary and
-    secondary types; if they are not provided for some type, the mass defaults
-    to ``1`` and the MoI defaults to ``[1,1,1]``.
+    particle. When there are secondary types, the body represents a rigid body
+    with a central particle (:py:attr:`~p4.body.Body.primary_type`) and one or
+    more constituent particles (:py:attr:`~p4.body.Body.secondary_types`).
 
     Instantiate a body directly using its constructor, or create one by parsing
     existing HOOMD-blue objects using

@@ -1,9 +1,9 @@
 # To-do
 
 ### Open to public
+- [ ] revise project goals
 - [ ] fix body image wrapping problem
 - [ ] tests for top-level functions
-- [ ] fix broken plotting
 
 ### Publication
 TBD

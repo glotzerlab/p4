@@ -299,6 +299,7 @@ def polygon_plane_intersection(
         ``M = 2``, a line segment. In the case of no intersection, an empty list
         is returned.
     """
+    # Ensure correct types
     polygon = [tuple(float(i) for i in p) for p in polygon]
 
     # Simplify the polygon, merging all colinear segments

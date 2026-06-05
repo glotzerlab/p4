@@ -31,6 +31,9 @@ example simulation using the code below.
         "orientations": [(1.0, 0.0, 0.0, 0.0), (1.0, 0.0, 0.0, 0.0)],
     }
 
+    # Add constituent particles to the simulation state
+    rigid.create_bodies(example_simulation.state)
+
     # Add an integrator and a simple B-B LJ force
     example_simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
     lj = hoomd.md.pair.LJ(nlist=hoomd.md.nlist.Tree(2), default_r_cut=0)

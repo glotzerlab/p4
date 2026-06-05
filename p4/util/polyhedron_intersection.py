@@ -350,185 +350,183 @@ def polygon_plane_intersection(
     # segments are intersected.
     if not (intersected_segments or coplanar_points):
         return []
+
+    # Determine the intersection point of the plane along each of the
+    # intersected line segments. This is the part that only works for planes
+    # with one non-zero normal component.
+    intersection_points = []
+    for segment in intersected_segments:
+        intersection_points.append(segment_plane_intersection(segment, plane))
+
+    # Arrange the intersection points and co-planar points together in
+    # ascending order along the line formed from the intersection of the
+    # plane with the polygon.
+    merged_intersection_points = intersection_points + coplanar_points
+
+    # The line segments containing coplanar points are guaranteed to have
+    # those points as their starting points.
+    coplanar_point_segments = []
+    for p in coplanar_points:
+        i = polygon.index(p)
+        if i + 1 == len(polygon):
+            coplanar_point_segments.append([polygon[i], polygon[0]])
+        else:
+            coplanar_point_segments.append([polygon[i], polygon[(i+1)]])
+    
+    merged_intersected_segments = (
+        intersected_segments + coplanar_point_segments
+    )
+
+    direction = (
+        np.array(merged_intersection_points[1])
+        - np.array(merged_intersection_points[0])
+    )
+    metrics = [np.dot(direction, p) for p in merged_intersection_points]
+    sorted_merged_intersection_points = [
+        p for _, p in sorted(zip(metrics, merged_intersection_points))
+    ]
+    sorted_merged_intersected_segments = [
+        s for _, s in sorted(zip(metrics, merged_intersected_segments))
+    ]
+
+    # In order for the rest of this function to work, the order of the
+    # intersection points must follow the handedness of the polygon.
+    must_be_reversed = False
+    
+    # For 3+ intersection points, the handedness check works like this:
+    #   1) let *s0* be the segment containing the first intersection point,
+    #      likewise for *s1* and *s2*
+    #   2) In the array of segments representing the polygon, start at *s0*
+    #      and look forward. If *s2* comes before *s1* then the order of the
+    #      intersection points must be reversed, otherwise the handedness is
+    #      preserved.
+    if len(sorted_merged_intersection_points) > 2:
+        s0, s1, s2 = sorted_merged_intersected_segments[0:3]
+        polygon_segments = polygon_to_segments(polygon)
+        start = polygon_segments.index(s0)
+        for i in range(1, len(polygon)):
+            current_s = polygon_segments[(start + i) % len(polygon)]
+            if current_s == s2:
+                must_be_reversed = True
+                break
+            elif current_s == s1:
+                break
+
+    # For 2 intersection points, the handedness check works like this:
+    #   1) let *i0* be the first intersection point, likewise for *i1*
+    #   2) let *c* be the polygon's centroid
+    #   3) let *p* be the polygon point immediately after *i0* in the
+    #      current order of the intersection segments array
+    #   4) let *u* be the vector from *c* to *i0*
+    #   5) let *v* be the vector from *c* to *p*
+    #   6) let *w* be the vector from *c* to *i1*
+    #   7) let *n* be the polygon normal
+    #   8) let *a* be the angle (relative to *n*) from *u* to *v*
+    #   9) let *b* be the angle (relative to *n*) from *u* to *w*
+    #   10) if *a* and *b* have opposite signs, then the order of the
+    #       intersection points must be reversed, otherwise the handedness
+    #       is preserved.
+    elif len(sorted_merged_intersection_points) == 2:
+        i0, i1 = sorted_merged_intersection_points
+        c = np.mean(polygon, axis=0)
+        p = sorted_merged_intersected_segments[0][1]
+        u = np.array(i0) - c
+        v = np.array(p) - c
+        w = np.array(i1) - c
+        a = angle_sign_3d(u, v, normal)
+        b = angle_sign_3d(u, w, normal)
+
+        if ((a < 0) and (b > 0)) or ((a > 0) and (b < 0)):
+            must_be_reversed = True
+    
+    if must_be_reversed:
+        sorted_merged_intersection_points = list(
+            reversed(sorted_merged_intersection_points)
+        )
+        sorted_merged_intersected_segments = list(
+            reversed(sorted_merged_intersected_segments)
+        )
+
+    # Check each sequential pair of intersection points to see if the
+    # segment between them is inside the polygon. If it is, then they form
+    # an intersection segment. If not, then the first one is a tangent point
+    # and the next one is checked as the start point of the next pair.
+
+    # This check consists of the following steps:
+    #   1) let *a* be a vector representing a potential intersection segment
+    #   2) let *b* be a vector from the start point of the potential
+    #      intersection segment to the end of the polygon segment that that
+    #      point lies on
+    #   3) Take the cross product b x a = c
+    #   4) Compare the cross product *c* to the normal vector *n* for the
+    #      polygon. If the angle between *c* and *n* is within 90 degrees,
+    #      then the potential intersection segment is inside the polygon
+    #      and counts as a legitimate intersection.
+
+    # In order to calculate *a*, we need an array of potential intersection
+    # segments (this is what sorted_merged_points is for) and in order to
+    # calculate *b* we need an array of polygon sides that the intersection
+    # points are from.
+
+    intersection_segments = []
+    tangent_intersection_points = []
+
+    for i in range(len(sorted_merged_intersection_points) - 1):
+        a = (
+            np.array(sorted_merged_intersection_points[i+1])
+            - np.array(sorted_merged_intersection_points[i])
+        )
+        b = (
+            np.array(sorted_merged_intersected_segments[i][1])
+            - np.array(sorted_merged_intersection_points[i])
+        )
+        c = np.cross(b, a)
+
+        if (
+            np.array_equal(a, b)
+            or np.isclose(normalize(c), normalize(normal)).all()
+            or angle_between_vectors(c, normal) < np.pi/2
+        ):
+            intersection_segments.append([
+                sorted_merged_intersection_points[i],
+                sorted_merged_intersection_points[i+1]
+            ])
+        else:
+            # NOTE: each tangent point must be wrapped in an array
+            tangent_intersection_points.append(
+                [sorted_merged_intersection_points[i]] 
+            )
+            if i == len(sorted_merged_intersection_points) - 1:
+                tangent_intersection_points.append(
+                    [sorted_merged_intersection_points[i+1]]
+                )
+
+    # Merge colinear segments
+    if intersection_segments:
+        merged_segments = []
+        current_start, current_end = intersection_segments[0]
+        for i in range(len(intersection_segments) - 1):
+            if intersection_segments[i+1][0] == current_end:
+                current_end = intersection_segments[i+1][1]
+            else:
+                merged_segments.append([current_start, current_end])
+                current_start, current_end = intersection_segments[i+1]
+        
+        if not merged_segments or merged_segments[-1][1] != current_end:
+            merged_segments.append([current_start, current_end])
+        
+        # Remove points that are contained by segments (not sure why this
+        # sometimes happens)
+        uncontained_tangent_intersection_points = [
+            p
+            for p in tangent_intersection_points
+            if not any(p[0] in s for s in intersection_segments)
+        ]
+
+        return merged_segments + uncontained_tangent_intersection_points
     
     else:
-        # Determine the intersection point of the plane along each of the
-        # intersected line segments. This is the part that only works for planes
-        # with one non-zero normal component.
-        intersection_points = []
-        for segment in intersected_segments:
-            intersection_point = segment_plane_intersection(segment, plane)
-            intersection_points.append(intersection_point)
-        
-        # Arrange the intersection points and co-planar points together in
-        # ascending order along the line formed from the intersection of the
-        # plane with the polygon.
-        merged_intersection_points = intersection_points + coplanar_points
-        
-        # The line segments containing coplanar points are guaranteed to have
-        # those points as their starting points.
-        coplanar_point_segments = []
-        for p in coplanar_points:
-            i = polygon.index(p)
-            if i + 1 == len(polygon):
-                coplanar_point_segments.append([polygon[i], polygon[0]])
-            else:
-                coplanar_point_segments.append([polygon[i], polygon[(i+1)]])
-        
-        merged_intersected_segments = (
-            intersected_segments + coplanar_point_segments
-        )
-
-        direction = (
-            np.array(merged_intersection_points[1])
-            - np.array(merged_intersection_points[0])
-        )
-        metrics = [np.dot(direction, p) for p in merged_intersection_points]
-        sorted_merged_intersection_points = [
-            p for _, p in sorted(zip(metrics, merged_intersection_points))
-        ]
-        sorted_merged_intersected_segments = [
-            s for _, s in sorted(zip(metrics, merged_intersected_segments))
-        ]
-
-        # In order for the rest of this function to work, the order of the
-        # intersection points must follow the handedness of the polygon.
-        must_be_reversed = False
-        
-        # For 3+ intersection points, the handedness check works like this:
-        #   1) let *s0* be the segment containing the first intersection point,
-        #      likewise for *s1* and *s2*
-        #   2) let *P* be 
-        #   3) In the array of segments representing the polygon, start at *s0*
-        #      and look forward. If *s2* comes before *s1* then the order of the
-        #      intersection points must be reversed, otherwise the handedness is
-        #      preserved.
-        if len(sorted_merged_intersection_points) > 2:
-            s0, s1, s2 = sorted_merged_intersected_segments[0:3]
-            polygon_segments = polygon_to_segments(polygon)
-            start = polygon_segments.index(s0)
-            for i in range(1, len(polygon)):
-                current_s = polygon_segments[(start + i) % len(polygon)]
-                if current_s == s2:
-                    must_be_reversed = True
-                    break
-                elif current_s == s1:
-                    break
-
-        # For 2+ intersection points, the handedness check works like this:
-        #   1) let *i0* be the first intersection point, likewise for *i1*
-        #   2) let *c* be the polygon's centroid
-        #   3) let *p* be the polygon point immediately after *i0* in the
-        #      current order of the intersection segments array
-        #   4) let *u* be the vector from *c* to *i0*
-        #   5) let *v* be the vector from *c* to *p*
-        #   6) let *w* be the vector from *c* to *i1*
-        #   7) let *n* be the polygon normal
-        #   8) let *a* be the angle (relative to *n*) from *u* to *v*
-        #   9) let *b* be the angle (relative to *n*) from *u* to *w*
-        #   10) if *a* and *b* have opposite signs, then the order of the
-        #       intersection points must be reversed, otherwise the handedness
-        #       is preserved.
-        elif len(sorted_merged_intersection_points) == 2:
-            i0, i1 = sorted_merged_intersection_points
-            c = np.mean(polygon, axis=0)
-            p = sorted_merged_intersected_segments[0][1]
-            u = np.array(i0) - c
-            v = np.array(p) - c
-            w = np.array(i1) - c
-            a = angle_sign_3d(u, v, normal)
-            b = angle_sign_3d(u, w, normal)
-
-            if ((a < 0) and (b > 0)) or ((a > 0) and (b < 0)):
-                must_be_reversed = True
-        
-        if must_be_reversed:
-            sorted_merged_intersection_points = list(
-                reversed(sorted_merged_intersection_points)
-            )
-            sorted_merged_intersected_segments = list(
-                reversed(sorted_merged_intersected_segments)
-            )
-
-        # Check each sequential pair of intersection points to see if the
-        # segment between them is inside the polygon. If it is, then they form
-        # an intersection segment. If not, then the first one is a tangent point
-        # and the next one is checked as the start point of the next pair.
-
-        # This check consists of the following steps:
-        #   1) let *a* be a vector representing a potential intersection segment
-        #   2) let *b* be a vector from the start point of the potential
-        #      intersection segment to the end of the polygon
-        #      segment that that point lies on
-        #   3) Take the cross product b x a = c
-        #   4) Compare the cross product *c* to the normal vector *n* for the
-        #      polygon. If the angle between *c* and *n* is within 90 degrees,
-        #      then the potential intersection segment is inside the polygon
-        #      and counts as a legitimate intersection.
-
-        # In order to calculate *a*, we need an array of potential intersection
-        # segments (this is what sorted_merged_points is for) and in order to
-        # calculate *b* we need an array of polygon sides that the intersection
-        # points are from.
-
-        intersection_segments = []
-        tangent_intersection_points = []
-
-        for i in range(len(sorted_merged_intersection_points) - 1):
-            a = (
-                np.array(sorted_merged_intersection_points[i+1])
-                - np.array(sorted_merged_intersection_points[i])
-            )
-            b = (
-                np.array(sorted_merged_intersected_segments[i][1])
-                - np.array(sorted_merged_intersection_points[i])
-            )
-            c = np.cross(b, a)
-
-            if (
-                np.array_equal(a, b)
-                or angle_between_vectors(c, normal) < np.pi/2
-            ):
-                intersection_segments.append([
-                    sorted_merged_intersection_points[i],
-                    sorted_merged_intersection_points[i+1]
-                ])
-            else:
-                # NOTE: each tangent point must be wrapped in an array
-                tangent_intersection_points.append(
-                    [sorted_merged_intersection_points[i]] 
-                )
-                if i == len(sorted_merged_intersection_points) - 1:
-                    tangent_intersection_points.append(
-                        [sorted_merged_intersection_points[i+1]]
-                    )
-
-        # Merge colinear segments
-        if intersection_segments:
-            merged_segments = []
-            current_start, current_end = intersection_segments[0]
-            for i in range(len(intersection_segments) - 1):
-                if intersection_segments[i+1][0] == current_end:
-                    current_end = intersection_segments[i+1][1]
-                else:
-                    merged_segments.append([current_start, current_end])
-                    current_start, current_end = intersection_segments[i+1]
-            
-            if not merged_segments or merged_segments[-1][1] != current_end:
-                merged_segments.append([current_start, current_end])
-            
-            # Remove points that are contained by segments (not sure why this
-            # sometimes happens)
-            uncontained_tangent_intersection_points = [
-                p
-                for p in tangent_intersection_points
-                if not any(p[0] in s for s in intersection_segments)
-            ]
-
-            return merged_segments + uncontained_tangent_intersection_points
-        
-        else:
-            return tangent_intersection_points
+        return tangent_intersection_points
 
 def joinable_segments_to_polygon(segments: list[Segment]) -> PointSet:
     """Convert mutually overlapping line segments into a polygon.

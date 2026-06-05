@@ -853,55 +853,154 @@ class Arrangement:
         ignore_types: list[str] | None = None,
         slice: dict[str, float] | None = None,
         schematic_slice: bool = False,
-        schematic_slice_scale: float = 1,
-        schematic_slice_color: str = "red",
-        schematic_slice_opacity: float = 1,
-        schematic_slice_line_width: float = 10,
-        show_legend: bool = True,
+        **kwargs
     ) -> tuple[plotly.graph_objects.Figure, list]:
+        """Interactively plot the arrangement using `Plotly`_.
 
-    def _plot_traces_schematic_slice(
-        self,
-        particle_data: list,
-        slice: dict[str, int],
-        scale: float,
-        color: str,
-        opacity: float,
-        line_width: float
-    ) -> dict:
-        pass
+        Slicing is supported along the X, Y, and Z axes via the ``slice``
+        parameter. A slice along one axis (``slice={"x": 1}``) is 2D, while a
+        slice along two axes (``slice={"x": 1, "y": 1}``) is 1D.
 
-    def _plot_traces_3d(
-        self,
-        particle_data: np.ndarray,
-        type_shapes: dict[str, coxeter.shapes.Polyhedron],
-        type_styles: dict[str, dict],
-        default_colors: list[str],
-    ):
-        pass
+        Shapes and styles may be specified for specific types. A shape must be
+        specified as a `Coxeter Polyhedron`_. A style must specified as a
+        dictionary which may have the following keys and values:
 
-    def _plot_traces_2d(
-        self,
-        particle_data: np.ndarray,
-        type_shapes: dict[str, coxeter.shapes.Polyhedron],
-        type_styles: dict[str, dict],
-        slice: dict[str, float],
-        default_colors: list[str],
-        point_size_for_slice: float = 1e-6
-    ):
-        pass
+        * **color** [``str``] - The symbol's color. Plotly accepts color strings
+          in `standard HTML/CSS formats`_ (for example, `rgb`_), as well as
+          `many named colors`_.
+        
+        * **opacity** [``float`` 0 to 1] - The symbol's opacity.
+        
+        * **size** [``float`` > 0] - The symbol's size. When the type is
+          represented by a point, this corresponds to the symbol's ``size``
+          attribute (see Plotly docs for `2D`_ and `3D`_). When the type is
+          represented by a line, this setting corresponds to the line's
+          ``width`` `attribute`_. When the type is represented by a polygon or
+          polyhedron, this setting is ignored.
 
-    def _plot_traces_1d(
-        self,
-        particle_data: np.ndarray,
-        type_shapes: dict[str, coxeter.shapes.Polyhedron],
-        type_styles: dict[str, dict],
-        slice: dict[str, float],
-        default_colors: list[str],
-        point_size_for_slice: float = 1e-6
-    ):
-        pass
+        .. _Plotly: https://plotly.com/
+        .. _Coxeter Polyhedron: https://coxeter.readthedocs.io/en/latest/package-shapes.html#coxeter.shapes.Polyhedron
+        .. _standard HTML/CSS formats: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/color
+        .. _rgb: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/color_value/rgb
+        .. _many named colors: https://plotly.com/python/css-colors/
+        .. _2d: https://plotly.com/python/reference/scatter/#scatter-marker-size
+        .. _3d: https://plotly.com/python/reference/scatter3d/#scatter3d-marker-size
+        .. _attribute: https://plotly.com/python/reference/scatter/#scatter-line-width
 
+        Parameters
+        ----------
+        type_shapes : dict, optional
+            A mapping from particle type name [``str``] to shape
+            [``coxeter.shapes.Polyhedron``]. If no shape is provided for a type,
+            it will be plotted as a sphere.
+        type_styles : dict, optional
+            A mapping from particle type name to style, where style is given as
+            a dictionary which may have the keys 'color', 'opacity', and 'size'.
+            See above for more information.
+        ignore_types : list[str], optional
+            The names of the particle types to exclude from the plot.
+        slice : dict, optional
+            Axes and positions along which to slice. Keys are limited to 'x',
+            'y', and 'z'. There can be at most two keys.
+        schematic_slice : bool, default=False
+            If True, the slice is shown schematically in a 3D view. A 2D slice
+            appears like a plane intersecting with the arrangement, while a 1D
+            slice appears like a line intersecting with the arrangement.
+        **kwargs
+            Other keyword arguments are passed to the following functions:
+
+            * :py:func:`p4.util.plotting.plot_layout`
+
+            * :py:func:`p4.util.plotting.snapshot_schematic_slice_trace`
+        """
+        # Set defaults
+        if not type_shapes:
+            type_shapes = {}
+        if not type_styles:
+            type_styles = {}
+        if not ignore_types:
+            ignore_types = []
+        if not slice:
+            slice = {}
+
+        default_colors = util.colors.WONG_COLORS
+
+        # Calculate snapshot
+        snapshot = self.to_hoomd_snapshot()
+
+        # Construct the figure type-by-type
+        figure = plotly.graph_objects.Figure()
+        
+        if len(slice) == 0 or schematic_slice:
+            traces = util.plotting.snapshot_3D_traces(
+                snapshot=snapshot,
+                type_shapes=type_shapes,
+                type_styles=type_styles,
+                ignore_types=ignore_types,
+                default_colors=default_colors
+            )
+
+            if schematic_slice:
+                allowed_kwarg_names = (
+                    signature(util.plotting.snapshot_schematic_slice_trace)
+                        .parameters
+                        .keys()
+                )
+                schematic_slice_kwargs = {
+                    k: v for k, v in kwargs.items() if k in allowed_kwarg_names
+                }
+                traces.append(
+                    util.plotting.snapshot_schematic_slice_trace(
+                        snapshot=snapshot,
+                        type_shapes=type_shapes,
+                        slice=slice,
+                        **schematic_slice_kwargs
+                    )
+                )
+        
+        elif len(slice) == 1 and not schematic_slice:
+            traces = util.plotting.snapshot_2D_traces(
+                snapshot=snapshot,
+                slice=slice,
+                type_shapes=type_shapes,
+                type_styles=type_styles,
+                ignore_types=ignore_types,
+                default_colors=default_colors
+            )
+        
+        elif len(slice) == 2 and not schematic_slice:
+            traces = util.plotting.snapshot_1D_traces(
+                snapshot=snapshot,
+                slice=slice,
+                type_shapes=type_shapes,
+                type_styles=type_styles,
+                ignore_types=ignore_types,
+                default_colors=default_colors
+            )
+
+        for trace in traces:
+            if trace is not None:
+                figure.add_trace(trace)
+
+        # Style the plot
+        allowed_kwarg_names = (
+            signature(util.plotting.plot_layout)
+            .parameters
+            .keys()
+        )
+        layout_kwargs = {
+            k: v for k, v in kwargs.items() if k in allowed_kwarg_names
+        }
+        if "show_grid" not in layout_kwargs:
+            layout_kwargs["show_grid"] = True
+        layout = util.plotting.plot_layout(
+            slice=slice if not schematic_slice else {},
+            **layout_kwargs
+        )
+        figure.update_layout(layout)
+
+        return figure, traces
+    
     # --------------------------------- OTHER ----------------------------------
     
     def __repr__(self) -> str:

@@ -405,6 +405,11 @@ class Arrangement:
         The returned list contains only bodies defined in the simulation's
         state. Therefore this method is equivalent to
 
+        .. invisible-code-block: python
+            import hoomd
+            simulation = hoomd.util.make_example_simulation()
+            include_singles = True
+
         .. code-block:: python
 
             arrangement.from_hoomd_snapshot(

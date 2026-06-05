@@ -1077,9 +1077,7 @@ def polyhedron_plane_intersection(
     polygons = [g for g in uncontained_geometries if len(g) > 2]
 
     # Join overlapping line segments into polygons
-    polygons_from_segments, isolated_segments = segments_to_polygons(
-        segments,
-    )
+    polygons_from_segments, isolated_segments = segments_to_polygons(segments)
 
     # Remove points, segments, and now polygons that are contained by other
     # polygons that were constructed from line segments.

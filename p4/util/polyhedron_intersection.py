@@ -1005,6 +1005,18 @@ def polyhedron_plane_intersection(
         intersection = polygon_plane_intersection(polygon, plane)
         if len(intersection) > 0:
             slice_geometries.extend(intersection)
+    
+    # Round all floats to the nearest 1e-12 to try and prevent false equivalency
+    # failures due to floating point precision issues
+    rounded_geometries = [
+        [
+            tuple(
+                [round(point[0], 12), round(point[1], 12), round(point[2], 12)]
+            )
+            for point in geometry
+        ]
+        for geometry in slice_geometries
+    ]
 
     # Remove all duplicate geometries:
     #   - points are duplicates if they are identical
@@ -1012,7 +1024,7 @@ def polyhedron_plane_intersection(
     #   - polygons are equivalent if they have the same points arranged in the
     #     same handedness
     unique_geometries = []
-    for i, g in enumerate(slice_geometries):
+    for i, g in enumerate(rounded_geometries):
         if len(g) == 1:
             if g not in unique_geometries:
                 unique_geometries.append(g)

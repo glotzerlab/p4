@@ -112,7 +112,18 @@ class Body:
             mass_by_type = {}
         if moi_by_type is None:
             moi_by_type = {}
-        
+
+        # Ensure things that are supposed to be dicts are in fact dicts before
+        # attempting to sanitize them
+        if not isinstance(positions_by_type, dict):
+            raise TypeError("`positions_by_type` must be a dictionary.")
+        if not isinstance(orientations_by_type, dict):
+            raise TypeError("`orientations_by_type` must be a dictionary.")
+        if not isinstance(mass_by_type, dict):
+            raise TypeError("`mass_by_type` must be a dictionary.")
+        if not isinstance(moi_by_type, dict):
+            raise TypeError("`moi_by_type` must be a dictionary.")
+
         # Set instance attributes
         self._primary_type = str(primary_type)
         self._secondary_types = secondary_types

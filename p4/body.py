@@ -24,18 +24,34 @@ from .types import PositionsLike, OrientationsLike, MoiLike
 class Body:
     """The names and spatial data for a body's primary and secondary types.
    
-    When secondary types **are not** provided, the body represents a
-    simple particle with a single type.
+    When there are no secondary types, the body simply represents a single
+    particle.
     
-    When secondary types **are** provided, the body represents a rigid body
-    with a central particle (``primary_type``) and one or more constituent
-    particles (``secondary_types``). In this case, the positions for each
-    secondary type must also be provided.
+    When there are secondary types, the body represents a rigid body with a
+    central particle (:py:attr:`~p4.body.Body.primary_type`) and one or more
+    constituent particles (:py:attr:`~p4.body.Body.secondary_types`). In this
+    case, the positions for each secondary type must also be provided.
+    Optionally, ordientations may also be provided for secondary particle types.
+    If they are not provided for some type, the orientation of that type
+    defaults to ``[1,0,0,0]``.
+    
+    Mass and moment of inertia (MoI) may also be provided for both primary and
+    secondary types; if they are not provided for some type, the mass defaults
+    to ``1`` and the MoI defaults to ``[1,1,1]``.
 
-    Optionally, the user may provide orientations (for each secondary type),
-    and masses and moments of inertia (for the primary type and each
-    secondary type). If not provided, orientation defaults to ``(1, 0, 0, 0)``,
-    mass defaults to ``1``, and moment of inertia defaults to ``[1, 1, 1]``.
+    Instantiate a body directly using its constructor, or create one by parsing
+    existing HOOMD-blue objects using
+    :py:meth:`~p4.body.Body.from_hoomd_simulation`,
+    :py:meth:`~p4.body.Body.from_hoomd_snapshot`, or
+    :py:meth:`~p4.body.Body.from_hoomd_rigid`. Bodies can also be saved to and
+    created from JSON files using
+    :py:meth:`~p4.body.Body.to_json` and :py:meth:`~p4.body.Body.from_json`.
+
+    Interactively visualize a body using :py:meth:`~p4.body.Body.plot`.
+
+    This class is self-validating: it cannot be instantiated or modified without
+    adhering to the :ref:`body-schema`. This rule is enforced by
+    :py:meth:`~p4.body.Body.validate`.
 
     Parameters
     ----------
@@ -44,24 +60,21 @@ class Body:
     secondary_types : list[str], optional
         The names of the secondary types.
     positions_by_type : dict[str, PositionsLike], optional
-        A mapping of secondary particle type names to positions. Required if
-        ``secondary_types`` is provided, otherwise ignored.
+        A mapping of secondary particle type to positions. A key-value pair must
+        be provided for every secondary type.
     orientations_by_type : dict[str, OrientationsLike], optional
-        A mapping of secondary particle type names to orientation(s) in
-        quaternion form. Can only be provided if ``secondary_types`` and
-        ``positions_by_type`` are also provided. If not provided,
-        secondary types have a default orientation of ``(1, 0, 0, 0)``.
+        A mapping of secondary particle types to orientation in quaternion form
+        (``[w,x,y,z]``). If not provided for some type ``t``, that type's
+        orientations default to an array of ``[1,0,0,0]`` quaternions with the
+        same length as ``positions_by_type[t]``.
     mass_by_type : dict[str, float], optional
-        A mapping of primary and secondary particle type names to mass.
-        If not provided for a given type, that type's mass defaults to ``1``.
-        In contrast to positions and orientations, only one mass is allowed per
-        type.
+        A mapping of primary and secondary particle types to mass. If not
+        provided for some type, that type's mass defaults to ``1``.
     moi_by_type : dict[str, MoiLike], optional
-        A mapping of primary and secondary particle type names to moment of
-        inertia (MoI), expressed as a 3-vector containing the diagonal terms of
-        the MoI tensor. If not provided for a given type, that
-        type's MoI defaults to ``[1, 1, 1]``. In contrast to positions and
-        orientations, only one MoI is allowed per type.
+        A mapping of primary and secondary particle types to moment of inertia
+        (MoI), expressed as a vector containing the diagonal terms of the full
+        MoI tensor. If not provided for some type, that type's MoI defaults to
+        ``[1,1,1]``.
 
 
     Example

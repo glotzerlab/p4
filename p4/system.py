@@ -19,19 +19,33 @@ from .arrangement import Arrangement
 
 class System:
     """A System is defined by a probe, an analyte, and their interactions.
-    
-    Measure a system's spatial distributions of potential energy, force, and
-    torque using :meth:`~p4.System.measure`.
+
+    Instantiate a system directly using its constructor, or create one by parsing
+    parsing an existing HOOMD-blue simulation using
+    :py:meth:`~p4.system.System.from_hoomd_simulation`. Systems can also be saved
+    to and created from JSON files using
+    :py:meth:`~p4.system.System.to_json` and
+    :py:meth:`~p4.system.System.from_json`.
+
+    Measure a system's U, F, and T fields using
+    :py:meth:`~p4.system.System.measure`.
+
+    This class is self-validating: it cannot be instantiated or modified without
+    adhering to the :ref:`system-schema`. This rule is enforced by
+    :py:meth:`~p4.system.System.validate`.
 
     Parameters
     ----------
     probe : Body
-        The body for the probe.
+        The probe, which is translated and rotated around the system's analyte
+        during the field measurement process. Recorded F and T values correspond
+        to F and T exerted on the probe by the analyte. 
     analyte : Body | Arrangement
-        The body or arrangement for the analyte.
+        The analyte, which remains static at the simulation box's center during
+        the field measurement process.
     interactions : list[Interaction]
-        A collection of interactions that define how one or more particle types
-        in the probe interact with one or more types in the analyte.
+        The interactions that collectively produce U, F, and T fields when the
+        probe and analyte are within ``r_cut``.
 
 
     Example

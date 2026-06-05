@@ -23,22 +23,54 @@ from .types import PositionsLike, OrientationsLike
 class Arrangement:
     """Definitions and spatial data for a set of bodies arranged in space.
 
-    An :py:class:`Arrangement` specifies positions and orientations for
-    instances of various bodies, analagous to a GSD Frame or a HOOMD-blue
-    Snapshot.
-    
+    Instantiate an arrangement directly using its constructor, or create one by
+    parsing existing HOOMD-blue objects using
+    :py:meth:`~p4.arrangement.Arrangement.from_hoomd_simulation` or
+    :py:meth:`~p4.arrangement.Arrangement.from_hoomd_snapshot`. Bodies can also
+    be saved to and created from GSD files (
+    :py:meth:`~p4.arrangement.Arrangement.to_gsd`,
+    :py:meth:`~p4.arrangement.Arrangement.from_gsd`) and JSON files (
+    :py:meth:`~p4.arrangement.Arrangement.to_json`,
+    :py:meth:`~p4.arrangement.Arrangement.from_json`).
+
+    Interactively visualize an arrangement using
+    :py:meth:`~p4.arrangement.Arrangement.plot`.
+
+    This class is self-validating: it cannot be instantiated or modified without
+    adhering to the :ref:`arrangement-schema`. This rule is enforced by
+    :py:meth:`~p4.arrangement.Arrangement.validate`.
+
     Parameters
     ----------
     bodies : list[Body]
-        The body definitions.
+        The bodies which are placed and rotated as separate instances within the
+        arrangement.
     positions_by_type : dict[str, PositionsLike]
-        A mapping of body primary types to positions. One or more positions must
-        be provided for every body. An instance of the body is located at each
-        position.
+        A mapping of body primary types to positions. A key-value pair must be
+        provided for every body. A separate instance of the body is placed at
+        each position.
     orientations_by_type : dict[str, OrientationsLike]
-        A mapping of body primary types to orientations. If not provided for a
-        body, all instances of that body have a default orientation of
-        ``(1, 0, 0, 0)``.
+        A mapping of body primary types to orientations in quaternion form
+        (``[w,x,y,z]``). If not provided for some body ``b``, that body's
+        orientations default to an array of ``[1,0,0,0]`` quaternions with the
+        same length as ``positions_by_type[b.primary_type]``.
+
+        
+    Example
+    -------
+
+    .. code-block:: python
+        :caption: An arrangement of 4 single-particle bodies in a square.
+
+        import p4
+
+        arrangement = p4.Arrangement(
+            bodies=[p4.Body("A)", p4.Body("B")],
+            positions_by_type=dict(
+                A=[[-1, -1, 0], [1,  1, 0]],
+                B=[[-1,  1, 0], [1, -1, 0]]
+            )
+        )
     """
     def __init__(
         self,

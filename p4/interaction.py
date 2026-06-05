@@ -33,9 +33,21 @@ class Interaction:
 
     .. _HOOMD-blue MD pair potential: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/pair/pair.html
 
-    This class is self-validating: when it is successfully instantiated, it is
-    guaranteed that it can successfully instantiate and parameterize its
-    HOOM-blue potential.
+    This class is self-validating: it cannot be instantiated or modified without
+    adhering to the :ref:`interaction-schema`. This rule is enforced by
+    :py:meth:`~p4.interaction.Interaction.validate`.
+
+    Instantiate an interaction directly using its constructor, or create one by
+    parsing existing HOOMD-blue objects using
+    :py:meth:`~p4.interaction.Interaction.from_hoomd_simulation`,
+    :py:meth:`~p4.interaction.Interaction.from_hoomd_integrator`, or
+    :py:meth:`~p4.interaction.Interaction.from_hoomd_pair`. Interactions can
+    also be saved to and created from JSON files using
+    :py:meth:`~p4.interaction.Interaction.to_json` and
+    :py:meth:`~p4.interaction.Interaction.from_json`.
+
+    Interactively visualize an isotropic interaction's potential energy curve
+    using :py:meth:`~p4.interaction.Interaction.plot`.
 
     Parameters
     ----------

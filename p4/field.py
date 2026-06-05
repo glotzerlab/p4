@@ -20,17 +20,17 @@ from . import util
 class Field:
     """Analyze and plot scalar and vector fields in 3D, 2D, and 1D.
     
-    This class is built around NumPy's `recarray`_, which is a lightweight
-    tabular data structure similar to the Pandas `DataFrame`_.
+    This class is built the NumPy `recarray`_, which is a lightweight tabular
+    data structure similar to the Pandas `DataFrame`_.
 
     .. _recarray: https://numpy.org/doc/stable/reference/generated/numpy.recarray.html
     .. _DataFrame: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
 
-    Access a Field's tabular data using the :attr:`~p4.Field.table` property,
-    which returns the underlying recarray.
+    Access a Field's tabular data using the :py:attr:`~p4.field.Field.table`
+    property, which returns the underlying recarray.
     
-    Instantiate a Field directly from a NumPy recarray, or build one from
-    CSV using :meth:`~p4.Field.from_csv`. In order for instantiation to work,
+    Instantiate a Field directly from a recarray, or build one from CSV using
+    :py:meth:`~p4.field.Field.from_csv`. In order for instantiation to work,
     the tabular data must have at least 'x', 'y', and 'z' columns to indicate
     position, and at least one of the following sets of columns to indicate
     measured quantities:

@@ -1210,7 +1210,10 @@ class Body:
         }
         if "show_grid" not in layout_kwargs:
             layout_kwargs["show_grid"] = True
-        layout = util.plotting.plot_layout(slice=slice, **layout_kwargs)
+        layout = util.plotting.plot_layout(
+            slice=slice if not schematic_slice else {},
+            **layout_kwargs
+        )
         figure.update_layout(layout)
 
         return figure, traces

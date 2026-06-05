@@ -574,11 +574,7 @@ def snapshot_2D_traces(
             rows_to_merge = []
             for j, other_row in enumerate(type_slice_data):
                 if j != i and j not in merged_row_indices:
-                    rows_are_equivalent = (
-                        np.array_equal(current_row[0], other_row[0])
-                        # and current_row[3] == other_row[3]
-                    )
-                    if rows_are_equivalent: # TODO: check this doesn't break for lines
+                    if current_row[3] == other_row[3]: # TODO: check this doesn't break for lines
                         rows_to_merge.append(other_row)
                         merged_row_indices.append(j)
             

@@ -257,6 +257,13 @@ def segment_plane_intersection(segment: Segment, plane: Plane) -> Point:
 
     return (px, py, pz)
 
+def normalize(a: np.ndarray) -> np.ndarray:
+    """Normalize a 1D vector stored as a numpy array."""
+    f = np.linalg.norm(a)
+    if f == 0:
+        f = 1
+    return a / f
+
 def polygon_plane_intersection(
     polygon: PointSet,
     plane: Plane,

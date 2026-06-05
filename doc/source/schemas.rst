@@ -163,7 +163,7 @@ Arrangement Schema
     :Restrictions: Keys must equal ``[b.primary_type for b in bodies]``.
 
     The mapping from body primary types to one or more positions. Every body
-    *must* have at least one position.
+    must have at least one position.
 
 .. afield:: orientations_by_type
 

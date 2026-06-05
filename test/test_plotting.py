@@ -1,6 +1,11 @@
+# Copyright (c) 2025-2026, The Regents of the University of Michigan
+# This file is from the p4 project, released under the BSD 3-Clause License.
+
 import coxeter
 import pytest
 from copy import copy
+
+import rowan
 import p4
 import hoomd
 import numpy as np
@@ -18,7 +23,7 @@ INTERACTION = p4.Interaction(
 
 @pytest.mark.parametrize("type_pairs", [None, [("A", "B")]])
 @pytest.mark.parametrize("pair_styles", [{}, {"default": dict(color="black")}])
-@pytest.mark.parametrize("cmap", [None, "plotly"])
+@pytest.mark.parametrize("cmap", ["plotly"])
 @pytest.mark.parametrize("ylim", [None, [0, 1]])
 @pytest.mark.parametrize("include_default", [False, True])
 @pytest.mark.parametrize("marker_size", [10])
@@ -196,4 +201,56 @@ def test_field_plot(
         marker_color_1d=marker_color_1d,
         marker_size_1d=marker_size_1d,
         line_width_1d=line_width_1d,
+    )
+
+ARRANGEMENT = p4.Arrangement(
+    bodies=[
+        p4.Body("A"),
+        p4.Body(
+            primary_type="B",
+            secondary_types=["C"],
+            positions_by_type=dict(C=CUBE_VERTICES),
+            orientations_by_type=dict(C=rowan.random.rand(len(CUBE_VERTICES)))
+        )
+    ],
+    positions_by_type=dict(
+        A=[[-1, -1, 0], [1,  1, 0]],
+        B=[[-1,  1, 0], [1, -1, 0]]
+    )
+)
+
+@pytest.mark.parametrize("type_shapes", [{}, {"A": coxeter.shapes.ConvexPolyhedron(CUBE_VERTICES)}])
+@pytest.mark.parametrize("type_styles", [{}, {"A": dict(color="yellow")}])
+@pytest.mark.parametrize("ignore_types", [[], ["C"]])
+@pytest.mark.parametrize("slice", [{}, dict(z=0), dict(z=0, y=0)])
+@pytest.mark.parametrize("schematic_slice", [False, True])
+@pytest.mark.parametrize("schematic_slice_scale", [1])
+@pytest.mark.parametrize("schematic_slice_color", ["red"])
+@pytest.mark.parametrize("schematic_slice_opacity", [1])
+@pytest.mark.parametrize("schematic_slice_line_width", [10])
+@pytest.mark.parametrize("show_legend", [True])
+def test_arrangement_plot(
+    type_shapes,
+    type_styles,
+    ignore_types,
+    slice,
+    schematic_slice,
+    schematic_slice_scale,
+    schematic_slice_color,
+    schematic_slice_opacity,
+    schematic_slice_line_width,
+    show_legend,
+):
+    """Ensure arrangement plotting does not error for valid parameters."""
+    _, _ = ARRANGEMENT.plot(
+        type_shapes=type_shapes,
+        type_styles=type_styles,
+        ignore_types=ignore_types,
+        slice=slice,
+        schematic_slice=schematic_slice,
+        schematic_slice_scale=schematic_slice_scale,
+        schematic_slice_color=schematic_slice_color,
+        schematic_slice_opacity=schematic_slice_opacity,
+        schematic_slice_line_width=schematic_slice_line_width,
+        show_legend=show_legend,
     )

@@ -31,6 +31,9 @@ example simulation using the code below.
         "orientations": [(1.0, 0.0, 0.0, 0.0), (1.0, 0.0, 0.0, 0.0)],
     }
 
+    # Add constituent particles to the simulation state
+    rigid.create_bodies(example_simulation.state)
+
     # Add an integrator and a simple B-B LJ force
     example_simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
     lj = hoomd.md.pair.LJ(nlist=hoomd.md.nlist.Tree(2), default_r_cut=0)
@@ -89,14 +92,16 @@ field of the system using the code below.
 
     data_path = "doc/source/data" # change to your own directory path
 
+    positions = p4.positions_on_regular_grid(
+        box=[10, 10, 10],
+        resolution=[10, 10, 10]
+    )
+
     system.measure(
         quantities=["U"],
-        position_resolutions=[10, 10, 10],   # change to fit your system
-        orientation_resolutions=[1, 1, 1],   # change to fit your system
-        symmetries=[1, 1, 1],                # change to fit your system
-        nlist=hoomd.md.nlist.Tree(2),
-        csv_filename=data_path+"/field.csv",# change to fit your system
-        outside_cutoff=10,                   # change to fit your system
+        positions=positions,                    # change to fit your system
+        orientations=[1, 0, 0, 0],              # change to fit your system
+        csv_filename=data_path+"/field.csv",    # change to fit your system
     )
 
 This method saves a csv file that records the potential energy at each position

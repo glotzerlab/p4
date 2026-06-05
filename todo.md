@@ -1,41 +1,19 @@
-## To-do
-
-`System`
-- [ ] add API for sampling strategies
-  - [ ] uniform grid
-  - [ ] uniform grid with geometrically-defined gap
-  - [ ] shape overlap exclusion
-  - [ ] dynamical meshing?
-
-`Interaction`
-- [x] add plotting
-- [ ] add autogenerate dict method
-
-Other
-- [ ] Add support for Frame analytes. This would require
-  - [ ] Writing measurements concurrently to disk, rather than storing in StringIO
-  - [ ] Support VTK in Field IO (plotly can't handle datasets that large)
-  - [ ] Body saving to VTK
-- [ ] Add state/frame plotting
-- [x] write basic error-checking tests for plotting
-- [ ] add validation tests
-
-Docs
-- [ ] switch to MyST
-- [x] move HTML to separate build step
-- [x] fix syntax highlighting for bash and license
-
-## Roadmap
-
-### Open to group members
-tests
-  - [ ] non-validation coverage 100%
+# To-do
 
 ### Open to public
-TBD
+- [ ] revise project goals
+- [ ] fix body image wrapping problem
+- [ ] tests for top-level functions
 
 ### Publication
 TBD
 
 ### 'Completion'
-TBD
+- [ ] add autogenerate params function for interactions
+- [ ] Change from StringIO to some other data storage/retention approach
+- [ ] Add support for VTK
+- [ ] add shape overlap exclusion sampling
+- [ ] add dynamical mesh sampling
+
+Possible performance improvements:
+  - [ ] switch from nested for-loop to single computation over many spaced-out configurations

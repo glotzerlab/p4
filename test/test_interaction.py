@@ -1,3 +1,6 @@
+# Copyright (c) 2025-2026, The Regents of the University of Michigan
+# This file is from the p4 project, released under the BSD 3-Clause License.
+
 from copy import deepcopy
 import itertools
 import hoomd
@@ -8,20 +11,19 @@ import pkgutil
 import importlib
 from typing import Literal, Iterable
 import numpy as np
-from p4 import Interaction
+import p4
 import pytest
+from packaging.version import Version
 
 
 # 1. Get all hoomd md pair classes for testing
 
 
-REQUIRED_PARENT_CLASS = hoomd.md.pair.pair.Pair
-EXCLUDED_TYPE_STRINGS = [
-    "hoomd.md.pair.pair.Pair",
-    "hoomd.md.pair.aniso.AnisotropicPair",
-    "hoomd.md.pair.aniso.Patchy",
-    "hoomd.md.pair.friction.FrictionalPair"
-]
+REQUIRED_PARENT_CLASS = p4.interaction.REQUIRED_PARENT_CLASS
+EXCLUDED_TYPE_STRINGS = p4.interaction.EXCLUDED_TYPE_STRINGS
+
+if Version(hoomd.version.version) < Version("7.0.2"):
+    EXCLUDED_TYPE_STRINGS.append("hoomd.md.pair.pair.Table")
 
 def cls_to_str(cls):
     """Return a string representation of the class' path, including its name."""
@@ -857,41 +859,536 @@ def get_kwargs(cls, required_or_all):
 
     return kwargs
 
-def typeparam_dicts_are_equivalent(one, other):
-    """Return True if all items in the typeparam dicts are equivalent."""
-    same_keys = all(k in other for k in one)
+def assert_typeparam_dicts_are_equivalent(tpd1, tpd2):
+    """Error unless all items in the typeparam dicts are equivalent."""
+    # same keys
+    assert all(k in tpd2 for k in tpd1)
     
+    # same values
     same_values = []
-    for k in one:
-        if isinstance(one[k], Iterable):
-            same_length = len(one[k])
-            same_items = all(i == j for i, j in zip(one[k], other[k]))
+    for k in tpd1:
+        if isinstance(tpd1[k], Iterable):
+            same_length = len(tpd1[k]) == len(tpd2[k])
+            same_items = all(i == j for i, j in zip(tpd1[k], tpd2[k]))
             same_values.append(same_length and same_items)
         else:
-            same_values.append(one[k] == other[k])
+            same_values.append(tpd1[k] == tpd2[k])
     
-    return same_keys and all(same_values)
+    assert all(same_values)
 
-def pairs_are_equivalent(one, other):
-    """Return True if hooomd.md.pair.Pair instances are equivalent."""
-    same_types = type(one) is type(other)
-    try:
-        same_typeparam_dicts = one._typeparam_dict == other._typeparam_dict     # Review: I don't know why this sometimes works when the other branch doesn't
-    except ValueError:
-        same_typeparam_dicts = typeparam_dicts_are_equivalent(
-            one._typeparam_dict,
-            other._typeparam_dict
+def assert_pairs_are_equivalent(pair1, pair2):
+    """Error unless pair instances are equivalent."""
+    # same types
+    assert type(pair1) is type(pair2)
+    # try:
+    #     assert pair1._typeparam_dict == pair2._typeparam_dict     # Review: I don't know why this sometimes works when the other branch doesn't
+    # except ValueError:
+    assert_typeparam_dicts_are_equivalent(
+        pair1._typeparam_dict,
+        pair2._typeparam_dict
+    )
+
+def assert_interactions_are_equivalent(i1, i2):
+    """Error unless interactions have equivalent properties."""
+    same_type = type(i1) is type(i2)
+
+    if not same_type:
+        return False
+    
+    same_initial_args = i1.initial_args == i2.initial_args
+    same_default_params = i1.default_params == i2.default_params
+    same_typed_params = i1.typed_params == i2.typed_params
+
+    def without_keys(d, keys):
+        """Return a copy of a dict without items specified by keys."""
+        return {k: d[k] for k in d if k not in keys}
+
+    # If initial_args are different, they should be considered equivalent if
+    # the only differences are between
+    #   - `default_r_cut` or `default_r_on` parameters that are
+    #     superceded by equivalent values in default_params
+    #   - the presence of optional parameters that are set to their default
+    #     values
+    equivalent_initial_args = same_initial_args
+    if not same_initial_args:
+        # Check for equivalence based on r_cut and/or r_on values
+        default_args = ["default_r_cut", "default_r_on"]
+        same_without_rs = (
+            without_keys(i1.initial_args, default_args)
+            == without_keys(i2.initial_args, default_args)
         )
-    return same_types and same_typeparam_dicts
+
+        different_rs = [
+            r
+            for r in ["r_cut", "r_on"]
+            if (
+                i1.initial_args.get(f"default_{r}")
+                != i2.initial_args.get(f"default_{r}")
+            )
+        ]
+        rs_equivalent = [True] if not different_rs else []
+        for r in different_rs:
+            # For r_cut, there MUST be a value in either initial_args or
+            # default_params, otherwise the hoomd pair cannot be parameterized.
+            # For r_on, there does not need to be a value, and if this is
+            # the case then hoomd defaults the parameter to zero.
+            if r in i1.default_params:
+                self_dominant_r = i1.default_params[r]
+            elif f"default_{r}" in i1.initial_args:
+                self_dominant_r = i1.initial_args[f"default_{r}"]
+            else:
+                if r == "r_on":
+                    self_dominant_r = 0
+                else:
+                    msg = (
+                        "During equivalence comparison, encountered a "
+                        + "problem: can find neither 'default_r_cut' in "
+                        + "`i1.initial_args` nor 'r_cut' in "
+                        + "`i1.default_params`. This is undefined behavior."
+                    )
+                    raise ValueError(msg)
+            
+            if r in i2.default_params:
+                other_dominant_r = i2.default_params[r]
+            elif f"default_{r}" in i2.initial_args:
+                other_dominant_r = i2.initial_args[f"default_{r}"]
+            else:
+                if r == "r_on":
+                    other_dominant_r = 0
+                else:
+                    msg = (
+                        "During equivalence comparison, encountered a "
+                        + "problem: can find neither 'default_r_cut' in "
+                        + "`i2.initial_args` nor 'r_cut' in "
+                        + "`i2.default_params`. This is undefined behavior."
+                    )
+                    raise ValueError(msg)
+
+            rs_equivalent.append(self_dominant_r == other_dominant_r)
+
+        # Check for equivalence based on optional parameters
+        optional_args_equivalent = []
+        if not same_without_rs:
+            signature = inspect.signature(i1.hoomd_class.__init__)
+            for name, param in signature.parameters.items():
+                # Skip args that aren't supposed to be in initial_args
+                # Skip default r args (already analyzed elsewhere)
+                if name not in ["self", "nlist", "default_r_cut", "default_r_on"]:
+                    # Loop over all optional args
+                    if param.default is not inspect._empty:
+                        default_args.append(name)
+                        # Check self
+                        if name in i1.initial_args:
+                            if name not in i2.initial_args:
+                                optional_args_equivalent.append(
+                                    param.default == i1.initial_args[name]
+                                )
+                            else:
+                                optional_args_equivalent.append(
+                                    i1.initial_args[name]
+                                    == i2.initial_args[name]
+                                )
+
+                        # Check other
+                        if name in i2.initial_args:
+                            if name not in i1.initial_args:
+                                optional_args_equivalent.append(
+                                    param.default == i2.initial_args[name]
+                                )
+
+        equivalent_without_rs = (
+            without_keys(i1.initial_args, default_args)
+            == without_keys(i2.initial_args, default_args)
+        )
+        equivalent_initial_args = (
+            (same_without_rs and all(rs_equivalent))
+            or (
+                equivalent_without_rs
+                and all(optional_args_equivalent)
+                and all(rs_equivalent)
+            )
+        )
+    
+    # If default_params are different, they should be considered equivalent if
+    # the only differences are between
+    #   - the absence of `r_cut` or `r_on` parameters that are covered by
+    #     equivalent default values in initial_args
+    #   - the presence of optional parameters that are set to their default
+    #     values
+    #   - the presence of the same parameter value for every single or pair
+    equivalent_default_params = same_default_params
+    if not same_default_params:
+        # Check for equivalence based on r_cut and/or r_on values
+        same_without_rs = (
+            without_keys(i1.default_params, ["r_cut", "r_on"])
+            == without_keys(i2.default_params, ["r_cut", "r_on"])
+        )
+
+        different_rs = [
+            r
+            for r in ["r_cut", "r_on"]
+            if i1.default_params.get(r) != i2.default_params.get(r)
+        ]
+        rs_equivalent = [True] if not different_rs else []
+        for r in different_rs:
+            # For r_cut, there MUST be a value in either initial_args or
+            # default_params, otherwise the hoomd pair cannot be parameterized.
+            # For r_on, there does not need to be a value, and if this is
+            # the case then hoomd defaults the parameter to zero.
+            if r not in i1.default_params:
+                if f"default_{r}" in i1.initial_args:
+                    self_dominant_r = i1.initial_args[f"default_{r}"]
+                else:
+                    if r == "r_on":
+                        self_dominant_r = 0
+                    else:
+                        msg = (
+                            "During equivalence comparison, encountered a "
+                            + "problem: can find neither 'default_r_cut' "
+                            + "in `i1.initial_args` nor 'r_cut' in "
+                            + "`i1.default_params`. This is undefined "
+                            + "behavior."
+                        )
+                        raise ValueError(msg)
+            else:
+                self_dominant_r = i1.default_params[r]
+            
+            if r not in i2.default_params:
+                if f"default_{r}" in i2.initial_args:
+                    other_dominant_r = i2.initial_args[f"default_{r}"]
+                else:
+                    if r == "r_on":
+                        other_dominant_r = 0
+                    else:
+                        msg = (
+                            "During equivalence comparison, encountered a "
+                            + "problem: can find neither 'default_r_cut' "
+                            + "in `i2.initial_args` nor 'r_cut' in "
+                            + "`i2.default_params`. This is undefined "
+                            + "behavior."
+                        )
+                        raise ValueError(msg)
+            else:
+                other_dominant_r = i2.default_params[r]
+
+            rs_equivalent.append(self_dominant_r == other_dominant_r)
+        
+        # Check for equivalence based on optional parameters
+        optional_params_equivalent = []
+        if not same_without_rs:
+            instance = i1.hoomd_class(
+                hoomd.md.nlist.Tree(2),
+                **i1.initial_args
+            )
+            tpd = instance._typeparam_dict
+            for name, typeparam in tpd.items():
+                # If the typeparam is a dictionary mapping names to some
+                # subtypeparams, then each of those subtypeparams must also
+                # be checked. This process is not recursive - i.e., it does
+                # not perform this dictionary check on each of those
+                # subtypeparams.
+                if isinstance(typeparam.default, dict):
+                    for k, v in typeparam.default.items():
+                        if isinstance(v, dict):
+                            for sk, sv in v.items():
+                                if isinstance(sv, dict):
+                                    for ssk, ssv in sv.items():
+                                        # Check self
+                                        if (
+                                            name in i1.default_params
+                                            and isinstance(i1.default_params[name], dict)
+                                            and k in i1.default_params[name]
+                                            and isinstance(i1.default_params[name][k], dict)
+                                            and sk in i1.default_params[name][k]
+                                            and isinstance(i1.default_params[name][k][sk], dict)
+                                            and ssk in i1.default_params[name][k][sk]
+                                        ):
+                                            optional_params_equivalent.append(
+                                                ssv == i1.default_params[name][k][sk][ssk]
+                                            )
+                                        # Check other
+                                        if (
+                                            name in i2.default_params
+                                            and isinstance(i2.default_params[name], dict)
+                                            and k in i2.default_params[name]
+                                            and isinstance(i2.default_params[name][k], dict)
+                                            and sk in i2.default_params[name][k]
+                                            and isinstance(i2.default_params[name][k][sk], dict)
+                                            and ssk in i2.default_params[name][k][sk]
+                                        ):
+                                            optional_params_equivalent.append(
+                                                sv == i2.default_params[name][k][sk][ssk]
+                                            )
+                                else:
+                                    # Check self
+                                    if (
+                                        name in i1.default_params
+                                        and isinstance(i1.default_params[name], dict)
+                                        and k in i1.default_params[name]
+                                        and isinstance(i1.default_params[name][k], dict)
+                                        and sk in i1.default_params[name][k]
+                                    ):
+                                        optional_params_equivalent.append(
+                                            sv == i1.default_params[name][k][sk]
+                                        )
+                                    # Check other
+                                    if (
+                                        name in i2.default_params
+                                        and isinstance(i2.default_params[name], dict)
+                                        and k in i2.default_params[name]
+                                        and isinstance(i2.default_params[name][k], dict)
+                                        and sk in i2.default_params[name][k]
+                                    ):
+                                        optional_params_equivalent.append(
+                                            sv == i2.default_params[name][k][sk]
+                                        )
+                        else:
+                            # Check self
+                            if (
+                                name in i1.default_params
+                                and isinstance(i1.default_params[name], dict)
+                                and k in i1.default_params[name]
+                            ):
+                                optional_params_equivalent.append(
+                                    v == i1.default_params[name][k]
+                                )
+                            # Check other
+                            if (
+                                name in i2.default_params
+                                and isinstance(i2.default_params[name], dict)
+                                and k in i2.default_params[name]
+                            ):
+                                optional_params_equivalent.append(
+                                    v == i2.default_params[name][k]
+                                )
+                            
+
+                # If the typeparam is not a dictionary, everything's simple
+                else:
+                    # Loop over all optional params
+                    if typeparam.default is not hoomd.data.typeconverter.RequiredArg:
+                        # Check self
+                        if name in i1.default_params:
+                            optional_params_equivalent.append(
+                                typeparam.default == i1.default_params[name]
+                            )
+                        # Check other
+                        if name in i2.default_params:
+                            optional_params_equivalent.append(
+                                typeparam.default == i2.default_params[name]
+                            )
+
+        equivalent_default_params = (
+            (same_without_rs and all(rs_equivalent))
+            or (all(optional_params_equivalent) and all(rs_equivalent))
+        )
+
+    # If typed and/or default_params are different, they should be
+    # considered equivalent if the only differences are between
+    #   - the absence of `r_cut` or `r_on` parameters that are covered by
+    #     equivalent default values in initial_args
+    #   - the presence of optional parameters that are set to their default
+    #     values
+    #   - the presence of the same parameter value for every single or pair
+    #   - TODO: add support for type pairs that are tuples in a different
+    #     order (Review: consider changing tuples to sets)
+    equivalent_typed_params = same_typed_params
+    if not same_typed_params:
+        # Check for equivalence based on r_cut and/or r_on values
+        same_without_rs = (
+            without_keys(i1.typed_params, ["r_cut", "r_on"])
+            == without_keys(i2.typed_params, ["r_cut", "r_on"])
+        )
+
+        different_rs = [
+            r
+            for r in ["r_cut", "r_on"]
+            if i1.typed_params.get(r) != i2.default_params.get(r)
+        ]
+        rs_equivalent = [True] if not different_rs else []
+        for r in different_rs:
+            # For r_cut, there MUST be a value in either initial_args or
+            # default_params, otherwise the hoomd pair cannot be parameterized.
+            # For r_on, there does not need to be a value, and if this is
+            # the case then hoomd defaults the parameter to zero.
+            if r not in i1.typed_params:
+                if r in i1.default_params:
+                    self_dominant_r = i1.default_params[r]
+                elif f"default_{r}" in i1.initial_args:
+                    self_dominant_r = i1.initial_args[f"default_{r}"]
+                else:
+                    if r == "r_on":
+                        self_dominant_r = 0
+                    else:
+                        msg = (
+                            "During equivalence comparison, encountered a "
+                            + "problem: can find neither 'default_r_cut' "
+                            + "in `i1.initial_args` nor 'r_cut' in "
+                            + "`i1.default_params`. This is undefined "
+                            + "behavior."
+                        )
+                        raise ValueError(msg)
+            else:
+                self_dominant_r = i1.typed_params[r]
+            
+            if r not in i2.typed_params:
+                if r in i2.default_params:
+                    other_dominant_r = i2.default_params[r]
+                elif f"default_{r}" in i2.initial_args:
+                    other_dominant_r = i2.initial_args[f"default_{r}"]
+                else:
+                    if r == "r_on":
+                        other_dominant_r = 0
+                    else:
+                        msg = (
+                            "During equivalence comparison, encountered a "
+                            + "problem: can find neither 'default_r_cut' "
+                            + "in `i2.initial_args` nor 'r_cut' in "
+                            + "`i2.default_params`. This is undefined "
+                            + "behavior."
+                        )
+                        raise ValueError(msg)
+            else:
+                other_dominant_r = i2.typed_params[r]
+
+            rs_equivalent.append(self_dominant_r == other_dominant_r)
+        
+        # Check for equivalence based on optional parameters
+        optional_params_equivalent = []
+        if not same_without_rs:
+            instance = i1.hoomd_class(
+                hoomd.md.nlist.Tree(2),
+                **i1.initial_args
+            )
+            tpd = instance._typeparam_dict
+            for name, typeparam in tpd.items():
+                # If the typeparam is a dictionary mapping names to some
+                # subtypeparams, then each of those subtypeparams must also
+                # be checked. This process is not recursive - i.e., it does
+                # not perform this dictionary check on each of those
+                # subtypeparams.
+                if isinstance(typeparam.default, dict):
+                    for k, v in typeparam.default.items():
+                        if isinstance(v, dict):
+                            for sk, sv in v.items():
+                                if isinstance(sv, dict):
+                                    for ssk, ssv in sv.items():
+                                        # Check self
+                                        if (
+                                            name in i1.typed_params
+                                            and isinstance(i1.typed_params[name], dict)
+                                            and k in i1.typed_params[name]
+                                            and isinstance(i1.typed_params[name][k], dict)
+                                            and sk in i1.typed_params[name][k]
+                                            and isinstance(i1.typed_params[name][k][sk], dict)
+                                            and ssk in i1.typed_params[name][k][sk]
+                                        ):
+                                            optional_params_equivalent.append(
+                                                ssv == i1.typed_params[name][k][sk][ssk]
+                                            )
+                                        # Check other
+                                        if (
+                                            name in i2.typed_params
+                                            and isinstance(i2.typed_params[name], dict)
+                                            and k in i2.typed_params[name]
+                                            and isinstance(i2.typed_params[name][k], dict)
+                                            and sk in i2.typed_params[name][k]
+                                            and isinstance(i2.typed_params[name][k][sk], dict)
+                                            and ssk in i2.typed_params[name][k][sk]
+                                        ):
+                                            optional_params_equivalent.append(
+                                                sv == i2.typed_params[name][k][sk][ssk]
+                                            )
+                                else:
+                                    # Check self
+                                    if (
+                                        name in i1.typed_params
+                                        and isinstance(i1.typed_params[name], dict)
+                                        and k in i1.typed_params[name]
+                                        and isinstance(i1.typed_params[name][k], dict)
+                                        and sk in i1.typed_params[name][k]
+                                    ):
+                                        optional_params_equivalent.append(
+                                            sv == i1.typed_params[name][k][sk]
+                                        )
+                                    # Check other
+                                    if (
+                                        name in i2.typed_params
+                                        and isinstance(i2.typed_params[name], dict)
+                                        and k in i2.typed_params[name]
+                                        and isinstance(i2.typed_params[name][k], dict)
+                                        and sk in i2.typed_params[name][k]
+                                    ):
+                                        optional_params_equivalent.append(
+                                            sv == i2.typed_params[name][k][sk]
+                                        )
+                        else:
+                            # Check self
+                            if (
+                                name in i1.typed_params
+                                and isinstance(i1.typed_params[name], dict)
+                                and k in i1.typed_params[name]
+                            ):
+                                optional_params_equivalent.append(
+                                    v == i1.typed_params[name][k]
+                                )
+                            # Check other
+                            if (
+                                name in i2.typed_params
+                                and isinstance(i2.typed_params[name], dict)
+                                and k in i2.typed_params[name]
+                            ):
+                                optional_params_equivalent.append(
+                                    v == i2.typed_params[name][k]
+                                )
+                            
+
+                # If the typeparam is not a dictionary, everything's simple
+                else:
+                    # Loop over all optional params
+                    if typeparam.default is not hoomd.data.typeconverter.RequiredArg:
+                        # Check self
+                        if name in i1.typed_params:
+                            optional_params_equivalent.append(
+                                typeparam.default == i1.typed_params[name]
+                            )
+                        # Check other
+                        if name in i2.typed_params:
+                            optional_params_equivalent.append(
+                                typeparam.default == i2.typed_params[name]
+                            )
+
+        equivalent_typed_params = (
+            (same_without_rs and all(rs_equivalent))
+            or (all(optional_params_equivalent) and all(rs_equivalent))
+        )
+
+    assert same_type
+    assert same_initial_args or equivalent_initial_args
+    assert same_default_params or equivalent_default_params
+    assert same_typed_params or equivalent_typed_params
 
 @pytest.mark.parametrize("cls", CLASSES_TO_TEST)
 @pytest.mark.parametrize("required_or_all", ["required", "all"])
 def test_instantiation_valid(cls, required_or_all):
     """Ensure every covered hoomd class can be instantiated and exported to hoomd instances with valid parameters."""    
     kwargs = get_kwargs(cls, required_or_all)
-    _ = Interaction(**kwargs)
+    _ = p4.Interaction(**kwargs)
 
 INVALID_KWARGS = [
+    # Wrong class
+    dict(   # different module
+        hoomd_class=hoomd.hpmc.pair.LennardJones,
+        initial_args=dict(),
+        default_params=dict(),
+        typed_params=dict()
+    ),
+    dict(   # excluded type
+        hoomd_class=hoomd.md.pair.aniso.AnisotropicPair,
+        initial_args=dict(),
+        default_params=dict(),
+        typed_params=dict()
+    ),
     # Initial args
     dict(   # missing required names
         hoomd_class=hoomd.md.pair.DPD,
@@ -1219,13 +1716,73 @@ INVALID_KWARGS = [
 ]
 
 @pytest.mark.parametrize("kwargs", INVALID_KWARGS)
-def test_invalid_instantiation(kwargs):
+def test_instantiation_invalid(kwargs):
     """Ensure instantiation fails predictably with invalid keyword arguments.
     
     Only one hoomd class is tested.
     """
     with pytest.raises((TypeError, ValueError)):
-        _ = Interaction(**kwargs)
+        _ = p4.Interaction(**kwargs)
+
+def test_property_getters_and_setters_valid():
+    """Ensure property getters and setters work as expected with valid inputs."""
+    kwargs = dict(
+        hoomd_class=hoomd.md.pair.LJ,
+        initial_args=dict(default_r_cut=0),
+        default_params=dict(r_cut=1, params=dict(epsilon=2, sigma=3)),
+        typed_params={
+            ("A", "B"): dict(r_cut=4, params=dict(epsilon=5, sigma=6))
+        }
+    )
+    interaction = p4.Interaction(**kwargs)
+
+    # Getters
+    assert interaction.hoomd_class == kwargs["hoomd_class"]
+    assert interaction.initial_args == kwargs["initial_args"]
+    assert interaction.default_params == kwargs["default_params"]
+    assert interaction.typed_params == kwargs["typed_params"]
+
+    # Setters
+    interaction.initial_args = {}
+    assert interaction.initial_args == {}
+    interaction.default_params = dict(r_cut=1.1, params=dict(epsilon=2.1, sigma=3.1))
+    assert interaction.default_params == dict(r_cut=1.1, params=dict(epsilon=2.1, sigma=3.1))
+    interaction.typed_params = {("A", "B"): dict(r_cut=4.1, params=dict(epsilon=5.1, sigma=6.1))}
+    assert interaction.typed_params == {("A", "B"): dict(r_cut=4.1, params=dict(epsilon=5.1, sigma=6.1))}
+
+def test_property_setters_invalid():
+    """Ensure property setters fail expectedly with invalid inputs."""
+    kwargs = dict(
+        hoomd_class=hoomd.md.pair.LJ,
+        initial_args=dict(default_r_cut=0),
+        default_params=dict(r_cut=1, params=dict(epsilon=2, sigma=3)),
+        typed_params={
+            ("A", "B"): dict(r_cut=4, params=dict(epsilon=5, sigma=6))
+        }
+    )
+    interaction = p4.Interaction(**kwargs)
+
+    # Setting hoomd_class
+    with pytest.raises(AttributeError):
+        interaction.hoomd_class = hoomd.md.pair.DPD
+
+    # Setting new wrong initial_args
+    with pytest.raises(TypeError):
+        interaction.initial_args = dict(wrong=None)
+
+    # Setting new wrong default_params
+    with pytest.raises(ValueError):
+        interaction.default_params = dict(wrong=None)
+
+    # Setting new wrong typed_params
+    with pytest.raises(ValueError):
+        interaction.typed_params = dict(wrong=None)
+    
+    # Ensure none of the invalid operations above mutated the internal data
+    assert interaction.hoomd_class == kwargs["hoomd_class"]
+    assert interaction.initial_args == kwargs["initial_args"]
+    assert interaction.default_params == kwargs["default_params"]
+    assert interaction.typed_params == kwargs["typed_params"]
 
 @pytest.mark.parametrize("kwargs,expected_singles,expected_pairs", [
     [   # 0 singles, 1 pair
@@ -1316,7 +1873,7 @@ def test_invalid_instantiation(kwargs):
 ])
 def test_type_properties(kwargs, expected_singles, expected_pairs):
     """Ensure single and pair type properties return expected values."""
-    interaction = Interaction(**kwargs)
+    interaction = p4.Interaction(**kwargs)
     
     expected_all = deepcopy(expected_singles)
     for p in expected_pairs:
@@ -1324,69 +1881,40 @@ def test_type_properties(kwargs, expected_singles, expected_pairs):
             if t not in expected_all:
                 expected_all.append(t)
 
-    assert interaction.interacting_types("single") == expected_singles
-    assert interaction.interacting_types("pair") == expected_pairs
-    assert interaction.interacting_types("all") == expected_all
+    assert interaction._interacting_types("single") == expected_singles
+    assert interaction._interacting_types("pair") == expected_pairs
+    assert interaction._interacting_types("all") == expected_all
 
 @pytest.mark.parametrize("cls", CLASSES_TO_TEST)
 @pytest.mark.parametrize("required_or_all", ["required", "all"])
-def test_to_hoomd_pair_not_parameterized(cls, required_or_all):
-    """Ensure for every coverted hoomd class an Interaction can be converted to an unparameterized hoomd instance."""
-    kwargs = get_kwargs(cls, required_or_all)
-    interaction = Interaction(**kwargs)
-
-    pair = cls(nlist=NLIST, **kwargs["initial_args"])
-    assert pairs_are_equivalent(pair, interaction.to_hoomd_pair(NLIST, parameterize=False))
-
-@pytest.mark.parametrize("cls", CLASSES_TO_TEST)
-@pytest.mark.parametrize("required_or_all", ["required", "all"])
-def test_to_hoomd_pair_parameterized(cls, required_or_all):
+def test_to_hoomd_pair(cls, required_or_all):
     """Ensure for every coverted hoomd class an Interaction can be converted to a parameterized hoomd instance."""
-    # Review: is there a better way to test this? I'm basically just copying the
-    # actual implementation...
     kwargs = get_kwargs(cls, required_or_all)
-    interaction = Interaction(**kwargs)
+    interaction = p4.Interaction(**kwargs)
 
-    pair = cls(nlist=NLIST, **kwargs["initial_args"])
+    ref_pair = cls(nlist=NLIST, **kwargs["initial_args"])
 
-    all_types = ["A", "B"]
-    all_type_pairs = list(itertools.combinations_with_replacement(all_types, 2))
-
-    single_typed_params = parse_params(cls, "single", "all")
-    pair_typed_params = parse_params(cls, "pair", "all")
-
-    # No single-typed
-    for a_t in all_types:
-        for param_name, param_value in kwargs["default_params"].items():
-            if param_name in single_typed_params:
-                getattr(pair, param_name)[a_t] = param_value
+    # Set default params
+    for param_name, param_value in kwargs["default_params"].items():
+        getattr(ref_pair, param_name).default = param_value
     
-    # No pair-typed
-    for a_p in all_type_pairs:
-        for param_name, param_value in kwargs["default_params"].items():
-            if param_name in pair_typed_params:
-                getattr(pair, param_name)[a_p] = param_value
-    
-    # Yes single-typed
-    for y_t in [i for i in kwargs["typed_params"] if isinstance(i, str) and i in all_types]:
-        for param_name, param_value in kwargs["typed_params"][y_t].items():
-            getattr(pair, param_name)[y_t] = param_value
+    # Set typed params
+    for type_name, type_params in kwargs["typed_params"].items():
+        for param_name, param_value in type_params.items():
+            getattr(ref_pair, param_name)[type_name] = param_value
 
-    # Yes pair-typed
-    for y_p in [i for i in kwargs["typed_params"] if isinstance(i, Iterable) and not isinstance(i, (str, bytes)) and all(j in all_types for j in i)]:
-        for param_name, param_value in kwargs["typed_params"][y_p].items():
-            getattr(pair, param_name)[y_p] = param_value
-    
-    assert pairs_are_equivalent(pair, interaction.to_hoomd_pair(nlist=NLIST, parameterize=True, all_types=all_types))
+    test_pair = interaction.to_hoomd_pair()
+
+    assert_pairs_are_equivalent(test_pair, ref_pair)
 
 @pytest.mark.parametrize("cls", [hoomd.md.pair.LJ, hoomd.md.pair.ExpandedGaussian]) # [Review: test aniso?]
 def test_from_hoomd_pair_valid(cls):
     """Ensure every covered hoomd class can be parsed into an Interaction."""
     kwargs = get_kwargs(cls, "all")
-    interaction = Interaction(**kwargs)
-    pair = interaction.to_hoomd_pair(nlist=hoomd.md.nlist.Cell(0), parameterize=True, all_types=interaction.interacting_types("all"))
-    other = Interaction.from_hoomd_pair(pair)
-    assert interaction == other
+    interaction = p4.Interaction(**kwargs)
+    pair = interaction.to_hoomd_pair(nlist=hoomd.md.nlist.Tree(2))
+    other = p4.Interaction.from_hoomd_pair(pair)
+    assert_interactions_are_equivalent(interaction, other)
 
 @pytest.mark.parametrize("cls", [hoomd.md.pair.LJ, hoomd.md.pair.aniso.ALJ])
 @pytest.mark.parametrize("multiple_forces", [False, True])
@@ -1396,24 +1924,29 @@ def test_from_hoomd_integrator_valid(cls, multiple_forces):
     forces = []
 
     kwargs = get_kwargs(cls, "required")
-    interaction = Interaction(**kwargs)
-    pair = interaction.to_hoomd_pair(nlist=NLIST, parameterize=True, all_types=interaction.interacting_types("all"))
+    interaction = p4.Interaction(**kwargs)
+    pair = interaction.to_hoomd_pair(nlist=NLIST)
     
     forces.append(pair)
 
     if multiple_forces:
         kwargs = get_kwargs(hoomd.md.pair.DPD, "required")
-        interaction = Interaction(**kwargs)
-        pair = interaction.to_hoomd_pair(nlist=NLIST, parameterize=True, all_types=interaction.interacting_types("all"))
+        interaction = p4.Interaction(**kwargs)
+        pair = interaction.to_hoomd_pair(nlist=NLIST)
         forces.append(pair)
     
     integrator.forces = forces
-    assert [Interaction.from_hoomd_pair(f) for f in forces] == Interaction.from_hoomd_integrator(integrator)
+
+    test_interactions = p4.Interaction.from_hoomd_integrator(integrator)
+    ref_interactions = [p4.Interaction.from_hoomd_pair(f) for f in forces]
+
+    for test_i, ref_i in zip(test_interactions, ref_interactions):
+        assert_interactions_are_equivalent(test_i, ref_i)
 
 def test_from_hoomd_integrator_invalid():
     """Ensure integrator parsing fails expectedly when given an empty integrator."""
     with pytest.raises(ValueError):
-        _ = Interaction.from_hoomd_integrator(hoomd.md.Integrator(dt=0.1))
+        _ = p4.Interaction.from_hoomd_integrator(hoomd.md.Integrator(dt=0.1))
 
 @pytest.mark.parametrize("cls", [hoomd.md.pair.LJ, hoomd.md.pair.aniso.ALJ])
 @pytest.mark.parametrize("multiple_forces", [False, True])
@@ -1423,15 +1956,15 @@ def test_from_hoomd_simulation_valid(cls, multiple_forces):
     forces = []
 
     kwargs = get_kwargs(cls, "required")
-    interaction = Interaction(**kwargs)
-    pair = interaction.to_hoomd_pair(nlist=NLIST, parameterize=True, all_types=interaction.interacting_types("all"))
+    interaction = p4.Interaction(**kwargs)
+    pair = interaction.to_hoomd_pair(nlist=NLIST)
     
     forces.append(pair)
 
     if multiple_forces:
         kwargs = get_kwargs(hoomd.md.pair.DPD, "required")
-        interaction = Interaction(**kwargs)
-        pair = interaction.to_hoomd_pair(nlist=NLIST, parameterize=True, all_types=interaction.interacting_types("all"))
+        interaction = p4.Interaction(**kwargs)
+        pair = interaction.to_hoomd_pair(nlist=NLIST)
         forces.append(pair)
     
     integrator.forces = forces
@@ -1441,14 +1974,14 @@ def test_from_hoomd_simulation_valid(cls, multiple_forces):
     )
     simulation.operations.integrator = integrator
 
-    assert [Interaction.from_hoomd_pair(f) for f in forces] == Interaction.from_hoomd_simulation(simulation)
+    assert [p4.Interaction.from_hoomd_pair(f) for f in forces] == p4.Interaction.from_hoomd_simulation(simulation)
 
 def test_from_hoomd_simulation_invalid():
     """Ensure hoomd simulation parsing fails expectedly when given a simulation with no integrator or an empty integrator."""
     simulation = hoomd.util.make_example_simulation()
     with pytest.raises(ValueError):
-        _ = Interaction.from_hoomd_simulation(simulation)
+        _ = p4.Interaction.from_hoomd_simulation(simulation)
 
     simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
     with pytest.raises(ValueError):
-        _ = Interaction.from_hoomd_simulation(simulation)
+        _ = p4.Interaction.from_hoomd_simulation(simulation)

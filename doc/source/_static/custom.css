@@ -1,11 +1,55 @@
 /* Center plotly plots */
 .plotly-graph-div {
-    margin: 2em auto;
+  margin: 2em auto;
 }
 
-/* Dirty hack for switching plotly plots to respect dark mode */
-/* @media (prefers-color-scheme: dark) {
-  .plotly-graph-div { 
-    filter: invert(100%) hue-rotate(180deg); 
-  }
-} */
+/* class toc section titles */
+dl.py.class dd p.rubric {
+  text-transform: capitalize;
+  font-weight: bold;
+  font-size: medium;
+  margin-top: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+/* autoclasstoc section titles need a little less space at the bottom */
+.autoclasstoc .rubric {
+  margin-bottom: 0 !important;
+}
+
+/* autoclass toc table and table container margins */
+div.autoclasstoc div.table-wrapper.autosummary.longtable.docutils.container {
+  margin-top: 0rem !important;
+  margin-bottom: 0rem !important;
+}
+
+div.autoclasstoc div.table-wrapper.autosummary.longtable.docutils.container table{
+  margin-left: 0;
+}
+
+/* Make parameters section title style follow the style used above for autoclasstoc */
+dl.field-list.simple dt {
+  text-transform: capitalize !important;
+  font-weight: bold !important;
+  font-size: medium !important;
+  margin-bottom: 0 !important;
+}
+
+/* Hide colon after the parameters section title */
+dl.field-list.simple dt.field-odd span.colon {display: none}
+
+/*
+Style the horizontal line separating class autoclasstoc from the actual
+method definitions
+*/
+dl.py.class dd hr {
+  width: 50%;
+  margin-left: auto;
+  margin-right: auto;
+  height: 1.5px;
+}
+
+/* Scale the section titles down a bit */
+h2 {
+  font-size: x-large;
+}

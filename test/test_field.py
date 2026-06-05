@@ -1,3 +1,6 @@
+# Copyright (c) 2025-2026, The Regents of the University of Michigan
+# This file is from the p4 project, released under the BSD 3-Clause License.
+
 from pathlib import Path
 
 import pytest
@@ -424,7 +427,7 @@ def test_gridded_array_valid(quantity, vectors, slice):
         
     assert np.array_equal(
         correct_array,
-        f.gridded_array(quantity=quantity, vectors=vectors, q=q, **slice)
+        f.to_gridded_array(quantity=quantity, vectors=vectors, q=q, **slice)
     )
 
 def test_gridded_array_invalid():
@@ -433,23 +436,23 @@ def test_gridded_array_invalid():
 
     # Multiple orientations but q is not specified
     with pytest.raises(ValueError):
-        _ = f.gridded_array("U")
+        _ = f.to_gridded_array("U")
 
     # Incorrect q (not an iterable)
     with pytest.raises(TypeError):
-        _ = f.gridded_array("U", q=1)
+        _ = f.to_gridded_array("U", q=1)
 
     # Incorrect q (elements are not ints or floats)
     with pytest.raises(TypeError):
-        _ = f.gridded_array("U", q=("a", "b", "c"))
+        _ = f.to_gridded_array("U", q=("a", "b", "c"))
     
     # Incorrect q (not in the locations)
     with pytest.raises(ValueError):
-        _ = f.gridded_array("U", q=(0.5, 0.5, 0, 0))
+        _ = f.to_gridded_array("U", q=(0.5, 0.5, 0, 0))
     
     # Incorrect quantity
     with pytest.raises(ValueError):
-        _ = f.gridded_array("F", q=(1, 0, 0, 0))
+        _ = f.to_gridded_array("F", q=(1, 0, 0, 0))
 
 @pytest.mark.parametrize("method", ["min", "max", "mean"])
 def test_aggregate_over_orientations_valid(method):

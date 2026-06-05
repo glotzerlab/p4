@@ -53,6 +53,9 @@ rigid.body["A"] = {
     "orientations": [(1.0, 0.0, 0.0, 0.0), (1.0, 0.0, 0.0, 0.0)],
 }
 
+# Add constituent particles to the simulation state
+rigid.create_bodies(example_simulation.state)
+
 # Add an integrator and a simple B-B LJ force
 example_simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
 lj = hoomd.md.pair.LJ(nlist=hoomd.md.nlist.Tree(2), default_r_cut=0)
@@ -79,14 +82,16 @@ system = p4.System.from_hoomd_simulation(
 )
 
 # %%
+positions = p4.positions_on_regular_grid(
+    box=[10, 10, 10],
+    resolution=[10, 10, 10]
+)
+
 system.measure(
     quantities=["U"],
-    position_resolutions=[10, 10, 10],  # change to fit your system
-    orientation_resolutions=[1, 1, 1],  # change to fit your system
-    symmetries=[1, 1, 1],               # change to fit your system
-    nlist=hoomd.md.nlist.Tree(2),
-    csv_filename=data_path+"/field.csv",
-    outside_cutoff=10,                  # change to fit your system
+    positions=positions,                    # change to fit your system
+    orientations=[1, 0, 0, 0],              # change to fit your system
+    csv_filename=data_path+"/field.csv",    # change to fit your system
 )
 
 # %%
@@ -123,7 +128,7 @@ body = p4.Body(
 )
 fig, _ = body.plot()
 fig.update_layout(**BODY_3D_LAYOUT)
-fig.write_html(data_path+"/body-1type.html", include_plotlyjs='cdn')
+fig.write_html(data_path+"/body-2types.html", include_plotlyjs='cdn')
 
 # %%
 fig, _ = body.plot(
@@ -212,14 +217,16 @@ system = p4.System(
 )
 
 # %%
+positions = p4.positions_on_regular_grid(
+    box=[5, 5, 5],
+    resolution=[30, 30, 30]
+)
+
 system.measure(
     quantities=["U", "F"],
-    position_resolutions=[30, 30, 30],
-    orientation_resolutions=[1, 1, 1], # <-- note: single orientation
-    symmetries=[1, 1, 1],
-    nlist=hoomd.md.nlist.Tree(2),
+    positions=positions,
+    orientations=[1, 0, 0, 0], # <-- note: single orientation
     csv_filename=data_path+"/ac-lj-uf.csv",
-    outside_cutoff=5,
 )
 
 # %%
@@ -339,14 +346,15 @@ system = p4.System(
     analyte=cubic_body,
     interactions=[attraction, repulsion]
 )
+positions = p4.positions_on_regular_grid(
+    box=[5, 5, 5],
+    resolution=[20, 20, 20]
+)
 system.measure(
     quantities=["U", "F", "T"],
-    position_resolutions=[20, 20, 20],
-    orientation_resolutions=[1, 1, 1],
-    symmetries=[1, 1, 1],
-    nlist=hoomd.md.nlist.Tree(2),
+    positions=positions,
+    orientations=[1, 0, 0, 0],
     csv_filename=data_path+"/abd-aljg-uft.csv",
-    outside_cutoff=5,
 )
 
 field = p4.Field.from_csv(data_path+"/abd-aljg-uft.csv")
@@ -397,14 +405,16 @@ system2 = p4.System(
     analyte=cubic_body,
     interactions=[attraction, repulsion2]
 )
+positions = p4.positions_on_regular_grid(
+    box=[10, 10, 10],
+    resolution=[15, 15, 15]
+)
+orientations = p4.orientations_from_fibonacci_lattice(n=10, group="O")
 system2.measure(
     quantities=["U", "F", "T"],
-    position_resolutions=[13, 13, 13],
-    orientation_resolutions=[5, 5, 5],  # <--
-    symmetries=[4, 4, 4],               # <--
-    nlist=hoomd.md.nlist.Tree(2),
+    positions=positions,
+    orientations=orientations,
     csv_filename=data_path+"/abcd-aljg-uft.csv",
-    outside_cutoff=10,
 )
 
 # %%

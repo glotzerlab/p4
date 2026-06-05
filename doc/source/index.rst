@@ -17,6 +17,7 @@ plotted with methods built on the interactive plotting library `Plotly`_.
 .. toctree::
    :maxdepth: 2
    :caption: Getting Started
+   :hidden:
 
    getting-started/overview
    getting-started/installation
@@ -26,6 +27,7 @@ plotted with methods built on the interactive plotting library `Plotly`_.
 .. toctree::
    :maxdepth: 2
    :caption: User Guide
+   :hidden:
 
    user-guide/specifying-particle-models
    user-guide/specifying-interaction-models
@@ -34,18 +36,20 @@ plotted with methods built on the interactive plotting library `Plotly`_.
 .. toctree::
    :maxdepth: 1
    :caption: API
+   :hidden:
 
-   api/body
-   api/interaction
-   api/system
-   api/field
+   api/module-p4
+   api/util
+   api/types
 
 .. toctree::
    :maxdepth: 1
    :caption: Reference
+   :hidden:
 
-   genindex
+   schemas
    for-developers
    changelog
    credits
    license
+   genindex

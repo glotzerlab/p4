@@ -35,6 +35,7 @@ docs = [
   "furo>2025",
   "numpydoc",
   "sphinx-copybutton",
+  "autoclasstoc==1.7.0",
 ]
 
 [tool.conda-lock]

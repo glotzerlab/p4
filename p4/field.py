@@ -1,11 +1,10 @@
 # Copyright (c) 2025-2026, The Regents of the University of Michigan
 # This file is from the p4 project, released under the BSD 3-Clause License.
 
-# TODO: Add IO support for VTK
-# TODO: add support for irregular grids
 
 from __future__ import annotations
-from copy import copy
+from inspect import signature
+import os
 from types import NoneType
 from typing import Iterable, Literal
 import csv
@@ -18,24 +17,20 @@ import plotly.figure_factory
 from . import util
 
 
-AXIS_TITLE_FONT = dict(weight=1000, size=16)
-FIG_TITLE_FONT = dict(style="italic", size=16)
-
-
 class Field:
     """Analyze and plot scalar and vector fields in 3D, 2D, and 1D.
     
-    This class is built around `NumPy's recarray`_, which is a lightweight
-    tabular data structure similar to the `Pandas DataFrame`_.
+    This class is built the NumPy `recarray`_, which is a lightweight tabular
+    data structure similar to the Pandas `DataFrame`_.
 
-    .. _NumPy's recarray: https://numpy.org/doc/stable/reference/generated/numpy.recarray.html
-    .. _Pandas DataFrame: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
+    .. _recarray: https://numpy.org/doc/stable/reference/generated/numpy.recarray.html
+    .. _DataFrame: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
 
-    Access a Field's tabular data using the :attr:`~p4.Field.table` property,
-    which returns the underlying `recarray`.
+    Access a Field's tabular data using the :py:attr:`~p4.field.Field.table`
+    property, which returns the underlying recarray.
     
-    Instantiate a Field directly from a NumPy recarray, or build one from
-    CSV using :meth:`~p4.Field.from_csv`. In order for instantiation to work,
+    Instantiate a Field directly from a recarray, or build one from CSV using
+    :py:meth:`~p4.field.Field.from_csv`. In order for instantiation to work,
     the tabular data must have at least 'x', 'y', and 'z' columns to indicate
     position, and at least one of the following sets of columns to indicate
     measured quantities:
@@ -94,33 +89,6 @@ class Field:
         self._positions = None
         self._orientations = None
         self._table = recarray
-
-    # ----------------------------------- IO -----------------------------------
-
-    @classmethod
-    def from_csv(cls, filename):
-        """Create a Field from a CSV file."""
-        with open(filename) as f:
-            columns = f.readline().strip("\n").split(",")
-
-        return cls(
-            np.rec.array(
-                np.genfromtxt(
-                    filename,
-                    names=columns,
-                    skip_header=1,
-                    dtype=None,
-                    delimiter=","
-                )
-            )
-        )
-
-    def to_csv(self, filename):
-        """Save this field to CSV."""
-        with open(filename, "w") as f:
-            writer = csv.writer(f)
-            writer.writerow(self.table.dtype.names)
-            writer.writerows(self.table.tolist())
 
     # ------------------------------- PROPERTIES -------------------------------
 
@@ -226,270 +194,6 @@ class Field:
         # regular_z = np.nonzero(np.diff(z, n=2))[2].size == 0
 
         # return (regular_x and regular_y and regular_z)
-    
-    # --------------------------------- ARRAYS ---------------------------------
-
-    def gridded_array(
-        self,
-        quantity: Literal["U", "F", "T", "Fx", "Fy", "Fz", "Tx", "Ty", "Tz"],
-        vectors: bool = False,
-        q: None | tuple[float] = None,
-        x: None | float = None,
-        y: None | float = None,
-        z: None | float = None,
-    ) -> np.ndarray:
-        """Return a gridded array of a given scalar or vector quantity.
-
-        The shape of the returned array depends on the measurement locations,
-        the slice, and whether vectors is True. In general, for a Field with
-        ``nx`` x positions, ``ny`` y positions, and ``nz`` z positions, the
-        shape of the returned array is as follows.
-
-        .. code-block::
-            
-            * vectors = False
-                * slice along x           -> (nz, ny)
-                * slice along y           -> (nz, nx)
-                * slice along z           -> (ny, nx)
-                * slice along x and y     -> (nz,)
-                * slice along x and z     -> (ny,)
-                * slice along y and z     -> (nx,)
-                * slice along x, y, and z -> (1,)
-
-            * vectors = True
-                * slice along x           -> (nz, ny, 3)
-                * slice along y           -> (nz, nx, 3)
-                * slice along z           -> (ny, nx, 3)
-                * slice along x and y     -> (nz, 3)
-                * slice along x and z     -> (ny, 3)
-                * slice along y and z     -> (nx, 3)
-                * slice along x, y, and z -> (3,)
-
-        Parameters
-        ----------
-        quantity : 'U', 'F', 'T', 'Fx', 'Fy', 'Fz', 'Tx', 'Ty', or 'Tz'
-            The name of the quantity with which to populate the cells of the
-            gridded array.
-        vectors : bool, default=False
-            Whether to populate the gridded array with scalars or vectors. If
-            `quantity` is 'U', only scalar values are possible and this
-            parameter is ignored.
-        q : tuple of 4 floats
-            If provided, only rows with the corresponding q0, q1, q2, and q3
-            values will be used to create the gridded array. Required if
-            ``table`` includes multiple orientations.
-        x : float, optional
-            If provided, only rows with the corresponding x values will be used
-            to create the gridded array.
-        y : float, optional
-            If provided, only rows with the corresponding y values will be used
-            to create the gridded array.
-        z : float, optional
-            If provided, only rows with the corresponding z values will be used
-            to create the gridded array.
-
-        Returns
-        -------
-        np.ndarray
-            The gridded array.
-
-        Raises
-        ------
-        ValueError
-            If ``q`` is required but not provided. 
-        TypeError
-            If ``q`` is not an iterable of 4 floats.
-        ValueError
-            If ``quantity`` is not recognized.
-        """
-        # [Review: get closest values of x, y, z?]
-        # Input Validation
-        if self.orientations is not None and self.orientations.shape[0] > 1 and q is None:
-            raise ValueError(
-                "The table has more than one orientation. Choose one "
-                + "using `q` or call `aggregate_over_orientations()`."
-            )
-        
-        if (
-            self.orientations is not None and self.orientations.shape[0] > 1
-            and (
-                not isinstance(q, Iterable)
-                or len(q) != 4
-                or any(not isinstance(i, (float, int)) for i in q)
-            )
-        ):
-            raise TypeError("`q` must be an array of 4 floats.")
-        
-        if quantity not in self.quantities:
-            raise ValueError(
-                "`quantity` is not one of this field's quantities "
-                f"({self.quantities})."
-            )
-        
-        # Build the recarray
-        if q is not None:
-            table = self._subset_of_recarray(
-                x=x, y=y, z=z, q0=q[0], q1=q[1], q2=q[2], q3=q[3]
-            )
-        else:
-            table = self._subset_of_recarray(x=x, y=y, z=z)
-
-        if len(table) == 0:
-            raise ValueError(
-                "No measurements found for the given x, y, z, and q."
-            )
-
-        if quantity == "U":
-            columns_to_drop = [f for f in self.quantities if f != "U"]
-        elif quantity == "F":
-            columns_to_drop = [f for f in self.quantities if "F" not in f]
-        elif quantity == "T":
-            columns_to_drop = [f for f in self.quantities if "T" not in f]
-        else:
-            columns_to_drop = [f for f in self.quantities if f != quantity]
-        
-        table = recfunctions.drop_fields(
-            table, columns_to_drop, asrecarray=True
-        )
-
-        # If vectors is False, convert F and T components into magnitudes
-        if not vectors:
-            if quantity in ("F", "T"):
-                component_columns = [
-                    f"{quantity}x",
-                    f"{quantity}y",
-                    f"{quantity}z",
-                ]
-                components = np.column_stack(
-                    [table[f] for f in component_columns]
-                )
-                magnitudes = np.sqrt(np.sum(np.square(components), axis=1))
-
-                columns_to_drop = [f for f in self.quantities if f != quantity]
-                table = recfunctions.drop_fields(
-                    table, columns_to_drop, asrecarray=True
-                )
-                table = recfunctions.append_fields(
-                    table, quantity, magnitudes
-                )
-        
-        # Create a gridded array and orient it to respect the conventions.
-        gridded_array = np.atleast_1d(
-            self._recarray_to_gridded_array(table).squeeze()
-        )
-
-        return gridded_array
-
-    def _subset_of_recarray(self, **kwargs) -> np.rec.recarray:
-        """Return a new recarray that is a subset of the current one.
-        
-        Kwargs
-        ------
-        x : float or array of floats, optional
-            Restrict the new Field to these ``x`` values.
-        y : float or array of floats, optional
-            Restrict the new Field to these ``y`` values.
-        z : float or array of floats, optional
-            Restrict the new Field to these ``z`` values.
-        q0 : float or array of floats, optional
-            Restrict the new Field to these ``q0`` values.
-        q1 : float or array of floats, optional
-            Restrict the new Field to these ``q1`` values.
-        q2 : float or array of floats, optional
-            Restrict the new Field to these ``q2`` values.
-        q3 : float or array of floats, optional
-            Restrict the new Field to these ``q3`` values.
-        
-        
-        Returns
-        -------
-        np.recarray
-            The new recarray.
-
-        Raises
-        ------
-        ValueError
-            If an unrecognized kwarg is provided.
-        """
-        recognized = {"x", "y", "z", "q0", "q1", "q2", "q3"}
-        unrecognized = set(kwargs) - recognized
-        if unrecognized:
-            raise ValueError(f"Unrecognized columns: {unrecognized}.")
-        
-        conditions = []
-        for column, values in kwargs.items():
-            if values is None:
-                continue
-            if not isinstance(values, Iterable):
-                values = [values]
-            subconditions = []
-            for v in values:
-                subconditions.append(self.table[column] == v)
-            
-            conditions.append(np.logical_or.reduce(subconditions))
-        
-        results = np.logical_and.reduce(conditions)
-
-        return self.table[results]
-    
-    def _recarray_to_gridded_array(self, recarray: np.rec.recarray) -> np.ndarray:
-        """Convert a recarray like a table into a gridded array for plotting.
-        
-        It is assumed that either the recarray has a 1 measured quantity,
-        or that it has 3 with that correspond to qx, qy, qz, where q is either
-        F or T.
-        
-        If the recarray has a single measured quantity, the gridded array will
-        be a 3D array of scalars (Z along axis 0, Y along axis 1, X along axis
-        2).
-
-        If the recarray has three measured quantities, the gridded array will
-        be 4D (Z along axis 0, Y along axis 1, X along axis 2, q-components
-        along axis 3 in qx, qy, qz order).
-
-        Parameters
-        ----------
-        table : np.recarray
-            The recarray to convert.
-        
-        Returns
-        -------
-        np.ndarray
-            The gridded array.
-        
-        Raises
-        ------
-        ValueError
-            If `recarray` has neither 1 nor 3 measured quantities.
-        """
-        location_columns = ["x", "y", "z", "q0", "q1", "q2", "q3"]
-        columns = recarray.dtype.names
-        measured_quantities = [f for f in columns if f not in location_columns]
-
-        x_values, x_indices = np.unique(recarray["x"], return_inverse=True)
-        y_values, y_indices = np.unique(recarray["y"], return_inverse=True)
-        z_values, z_indices = np.unique(recarray["z"], return_inverse=True)
-        
-        if len(measured_quantities) == 1:
-            q = measured_quantities[0]
-            shape = (len(z_values), len(y_values), len(x_values))
-            gridded_array = np.full(shape, np.nan)
-            gridded_array[z_indices, y_indices, x_indices] = recarray[q]
-
-        elif len(measured_quantities) == 3:
-            shape = (len(z_values), len(y_values), len(x_values), 3)
-            gridded_array = np.full(shape, np.nan)
-            components = np.column_stack(
-                [recarray[q] for q in measured_quantities]
-            )
-            gridded_array[z_indices, y_indices, x_indices] = components
-
-        else:
-            raise ValueError(
-                "`recarray` must have either 1 or 3 measured quantities."
-            )
-
-        return gridded_array
 
     # ------------------------------- OPERATIONS -------------------------------
 
@@ -519,6 +223,8 @@ class Field:
         
           * **U**: calculate the mean value
           * **F** or **T**: calculate the mean of each component
+
+        :meta operation:
 
         Parameters
         ----------
@@ -650,6 +356,96 @@ class Field:
     # def fill_gaps_with_nan(self) -> Field:
     #     pass
 
+    def subset(self, **kwargs) -> Field:
+        """Return a new Field that is a subset of the current one.
+        
+        :meta operation:
+
+        Parameters
+        ----------
+        x : float or array of floats, optional
+            Restrict the new Field to these ``x`` values.
+        y : float or array of floats, optional
+            Restrict the new Field to these ``y`` values.
+        z : float or array of floats, optional
+            Restrict the new Field to these ``z`` values.
+        q0 : float or array of floats, optional
+            Restrict the new Field to these ``q0`` values.
+        q1 : float or array of floats, optional
+            Restrict the new Field to these ``q1`` values.
+        q2 : float or array of floats, optional
+            Restrict the new Field to these ``q2`` values.
+        q3 : float or array of floats, optional
+            Restrict the new Field to these ``q3`` values.
+        
+        Returns
+        -------
+        field
+            The new Field.
+
+        Raises
+        ------
+        ValueError
+            If an unrecognized kwarg is provided.
+        """
+        recognized = {"x", "y", "z", "q0", "q1", "q2", "q3"}
+        unrecognized = set(kwargs) - recognized
+        if unrecognized:
+            raise ValueError(f"Unrecognized columns: {unrecognized}.")
+        
+        return Field(self._subset_of_recarray(**kwargs))
+
+    def _subset_of_recarray(self, **kwargs) -> np.rec.recarray:
+        """Return a new recarray that is a subset of the current one.
+        
+        Kwargs
+        ------
+        x : float or array of floats, optional
+            Restrict the new Field to these ``x`` values.
+        y : float or array of floats, optional
+            Restrict the new Field to these ``y`` values.
+        z : float or array of floats, optional
+            Restrict the new Field to these ``z`` values.
+        q0 : float or array of floats, optional
+            Restrict the new Field to these ``q0`` values.
+        q1 : float or array of floats, optional
+            Restrict the new Field to these ``q1`` values.
+        q2 : float or array of floats, optional
+            Restrict the new Field to these ``q2`` values.
+        q3 : float or array of floats, optional
+            Restrict the new Field to these ``q3`` values.
+        
+        Returns
+        -------
+        np.recarray
+            The new recarray.
+
+        Raises
+        ------
+        ValueError
+            If an unrecognized kwarg is provided.
+        """
+        recognized = {"x", "y", "z", "q0", "q1", "q2", "q3"}
+        unrecognized = set(kwargs) - recognized
+        if unrecognized:
+            raise ValueError(f"Unrecognized columns: {unrecognized}.")
+        
+        conditions = []
+        for column, values in kwargs.items():
+            if values is None:
+                continue
+            if not isinstance(values, Iterable):
+                values = [values]
+            subconditions = []
+            for v in values:
+                subconditions.append(self.table[column] == v)
+            
+            conditions.append(np.logical_or.reduce(subconditions))
+        
+        results = np.logical_and.reduce(conditions)
+
+        return self.table[results]
+    
     def __sub__(self, other: Field) -> Field:
         """Calculate the difference between two fields' measured quantities.
         
@@ -772,48 +568,475 @@ class Field:
 
         return Field(new_recarray)
 
-    def subset(self, **kwargs) -> Field:
-        """Return a new Field that is a subset of the current one.
-        
+    # ---------------------------------- FROM ----------------------------------
+
+    @classmethod
+    def from_csv(cls, filename: os.PathLike):
+        """Create a Field from a CSV file."""
+        with open(filename) as f:
+            columns = f.readline().strip("\n").split(",")
+
+        return cls(
+            np.rec.array(
+                np.genfromtxt(
+                    filename,
+                    names=columns,
+                    skip_header=1,
+                    dtype=None,
+                    delimiter=","
+                )
+            )
+        )
+
+    # ----------------------------------- TO -----------------------------------
+
+    def to_csv(self, filename: os.PathLike):
+        """Save this field to CSV."""
+        with open(filename, "w") as f:
+            writer = csv.writer(f)
+            writer.writerow(self.table.dtype.names)
+            writer.writerows(self.table.tolist())
+
+    def to_gridded_array(
+        self,
+        quantity: Literal["U", "F", "T", "Fx", "Fy", "Fz", "Tx", "Ty", "Tz"],
+        vectors: bool = False,
+        q: tuple[float] | None = None,
+        x: float | None = None,
+        y: float | None = None,
+        z: float | None = None,
+    ) -> np.ndarray:
+        """Return a gridded array of a given scalar or vector quantity.
+
+        The shape of the returned array depends on the measurement locations,
+        the slice, and whether vectors is True. In general, for a Field with
+        ``nx`` x positions, ``ny`` y positions, and ``nz`` z positions, the
+        shape of the returned array is as follows.
+
+        .. code-block::
+            
+            * vectors = False
+                * slice along x           -> (nz, ny)
+                * slice along y           -> (nz, nx)
+                * slice along z           -> (ny, nx)
+                * slice along x and y     -> (nz,)
+                * slice along x and z     -> (ny,)
+                * slice along y and z     -> (nx,)
+                * slice along x, y, and z -> (1,)
+
+            * vectors = True
+                * slice along x           -> (nz, ny, 3)
+                * slice along y           -> (nz, nx, 3)
+                * slice along z           -> (ny, nx, 3)
+                * slice along x and y     -> (nz, 3)
+                * slice along x and z     -> (ny, 3)
+                * slice along y and z     -> (nx, 3)
+                * slice along x, y, and z -> (3,)
+
         Parameters
         ----------
-        x : float or array of floats, optional
-            Restrict the new Field to these ``x`` values.
-        y : float or array of floats, optional
-            Restrict the new Field to these ``y`` values.
-        z : float or array of floats, optional
-            Restrict the new Field to these ``z`` values.
-        q0 : float or array of floats, optional
-            Restrict the new Field to these ``q0`` values.
-        q1 : float or array of floats, optional
-            Restrict the new Field to these ``q1`` values.
-        q2 : float or array of floats, optional
-            Restrict the new Field to these ``q2`` values.
-        q3 : float or array of floats, optional
-            Restrict the new Field to these ``q3`` values.
-        
+        quantity : 'U', 'F', 'T', 'Fx', 'Fy', 'Fz', 'Tx', 'Ty', or 'Tz'
+            The name of the quantity with which to populate the cells of the
+            gridded array.
+        vectors : bool, default=False
+            Whether to populate the gridded array with scalars or vectors. If
+            `quantity` is 'U', only scalar values are possible and this
+            parameter is ignored.
+        q : tuple of 4 floats, optional
+            If provided, only rows with the corresponding q0, q1, q2, and q3
+            values will be used to create the gridded array. Required if
+            ``table`` includes multiple orientations.
+        x : float, optional
+            If provided, only rows with the corresponding x values will be used
+            to create the gridded array.
+        y : float, optional
+            If provided, only rows with the corresponding y values will be used
+            to create the gridded array.
+        z : float, optional
+            If provided, only rows with the corresponding z values will be used
+            to create the gridded array.
+
         Returns
         -------
-        field
-            The new Field.
+        np.ndarray
+            The gridded array.
 
         Raises
         ------
         ValueError
-            If an unrecognized kwarg is provided.
+            If ``q`` is required but not provided. 
+        TypeError
+            If ``q`` is not an iterable of 4 floats.
+        ValueError
+            If ``quantity`` is not recognized.
         """
-        recognized = {"x", "y", "z", "q0", "q1", "q2", "q3"}
-        unrecognized = set(kwargs) - recognized
-        if unrecognized:
-            raise ValueError(f"Unrecognized columns: {unrecognized}.")
+        # [Review: get closest values of x, y, z?]
+        # Input Validation
+        if self.orientations is not None and self.orientations.shape[0] > 1 and q is None:
+            raise ValueError(
+                "The table has more than one orientation. Choose one "
+                + "using `q` or call `aggregate_over_orientations()`."
+            )
         
-        return Field(self._subset_of_recarray(**kwargs))
+        if (
+            self.orientations is not None and self.orientations.shape[0] > 1
+            and (
+                not isinstance(q, Iterable)
+                or len(q) != 4
+                or any(not isinstance(i, (float, int)) for i in q)
+            )
+        ):
+            raise TypeError("`q` must be an array of 4 floats.")
+        
+        if quantity not in self.quantities:
+            raise ValueError(
+                "`quantity` is not one of this field's quantities "
+                f"({self.quantities})."
+            )
+        
+        # Build the recarray
+        if q is not None:
+            table = self._subset_of_recarray(
+                x=x, y=y, z=z, q0=q[0], q1=q[1], q2=q[2], q3=q[3]
+            )
+        else:
+            table = self._subset_of_recarray(x=x, y=y, z=z)
 
-    def __eq__(self, other) -> bool:
-        """Whether this field and another are equivalent."""
-        return (self._table == other._table).view(np.ndarray).all()
+        if len(table) == 0:
+            raise ValueError(
+                "No measurements found for the given x, y, z, and q."
+            )
+
+        if quantity == "U":
+            columns_to_drop = [f for f in self.quantities if f != "U"]
+        elif quantity == "F":
+            columns_to_drop = [f for f in self.quantities if "F" not in f]
+        elif quantity == "T":
+            columns_to_drop = [f for f in self.quantities if "T" not in f]
+        else:
+            columns_to_drop = [f for f in self.quantities if f != quantity]
+        
+        table = recfunctions.drop_fields(
+            table, columns_to_drop, asrecarray=True
+        )
+
+        # If vectors is False, convert F and T components into magnitudes
+        if not vectors:
+            if quantity in ("F", "T"):
+                component_columns = [
+                    f"{quantity}x",
+                    f"{quantity}y",
+                    f"{quantity}z",
+                ]
+                components = np.column_stack(
+                    [table[f] for f in component_columns]
+                )
+                magnitudes = np.sqrt(np.sum(np.square(components), axis=1))
+
+                columns_to_drop = [f for f in self.quantities if f != quantity]
+                table = recfunctions.drop_fields(
+                    table, columns_to_drop, asrecarray=True
+                )
+                table = recfunctions.append_fields(
+                    table, quantity, magnitudes
+                )
+        
+        # Create a gridded array and orient it to respect the conventions.
+        gridded_array = np.atleast_1d(
+            self._recarray_to_gridded_array(table).squeeze()
+        )
+
+        return gridded_array
+
+    def _recarray_to_gridded_array(self, recarray: np.rec.recarray) -> np.ndarray:
+        """Convert a recarray like a table into a gridded array for plotting.
+        
+        It is assumed that either the recarray has a 1 measured quantity,
+        or that it has 3 with that correspond to qx, qy, qz, where q is either
+        F or T.
+        
+        If the recarray has a single measured quantity, the gridded array will
+        be a 3D array of scalars (Z along axis 0, Y along axis 1, X along axis
+        2).
+
+        If the recarray has three measured quantities, the gridded array will
+        be 4D (Z along axis 0, Y along axis 1, X along axis 2, q-components
+        along axis 3 in qx, qy, qz order).
+
+        Parameters
+        ----------
+        table : np.recarray
+            The recarray to convert.
+        
+        Returns
+        -------
+        np.ndarray
+            The gridded array.
+        
+        Raises
+        ------
+        ValueError
+            If `recarray` has neither 1 nor 3 measured quantities.
+        """
+        location_columns = ["x", "y", "z", "q0", "q1", "q2", "q3"]
+        columns = recarray.dtype.names
+        measured_quantities = [f for f in columns if f not in location_columns]
+
+        x_values, x_indices = np.unique(recarray["x"], return_inverse=True)
+        y_values, y_indices = np.unique(recarray["y"], return_inverse=True)
+        z_values, z_indices = np.unique(recarray["z"], return_inverse=True)
+        
+        if len(measured_quantities) == 1:
+            q = measured_quantities[0]
+            shape = (len(z_values), len(y_values), len(x_values))
+            gridded_array = np.full(shape, np.nan)
+            gridded_array[z_indices, y_indices, x_indices] = recarray[q]
+
+        elif len(measured_quantities) == 3:
+            shape = (len(z_values), len(y_values), len(x_values), 3)
+            gridded_array = np.full(shape, np.nan)
+            components = np.column_stack(
+                [recarray[q] for q in measured_quantities]
+            )
+            gridded_array[z_indices, y_indices, x_indices] = components
+
+        else:
+            raise ValueError(
+                "`recarray` must have either 1 or 3 measured quantities."
+            )
+
+        return gridded_array
 
     # -------------------------------- PLOTTING --------------------------------
+
+    def plot(
+        self,
+        quantity: Literal["U", "F", "T", "Fx", "Fy", "Fz", "Tx", "Ty", "Tz"] | None = None,
+        vectors: bool = False,
+        slice: dict[str, float] | None = None,
+        clim: list[float] | None = None,
+        contours: int | None = 10,
+        cmap: str = "RdYlBu_r",
+        fill_nan_with_inf: bool = False,
+        show_cbar: bool = True,
+        marker_mode_1d: Literal["lines+markers", "lines", "markers"] = "lines",
+        marker_color_1d: str = "black",
+        marker_size_1d: float = 6,
+        line_width_1d: float = 2,
+        **kwargs
+    ) -> tuple[plotly.graph_objects.Figure, list]:
+        """Interactively plot the field using `Plotly`_.
+        
+        Slicing is supported along the X, Y, and Z axes via the ``slice``
+        parameter. A slice along one axis (``slice={"x": 1}``) is 2D, while a
+        slice along two axes (``slice={"x": 1, "y": 1}``) is 1D.
+
+        Any of the measured quantities (including individual components of
+        Forces or Torques) can be plotted. Set ``quantity`` to 'F' or 'T' to
+        plot Force and Torque magnitudes as scalar quantities. Set ``vectors``
+        to ``True`` to plot Forces or Torques as vectors. Vector plotting is
+        only available in 2D and 3D.
+        
+        Parameters
+        ----------
+        quantity : 'U', 'F', 'T', 'Fx', 'Fy', 'Fz', 'Tx', 'Ty', or 'Tz'
+            The name of the quantity to plot. If this field only contains one of
+            'U' or 'F' or 'T' quantities, this parameter is optional.
+        vectors : bool, default=False
+            Whether to plot the quantity as a scalar or vector. If ``quantity``
+            is not 'F' or 'T', this is always False.
+        slice : dict, optional
+            Axes and positions along which to slice. Keys are limited to 'x',
+            'y', and 'z'. There can be at most two keys. If the slice contains
+            a position that does not exactly match the grid, the nearest grid
+            position will be used.
+        clim : list of floats, optional
+            The lower and upper limits of the colorscale. If not provided,
+            the lower and upper limits will be set to the 10th and 90th
+            percentile values, respectively.
+        contours : int or None, default=10
+            The number of values to draw contours around. Only uesd in 3D and
+            2D scalar plots. In 2D, pass None to instead use a continuous
+            colorscale.
+        cmap : str, default='RdYlBu_r'
+            The name of the Plotly colormap to use. Only used in 3D and 2D
+            scalar plots and 3D vector plots.
+        fill_nan_with_inf : bool, default=False
+            Whether to plot NaN values as though they were very large values.
+            Only used in 3D and 2D scalar plots.
+        show_cbar : bool, default=True
+            Whether to show the colorbar.
+        marker_mode_1d : 'lines+markers', 'lines', or 'markers', default='lines'
+            In a 1D scalar plot, whether to show only lines, only markers, or
+            both. Ignored for all other plot types.
+        marker_color_1d : str, default='black'
+            In a 1D scalar plot, the color of the plot symbol. Ignored for all
+            other plot types.
+        marker_size_1d : float, default=6
+            In a 1D scalar plot, the size of the marker in pixels.
+        line_width_1d : float, default=2
+            In a 1D scalar plot, the width of the line in pixels.
+        **kwargs
+            Other keyword arguments are passed to ``p4.util.plotting.plot_layout()``.
+            TODO: add link.
+        
+        Returns
+        -------
+        figure, traces
+            The Plotly figure and associated traces.
+        """
+        # Default slice
+        if not slice:
+            slice = {}
+
+        # Ensure there is no ambiguity around orientations
+        if self.orientations is not None and self.orientations.shape[0] > 1:
+            raise ValueError(
+                "Cannot plot field with more than one orientation. "
+                + "Aggregate over orientations."
+            )
+        
+        # Ensure that there is no ambguity around quantity
+        if (
+            quantity is None
+            and (
+                set(self.quantities) != {"U"}
+                and set(self.quantities) != {"F", "Fx", "Fy", "Fz"}
+                and set(self.quantities) != {"T", "Tx", "Ty", "Tz"}
+            )
+        ):
+            raise ValueError(
+                "Plot quantity is not inferrable. Specify one of the "
+                + f"following: {self.quantities}"
+            )
+        
+        # Ensure that the requested quantity is actually present
+        if (quantity is not None) and (quantity not in self.quantities):
+            raise ValueError(
+                "`quantity` is not one of this field's quantities "
+                f"({self.quantities})."
+            )
+        
+        # Ensure slice has only the allowed keys
+        unrecognized_keys = set(slice) - {"x", "y", "z"}
+        if unrecognized_keys:
+            raise ValueError(f"Unrecognized slice keys: {unrecognized_keys}.")
+        
+        # Ensure slice has at most two keys if the plot is scalar
+        if not vectors and len(slice) > 2:
+            raise ValueError(
+                "For a scalar plot, `slice` may have at most 2 keys."
+            )
+        
+        # Ensure slice has at most one key if the plot is vector
+        if vectors and len(slice) > 1:
+            raise ValueError(
+                "For a vector plot, `slice` may have at most 1 keys."
+            )
+        
+        # Ensure that contours has the correct format given the slice
+        if len(slice) == 0 and contours is None:
+            raise ValueError("In 3D, `contours` must be an integer.")
+        if len(slice) == 1 and not isinstance(contours, (int, NoneType)):
+            raise ValueError("In 2D, `contours` must be an integer or None.")
+        
+        # Infer quantity if necessary
+        if quantity is None:
+            if set(self.quantities) == {"U"}:
+                quantity = "U"
+            elif set(self.quantities) == {"F", "Fx", "Fy", "Fz"}:
+                quantity = "F"
+            elif set(self.quantities) == {"T", "Tx", "Ty", "Tz"}:
+                quantity = "T"
+
+        # Set slice values to the closest values in the recarray
+        for dimension, value in slice.items():
+            if value not in self.table[dimension]:
+                slice[dimension] = util.plotting.find_nearest(
+                    self.table[dimension], value
+                )
+
+        # If the array only has one value along any of the dimensions, treat
+        # that dimension and value as part of the provided slice
+        # [TODO: this is duplicated in private methods]
+        slice_recarray = self._subset_of_recarray(**slice)
+        extents = {
+            d: [slice_recarray[d].min(), slice_recarray[d].max()]
+            for d in ["x", "y", "z"]
+        }
+        for dimension, limits in extents.items():
+            if limits[0] == limits[1]:
+                slice[dimension] = limits[0]
+
+        # If quantity is not F or T, the plot must be a scalar plot
+        if quantity not in ("F", "T"):
+            vectors = False
+        
+        # Build trace
+        if not vectors:
+            if len(slice) == 0:
+                trace = self._plot_trace_scalar_3d(
+                    quantity=quantity,
+                    clim=clim,
+                    contours=contours,
+                    cmap=cmap,
+                    fill_nan_with_inf=fill_nan_with_inf,
+                    show_cbar=show_cbar,
+                )
+            elif len(slice) == 1:
+                trace = self._plot_trace_scalar_2d(
+                    quantity=quantity,
+                    slice=slice,
+                    clim=clim,
+                    contours=contours,
+                    cmap=cmap,
+                    fill_nan_with_inf=fill_nan_with_inf,
+                    show_cbar=show_cbar,
+                )
+            elif len(slice) == 2:
+                trace = self._plot_trace_scalar_1d(
+                    quantity=quantity,
+                    slice=slice,
+                    marker_color=marker_color_1d,
+                    marker_mode=marker_mode_1d,
+                    marker_size=marker_size_1d,
+                    line_width=line_width_1d,
+                )
+        
+        else:
+            if len(slice) == 0:
+                trace = self._plot_trace_vector_3d(
+                    quantity=quantity,
+                    clim=clim,
+                    cmap=cmap,
+                    show_cbar=show_cbar,
+                )
+            elif len(slice) == 1:
+                trace = self._plot_trace_vector_2d(
+                    quantity=quantity,
+                    slice=slice,
+                    marker_color=marker_color_1d,
+                )
+
+        # Create and style the figure.
+        figure = plotly.graph_objects.Figure()
+        figure.add_trace(trace)
+
+        allowed_kwarg_names = (
+            signature(util.plotting.plot_layout)
+                .parameters
+                .keys()
+        )
+        layout_kwargs = {
+            k: v for k, v in kwargs.items() if k in allowed_kwarg_names
+        }
+        layout = util.plotting.plot_layout(slice=slice, **layout_kwargs)
+        figure.update_layout(layout)
+
+        if len(slice) == 2:
+            figure.update_layout(yaxis=dict(title=dict(text=quantity)))
+
+        return figure, trace
 
     def _plot_trace_scalar_3d(
         self,
@@ -852,7 +1075,7 @@ class Field:
         plotly.graph_objs._volume.Volume
             The trace.
         """
-        array = self.gridded_array(quantity=quantity, vectors=False)
+        array = self.to_gridded_array(quantity=quantity, vectors=False)
 
         array = np.rot90(array, 1, axes=(0, 2))   # TODO: check if this should be in gridded_array
         array = np.flip(array, axis=0)
@@ -889,7 +1112,7 @@ class Field:
             colorbar=dict(
                 title=dict(
                     text=quantity,
-                    font=AXIS_TITLE_FONT
+                    font=util.plotting.AXIS_TITLE_FONT
                 )
             )
         )
@@ -935,7 +1158,7 @@ class Field:
         plotly.graph_objs._contour.Contour | plotly.graph_objs._heatmap.Heatmap
             The trace.
         """
-        array = self.gridded_array(quantity=quantity, vectors=False, **slice)
+        array = self.to_gridded_array(quantity=quantity, vectors=False, **slice)
 
         slice_recarray = self._subset_of_recarray(**slice)
 
@@ -985,7 +1208,7 @@ class Field:
                 colorbar=dict(
                     title=dict(
                         text=quantity,
-                        font=AXIS_TITLE_FONT
+                        font=util.plotting.AXIS_TITLE_FONT
                     )
                 )
             )
@@ -1002,7 +1225,7 @@ class Field:
                 colorbar=dict(
                     title=dict(
                         text=quantity,
-                        font=AXIS_TITLE_FONT
+                        font=util.plotting.AXIS_TITLE_FONT
                     )
                 )
             )
@@ -1041,7 +1264,7 @@ class Field:
         plotly.graph_objs._scatter.Scatter
             The trace.
         """
-        array = self.gridded_array(quantity=quantity, vectors=False, **slice)
+        array = self.to_gridded_array(quantity=quantity, vectors=False, **slice)
 
         slice_recarray = self._subset_of_recarray(**slice)
 
@@ -1157,7 +1380,7 @@ class Field:
             colorbar=dict(
                 title=dict(
                     text=f"<b>{quantity}</b>",
-                    font=AXIS_TITLE_FONT
+                    font=util.plotting.AXIS_TITLE_FONT
                 ),
                 tickvals=[
                     s_min + (s_max - s_min) * i
@@ -1268,372 +1491,8 @@ class Field:
 
         return fig.data[0]
 
-    def _plot_layout(
-        self,
-        quantity: Literal["U", "F", "T", "Fx", "Fy", "Fz", "Tx", "Ty", "Tz"],
-        slice: dict[str, float],
-        clim: list[float],
-        show_axes: bool,
-        show_title: bool,
-        show_ticks: bool,
-        show_grid: bool,
-        show_border: bool,
-    ) -> dict:
-        """Return a Plotly layout dictionary customized for a given slice.
-        
-        Note that ``show_cbar`` is not used here, but rather in the
-        corresponding plot trace method.
+    # ---------------------------------- OTHER ---------------------------------
 
-        Parameters
-        ----------
-        quantity : 'U', 'F', 'T', 'Fx', 'Fy', 'Fz', 'Tx', 'Ty', or 'Tz'
-            The name of the quantity to plot.
-        slice : dict
-            Axes and positions along which to slice. Keys are limited to 'x',
-            'y', and 'z'. There can be at most two keys.
-        clim : list of floats
-            The lower and upper limits of the colorscale.
-        show_axes : bool
-            Whether to show the axes.
-        show_title : bool
-            Whether to show the title.
-        show_ticks : bool
-            Whether to show tick marks on the axes.
-        show_grid : bool
-            Whether to show the axes grid.
-        show_border : bool
-            Whether to show the plot border.
-
-        Returns
-        -------
-        dict
-            The layout dictionary.        
-        """
-        # Build initial dictionary
-        axis_style = dict(
-            visible=show_axes,
-            ticks="outside" if show_ticks else "",
-            gridcolor="#e5e5e5" if show_grid else "rgba(0,0,0,0)",
-            zerolinecolor="#e5e5e5" if show_grid else "rgba(0,0,0,0)",
-            showline=show_border,
-            linewidth=1,
-            linecolor="black",
-            mirror=True
-        )
-
-        if len(slice) == 0:
-            axis_style["showbackground"] = False
-            layout = dict(
-                scene=dict(
-                    xaxis=axis_style,
-                    yaxis=axis_style,
-                    zaxis=axis_style,
-                ),
-                plot_bgcolor="rgba(0,0,0,0)"
-            )
-        
-        elif len(slice) == 1:
-            layout = dict(
-                xaxis=copy(axis_style),
-                yaxis=copy(axis_style),
-                plot_bgcolor="rgba(0,0,0,0)"
-            )
-            layout["xaxis"].update(
-                scaleanchor="y",
-                scaleratio=1,
-                constrain="domain"
-            )
-            layout["yaxis"].update(
-                scaleanchor="x",
-                scaleratio=1,
-                constrain="domain"
-            )
-
-        elif len(slice) == 2:
-            layout = dict(
-                xaxis=copy(axis_style),
-                yaxis=copy(axis_style),
-                plot_bgcolor="rgba(0,0,0,0)"
-            )
-            if clim is not None:
-                layout["yaxis_range"] = [min(clim), max(clim)]
-
-        # Update layout dictionary with axis and figure titles (only 1D and 2D)
-        if len(slice) == 1:
-            if "x" in slice:
-                x_title = "y"
-                y_title = "z"
-                fig_title = f"x = {float(slice["x"])}"
-            elif "y" in slice:
-                x_title = "x"
-                y_title = "z"
-                fig_title = f"y = {float(slice["y"])}"
-            elif "z" in slice:
-                x_title = "x"
-                y_title = "y"
-                fig_title = f"z = {float(slice["z"])}"
-        
-        elif len(slice) == 2:
-            y_title = quantity
-            if "x" in slice:
-                if "y" in slice:
-                    x_title = "z"
-                    fig_title = f"x = {float(slice["x"])}, y = {float(slice["y"])}"
-                else:
-                    x_title = "y"
-                    fig_title = f"x = {float(slice["x"])}, z = {float(slice["z"])}"
-            else:
-                x_title = "x"
-                fig_title = f"y = {float(slice["y"])}, z = {float(slice["z"])}"
-
-        if len(slice) in (1, 2):
-            layout["xaxis"]["title"] = dict(text=x_title, font=AXIS_TITLE_FONT)
-            layout["yaxis"]["title"] = dict(text=y_title, font=AXIS_TITLE_FONT)
-            layout["title"] = dict(
-                text=fig_title if show_title else "",
-                font=FIG_TITLE_FONT,
-                xanchor="center",
-                yanchor="top",
-                x=0.5,
-            )
-        
-        # Miscellaneous other layout settings
-        layout["autosize"] = False
-        layout["width"] = 500
-        layout["height"] = 500
-        layout["margin"] = dict(t=20, b=20, l=20, r=20)
-        
-        return layout
-
-    def plot(
-        self,
-        quantity: Literal["U", "F", "T", "Fx", "Fy", "Fz", "Tx", "Ty", "Tz"] | None = None,
-        vectors: bool = False,
-        slice: dict[str, float] = {},
-        clim: list[float] | None = None,
-        contours: int | None = 10,
-        cmap: str = "RdYlBu_r",
-        fill_nan_with_inf: bool = False,
-        show_cbar: bool = True,
-        show_axes: bool = True,
-        show_title: bool = True,
-        show_ticks: bool = True,
-        show_grid: bool = False,
-        show_border: bool = True,
-        marker_mode_1d: Literal["lines+markers", "lines", "markers"] = "lines",
-        marker_color_1d: str = "black",
-        marker_size_1d: float = 6,
-        line_width_1d: float = 2,
-    ):
-        """Interactively plot the field using `Plotly`_.
-        
-        Slicing is supported along the X, Y, and Z axes via the ``slice``
-        parameter. A slice along one axis (``slice={"x": 1}``) is 2D, while a
-        slice along two axes (``slice={"x": 1, "y": 1}``) is 1D.
-
-        Any of the measured quantities (including individual components of
-        Forces or Torques) can be plotted. Set ``quantity`` to 'F' or 'T' to
-        plot Force and Torque magnitudes as scalar quantities. Set ``vectors``
-        to ``True`` to plot Forces or Torques as vectors. Vector plotting is
-        only available in 2D and 3D.
-        
-        Parameters
-        ----------
-        quantity : 'U', 'F', 'T', 'Fx', 'Fy', 'Fz', 'Tx', 'Ty', or 'Tz'
-            The name of the quantity to plot. If this field only contains 'U',
-            'F', or 'T' quantities, this parameter is optional.
-        vectors : bool, default=False
-            Whether to plot the quantity as a scalar or vector. If ``quantity``
-            is not 'F' or 'T', this is always False.
-        slice : dict, default={}
-            Axes and positions along which to slice. Keys are limited to 'x',
-            'y', and 'z'. There can be at most two keys. If the slice contains
-            a position that does not exactly match the grid, the nearest grid
-            position will be used.
-        clim : list of floats, optional
-            The lower and upper limits of the colorscale. If not provided,
-            the lower and upper limits will be set to the 10th and 90th
-            percentile values, respectively.
-        contours : int or None, default=10
-            The number of values to draw contours around. Only uesd in 3D and
-            2D scalar plots. In 2D, pass None to instead use a continuous
-            colorscale.
-        cmap : str, default='RdYlBu_r'
-            The name of the Plotly colormap to use. Only used in 3D and 2D
-            scalar plots and 3D vector plots.
-        fill_nan_with_inf : bool, default=False
-            Whether to plot NaN values as though they were very large values.
-            Only used in 3D and 2D scalar plots.
-        show_cbar : bool, default=True
-            Whether to show the colorbar.
-        show_axes : bool, default=True
-            Whether to show the axes.
-        show_title : bool, default=True
-            Whether to show the title.
-        show_ticks : bool, default=True
-            Whether to show tick marks on the axes.
-        show_grid : bool, default=False
-            Whether to show the axes grid.
-        show_border : bool, default=True
-            Whether to show the plot border.
-        marker_mode_1d : 'lines+markers', 'lines', or 'markers', default='lines'
-            In a 1D scalar plot, whether to show only lines, only markers, or
-            both. Ignored for all other plot types.
-        marker_color_1d : str, default='black'
-            In a 1D scalar plot, the color of the plot symbol. Ignored for all
-            other plot types.
-        marker_size_1d : float, default=6
-            In a 1D scalar plot, the size of the marker in pixels.
-        line_width_1d : float, default=2
-            In a 1D scalar plot, the width of the line in pixels.
-        
-        Returns
-        -------
-        figure, traces
-            The Plotly figure and associated traces.
-        """
-        # Ensure there is no ambiguity around orientations
-        if self.orientations is not None and self.orientations.shape[0] > 1:
-            raise ValueError(
-                "Cannot plot field with more than one orientation. "
-                + "Aggregate over orientations."
-            )
-        
-        # Ensure that there is no ambguity around quantity
-        if (
-            quantity is None
-            and (
-                set(self.quantities) != {"U"}
-                and set(self.quantities) != {"F", "Fx", "Fy", "Fz"}
-                and set(self.quantities) != {"T", "Tx", "Ty", "Tz"}
-            )
-        ):
-            raise ValueError(
-                "Plot quantity is not inferrable. Specify one of the "
-                + f"following: {self.quantities}"
-            )
-        
-        # Ensure that the requested quantity is actually present
-        if (quantity is not None) and (quantity not in self.quantities):
-            raise ValueError(
-                "`quantity` is not one of this field's quantities "
-                f"({self.quantities})."
-            )
-        
-        # Ensure slice has only the allowed keys
-        unrecognized_keys = set(slice) - {"x", "y", "z"}
-        if unrecognized_keys:
-            raise ValueError(f"Unrecognized slice keys: {unrecognized_keys}.")
-        
-        # Ensure slice has at most two keys if the plot is scalar
-        if not vectors and len(slice) > 2:
-            raise ValueError(
-                "For a scalar plot, `slice` may have at most 2 keys."
-            )
-        
-        # Ensure slice has at most one key if the plot is vector
-        if vectors and len(slice) > 1:
-            raise ValueError(
-                "For a vector plot, `slice` may have at most 1 keys."
-            )
-        
-        # Ensure that contours has the correct format given the slice
-        if len(slice) == 0 and contours is None:
-            raise ValueError("In 3D, `contours` must be an integer.")
-        if len(slice) == 1 and not isinstance(contours, (int, NoneType)):
-            raise ValueError("In 2D, `contours` must be an integer or None.")
-        
-        # Infer quantity if necessary
-        if quantity is None:
-            if set(self.quantities) == {"U"}:
-                quantity = "U"
-            elif set(self.quantities) == {"F", "Fx", "Fy", "Fz"}:
-                quantity = "F"
-            elif set(self.quantities) == {"T", "Tx", "Ty", "Tz"}:
-                quantity = "T"
-
-        # Set slice values to the closest values in the recarray
-        for dimension, value in slice.items():
-            if value not in self.table[dimension]:
-                slice[dimension] = util.find_nearest(
-                    self.table[dimension], value
-                )
-
-        # If the array only has one value along any of the dimensions, treat
-        # that dimension and value as part of the provided slice
-        # [TODO: this is duplicated in private methods]
-        slice_recarray = self._subset_of_recarray(**slice)
-        extents = {
-            d: [slice_recarray[d].min(), slice_recarray[d].max()]
-            for d in ["x", "y", "z"]
-        }
-        for dimension, limits in extents.items():
-            if limits[0] == limits[1]:
-                slice[dimension] = limits[0]
-
-        # If quantity is not F or T, the plot must be a scalar plot
-        if quantity not in ("F", "T"):
-            vectors = False
-        
-        # Build trace
-        if not vectors:
-            if len(slice) == 0:
-                trace = self._plot_trace_scalar_3d(
-                    quantity=quantity,
-                    clim=clim,
-                    contours=contours,
-                    cmap=cmap,
-                    fill_nan_with_inf=fill_nan_with_inf,
-                    show_cbar=show_cbar,
-                )
-            elif len(slice) == 1:
-                trace = self._plot_trace_scalar_2d(
-                    quantity=quantity,
-                    slice=slice,
-                    clim=clim,
-                    contours=contours,
-                    cmap=cmap,
-                    fill_nan_with_inf=fill_nan_with_inf,
-                    show_cbar=show_cbar,
-                )
-            elif len(slice) == 2:
-                trace = self._plot_trace_scalar_1d(
-                    quantity=quantity,
-                    slice=slice,
-                    marker_color=marker_color_1d,
-                    marker_mode=marker_mode_1d,
-                    marker_size=marker_size_1d,
-                    line_width=line_width_1d,
-                )
-        
-        else:
-            if len(slice) == 0:
-                trace = self._plot_trace_vector_3d(
-                    quantity=quantity,
-                    clim=clim,
-                    cmap=cmap,
-                    show_cbar=show_cbar,
-                )
-            elif len(slice) == 1:
-                trace = self._plot_trace_vector_2d(
-                    quantity=quantity,
-                    slice=slice,
-                    marker_color=marker_color_1d,
-                )
-
-        # Create and style the figure
-        figure = plotly.graph_objects.Figure()
-        figure.add_trace(trace)
-        layout = self._plot_layout(
-            quantity=quantity,
-            slice=slice,
-            clim=clim,
-            show_axes=show_axes,
-            show_title=show_title,
-            show_ticks=show_ticks,
-            show_grid=show_grid,
-            show_border=show_border,
-        )
-        figure.update_layout(layout)
-
-        return figure, trace
+    def __eq__(self, other) -> bool:
+        """Whether this field and another are equivalent."""
+        return (self._table == other._table).view(np.ndarray).all()

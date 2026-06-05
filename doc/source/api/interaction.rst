@@ -9,6 +9,8 @@ wrapper around instantiable subclasses of `hoomd.md.pair.Pair <https://hoomd-blu
 
 .. py:currentmodule:: p4
 
-.. autoclass:: p4.Interaction
+.. autoclass:: p4.interaction.Interaction
     :members:
     :member-order: bysource
+
+    .. autoclasstoc:: p4.Interaction

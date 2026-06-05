@@ -22,12 +22,11 @@ bump-my-version = "==1.3.0"
 sybil = "==10.0.1"
 plotly = "==6.0.0"
 
-[feature.py312.dependencies]
-python = "3.12.*"
-[feature.py313.dependencies]
-python = "3.13.*"
+[pypi-dependencies]
+autoclasstoc = "==1.7.0"
+
+[feature.py314.dependencies]
+python = "3.14.*"
 
 [environments]
-py312 = ["py312"]
-py313 = ["py313"]
-# py314 = ["py314"]
+py314 = ["py314"]

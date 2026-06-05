@@ -65,7 +65,7 @@ class Arrangement:
         import p4
 
         arrangement = p4.Arrangement(
-            bodies=[p4.Body("A)", p4.Body("B")],
+            bodies=[p4.Body("A"), p4.Body("B")],
             positions_by_type=dict(
                 A=[[-1, -1, 0], [1,  1, 0]],
                 B=[[-1,  1, 0], [1, -1, 0]]

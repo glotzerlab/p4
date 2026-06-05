@@ -796,8 +796,14 @@ def snapshot_1D_traces(
             # included
             if t not in type_shapes:
                 if (
-                    point_plane_distance([px, py, pz], plane1)
-                    < point_size_for_slice
+                    (
+                        point_plane_distance([px, py, pz], plane1)
+                        < point_size_for_slice
+                    )
+                    and (
+                        point_plane_distance([px, py, pz], plane2)
+                        < point_size_for_slice
+                    )
                 ):
                     type_slice_data.append([
                         np.array([[px, py, pz]]),
@@ -811,14 +817,9 @@ def snapshot_1D_traces(
                 vertices = type_shapes[t].vertices
                 faces = type_shapes[t].faces
 
-                # Rotate shape vertices to the specified orientation
-                row_vertices = rowan.rotate(
-                    q=np.repeat([[q0, q1, q2, q3]], len(vertices), axis=0),
-                    v=np.array(copy(vertices))
-                )
-
-                # Translate shape vertices to the specified position
-                row_vertices += np.array([px, py, pz]).astype(float)
+                # Transform shape vertices to the specified orientation/position
+                row_vertices = rowan.rotate([q0,q1,q2,q3], copy(vertices)) 
+                row_vertices += [px, py, pz]
 
                 # Create shape and slice it
                 row_shape = coxeter.shapes.Polyhedron(row_vertices, faces)            
@@ -832,145 +833,127 @@ def snapshot_1D_traces(
                     geometry = np.array(geometry)
                     # Point
                     if geometry.shape[0] == 1:
-                        type_slice_data.append(
-                            [
-                                t,
-                                np.array([[px, py, pz]]),
-                                np.array([[q0, q1, q2, q3]]),
-                                geometry,
-                                "point"
-                            ]
-                        )
+                        type_slice_data.append([
+                            np.array([[px, py, pz]]),
+                            np.array([[q0, q1, q2, q3]]),
+                            geometry,
+                            "point"
+                        ])
                     
                     # Single segment
                     elif geometry.shape[0] == 2:
-                        type_slice_data.append(
-                            [
-                                t,
-                                np.array([[px, py, pz]]),
-                                np.array([[q0, q1, q2, q3]]),
-                                geometry,
-                                "line"
-                            ]
-                        )
-                    
-                    # Polygons should not be possible
-                    elif geometry.shape[0] > 2:
-                        raise Exception(
-                            "Uh oh! Found polygons when plotting in 1D. Check the "
-                            + "code for the second slice..."
-                        )
+                        type_slice_data.append([
+                            np.array([[px, py, pz]]),
+                            np.array([[q0, q1, q2, q3]]),
+                            geometry,
+                            "line"
+                        ])
 
-    # Merge identical symbols
-    merged_type_slice_data = []
-    merged_row_indices = []
-    for i, current_row in enumerate(type_slice_data):
-        rows_to_merge = []
-        for j, other_row in enumerate(type_slice_data):
-            if j != i and j not in merged_row_indices:
-                rows_are_equivalent = ( # TODO: check that this is sufficient
-                    np.array_equal(current_row[0], other_row[0])
-                    # and current_row[3] == other_row[3]
-                )
-                if rows_are_equivalent:
-                    rows_to_merge.append(other_row)
-                    merged_row_indices.append(j)
-        
-        if len(rows_to_merge) > 0:
-            rows_to_merge = [current_row] + rows_to_merge
-            merged_row_indices.append(i)
+        # Merge identical symbols
+        merged_type_slice_data = []
+        merged_row_indices = []
+        for i, current_row in enumerate(type_slice_data):
+            rows_to_merge = []
+            for j, other_row in enumerate(type_slice_data):
+                if j != i and j not in merged_row_indices:
+                    if current_row[3] == other_row[3]:
+                        rows_to_merge.append(other_row)
+                        merged_row_indices.append(j)
+            
+            if len(rows_to_merge) > 0:
+                rows_to_merge = [current_row] + rows_to_merge
+                merged_row_indices.append(i)
 
-            m_t = rows_to_merge[0][0]
-            m_p = np.vstack([row[1] for row in rows_to_merge])
-            m_q = np.vstack([row[2] for row in rows_to_merge])
-            m_geometry = np.vstack([
-                np.vstack([row[3], np.array([[None, None, None]])])
-                for row in rows_to_merge
-            ])
-            m_trace_type = rows_to_merge[0][4]
-            merged_type_slice_data.append((m_t, m_p, m_q, m_geometry, m_trace_type))
-        
-        elif i not in merged_row_indices:
-            merged_type_slice_data.append(current_row)
+                m_p = np.vstack([row[0] for row in rows_to_merge])
+                m_q = np.vstack([row[1] for row in rows_to_merge])
+                m_geometry = np.vstack([    # note the need for breaking rows
+                    np.vstack([row[2], np.array([[None, None, None]])])
+                    for row in rows_to_merge
+                ])
+                m_trace_type = rows_to_merge[0][3]
+                merged_type_slice_data.append([
+                    m_p,
+                    m_q,
+                    m_geometry,
+                    m_trace_type
+                ])
+            
+            elif i not in merged_row_indices:
+                merged_type_slice_data.append(current_row)
 
-    # Sort the merged slice data so that polygons are under lines and lines
-    # are under points
-    draw_order = ["line", "point"]
-    merged_type_slice_data = sorted(
-        merged_type_slice_data,
-        key=lambda row: draw_order.index(row[4])
-    )
-
-    # Build trace from slice data
-    traces = []
-    for (t, p, q, geometry, trace_type) in merged_type_slice_data:
-        # Transform geometry's point coordinates to match the plotting axis,
-        # assuming that geometry is a 2D array with 3 columns and a row for each
-        # point
-        x = geometry[:,0]
-        y = geometry[:,1]
-        z = geometry[:,2]
-
-        if slice_x is not None:
-            if slice_y is not None:
-                trace_x = z
-            else:
-                trace_x = y
-        else:
-            trace_x = x
-        
-        # Get user-provided style information. Unless user specifies a type's
-        # style, color markers by index from the default colors list.
-        trace_style = type_styles.get(t, {})
-        trace_color = trace_style.get(
-            "color",
-            default_colors[snapshot.particles.types.index(t)]
+        # Sort the merged slice data so that lines are under points
+        draw_order = ["line", "point"]
+        merged_type_slice_data = sorted(
+            merged_type_slice_data,
+            key=lambda row: draw_order.index(row[3])
         )
-        trace_opacity = trace_style.get("opacity", 1.0)
-        trace_size = trace_style.get("size")
 
-        default_line_width = 10
-        default_point_size = 10
+        # Build trace from slice data
+        for (p, q, geometry, trace_type) in merged_type_slice_data:
+            # Transform geometry's point coordinates to match the plotting axis,
+            # assuming that geometry is a 2D array with 3 columns and a row for
+            # each point
+            x = geometry[:,0]
+            y = geometry[:,1]
+            z = geometry[:,2]
 
-        # Construct traces by symbol type     
-        if trace_type == "line":
-            traces.append(
-                plotly.graph_objects.Scatter(
-                    x=trace_x,
-                    y=[0 for _ in trace_x],
-                    mode="lines",
-                    name=t,
-                    opacity=trace_opacity,
-                    line=dict(
-                        color=trace_color,
-                        width=default_line_width if trace_size is None else trace_size
-                    ),
-                    cliponaxis=False
-                #     hovertemplate=
-                #         f"<b>r</b> ({p[0,0]}, {p[0,1]}, {p[0,2]})<br>" +        # TODO: this text does not show up
-                #         f"<b>q</b> ({q[0,0]}, {q[0,1]}, {q[0,2]}, {q[0,3]})"                        
-                )
-            )
+            if slice_x is not None:
+                if slice_y is not None:
+                    trace_x = z
+                else:
+                    trace_x = y
+            else:
+                trace_x = x
+            
+            # Get user-provided style information. Unless user specifies a type's
+            # style, color markers by index from the default colors list.
+            trace_style = type_styles.get(t, {})
+            trace_color = trace_style.get("color", default_colors[tid])
+            trace_opacity = trace_style.get("opacity", 1.0)
+            trace_size = trace_style.get("size")
 
-        if trace_type == "point":
-            traces.append(
-                plotly.graph_objects.Scatter(
-                    x=trace_x,
-                    y=[0 for _ in trace_x],
-                    mode="markers",
-                    name=t,
-                    marker=dict(
-                        size=default_point_size if trace_size is None else trace_size,
-                        color=trace_color,
+            default_line_width = 10
+            default_point_size = 10
+
+            # Construct traces by symbol type     
+            if trace_type == "line":
+                traces.append(
+                    plotly.graph_objects.Scatter(
+                        x=trace_x,
+                        y=[0 for _ in trace_x],
+                        mode="lines",
+                        name=t,
                         opacity=trace_opacity,
-                        line=dict(width=2, color="DarkSlateGrey")
-                    ),
-                    cliponaxis=False,
-                    customdata=np.hstack((p, q)),
-                    hovertemplate=
-                        "<b>r</b> (%{customdata[0]}, %{customdata[1]}, %{customdata[2]})<br>" +
-                        "<b>q</b> (%{customdata[3]}, %{customdata[4]}, %{customdata[5]}, %{customdata[6]})"
+                        line=dict(
+                            color=trace_color,
+                            width=default_line_width if trace_size is None else trace_size
+                        ),
+                        cliponaxis=False
+                    #     hovertemplate=
+                    #         f"<b>r</b> ({p[0,0]}, {p[0,1]}, {p[0,2]})<br>" +        # TODO: this text does not show up
+                    #         f"<b>q</b> ({q[0,0]}, {q[0,1]}, {q[0,2]}, {q[0,3]})"                        
+                    )
                 )
-            )
+
+            if trace_type == "point":
+                traces.append(
+                    plotly.graph_objects.Scatter(
+                        x=trace_x,
+                        y=[0 for _ in trace_x],
+                        mode="markers",
+                        name=t,
+                        marker=dict(
+                            size=default_point_size if trace_size is None else trace_size,
+                            color=trace_color,
+                            opacity=trace_opacity,
+                            line=dict(width=2, color="DarkSlateGrey")
+                        ),
+                        cliponaxis=False,
+                        customdata=np.hstack((p, q)),
+                        hovertemplate=
+                            "<b>r</b> (%{customdata[0]}, %{customdata[1]}, %{customdata[2]})<br>" +
+                            "<b>q</b> (%{customdata[3]}, %{customdata[4]}, %{customdata[5]}, %{customdata[6]})"
+                    )
+                )
     
     return traces

@@ -1169,6 +1169,7 @@ class Body:
                 traces.append(
                     util.plotting.snapshot_schematic_slice_trace(
                         snapshot=snapshot,
+                        type_shapes=type_shapes,
                         slice=slice,
                         **schematic_slice_kwargs
                     )

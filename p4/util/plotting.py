@@ -162,6 +162,7 @@ def plot_layout(
 
 def snapshot_schematic_slice_trace(
     snapshot: hoomd.Snapshot,
+    type_shapes: dict[str, coxeter.shapes.Polyhedron],
     slice: dict[str, int],
     scale: float = 1,
     color: str = "red",
@@ -176,8 +177,11 @@ def snapshot_schematic_slice_trace(
     Parameters
     ----------
     snapshot : hoomd.Snapshot
-        The HOOMD snapshot. The positions of snapshot's particles determine the
-        extents of the schematic slice.
+        The HOOMD snapshot. The positions of snapshot's particles help determine
+        the extents of the schematic slice.
+    type_shapes : dict, optional
+        A mapping from particle type name to shape. The vertices of the shapes
+        help determine the extents of the schematic slice.
     slice : dict
         Axes and positions along which to slice. Keys are limited to 'x',
         'y', and 'z'. There can be at most two keys.
@@ -196,14 +200,40 @@ def snapshot_schematic_slice_trace(
     -------
     A dictionary containing the plotly trace.
     """
-    xmin  = snapshot.particles.position[:,0].min()
-    xmax = snapshot.particles.position[:,0].max()
+    # Calculate extents
+    extents = []
+    for i in [0, 1, 2]:
+        # Minimum
+        min_index = np.argmin(snapshot.particles.position[:, i])
+        p_at_i_min = snapshot.particles.position[min_index]
+        o_at_i_min = snapshot.particles.orientation[min_index]
+        t = snapshot.particles.types[snapshot.particles.typeid[min_index]]
+        
+        if t in type_shapes:
+            vertices = type_shapes[t].vertices
+            vertices = rowan.rotate(o_at_i_min, vertices)
+            vertices += p_at_i_min        
+            extents.append([min(p_at_i_min[i], vertices[:, i].min())])
+        else:
+            extents.append([p_at_i_min[i]])
+        
+        # Maximum
+        max_index = np.argmax(snapshot.particles.position[:, i])
+        p_at_i_max = snapshot.particles.position[max_index]
+        o_at_i_max = snapshot.particles.orientation[max_index]
+        t = snapshot.particles.types[snapshot.particles.typeid[max_index]]
+        
+        if t in type_shapes:
+            vertices = type_shapes[t].vertices
+            vertices = rowan.rotate(o_at_i_max, vertices)
+            vertices += p_at_i_max        
+            extents[i].append(max(p_at_i_max[i], vertices[:, i].max()))
+        else:
+            extents[i].append(p_at_i_max[i])
 
-    ymin  = snapshot.particles.position[:,1].min()
-    ymax = snapshot.particles.position[:,1].max()
-    
-    zmin  = snapshot.particles.position[:,2].min()
-    zmax = snapshot.particles.position[:,2].max()
+    xmin, xmax = extents[0]
+    ymin, ymax = extents[1]
+    zmin, zmax = extents[2]
 
     # A slice with 1 key is represented as a plane
     if len(slice) == 1:

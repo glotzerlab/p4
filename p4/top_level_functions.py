@@ -193,11 +193,9 @@ def plot_positions(
     box_color: str = "grey",
     box_opacity: float = 1.0,
     box_line_width: float = 4.0,
-    **layout_kwargs # TODO
-):
-    """Plot positions in 3D space.
-    
-    Informally evaluate sampling coverage by plotting sampled positions.
+    **kwargs
+) -> tuple[plotly.graph_objs._figure.Figure, list]:
+    """Visualize sampled positions to evaluate coverage around an analyte.
 
     Parameters
     ----------
@@ -218,6 +216,9 @@ def plot_positions(
         The opacity of the box.
     box_line_width : float, default=4.0
         The line width of the box.
+    **kwargs
+        Other keyword arguments are passed to the function
+        :py:func:`p4.util.plotting.plot_layout`.
     """
     positions = np.asarray(positions)
 
@@ -266,27 +267,42 @@ def plot_positions(
             )
         )
     
-    figure.update_layout(util.plot_layout(**layout_kwargs))
+    figure.update_layout(util.plotting.plot_layout(slice={}, **kwargs))
 
     return figure, positions_trace
 
 def plot_state(
     obj: hoomd.Simulation | StateLike,
-    include_singles: bool = False,
     type_shapes: dict[str, coxeter.shapes.Polyhedron] | None = None,
     type_styles: dict[str, dict] | None = None,
     ignore_types: list[str] | None = None,
-    **layout_kwargs
+    **kwargs
 ):
     """Visualize the state of a system.
     
-    This convenience function for :py:meth:~p4.Arrangement.plot` accepts any
-    object that resembles or contains a simulation state.
+    This is a convenience function that creates an
+    :py:class:`~p4.arrangement.Arrangement` from an object and then calls its 
+    plot method.
 
     Parameters
     ----------
-    TODO
+    obj : hoomd.Simulation or StateLike
+        The simulation or state-like object to plot.
+    type_shapes : dict, optional
+        A mapping from particle type name [``str``] to shape
+        [``coxeter.shapes.Polyhedron``]. If no shape is provided for a type,
+        it will be plotted as a sphere.
+    type_styles : dict, optional
+        A mapping from particle type name to style, where style is given as
+        a dictionary which may have the keys 'color', 'opacity', and 'size'.
+        See above for more information.
+    ignore_types : list[str], optional
+        The names of the particle types to exclude from the plot.
+    **kwargs
+        Other keyword arguments are passed to the function
+        :py:func:`p4.util.plotting.plot_layout`.
     """
+    include_singles = True
     if isinstance(obj, hoomd.Simulation):
         arrangement = Arrangement.from_hoomd_simulation(obj, include_singles)
     elif isinstance(obj, hoomd.State):
@@ -305,56 +321,10 @@ def plot_state(
         type_shapes=type_shapes,
         type_styles=type_styles,
         ignore_types=ignore_types,
-        **layout_kwargs
+        **kwargs
     )
 
-    figure.show()
-
     return figure, traces
-        
-
-def plot_bodies(
-    obj: hoomd.Simulation | hoomd.md.constrain.Rigid | StateLike,
-    include_singles: bool = False,
-    type_shapes: dict[str, coxeter.shapes.Polyhedron] | None = None,
-    type_styles: dict[str, dict] | None = None,
-    ignore_types: list[str] | None = None,
-    **layout_kwargs
-):
-    """Visualize the types of bodies in a system.
-    
-    Parameters
-    ----------
-    TODO
-    """
-    if isinstance(obj, hoomd.Simulation):
-        bodies = Body.from_hoomd_simulation(obj, include_singles)
-    elif isinstance(obj, hoomd.md.constrain.Rigid):
-        bodies = Body.from_hoomd_rigid(obj, include_singles)
-    elif isinstance(obj, hoomd.State):
-        snapshot = obj.get_snapshot()
-        bodies = Body.from_hoomd_snapshot(snapshot, include_singles)
-    elif isinstance(obj, hoomd.Snapshot):
-        bodies = Body.from_hoomd_snapshot(obj, include_singles)
-    elif isinstance(obj, gsd.hoomd.Frame):
-        snapshot = hoomd.Snapshot.from_gsd_frame(
-            gsd_snap=obj,
-            communicator=hoomd.communicator.Communicator()
-        )
-        bodies = Body.from_hoomd_snapshot(snapshot, include_singles)
-    
-    figure = plotly.subplots.make_subplots(rows=1, cols=len(bodies))
-    for i, body in enumerate(bodies):
-        _, traces = body.plot(
-            type_shapes=type_shapes,
-            type_styles=type_styles,
-            ignore_types=ignore_types,
-            **layout_kwargs
-        )
-        for trace in traces:
-            figure.add_trace(trace, row=1, col=i+1)
-
-    return figure, figure.data
 
 
 # ------------------------------------ OTHER -----------------------------------

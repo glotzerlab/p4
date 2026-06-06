@@ -4,6 +4,7 @@
 - [ ] revise project goals
 - [ ] fix body image wrapping problem
 - [ ] tests for top-level functions
+- [ ] add remaining top-level plotting functions
 
 ### Publication
 TBD

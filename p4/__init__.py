@@ -21,7 +21,7 @@ from .top_level_functions import (
     plot_positions,
     # plot_orientations,
     plot_state,
-    plot_bodies,
+    # plot_bodies,
     # plot_interactions,
 )
 
@@ -46,7 +46,7 @@ __all__ = [
     "plot_positions",
     # "plot_orientations",
     "plot_state",
-    "plot_bodies",
+    # "plot_bodies",
     # "plot_interactions",
     "util",
 ]

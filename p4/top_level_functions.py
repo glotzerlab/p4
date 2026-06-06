@@ -193,8 +193,8 @@ def plot_positions(
     box_color: str = "grey",
     box_opacity: float = 1.0,
     box_line_width: float = 4.0,
-    **layout_kwargs # TODO
-):
+    **kwargs
+) -> tuple[plotly.graph_objs._figure.Figure, list]:
     """Visualize sampled positions to evaluate coverage around an analyte.
 
     Parameters
@@ -264,7 +264,7 @@ def plot_positions(
             )
         )
     
-    figure.update_layout(util.plot_layout(**layout_kwargs))
+    figure.update_layout(util.plotting.plot_layout(slice={}, **kwargs))
 
     return figure, positions_trace
 

@@ -195,9 +195,7 @@ def plot_positions(
     box_line_width: float = 4.0,
     **layout_kwargs # TODO
 ):
-    """Plot positions in 3D space.
-    
-    Informally evaluate sampling coverage by plotting sampled positions.
+    """Visualize sampled positions to evaluate coverage around an analyte.
 
     Parameters
     ----------
@@ -280,12 +278,27 @@ def plot_state(
 ):
     """Visualize the state of a system.
     
-    This convenience function for :py:meth:~p4.Arrangement.plot` accepts any
-    object that resembles or contains a simulation state.
+    This is a convenience function that creates an
+    :py:class:`~p4.arrangement.Arrangement` from an object and then calls is 
+    plot method.
 
     Parameters
     ----------
-    TODO
+    obj : hoomd.Simulation or StateLike
+        The simulation or state-like object to plot.
+    type_shapes : dict, optional
+        A mapping from particle type name [``str``] to shape
+        [``coxeter.shapes.Polyhedron``]. If no shape is provided for a type,
+        it will be plotted as a sphere.
+    type_styles : dict, optional
+        A mapping from particle type name to style, where style is given as
+        a dictionary which may have the keys 'color', 'opacity', and 'size'.
+        See above for more information.
+    ignore_types : list[str], optional
+        The names of the particle types to exclude from the plot.
+    **kwargs
+        Other keyword arguments are passed to the function
+        :py:func:`p4.util.plotting.plot_layout`.
     """
     if isinstance(obj, hoomd.Simulation):
         arrangement = Arrangement.from_hoomd_simulation(obj, include_singles)

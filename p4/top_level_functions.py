@@ -274,7 +274,7 @@ def plot_state(
     type_shapes: dict[str, coxeter.shapes.Polyhedron] | None = None,
     type_styles: dict[str, dict] | None = None,
     ignore_types: list[str] | None = None,
-    **layout_kwargs
+    **kwargs
 ):
     """Visualize the state of a system.
     
@@ -318,7 +318,7 @@ def plot_state(
         type_shapes=type_shapes,
         type_styles=type_styles,
         ignore_types=ignore_types,
-        **layout_kwargs
+        **kwargs
     )
 
     figure.show()

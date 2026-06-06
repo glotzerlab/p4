@@ -216,6 +216,9 @@ def plot_positions(
         The opacity of the box.
     box_line_width : float, default=4.0
         The line width of the box.
+    **kwargs
+        Other keyword arguments are passed to the function
+        :py:func:`p4.util.plotting.plot_layout`.
     """
     positions = np.asarray(positions)
 
@@ -278,7 +281,7 @@ def plot_state(
     """Visualize the state of a system.
     
     This is a convenience function that creates an
-    :py:class:`~p4.arrangement.Arrangement` from an object and then calls is 
+    :py:class:`~p4.arrangement.Arrangement` from an object and then calls its 
     plot method.
 
     Parameters

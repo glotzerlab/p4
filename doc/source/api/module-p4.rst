@@ -49,5 +49,3 @@ Functions for visualizing samples and HOOMD-blue objects using Plotly.
 .. autofunction:: p4.plot_positions
 
 .. autofunction:: p4.plot_state
-
-.. autofunction:: p4.plot_bodies

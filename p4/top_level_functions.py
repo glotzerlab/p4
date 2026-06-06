@@ -321,8 +321,6 @@ def plot_state(
         **kwargs
     )
 
-    figure.show()
-
     return figure, traces
 
 

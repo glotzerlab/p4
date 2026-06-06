@@ -1,10 +1,15 @@
 p4
 ==
 
+This is the top of the namespace for the p4 module. This module contains the
+:ref:`core classes <core-classes>`, as well as convenience functions for
+:ref:`sampling <sampling-functions>` and :ref:`plotting <plotting-functions>`.
 
 
-Classes
-+++++++
+.. _core-classes:
+
+Core Classes
+++++++++++++
 
 .. toctree::
     :maxdepth: 1
@@ -15,6 +20,8 @@ Classes
     system
     field
 
+
+.. _sampling-functions:
 
 Sampling Functions
 ++++++++++++++++++
@@ -29,6 +36,8 @@ Functions for sampling position and orientation space.
 
 .. autofunction:: p4.orientations_from_fibonacci_lattice
 
+
+.. _plotting-functions:
 
 Plotting Functions
 ++++++++++++++++++

@@ -270,7 +270,6 @@ def plot_positions(
 
 def plot_state(
     obj: hoomd.Simulation | StateLike,
-    include_singles: bool = False,
     type_shapes: dict[str, coxeter.shapes.Polyhedron] | None = None,
     type_styles: dict[str, dict] | None = None,
     ignore_types: list[str] | None = None,
@@ -300,6 +299,7 @@ def plot_state(
         Other keyword arguments are passed to the function
         :py:func:`p4.util.plotting.plot_layout`.
     """
+    include_singles = True
     if isinstance(obj, hoomd.Simulation):
         arrangement = Arrangement.from_hoomd_simulation(obj, include_singles)
     elif isinstance(obj, hoomd.State):

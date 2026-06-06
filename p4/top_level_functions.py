@@ -343,7 +343,11 @@ def plot_bodies(
         )
         bodies = Body.from_hoomd_snapshot(snapshot, include_singles)
     
-    figure = plotly.subplots.make_subplots(rows=1, cols=len(bodies))
+    figure = plotly.subplots.make_subplots(
+        rows=1,
+        cols=len(bodies),
+        specs=[[{"type": "scene"}] * len(bodies)]
+    )
     for i, body in enumerate(bodies):
         _, traces = body.plot(
             type_shapes=type_shapes,

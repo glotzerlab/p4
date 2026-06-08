@@ -748,7 +748,10 @@ class Field:
 
         return gridded_array
 
-    def _recarray_to_gridded_array(self, recarray: np.rec.recarray) -> np.ndarray:
+    def _recarray_to_gridded_array(
+        self,
+        recarray: np.rec.recarray
+    ) -> np.ndarray:
         """Convert a recarray like a table into a gridded array for plotting.
         
         It is assumed that either the recarray has a 1 measured quantity,

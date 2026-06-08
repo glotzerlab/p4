@@ -35,8 +35,9 @@ dl.field-list.simple dt {
   margin-bottom: 0 !important;
 }
 
-/* Hide colon after the parameters section title */
+/* Hide colon after the parameters and returns section titles */
 dl.field-list.simple dt.field-odd span.colon {display: none}
+dl.field-list.simple dt.field-even span.colon {display: none}
 
 /*
 Style the horizontal line separating class autoclasstoc from the actual

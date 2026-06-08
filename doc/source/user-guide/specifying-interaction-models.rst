@@ -65,5 +65,3 @@ or forgetting to specify parameters for a pair of particle types.
 
 .. _anisotropic: https://hoomd-blue.readthedocs.io/en/v7.0.1/hoomd/md/pair/module-aniso.html
 .. _friction: https://hoomd-blue.readthedocs.io/en/v7.0.1/hoomd/md/pair/module-friction.html
-
-.. TODO: add plotting for interaction

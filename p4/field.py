@@ -380,7 +380,7 @@ class Field:
         
         Returns
         -------
-        field
+        Field
             The new Field.
 
         Raises
@@ -880,8 +880,8 @@ class Field:
         line_width_1d : float, default=2
             In a 1D scalar plot, the width of the line in pixels.
         **kwargs
-            Other keyword arguments are passed to ``p4.util.plotting.plot_layout()``.
-            TODO: add link.
+            Other keyword arguments are passed to
+            :py:func:`p4.util.plotting.plot_layout`.
         
         Returns
         -------

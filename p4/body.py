@@ -1138,8 +1138,12 @@ class Body:
             Other keyword arguments are passed to the following functions:
 
             * :py:func:`p4.util.plotting.plot_layout`
-
             * :py:func:`p4.util.plotting.snapshot_schematic_slice_trace`
+        
+        Returns
+        -------
+        figure, traces
+            The Plotly figure and associated traces.
         """
         # Set defaults
         if not type_shapes:

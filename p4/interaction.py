@@ -805,13 +805,13 @@ class Interaction:
         line_width : float, default=2
             The width of the line in pixels.
         **kwargs
-            Other keyword arguments are passed to ``p4.util.plotting.plot_layout()``.
-            TODO: add link.
+            Other keyword arguments are passed to
+            :py:func:`p4.util.plotting.plot_layout`.
         
         Returns
         -------
         figure, traces
-            The plot figure and its associated traces.
+            The plotly figure and its traces.
         """
         # TODO: check if there's another way to structure package to prevent
         # imports here

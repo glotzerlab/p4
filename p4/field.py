@@ -857,7 +857,7 @@ class Field:
             the lower and upper limits will be set to the 0th and 90th
             percentile values, respectively.
         contours : int or None, default=10
-            The number of values to draw contours around. Only uesd in 3D and
+            The number of values to draw contours around. Only used in 3D and
             2D scalar plots. In 2D, pass None to instead use a continuous
             colorscale.
         cmap : str, default='RdYlBu_r'

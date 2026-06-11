@@ -694,7 +694,7 @@ class Field:
                 "`quantity` is not one of this field's quantities "
                 f"({self.quantities})."
             )
-        
+
         # Build the recarray
         if q is not None:
             table = self._subset_of_recarray(
@@ -718,7 +718,7 @@ class Field:
             columns_to_drop = [f for f in self.quantities if f != quantity]
         
         table = recfunctions.drop_fields(
-            table, columns_to_drop, asrecarray=True
+            table, columns_to_drop, usemask=False, asrecarray=True
         )
 
         # If vectors is False, convert F and T components into magnitudes
@@ -730,16 +730,16 @@ class Field:
                     f"{quantity}z",
                 ]
                 components = np.column_stack(
-                    [table[f] for f in component_columns]
+                    [table[f].flatten() for f in component_columns]
                 )
                 magnitudes = np.sqrt(np.sum(np.square(components), axis=1))
 
                 columns_to_drop = [f for f in self.quantities if f != quantity]
                 table = recfunctions.drop_fields(
-                    table, columns_to_drop, asrecarray=True
+                    table, columns_to_drop, usemask=False, asrecarray=True
                 )
                 table = recfunctions.append_fields(
-                    table, quantity, magnitudes
+                    table, quantity, magnitudes, usemask=False, asrecarray=True
                 )
         
         # Create a gridded array and orient it to respect the conventions.

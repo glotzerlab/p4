@@ -879,7 +879,8 @@ class Field:
         line_width_1d : float, default=2
             In a 1D scalar plot, the width of the line in pixels.
         ylim_1d : list[float], optional
-            In a 1D scalar plot, the limits of the y axis.
+            In a 1D scalar plot, the limits of the y axis. Defaults to the
+            0th and 90th percentile of the plotted quantity.
         **kwargs
             Other keyword arguments are passed to ``p4.util.plotting.plot_layout()``.
             TODO: add link.
@@ -1053,7 +1054,7 @@ class Field:
         
         if len(slice) == 2:
             if ylim_1d is None:
-                ylim_1d = [trace.y.min(), trace.y.max()]
+                ylim_1d = [trace.y.min(), np.percentile(trace.y, 90)]   # TODO: return here - find a better approach
             figure.update_layout(yaxis=dict(range=ylim_1d))
 
         return figure, trace

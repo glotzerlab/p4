@@ -570,7 +570,7 @@ class System:
         positions: PositionsLike,
         orientations: OrientationLike | OrientationsLike | Iterable[OrientationsLike],
         csv_filename: os.PathLike,
-        n_processes: int = 1,
+        n_processes: int = -1,
         save_gsd: bool = False,
         nlist: hoomd.md.nlist.NeighborList | None = None,
     ):
@@ -600,14 +600,14 @@ class System:
             ``orientations`` must have the shape ``(N, M, 4)``).
         csv_filename : str
             The name or path for the output CSV file.
-        n_processes : int, default=1
-            The number of processes to distribute the probe operation between.
+        n_processes : int, default=-1
+            The number of processes to distribute the measure operation between.
             Parallelization is implemented at the Python level, so each process
             creates and runs its own simulation and then the table results are
             combined in the output CSV. Note that if ``save_gsd`` is set to
-            True, each simulation will produce a separate GSD file. Set this
-            parameter to ``-1`` to use the maximum allowed number of processes
-            for your machine.
+            True, each simulation will produce a separate GSD file. Defaults to
+            ``-1``, which uses the maximum allowed number of processes on the
+            user's computer.
         save_gsd : bool, default=False
             Whether to save a GSD file alongside the output CSV file. If True,
             the GSD has the same name as the CSV. The name of the GSD file will

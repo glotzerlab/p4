@@ -374,14 +374,6 @@ orientations required for accurate sampling of orientation-space.
     cube) is double the size of the original cube. This will be evident in a
     plot below.
 
-.. note::
-    Measuring fields with anisotropic probes is much slower than with isotropic
-    ones because of the new axes in orientation-space. To offset the increase in
-    computational cost, you can use the ``n_processes`` parameter to parallelize
-    the measurement procedure across a provided number of CPU cores. Set the
-    value to ``-1`` to use the maximum number of cores available on your
-    computer.
-
 As before, we can create a ``Field`` from the output CSV, but this time we
 must decide how to handle the multiple orientations. The simplest thing to do
 is to average over them.

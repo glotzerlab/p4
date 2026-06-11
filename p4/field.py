@@ -852,9 +852,9 @@ class Field:
             'y', and 'z'. There can be at most two keys. If the slice contains
             a position that does not exactly match the grid, the nearest grid
             position will be used.
-        clim : list of floats, optional
+        clim : list[float], optional
             The lower and upper limits of the colorscale. If not provided,
-            the lower and upper limits will be set to the 10th and 90th
+            the lower and upper limits will be set to the 0th and 90th
             percentile values, respectively.
         contours : int or None, default=10
             The number of values to draw contours around. Only uesd in 3D and
@@ -1073,9 +1073,9 @@ class Field:
         ----------
         quantity : 'U', 'F', 'T', 'Fx', 'Fy', 'Fz', 'Tx', 'Ty', or 'Tz'
             The name of the quantity to plot.
-        clim : list of floats
+        clim : list[float]
             The lower and upper limits of the colorscale. If None, then
-            the lower and upper limits will be set to the 10th and 90th
+            the lower and upper limits will be set to the 0th and 90th
             percentile values, respectively.
         contours : int
             The number of values to draw contours around. Only uesd in 3D and
@@ -1116,7 +1116,7 @@ class Field:
         ]
 
         if clim is None:
-            clim = [np.percentile(array, 10), np.percentile(array, 90)]
+            clim = [np.percentile(array, 0), np.percentile(array, 90)]
         
         return plotly.graph_objects.Volume(
             x=x.flatten(),
@@ -1156,9 +1156,9 @@ class Field:
         slice : dict
             Axes and positions along which to slice. Keys are limited to 'x',
             'y', and 'z'. There can be at most two keys.
-        clim : list of floats
+        clim : list[float]
             The lower and upper limits of the colorscale. If None, then
-            the lower and upper limits will be set to the 10th and 90th
+            the lower and upper limits will be set to the 0th and 90th
             percentile values, respectively.
         contours : int or None
             The number of values to draw contours around. Only uesd in 3D and
@@ -1197,7 +1197,7 @@ class Field:
             array = np.nan_to_num(array, nan=1e99)
 
         if clim is None:
-            clim = [np.percentile(array, 10), np.percentile(array, 90)]
+            clim = [np.percentile(array, 0), np.percentile(array, 90)]
         if np.isnan(clim[0]):
             clim[0] = -1e99
         if np.isnan(clim[1]):
@@ -1321,9 +1321,9 @@ class Field:
         ----------
         quantity : 'F' or 'T'
             The name of the quantity to plot.
-        clim : list of floats
+        clim : list[float]
             The lower and upper limits of the colorscale. If None, then
-            the lower and upper limits will be set to the 10th and 90th
+            the lower and upper limits will be set to the 0th and 90th
             percentile of the magnitudes, respectively.
         cmap : str
             The name of the Plotly colormap to use. Only used in 3D and 2D
@@ -1377,7 +1377,7 @@ class Field:
                 scale_factors[i] = s_max / m
 
         if clim is None:
-            clim = [m_10, m_90]
+            clim = [np.percentile(magnitudes, 0), m_90]
 
         customdata = np.column_stack((
             self.table[f"{quantity}x"],

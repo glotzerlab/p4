@@ -13,7 +13,7 @@ Problems with Pure Phenomenology
 Every year, dozens of studies use molecular dynamics simulations to investigate
 the experimentally observed behavior of particle systems. Most often, the
 particle and interaction models used in these simulations are adapted from
-previous or constructed ad hoc, and then validated by simply evaluating whether
+previous or constructed ad hoc, and then validated by evaluating whether
 they appear to reproduce trends in the phase behavior observed from experiments.
 Properly, these models are called `phenomenological`_, since they are designed
 to reproduce the *phenomena* observed in experiment.

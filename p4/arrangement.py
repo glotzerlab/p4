@@ -532,7 +532,7 @@ class Arrangement:
 
         .. note::
             The internal data structures for the ``Arrangement`` class have
-            native JSON analogues, so the JSON representation is simply
+            native JSON analogues, so the JSON representation is
             ``Arrangement.__dict__``.
 
         Parameters
@@ -790,7 +790,7 @@ class Arrangement:
 
         .. note::
             The internal data structures for the ``Arrangement`` class have
-            native JSON analogues, so the JSON representation is simply
+            native JSON analogues, so the JSON representation is
             ``Arrangement.__dict__``.
                      
         Parameters

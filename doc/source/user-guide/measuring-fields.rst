@@ -14,7 +14,7 @@ Isotropic Fields
 ----------------
 
 Let's define a ``System`` using the bodies and interaction that we created in
-the previous sections. We will begin simply, with a single-particle probe and
+the previous sections. We will start small, with a single-particle probe and
 a single-particle analyte.
 
 .. code-block:: python

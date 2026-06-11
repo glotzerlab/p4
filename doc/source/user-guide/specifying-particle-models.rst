@@ -25,7 +25,7 @@ all subsequent types are called "secondary types".
     need to be provided when creating a ``Body`` for which anisotropic forces
     will not be used.
     
-To create a body, simply provide the names of the types and their positions
+To create a body, provide the names of the types and their positions
 to the ``Body`` constructor. For example, you can create a single-particle body
 as follows.
 

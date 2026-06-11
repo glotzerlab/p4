@@ -24,7 +24,7 @@ from .types import PositionsLike, OrientationsLike, MoiLike
 class Body:
     """The names and spatial data for a body's primary and secondary types.
    
-    When there are no secondary types, the body simply represents a single
+    When there are no secondary types, the body represents a single
     particle. When there are secondary types, the body represents a rigid body
     with a central particle (:py:attr:`~p4.body.Body.primary_type`) and one or
     more constituent particles (:py:attr:`~p4.body.Body.secondary_types`).
@@ -785,7 +785,7 @@ class Body:
 
         .. note::
             The internal data structures for the ``Body`` class have native
-            JSON analogues, so the JSON representation is simply
+            JSON analogues, so the JSON representation is
             ``Body.__dict__``.
 
         Parameters
@@ -1012,7 +1012,7 @@ class Body:
 
         .. note::
             The internal data structures for the ``Body`` class have native
-            JSON analogues, so the JSON representation is simply
+            JSON analogues, so the JSON representation is
             ``Body.__dict__``.
                      
         Parameters

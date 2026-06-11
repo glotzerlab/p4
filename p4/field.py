@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 from inspect import signature
+import numbers
 import os
 from types import NoneType
 from typing import Iterable, Literal
@@ -823,6 +824,7 @@ class Field:
         marker_color_1d: str = "black",
         marker_size_1d: float = 6,
         line_width_1d: float = 2,
+        ylim_1d: list[float] | None = None,
         **kwargs
     ) -> tuple[plotly.graph_objects.Figure, list]:
         """Interactively plot the field using `Plotly`_.
@@ -876,6 +878,8 @@ class Field:
             In a 1D scalar plot, the size of the marker in pixels.
         line_width_1d : float, default=2
             In a 1D scalar plot, the width of the line in pixels.
+        ylim_1d : list[float], optional
+            In a 1D scalar plot, the limits of the y axis.
         **kwargs
             Other keyword arguments are passed to ``p4.util.plotting.plot_layout()``.
             TODO: add link.
@@ -939,6 +943,17 @@ class Field:
             raise ValueError("In 3D, `contours` must be an integer.")
         if len(slice) == 1 and not isinstance(contours, (int, NoneType)):
             raise ValueError("In 2D, `contours` must be an integer or None.")
+        
+        # Ensure that ylim_1d is the correct type
+        if (
+            ylim_1d is not None
+            and (
+                not isinstance(ylim_1d, Iterable)
+                or len(ylim_1d) != 2
+                or not all(isinstance(i, numbers.Number) for i in ylim_1d)
+            )
+        ):
+            raise ValueError("`ylim_1d` must be a list of 2 floats.")
         
         # Infer quantity if necessary
         if quantity is None:
@@ -1035,6 +1050,11 @@ class Field:
 
         if len(slice) == 2:
             figure.update_layout(yaxis=dict(title=dict(text=quantity)))
+        
+        if len(slice) == 2:
+            if ylim_1d is None:
+                ylim_1d = [trace.y.min(), trace.y.max()]
+            figure.update_layout(yaxis=dict(range=ylim_1d))
 
         return figure, trace
 

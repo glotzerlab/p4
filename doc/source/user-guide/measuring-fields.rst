@@ -87,7 +87,7 @@ As with ``Body``, we can plot slices of the field.
 
 .. code-block:: python
 
-    fig, tr = field.plot("U", slice=dict(z=0)) # note: Field auto-finds the closest value
+    fig, tr = field.plot("U", slice=dict(z=0), contours=None) # note: Field auto-finds the closest value
     fig.show()
 
 .. raw:: html
@@ -95,7 +95,7 @@ As with ``Body``, we can plot slices of the field.
 
 .. code-block:: python
 
-    fig, tr = field.plot("U", slice=dict(z=0, x=0))
+    fig, tr = field.plot("U", slice=dict(z=0, x=0), ylim_1d=[-0.12, 0.05])
     fig.show()
 
 .. raw:: html
@@ -105,7 +105,7 @@ The force field can also be plotted, both as a scalar plot and a vector plot.
 
 .. code-block:: python
 
-    fig, tr = field.plot("F")
+    fig, tr = field.plot("F", clim=[-0.1, 1])
     fig.show()
 
 .. raw:: html

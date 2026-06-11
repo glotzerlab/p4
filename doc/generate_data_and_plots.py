@@ -238,14 +238,19 @@ fig.update_layout(**FIELD_3D_LAYOUT)
 fig.write_html(data_path+"/ac-lj-u-3d.html", include_plotlyjs='cdn')
 
 # %%
-fig, tr = field.plot("U", slice=dict(z=0)) # note: Field auto-finds the closest value
+fig, tr = field.plot("U", slice=dict(z=0), contours=None) # note: Field auto-finds the closest value
 fig.update_layout(**FIELD_PLOT_DIMENSIONS)
 fig.write_html(data_path+"/ac-lj-u-2d.html", include_plotlyjs='cdn')
 
 # %%
-fig, tr = field.plot("U", slice=dict(z=0, x=0))
+fig, tr = field.plot("U", slice=dict(z=0, x=0), ylim_1d=[-0.12, 0.05])
 fig.update_layout(**FIELD_PLOT_DIMENSIONS)
 fig.write_html(data_path+"/ac-lj-u-1d.html", include_plotlyjs='cdn')
+
+# %%
+fig, tr = field.plot("F", clim=[-0.1, 1])
+fig.update_layout(**FIELD_3D_LAYOUT)
+fig.write_html(data_path+"/ac-lj-f-scalar-3d.html", include_plotlyjs='cdn')
 
 # %%
 fig, tr = field.plot("F", vectors=True)

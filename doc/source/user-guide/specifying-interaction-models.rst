@@ -5,7 +5,7 @@ Specifying Interaction Models
 =============================
 
 An interaction model mathematically defines the forces and torques that
-particles exhert on each other.
+particles exert on each other.
 
 In HOOMD-blue, this notion of an interaction model is mostly expressed in the MD
 module's `Pair Force`_, which stores a set of parameters to apply to the

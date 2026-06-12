@@ -581,6 +581,32 @@ class System:
         datasets. For the actual implementation of the simulation loop, see
         :py:func:`p4.util.simulation.measure`.
 
+        .. _multiprocessing module: https://docs.python.org/3/library/multiprocessing.html
+        .. _official documentation: https://docs.python.org/3/library/multiprocessing.html#multiprocessing-safe-main-import
+
+        .. _measure-multiprocessing-warning:
+        .. warning::
+            By default, :py:meth:`~p4.system.System.measure` uses Python's
+            `multiprocessing module`_ to distribute the measurement process
+            across the maximum number of processes allowed on your computer.
+            There are two caveats to this default behavior:
+            
+            1. Using the maximum allowed number of processes may not minimize
+               the program execution time due to the added overhead of creating
+               and closing new processes. The smaller the number of positions
+               and orientations, the lower the optimum number of processes. For
+               example, for a 10 x 10 x 1 grid of positions and only 1
+               orientation, a single process is best.
+            
+            2. The default multiprocessing behavior can raise a ``RuntimeError``
+               if ``system.measure()`` is called multiple times in the top-level
+               scope of a script. This is because with some process start
+               methods, the main script is re-imported as a module by each child
+               process, which can cause runaway generation of new child
+               processes. To prevent this, wrap your script content in an
+               ``if __name__ == "__main__"`` block. For more information, see
+               the `official documentation`_.
+
         :meta measure:
 
         Parameters

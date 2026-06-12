@@ -64,9 +64,16 @@ isotropic, torque will be zero everywhere.)
         csv_filename=data_path+"/ac-lj-uf.csv",
     )
 
-:py:meth:`~p4.System.measure` writes all of the measurements into a CSV file.
-To analyze and view the fields, import that CSV file using the :py:class:`Field`
-class.
+.. warning::
+    By default, ``system.measure()`` uses Python's `multiprocessing module`_
+    to distribute the measurement process across the maximum number of processes
+    allowed on your computer. For more information about this default behavior,
+    see the :ref:`warning <measure-multiprocessing-warning>` in the method's
+    documentation.
+
+:py:meth:`~p4.system.System.measure` writes all of the measurements into a CSV
+file. To analyze and view the fields, import that CSV file using the
+:py:class:`Field` class.
 
 .. code-block:: python
 

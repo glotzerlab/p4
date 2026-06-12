@@ -39,7 +39,6 @@ plotted with methods built on the interactive plotting library `Plotly`_.
    :hidden:
 
    api/module-p4
-   api/util
    api/types
 
 .. toctree::

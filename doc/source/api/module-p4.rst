@@ -3,7 +3,7 @@ p4
 
 This is the top of the namespace for the p4 module. This module contains the
 :ref:`core classes <core-classes>`, as well as convenience functions for
-:ref:`sampling <sampling-functions>` and :ref:`plotting <plotting-functions>`.
+:ref:`sampling <top-level-sampling>` and :ref:`plotting <top-level-plotting>`.
 
 
 .. _core-classes:
@@ -21,7 +21,7 @@ Core Classes
     field
 
 
-.. _sampling-functions:
+.. _top-level-sampling:
 
 Sampling Functions
 ++++++++++++++++++
@@ -37,15 +37,22 @@ Functions for sampling position and orientation space.
 .. autofunction:: p4.orientations_from_fibonacci_lattice
 
 
-.. _plotting-functions:
+.. _top-level-plotting:
 
 Plotting Functions
 ++++++++++++++++++
 
-Functions for visualizing samples and HOOMD-blue objects using Plotly.
+Constants and functions for visualizing samples and HOOMD-blue objects using
+`Plotly`_.
+
+.. _Plotly: https://plotly.com/
 
 .. py:currentmodule:: p4
 
 .. autofunction:: p4.plot_positions
 
 .. autofunction:: p4.plot_state
+
+.. autofunction:: p4.plot_layout
+
+.. autofunction:: p4.snapshot_schematic_slice_trace

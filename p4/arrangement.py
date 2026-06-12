@@ -15,6 +15,7 @@ import numpy as np
 import plotly
 import rowan
 
+from .top_level_functions import plot_layout, snapshot_schematic_slice_trace
 from . import util
 from .body import Body
 from .types import PositionsLike, OrientationsLike
@@ -914,9 +915,9 @@ class Arrangement:
         **kwargs
             Other keyword arguments are passed to the following functions:
 
-            * :py:func:`p4.util.plotting.plot_layout`
+            * :py:func:`p4.plot_layout`
 
-            * :py:func:`p4.util.plotting.snapshot_schematic_slice_trace`
+            * :py:func:`p4.snapshot_schematic_slice_trace`
         """
         # Set defaults
         if not type_shapes:
@@ -947,7 +948,7 @@ class Arrangement:
 
             if schematic_slice:
                 allowed_kwarg_names = (
-                    signature(util.plotting.snapshot_schematic_slice_trace)
+                    signature(snapshot_schematic_slice_trace)
                         .parameters
                         .keys()
                 )
@@ -955,7 +956,7 @@ class Arrangement:
                     k: v for k, v in kwargs.items() if k in allowed_kwarg_names
                 }
                 traces.append(
-                    util.plotting.snapshot_schematic_slice_trace(
+                    snapshot_schematic_slice_trace(
                         snapshot=snapshot,
                         type_shapes=type_shapes,
                         slice=slice,
@@ -989,7 +990,7 @@ class Arrangement:
 
         # Style the plot
         allowed_kwarg_names = (
-            signature(util.plotting.plot_layout)
+            signature(plot_layout)
             .parameters
             .keys()
         )
@@ -998,7 +999,7 @@ class Arrangement:
         }
         if "show_grid" not in layout_kwargs:
             layout_kwargs["show_grid"] = True
-        layout = util.plotting.plot_layout(
+        layout = plot_layout(
             slice=slice if not schematic_slice else {},
             **layout_kwargs
         )

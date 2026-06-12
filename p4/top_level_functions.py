@@ -1,6 +1,7 @@
 # Copyright (c) 2025-2026, The Regents of the University of Michigan
 # This file is from the p4 project, released under the BSD 3-Clause License.
 
+from copy import copy
 import itertools
 
 import hoomd
@@ -18,8 +19,6 @@ from .types import (
     PositionsLike,
     OrientationsLike
 )
-from .arrangement import Arrangement
-from .body import Body
 
 
 # ---------------------------------- SAMPLING ----------------------------------
@@ -218,7 +217,7 @@ def plot_positions(
         The line width of the box.
     **kwargs
         Other keyword arguments are passed to the function
-        :py:func:`p4.util.plotting.plot_layout`.
+        :py:func:`p4.plot_layout`.
     """
     positions = np.asarray(positions)
 
@@ -267,7 +266,7 @@ def plot_positions(
             )
         )
     
-    figure.update_layout(util.plotting.plot_layout(slice={}, **kwargs))
+    figure.update_layout(plot_layout(slice={}, **kwargs))
 
     return figure, positions_trace
 
@@ -277,7 +276,7 @@ def plot_state(
     type_styles: dict[str, dict] | None = None,
     ignore_types: list[str] | None = None,
     **kwargs
-):
+) -> tuple[plotly.graph_objects.Figure, list]:
     """Visualize the state of a system.
     
     This is a convenience function that creates an
@@ -300,8 +299,10 @@ def plot_state(
         The names of the particle types to exclude from the plot.
     **kwargs
         Other keyword arguments are passed to the function
-        :py:func:`p4.util.plotting.plot_layout`.
+        :py:func:`p4.plot_layout`.
     """
+    from .arrangement import Arrangement
+
     include_singles = True
     if isinstance(obj, hoomd.Simulation):
         arrangement = Arrangement.from_hoomd_simulation(obj, include_singles)
@@ -326,6 +327,278 @@ def plot_state(
 
     return figure, traces
 
+def plot_layout(
+    slice: dict[str, float],
+    show_axes: bool = True,
+    show_title: bool = False,
+    show_ticks: bool = True,
+    show_grid: bool = False,
+    show_border: bool = True,
+    show_legend: bool | None = None,
+    clim: list[float] | None = None,
+) -> dict:
+    """Return a Plotly layout dictionary customized for a given slice.
+
+    Parameters
+    ----------
+    slice : dict[str, float]
+        Axes and positions along which to slice. Keys are limited to 'x',
+        'y', and 'z'. There can be at most two keys.
+    show_axes : bool, default=True
+        Whether to show the axes.
+    show_title : bool, default=False
+        Whether to show the title.
+    show_ticks : bool, default=True
+        Whether to show tick marks on the axes.
+    show_grid : bool, default=False
+        Whether to show the axes grid.
+    show_border : bool, default=True
+        Whether to show the plot border.
+    show_legend : bool, optional
+        Whether to show the plot legend.
+    clim : list of floats, optional
+        The lower and upper limits of the colorscale.
+    """
+    # Build initial dictionary
+    axis_style = dict(
+        visible=show_axes,
+        ticks="outside" if show_ticks else "",
+        gridcolor="#e5e5e5" if show_grid else "rgba(0,0,0,0)",
+        zerolinecolor="#e5e5e5" if show_grid else "rgba(0,0,0,0)",
+        showline=show_border,
+        linewidth=1,
+        linecolor="black",
+        mirror=True
+    )
+
+    if len(slice) == 0:
+        axis_style["showbackground"] = False
+        layout = dict(
+            scene=dict(
+                xaxis=axis_style,
+                yaxis=axis_style,
+                zaxis=axis_style,
+                aspectmode="data",
+            ),
+            plot_bgcolor="rgba(0,0,0,0)"
+        )
+    
+    elif len(slice) == 1:
+        layout = dict(
+            xaxis=copy(axis_style),
+            yaxis=copy(axis_style),
+            plot_bgcolor="rgba(0,0,0,0)"
+        )
+        layout["xaxis"].update(
+            scaleanchor="y",
+            scaleratio=1,
+            constrain="domain"
+        )
+        layout["yaxis"].update(
+            scaleanchor="x",
+            scaleratio=1,
+            constrain="domain"
+        )
+
+    elif len(slice) == 2:
+        layout = dict(
+            xaxis=copy(axis_style),
+            yaxis=copy(axis_style),
+            plot_bgcolor="rgba(0,0,0,0)"
+        )
+        if clim is not None:
+            layout["yaxis_range"] = [min(clim), max(clim)]
+
+    # Update layout dictionary with axis and figure titles (only 1D and 2D)
+    if len(slice) == 1:
+        if "x" in slice:
+            x_title = "y"
+            y_title = "z"
+            fig_title = f"x = {float(slice["x"])}"
+        elif "y" in slice:
+            x_title = "x"
+            y_title = "z"
+            fig_title = f"y = {float(slice["y"])}"
+        elif "z" in slice:
+            x_title = "x"
+            y_title = "y"
+            fig_title = f"z = {float(slice["z"])}"
+    
+    elif len(slice) == 2:
+        y_title = ""
+        if "x" in slice:
+            if "y" in slice:
+                x_title = "z"
+                fig_title = f"x = {float(slice["x"])}, y = {float(slice["y"])}"
+            else:
+                x_title = "y"
+                fig_title = f"x = {float(slice["x"])}, z = {float(slice["z"])}"
+        else:
+            x_title = "x"
+            fig_title = f"y = {float(slice["y"])}, z = {float(slice["z"])}"
+
+    if len(slice) in (1, 2):
+        layout["xaxis"]["title"] = dict(text=x_title, font=util.plotting.AXIS_TITLE_FONT)
+        layout["yaxis"]["title"] = dict(text=y_title, font=util.plotting.AXIS_TITLE_FONT)
+        layout["title"] = dict(
+            text=fig_title if show_title else "",
+            font=util.plotting.FIG_TITLE_FONT,
+            xanchor="center",
+            yanchor="top",
+            x=0.5,
+        )
+    
+    # Miscellaneous other layout settings
+    layout["autosize"] = False
+    layout["width"] = 500
+    layout["height"] = 500
+    layout["margin"] = dict(t=20, b=20, l=20, r=20)
+    layout["showlegend"] = show_legend
+    
+    return layout
+
+def snapshot_schematic_slice_trace(
+    snapshot: hoomd.Snapshot,
+    type_shapes: dict[str, coxeter.shapes.Polyhedron],
+    slice: dict[str, int],
+    scale: float = 1,
+    color: str = "red",
+    opacity: float = 1,
+    line_width: float = 10,
+) -> plotly.graph_objs._scatter3d.Scatter3d:
+    """Return the plotly trace for a schematic slice through a snapshot.
+
+    A slice with 1 key is represented as a plane, while a slice with 2 keys
+    is represented as a line.
+    
+    Parameters
+    ----------
+    snapshot : hoomd.Snapshot
+        The HOOMD snapshot. The positions of the snapshot's particles help
+        determine the extents of the schematic slice.
+    type_shapes : dict, optional
+        A mapping from particle type name to shape. The vertices of the shapes
+        help determine the extents of the schematic slice.
+    slice : dict
+        Axes and positions along which to slice. Keys are limited to 'x', 'y',
+        and 'z'. There can be at most two keys.
+    scale : float, default=1
+        The scale of the schematic slice.
+    color : str, default='red'
+        The color of the schematic slice. Must satisfy plotly's color
+        naming/formatting conventions.
+    opacity : float, default=1
+        The opacity of the schematic slice. Must be between 0 and 1.
+    line_width : float, default=10
+        The width of the schematic slice if it is a line. Ignored if the slice
+        is a plane.
+    """
+    # Calculate extents
+    extents = []
+    for i in [0, 1, 2]:
+        # Minimum
+        min_index = np.argmin(snapshot.particles.position[:, i])
+        p_at_i_min = snapshot.particles.position[min_index]
+        o_at_i_min = snapshot.particles.orientation[min_index]
+        t = snapshot.particles.types[snapshot.particles.typeid[min_index]]
+        
+        if t in type_shapes:
+            vertices = type_shapes[t].vertices
+            vertices = rowan.rotate(o_at_i_min, vertices)
+            vertices += p_at_i_min        
+            extents.append([min(p_at_i_min[i], vertices[:, i].min())])
+        else:
+            extents.append([p_at_i_min[i]])
+        
+        # Maximum
+        max_index = np.argmax(snapshot.particles.position[:, i])
+        p_at_i_max = snapshot.particles.position[max_index]
+        o_at_i_max = snapshot.particles.orientation[max_index]
+        t = snapshot.particles.types[snapshot.particles.typeid[max_index]]
+        
+        if t in type_shapes:
+            vertices = type_shapes[t].vertices
+            vertices = rowan.rotate(o_at_i_max, vertices)
+            vertices += p_at_i_max        
+            extents[i].append(max(p_at_i_max[i], vertices[:, i].max()))
+        else:
+            extents[i].append(p_at_i_max[i])
+
+    xmin, xmax = extents[0]
+    ymin, ymax = extents[1]
+    zmin, zmax = extents[2]
+
+    # A slice with 1 key is represented as a plane
+    if len(slice) == 1:
+        if "x" in slice:
+            x = slice["x"]
+            x = np.array([x, x, x, x])
+            y = np.array([ymin, ymax, ymax, ymin]) * scale
+            z = np.array([zmin, zmin, zmax, zmax]) * scale
+
+        elif "y" in slice:
+            y = slice["y"]
+            x = np.array([xmin, xmax, xmax, xmin]) * scale
+            y = np.array([y, y, y, y])
+            z = np.array([zmin, zmin, zmax, zmax]) * scale
+
+        elif "z" in slice:
+            z = slice["z"]
+            x = np.array([xmin, xmax, xmax, xmin]) * scale
+            y = np.array([ymin, ymin, ymax, ymax]) * scale
+            z = np.array([z, z, z, z])
+        
+        i = [0, 0]
+        j = [1, 2]
+        k = [2, 3]
+
+        return plotly.graph_objects.Mesh3d(
+            x=x,
+            y=y,
+            z=z,
+            i=i,
+            j=j,
+            k=k,
+            name="slice",
+            color=color,
+            opacity=opacity,
+            flatshading=True,
+            showlegend=True
+        )
+
+    # A slice with 2 keys is represented as a line
+    if len(slice) == 2:
+        if "x" in slice:
+            x = slice["x"]
+            if "y" in slice:
+                y = slice["y"]
+                x = np.array([x, x])
+                y = np.array([y, y])
+                z = np.array([zmin, zmax]) * scale
+            
+            else:
+                z = slice["z"]
+                x = np.array([x, x])
+                y = np.array([ymin, ymax]) * scale
+                z = np.array([z, z])
+        
+        else:
+            y = slice["y"]
+            z = slice["z"]
+            x = np.array([xmin, xmax]) * scale
+            y = np.array([y, y])
+            z = np.array([z, z])
+        
+        return plotly.graph_objects.Scatter3d(
+            x=x,
+            y=y,
+            z=z,
+            name="slice",
+            opacity=opacity,
+            line=dict(color=color, width=line_width),
+            mode="lines",
+            showlegend=True
+        )
 
 # ------------------------------------ OTHER -----------------------------------
 

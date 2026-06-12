@@ -18,6 +18,7 @@ import hoomd
 import numpy as np
 import plotly
 
+from .top_level_functions import plot_layout
 from . import util
 
 REQUIRED_PARENT_CLASS = hoomd.md.pair.pair.Pair
@@ -805,7 +806,7 @@ class Interaction:
         line_width : float, default=2
             The width of the line in pixels.
         **kwargs
-            Other keyword arguments are passed to ``p4.util.plotting.plot_layout()``.
+            Other keyword arguments are passed to ``p4.plot_layout()``.
             TODO: add link.
         
         Returns
@@ -953,12 +954,12 @@ class Interaction:
         figure.add_traces(traces)
 
         allowed_kwarg_names = (
-            inspect.signature(util.plotting.plot_layout).parameters.keys()
+            inspect.signature(plot_layout).parameters.keys()
         )
         layout_kwargs = {
             k: v for k, v in kwargs.items() if k in allowed_kwarg_names
         }
-        layout = util.plotting.plot_layout(
+        layout = plot_layout(
             slice=dict(z=0, y=0),
             **layout_kwargs
         )

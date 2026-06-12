@@ -15,6 +15,7 @@ from numpy.lib import recfunctions
 import plotly
 import plotly.figure_factory
 
+from .top_level_functions import plot_layout
 from . import util
 
 
@@ -882,7 +883,7 @@ class Field:
             In a 1D scalar plot, the limits of the y axis. Defaults to the
             0th and 90th percentile of the plotted quantity.
         **kwargs
-            Other keyword arguments are passed to ``p4.util.plotting.plot_layout()``.
+            Other keyword arguments are passed to ``p4.plot_layout()``.
             TODO: add link.
         
         Returns
@@ -1039,14 +1040,14 @@ class Field:
         figure.add_trace(trace)
 
         allowed_kwarg_names = (
-            signature(util.plotting.plot_layout)
+            signature(plot_layout)
                 .parameters
                 .keys()
         )
         layout_kwargs = {
             k: v for k, v in kwargs.items() if k in allowed_kwarg_names
         }
-        layout = util.plotting.plot_layout(slice=slice, **layout_kwargs)
+        layout = plot_layout(slice=slice, **layout_kwargs)
         figure.update_layout(layout)
 
         if len(slice) == 2:

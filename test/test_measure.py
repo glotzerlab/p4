@@ -12,7 +12,7 @@ import p4
 
 REFERENCE_FOLDER = Path(__file__).parent / "data"
 
-POSITIONS = p4.positions_on_regular_grid(box=[20, 20, 20], resolution=[2, 2, 2])
+POSITIONS = p4.positions_on_regular_grid(box=[20, 20, 20], resolution=[6, 6, 6])
 ORIENTATIONS = p4.orientations_about_axis(n=2, axis=[0, 0, 1])
 
 def test_measure_same_probe_and_analyte():
@@ -37,6 +37,7 @@ def test_measure_same_probe_and_analyte():
             positions=POSITIONS,
             orientations=ORIENTATIONS,
             csv_filename=test_path,
+            n_processes=2
         )
 
 def test_measure_single_particle_probe_multi_particle_body_analyte():
@@ -64,6 +65,7 @@ def test_measure_single_particle_probe_multi_particle_body_analyte():
             positions=POSITIONS,
             orientations=ORIENTATIONS,
             csv_filename=test_path,
+            n_processes=2
         )
 
 def test_measure_multi_particle_probe_single_particle_body_analyte():
@@ -91,6 +93,7 @@ def test_measure_multi_particle_probe_single_particle_body_analyte():
             positions=POSITIONS,
             orientations=ORIENTATIONS,
             csv_filename=test_path,
+            n_processes=2
         )
 
 def test_measure_single_particle_probe_single_particle_arrangement_analyte():
@@ -118,6 +121,7 @@ def test_measure_single_particle_probe_single_particle_arrangement_analyte():
             positions=POSITIONS,
             orientations=ORIENTATIONS,
             csv_filename=test_path,
+            n_processes=2
         )
 
 def test_measure_single_particle_probe_multi_particle_arrangement_analyte():
@@ -160,4 +164,5 @@ def test_measure_single_particle_probe_multi_particle_arrangement_analyte():
             positions=POSITIONS,
             orientations=ORIENTATIONS,
             csv_filename=test_path,
+            n_processes=2
         )

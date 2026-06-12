@@ -133,7 +133,7 @@ Individual components of the force can also be plotted as scalars.
 
 .. code-block:: python
 
-    fig, tr = field.plot("Fx")
+    fig, tr = field.plot("Fx", clim=[-0.1, 0.1])
     fig.show()
 
 .. raw:: html
@@ -141,7 +141,7 @@ Individual components of the force can also be plotted as scalars.
 
 .. code-block:: python
 
-    fig, tr = field.plot("Fx", slice=dict(z=0))
+    fig, tr = field.plot("Fx", slice=dict(z=0), clim=[-0.1, 0.1], contours=None)
     fig.show()
 
 .. raw:: html

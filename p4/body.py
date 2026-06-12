@@ -22,8 +22,6 @@ from .top_level_functions import plot_layout, snapshot_schematic_slice_trace
 from . import util
 from .types import PositionsLike, OrientationsLike, MoiLike
 
-# TODO: check default moi
-
 
 class Body:
     """The names and spatial data for a body's primary and secondary types.

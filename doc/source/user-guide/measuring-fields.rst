@@ -401,7 +401,7 @@ is to average over them.
 .. note::
     Each quantity (U, F, T) must be aggregated individually because vector
     quantities are aggregated differently from scalar quantities. See
-    :py:meth:`~p4.Field.aggregate_over_orientations`.
+    :py:meth:`~p4.field.Field.aggregate_over_orientations`.
 
 .. TODO: we need to add a flag to the aggregation method that controls how it deals with nan and inf
 

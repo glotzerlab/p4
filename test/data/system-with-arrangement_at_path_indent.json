@@ -52,8 +52,12 @@
             ]
           },
           "orientations_by_type": {},
-          "mass_by_type": {},
-          "moi_by_type": {}
+          "mass": 1.0,
+          "moi": [
+            1.0,
+            1.0,
+            1.0
+          ]
         },
         "analyte": {
           "bodies": [
@@ -80,8 +84,12 @@
                 ]
               },
               "orientations_by_type": {},
-              "mass_by_type": {},
-              "moi_by_type": {}
+              "mass": 1.0,
+              "moi": [
+                1.0,
+                1.0,
+                1.0
+              ]
             },
             {
               "primary_type": "D",
@@ -145,8 +153,12 @@
                   ]
                 ]
               },
-              "mass_by_type": {},
-              "moi_by_type": {}
+              "mass": 1.0,
+              "moi": [
+                1.0,
+                1.0,
+                1.0
+              ]
             }
           ],
           "positions_by_type": {

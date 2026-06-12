@@ -31,8 +31,8 @@ VALID_KWARGS = [
                     B=[[-1, 0, 0]],
                     C=[[1, 0, 0]]
                 ),
-                mass_by_type=dict(A=1, B=2, C=3),
-                moi_by_type=dict(A=[1, 1, 1], B=[1, 0, 0], C=[0, 1, 0])
+                mass=2,
+                moi=[1, 0, 0],
             ),
             p4.Body(
                 primary_type="D",
@@ -167,8 +167,8 @@ def test_property_getters_and_setters_valid():
             B=[[-1, 0, 0]],
             C=[[1, 0, 0]]
         ),
-        mass_by_type=dict(A=1, B=2, C=3),
-        moi_by_type=dict(A=[1, 1, 1], B=[1, 0, 0], C=[0, 1, 0])
+        mass=2,
+        moi=[1, 0, 0],
     )
     body2 = p4.Body(
         primary_type="D",
@@ -245,8 +245,8 @@ def test_property_setters_invalid():
             B=[[-1, 0, 0]],
             C=[[1, 0, 0]]
         ),
-        mass_by_type=dict(A=1, B=2, C=3),
-        moi_by_type=dict(A=[1, 1, 1], B=[1, 0, 0], C=[0, 1, 0])
+        mass=2,
+        moi=[1, 0, 0],
     )
     body2 = p4.Body(
         primary_type="D",
@@ -399,67 +399,9 @@ def assert_bodies_equivalent(body1, body2):
         )
     )
 
-    # masses same or equivalent
-    masses_same = (
-        body1.mass_by_type == body2.mass_by_type
-    )
-    masses_missing_from_self = (
-        set(body2.mass_by_type) - set(body1.mass_by_type)
-    )
-    masses_missing_from_other = (
-        set(body1.mass_by_type) - set(body2.mass_by_type)
-    )
-    common_types = set(body1.mass_by_type).intersection(
-        set(body2.mass_by_type)
-    )
-    masses_equivalent = (
-        all(
-            body1.mass_by_type[t] == body2.mass_by_type[t]
-            for t in common_types
-        )
-        and all(
-            body2.mass_by_type[t] == 1.0 for t in masses_missing_from_self
-        )
-        and all(
-            body1.mass_by_type[t] == 1.0 for t in masses_missing_from_other
-        )
-    )
-
-    # moi same or equivalent
-    moi_same = (
-        body1.moi_by_type == body2.moi_by_type
-    )
-    moi_missing_from_self = (
-        set(body2.moi_by_type) - set(body1.moi_by_type)
-    )
-    moi_missing_from_other = (
-        set(body1.moi_by_type) - set(body2.moi_by_type)
-    )
-    common_types = set(body1.moi_by_type).intersection(
-        set(body2.moi_by_type)
-    )
-    moi_equivalent = (
-        all(
-            (
-                np.round(body1.moi_by_type[t], 3)
-                == np.round(body2.moi_by_type[t], 3)
-            ).all()
-            for t in common_types
-        )
-        and
-        all(
-            body2.moi_by_type[t] == [1, 1, 1]
-            for t in moi_missing_from_self
-        )
-        and all(
-            body1.moi_by_type[t] == [1, 1, 1]
-            for t in moi_missing_from_other
-        )
-    )
-
-    assert orientations_same or orientations_equivalent    
-    assert masses_same or masses_equivalent
-    assert moi_same or moi_equivalent
+    assert orientations_same or orientations_equivalent
+    assert body1.mass == body2.mass
+    assert body1.moi == body2.moi
 
 def assert_arrangements_are_equal(arrangement1, arrangement2):
     """Arrangements are equivalent if their bodies, positions, and orientations are equivalent."""

@@ -5,7 +5,9 @@ from __future__ import annotations
 from collections import defaultdict
 from inspect import signature
 import json
+import numbers
 import os
+from typing import Iterable
 import coxeter
 import gsd
 import hoomd
@@ -59,14 +61,16 @@ class Body:
         (``[w,x,y,z]``). If not provided for some type ``t``, that type's
         orientations default to an array of ``[1,0,0,0]`` quaternions with the
         same length as ``positions_by_type[t]``.
-    mass_by_type : dict[str, float], optional
-        A mapping of primary and secondary particle types to mass. If not
-        provided for some type, that type's mass defaults to ``1``.
-    moi_by_type : dict[str, MoiLike], optional
-        A mapping of primary and secondary particle types to moment of inertia
-        (MoI), expressed as a vector containing the diagonal terms of the full
-        MoI tensor. If not provided for some type, that type's MoI defaults to
-        ``[1,1,1]``.
+    mass : float, optional
+        The mass of the primary type. If not provided, the primary type's mass
+        defaults to ``1``. Following HOOMD-blue convention, each secondary type
+        has a mass of ``0``.
+    moi : MoiLike, optional
+        The moment of inertia (MoI) of the primary type, expressed as a vector
+        containing the diagonal terms of the full MoI tensor. If not provided,
+        the primary type's MoI defaults to ``[1,1,1]`` if there are secondary
+        types and ``[0,0,0]`` if there are not. Following HOOMD-blue
+        convention, each secondary type has a MoI of ``[0,0,0]``.
 
 
     Example
@@ -100,8 +104,8 @@ class Body:
         secondary_types: list[str] | None = None,
         positions_by_type: dict[str, PositionsLike] | None = None,
         orientations_by_type: dict[str, OrientationsLike] | None = None,
-        mass_by_type: dict[str, float] | None = None,
-        moi_by_type: dict[str, MoiLike] | None = None
+        mass: float | None = None,
+        moi: MoiLike | None = None
     ):
         # Create defaults
         if secondary_types is None:
@@ -110,10 +114,12 @@ class Body:
             positions_by_type = {}
         if orientations_by_type is None:
             orientations_by_type = {}
-        if mass_by_type is None:
-            mass_by_type = {}
-        if moi_by_type is None:
-            moi_by_type = {}
+        if mass is None:
+            mass = 1
+        if not secondary_types:
+            moi = [0, 0, 0]
+        elif moi is None:
+            moi = [1, 1, 1]
 
         # Ensure things that are supposed to be dicts are in fact dicts before
         # attempting to sanitize them
@@ -121,18 +127,22 @@ class Body:
             raise TypeError("`positions_by_type` must be a dictionary.")
         if not isinstance(orientations_by_type, dict):
             raise TypeError("`orientations_by_type` must be a dictionary.")
-        if not isinstance(mass_by_type, dict):
-            raise TypeError("`mass_by_type` must be a dictionary.")
-        if not isinstance(moi_by_type, dict):
-            raise TypeError("`moi_by_type` must be a dictionary.")
+        if not isinstance(mass, numbers.Real):
+            raise TypeError("`mass` must be a float.")
+        if (
+            not isinstance(moi, Iterable)
+            or len(moi) != 3
+            or not all(isinstance(i, numbers.Real) for i in moi)
+        ):
+            raise TypeError("`moi` must be an array of 3 floats.")
 
         # Set instance attributes
         self._primary_type = str(primary_type)
         self._secondary_types = secondary_types
         self._positions_by_type = util.data.sanitize(positions_by_type)
         self._orientations_by_type = util.data.sanitize(orientations_by_type)
-        self._mass_by_type = util.data.sanitize(mass_by_type)
-        self._moi_by_type = util.data.sanitize(moi_by_type)
+        self._mass = float(mass)
+        self._moi = [float(i) for i in moi]
 
         # Validate instance attributes
         self.validate()
@@ -223,20 +233,19 @@ class Body:
                     "All orientations must be vectors of length 4."
                 )
         
-        # Ensure that all masses are coercable to float
-        if self.mass_by_type:
-            try:
-                for m in self.mass_by_type.values():
-                    _ = float(m)
-            except:
-                raise TypeError("All masses must be floats.")
+        # Ensure that mass is coercable to float
+        try:
+            _ = float(self.mass)
+        except:
+            raise TypeError("Mass must be a float.")
 
-        # Ensure that all mois are 3-vectors
-        if self.moi_by_type:
-            if any(len(moi) != 3 for moi in self.moi_by_type.values()):
-                raise ValueError(
-                    "All moments of inertia must be vectors of length 3."
-                )
+        # Ensure that moi is a 3-vector of floats
+        if (
+            not isinstance(self.moi, Iterable)
+            or len(self.moi) != 3
+            or not all(isinstance(i, numbers.Real) for i in self.moi)
+        ):
+            raise ValueError("MoI must be an array of 3 floats.")
         
     # ------------------------------- PROPERTIES -------------------------------
 
@@ -287,47 +296,36 @@ class Body:
             raise
 
     @property
-    def mass_by_type(self) -> dict[str, float]:
-        """A mapping from primary and secondary types to mass.
-        
-        Each type may only have a single mass.
+    def mass(self) -> float:
+        """The mass of the primary type."""
+        return self._mass
 
-        If not specified for a type, defaults to ``1``.
-        """
-        return self._mass_by_type
-
-    @mass_by_type.setter
-    def mass_by_type(self, value: dict[str, float]):
-        """Set a mapping from primary and secondary types to mass."""
-        original_value = deepcopy(self._mass_by_type)
-        self._mass_by_type = util.data.sanitize(value)
+    @mass.setter
+    def mass(self, value: float):
+        """Set the mass of the primary type."""
+        original_value = deepcopy(self._mass)
+        self._mass = float(value)
         try:
             self.validate()
         except:
-            self._mass_by_type = original_value
+            self._mass = original_value
             raise
 
     @property
-    def moi_by_type(self) -> dict[str, list[float]]:
-        """A mapping from primary and secondary types to moment of inertia.
-        
-        Moment of Inertia is expressed as a 3-vector. Each type may only have a
-        single Moment of Inertia.
+    def moi(self) -> list[float]:
+        """The moment of inertia of the primary type."""
+        return self._moi
 
-        If not specified for a type, defaults to ``[1, 1, 1]``.
-        """
-        return self._moi_by_type
-
-    @moi_by_type.setter
-    def moi_by_type(self, value: dict[str, MoiLike]):
-        """Set a mapping from primary and secondary types to moment of inertia."""
-        original_value = deepcopy(self._moi_by_type)
-        self._moi_by_type = util.data.sanitize(value)
+    @moi.setter
+    def moi(self, value: MoiLike):
+        """Set the moment of inertia of the primary type."""
+        original_value = deepcopy(self._moi)
+        self._moi = [float(i) for i in value]
 
         try:
             self.validate()
         except:
-            self._moi_by_type = original_value
+            self._moi = original_value
             raise
 
     # ------------------------------- OPERATIONS -------------------------------
@@ -337,8 +335,6 @@ class Body:
         name: str,
         positions: PositionsLike,
         orientations: OrientationsLike | None = None,
-        mass: float | None = None,
-        moi: MoiLike | None = None,
     ):
         """Add a new secondary particle type.
         
@@ -352,10 +348,6 @@ class Body:
             The positions for the new secondary type.
         orientations : list[list[float]], optional
             The orientations for the new secondary type.
-        mass : float, optional
-            The mass for the new secondary type.
-        moi : list[float], optional
-            The moi for the new secondary type.
         """
         if name in self.secondary_types:
             raise ValueError(
@@ -371,15 +363,10 @@ class Body:
         else:
             orientations_by_type = {name: orientations}
         
-        mass_by_type = {} if mass is None else {name: mass}
-        moi_by_type = {} if moi is None else {name: moi}
-        
         # Store original data
         original_secondary_types = deepcopy(self._secondary_types)
         original_positions_by_type = deepcopy(self._positions_by_type)
         original_orientations_by_type = deepcopy(self._orientations_by_type)
-        original_mass_by_type = deepcopy(self._mass_by_type)
-        original_moi_by_type = deepcopy(self._moi_by_type)
 
         # Modify the data
         self._secondary_types.append(name)
@@ -387,8 +374,6 @@ class Body:
         self._orientations_by_type.update(
             util.data.sanitize(orientations_by_type)
         )
-        self._mass_by_type.update(util.data.sanitize(mass_by_type))
-        self._moi_by_type.update(util.data.sanitize(moi_by_type))
 
         # Validate the instance attributes
         try:
@@ -397,8 +382,6 @@ class Body:
             self._secondary_types = original_secondary_types
             self._positions_by_type = original_positions_by_type
             self._orientations_by_type = original_orientations_by_type
-            self._mass_by_type = original_mass_by_type
-            self._moi_by_type = original_moi_by_type
             raise
 
     def remove(self, name: str):
@@ -420,18 +403,12 @@ class Body:
         del self._positions_by_type[name]
         if name in self._orientations_by_type:
             del self._orientations_by_type[name]
-        if name in self._mass_by_type:
-            del self._mass_by_type[name]
-        if name in self._moi_by_type:
-            del self._moi_by_type[name]
 
     def update(
         self,
         name: str,
         positions: PositionsLike | None = None,
         orientations: OrientationsLike | None = None,
-        mass: list[list[float]] | None = None,
-        moi: MoiLike | None = None,
     ):
         """Update data for a secondary particle type.
 
@@ -463,28 +440,16 @@ class Body:
         orientations_by_type = copy(self._orientations_by_type)
         if orientations is not None:
             orientations_by_type.update({name: orientations})
-        
-        mass_by_type = copy(self._mass_by_type)
-        if mass is not None:
-            mass_by_type.update({name: mass})
-
-        moi_by_type = copy(self._moi_by_type)
-        if moi is not None:
-            moi_by_type.update({name: moi})
 
         # Store original data
         original_positions_by_type = deepcopy(self._positions_by_type)
         original_orientations_by_type = deepcopy(self._orientations_by_type)
-        original_mass_by_type = deepcopy(self._mass_by_type)
-        original_moi_by_type = deepcopy(self._moi_by_type)
 
         # Modify the data
         self._positions_by_type.update(util.data.sanitize(positions_by_type))
         self._orientations_by_type.update(
             util.data.sanitize(orientations_by_type)
         )
-        self._mass_by_type.update(util.data.sanitize(mass_by_type))
-        self._moi_by_type.update(util.data.sanitize(moi_by_type))
 
         # Validate the instance attributes
         try:
@@ -492,8 +457,6 @@ class Body:
         except:
             self._positions_by_type = original_positions_by_type
             self._orientations_by_type = original_orientations_by_type
-            self._mass_by_type = original_mass_by_type
-            self._moi_by_type = original_moi_by_type
             raise
 
     # ---------------------------------- FROM ----------------------------------
@@ -612,16 +575,8 @@ class Body:
             ):
                 bodies.append(Body(
                     primary_type=primary_type,
-                    mass_by_type=(
-                        {}
-                        if primary_mass == 1
-                        else {f"{primary_type}": primary_mass}
-                    ),
-                    moi_by_type=(
-                        {}
-                        if primary_moi in [[0, 0, 0], [1, 1, 1]]
-                        else {f"{primary_type}": primary_moi}
-                    ),
+                    mass=primary_mass,
+                    moi=primary_moi,
                 ))
             
             # Only add multi-particle bodies if there isn't already one with the
@@ -630,14 +585,6 @@ class Body:
                 secondary_types = []
                 positions_by_type = defaultdict(list)
                 orientations_by_type = defaultdict(list)
-                if primary_mass == 1:
-                    mass_by_type = {} 
-                else:
-                    mass_by_type = {f"{primary_type}": primary_mass}
-                if primary_moi in [[0, 0, 0], [1, 1, 1]]:
-                    moi_by_type = {} 
-                else:
-                    moi_by_type = {f"{primary_type}": primary_moi}
 
                 for i in secondary_indices:
                     t = pdata.types[pdata.typeid[i]]
@@ -651,25 +598,14 @@ class Body:
                         rowan.divide(pdata.orientation[i], primary_orientation) # TODO: test order
                             .tolist()
                     )
-                    
-                    mass_by_type[t] = float(pdata.mass[i])
-                    moi_by_type[t] = pdata.moment_inertia[i].tolist()
-                
-                for t, mass in copy(mass_by_type).items():
-                    if mass == 1:
-                        del mass_by_type[t]
-
-                for t, moi in copy(moi_by_type).items():
-                    if moi in [[0, 0, 0], [1, 1, 1]]:
-                        del moi_by_type[t]
 
                 bodies.append(Body(
                     primary_type=primary_type,
                     secondary_types=secondary_types,
                     positions_by_type=dict(positions_by_type),
                     orientations_by_type=dict(orientations_by_type),
-                    mass_by_type=mass_by_type,
-                    moi_by_type=moi_by_type
+                    mass=primary_mass,
+                    moi=primary_moi
                 ))
             
         # Particles with bodyid == -1 are all guaranteed to be single-particles.
@@ -686,16 +622,8 @@ class Body:
                 if not any(b.primary_type == primary_type for b in bodies):
                     bodies.append(Body(
                         primary_type=primary_type,
-                        mass_by_type=(
-                            {}
-                            if primary_mass == 1
-                            else {f"{primary_type}": primary_mass}
-                        ),
-                        moi_by_type=(
-                            {}
-                            if primary_moi in [[0, 0, 0], [1, 1, 1]]
-                            else {f"{primary_type}": primary_moi}
-                        ),
+                        mass=primary_mass,
+                        moi=primary_moi,
                     ))
 
         return bodies
@@ -727,7 +655,10 @@ class Body:
         for p_t in rigid.body.keys():
             for k, v in rigid.body.items():
                 if v is not None:
-                    if p_t in v["constituent_types"] and rigid.body[p_t] is not None:
+                    if (
+                        p_t in v["constituent_types"]
+                        and rigid.body[p_t] is not None
+                    ):
                         raise ValueError("Nested bodies are not supported.")
 
         def unique(strings):
@@ -821,8 +752,8 @@ class Body:
             "secondary_types",
             "positions_by_type",
             "orientations_by_type",
-            "mass_by_type",
-            "moi_by_type"
+            "mass",
+            "moi"
         ]
         for required_arg in required_args:
             if required_arg not in data:
@@ -901,17 +832,14 @@ class Body:
         typeids = [0]
         positions = np.array([[0, 0, 0]], dtype=np.float32)
         orientations = np.array([[1, 0, 0, 0]], dtype=np.float32)
-        masses = [self.mass_by_type.get(self.primary_type, 1)]
-        mois = np.array(
-            [self.moi_by_type.get(self.primary_type, [1, 1, 1])],
-            dtype=np.float32
-        )
+        masses = [self.mass]
+        mois = np.array([self.moi], dtype=np.float32)
         bodyids = [0] if self.secondary_types else [-1]
 
         for t, ps in self.positions_by_type.items():
             os = self.orientations_by_type.get(t, [[1, 0, 0, 0] for _ in ps])
-            mass = self.mass_by_type.get(t, 1)
-            moi = self.moi_by_type.get(t, [1, 1, 1])
+            mass = 0
+            moi = [0, 0, 0]
             tid = types.index(t)
 
             typeids.extend([tid for _ in ps])
@@ -1071,8 +999,8 @@ class Body:
             secondary_types=self.secondary_types,
             positions_by_type=self.positions_by_type,
             orientations_by_type=self.orientations_by_type,
-            mass_by_type=self.mass_by_type,
-            moi_by_type=self.moi_by_type
+            mass=self.mass,
+            moi=self.moi
         )
 
     # -------------------------------- PLOTTING --------------------------------
@@ -1304,64 +1232,14 @@ class Body:
             )
         )
 
-        masses_same = (
-            self.mass_by_type == other.mass_by_type
-        )
-        masses_missing_from_self = (
-            set(other.mass_by_type) - set(self.mass_by_type)
-        )
-        masses_missing_from_other = (
-            set(self.mass_by_type) - set(other.mass_by_type)
-        )
-        common_types = set(self.mass_by_type).intersection(
-            set(other.mass_by_type)
-        )
-        masses_equivalent = (
-            all(
-                self.mass_by_type[t] == other.mass_by_type[t]
-                for t in common_types
-            )
-            and all(
-                other.mass_by_type[t] == 1.0 for t in masses_missing_from_self
-            )
-            and all(
-                self.mass_by_type[t] == 1.0 for t in masses_missing_from_other
-            )
-        )
+        masses_same = self.mass == other.mass
 
-        moi_same = (
-            self.moi_by_type == other.moi_by_type
-        )
-        moi_missing_from_self = (
-            set(other.moi_by_type) - set(self.moi_by_type)
-        )
-        moi_missing_from_other = (
-            set(self.moi_by_type) - set(other.moi_by_type)
-        )
-        common_types = set(self.moi_by_type).intersection(
-            set(other.moi_by_type)
-        )
-        moi_equivalent = (
-            all(
-                self.moi_by_type[t] == other.moi_by_type[t]
-                for t in common_types
-            )
-            and
-            all(
-                other.moi_by_type[t] == [1, 1, 1]
-                for t in moi_missing_from_self
-            )
-            and all(
-                self.moi_by_type[t] == [1, 1, 1]
-                for t in moi_missing_from_other
-            )
-        )
+        moi_same = self.moi == other.moi
 
         return (
             primary_same and secondary_same and positions_same
+            and masses_same and moi_same
             and (orientations_same or orientations_equivalent)
-            and (masses_same or masses_equivalent)
-            and (moi_same or moi_equivalent)
         )
     
     def __repr__(self) -> str:
@@ -1371,7 +1249,7 @@ class Body:
             + f"\n\tsecondary_types={self.secondary_types},"
             + f"\n\tpositions_by_type={self.positions_by_type},"
             + f"\n\torientations_by_type={self.orientations_by_type},"
-            + f"\n\tmass_by_type={self.mass_by_type},"
-            + f"\n\tmoi_by_type={self.moi_by_type},"
+            + f"\n\tmass={self.mass},"
+            + f"\n\tmoi={self.moi},"
             + "\n)"
         )

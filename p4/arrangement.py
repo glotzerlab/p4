@@ -633,18 +633,12 @@ class Arrangement:
             
             # Calculate quantities that do not vary between instances
             body_typeids = [types.index(body.primary_type)]
-            body_masses = [body.mass_by_type.get(body.primary_type, 1)]
-            body_mois = np.array(
-                [body.moi_by_type.get(body.primary_type, [1, 1, 1])],
-                dtype=np.float32
-            )
+            body_masses = [body.mass]
+            body_mois = np.array([body.moi], dtype=np.float32)
             for t, ps in body.positions_by_type.items():
                 body_typeids.extend([types.index(t) for _ in ps])
-                body_masses.extend([body.mass_by_type.get(t, 1) for _ in ps])
-                body_mois = np.vstack((
-                    body_mois,
-                    [body.moi_by_type.get(t, [1, 1, 1]) for _ in ps]
-                ))
+                body_masses.extend([0 for _ in ps])
+                body_mois = np.vstack((body_mois, [[0, 0, 0] for _ in ps]))
 
             # Add quantities that do not vary between instances
             for _ in self.positions_by_type[body.primary_type]:

@@ -53,6 +53,10 @@ Body Schema
 +================================+================================================================+======================+======================+
 | :bfield:`primary_type`         | :py:class:`str`                                                |                      |                      |
 +--------------------------------+----------------------------------------------------------------+----------------------+----------------------+
+| :bfield:`mass`                 | :py:class:`float`                                              |                      | ``1``                |
++--------------------------------+----------------------------------------------------------------+----------------------+----------------------+
+| :bfield:`moi`                  | :stype:`MoI`                                                   | (3,)                 | ``[1,1,1]``          |
++--------------------------------+----------------------------------------------------------------+----------------------+----------------------+
 | :bfield:`secondary_types`      | :py:class:`list`\ [:py:class:`str`\ ]                          | (T,)                 |                      |
 +--------------------------------+----------------------------------------------------------------+---------+------------+----------------------+
 |                                |                                                                |**Keys** | **Values** |                      |
@@ -60,10 +64,6 @@ Body Schema
 | :bfield:`positions_by_type`    | :py:class:`dict`\ [:py:class:`str`\ , :stype:`Positions`\ ]    |  (T,)   |   (P, 3)   |                      |
 +--------------------------------+----------------------------------------------------------------+---------+------------+----------------------+
 | :bfield:`orientations_by_type` | :py:class:`dict`\ [:py:class:`str`\ , :stype:`Orientations`\ ] |  (≤T,)  |   (P, 4)   | ``[[1,0,0,0], ...]`` |
-+--------------------------------+----------------------------------------------------------------+---------+------------+----------------------+
-| :bfield:`mass_by_type`         | :py:class:`dict`\ [:py:class:`str`\ , :py:class:`float`\ ]     |  (≤T,)  |            | ``1``                |
-+--------------------------------+----------------------------------------------------------------+---------+------------+----------------------+
-| :bfield:`moi_by_type`          | :py:class:`dict`\ [:py:class:`str`\ , :stype:`MoI`\ ]          |  (≤T,)  |   (3,)     | ``[1,1,1]``          |
 +--------------------------------+----------------------------------------------------------------+---------+------------+----------------------+
 
 
@@ -73,6 +73,22 @@ Body Schema
     :Required: Yes
 
     The name of the type of the primary (i.e., *central*) particle.
+
+.. bfield:: mass
+
+    :Type: :py:class:`float`
+    :Required: No
+
+    The mass of the primary type. If not provided, defaults to ``1``.
+
+.. bfield:: moi
+
+    :Type: :stype:`MoI`
+    :Shape: (3,)
+    :Required: No
+
+    The moment of inertia of the primary type. If not provided, defaults to
+    ``[1,1,1]``.
 
 .. bfield:: secondary_types
 
@@ -102,26 +118,6 @@ Body Schema
     A mapping from secondary types to orientations in quaternion form. If not
     provided for some secondary type ``t``, defaults to an array of
     ``[1,0,0,0]`` quaternions with the same length as ``positions_by_type[t]``.
-
-.. bfield:: mass_by_type
-
-    :Type: :py:class:`dict`\ [:py:class:`str`\ , :py:class:`float`\ ]
-    :Shape: keys: (≤T,)
-    :Required: No
-    :Restrictions: Keys are limited to those in :bfield:`positions_by_type`.
-
-    The mapping from secondary type names to mass. If not provided for some
-    type, defaults to ``1``.
-
-.. bfield:: moi_by_type
-
-    :Type: :py:class:`dict`\ [:py:class:`str`\ , :stype:`MoI`\ ]
-    :Shape: keys: (≤T,); values: (P, 4)
-    :Required: No
-    :Restrictions: Keys are limited to those in :bfield:`positions_by_type`.
-
-    The mapping from secondary type names to moment of inertia. If not provided
-    for some type, defaults to ``[1,1,1]``.
 
 
 ----

@@ -104,6 +104,17 @@ field of the system using the code below.
         csv_filename=data_path+"/field.csv",    # change to fit your system
     )
 
+.. note::
+    The ``quantities`` argument determines what you measure. You can pass one or
+    more of the following options:
+
+    * ``"U"`` - potential energy
+    * ``"F"`` - net force
+    * ``"T"`` - net torque
+
+    For more information about these quantities, see the documentation for
+    :py:meth:`~p4.system.System.measure`.
+
 This method saves a csv file that records the potential energy at each position
 and orientation under the name "field.csv" in the current directory. You can
 then visualize this field using :py:class:`~p4.Field`.

@@ -613,9 +613,9 @@ class System:
         ----------
         quantities : one or more of 'U', 'F', 'T'
             The quantities to measure. 'U' is the potential energy measured for
-            the entire system, and is saved as a single scalar quantity. 'F' and
-            'T' are the net Force and Torque experienced by the probe, and are
-            saved as vector quantities.
+            the entire system, and is saved as a scalar quantity. 'F' and 'T'
+            are the net force and torque experienced by the probe, and are saved
+            as vector quantities.
         positions : (N, 3) array of floats
             The positions at which to measure.
         orientations : (4,), (M, 4), or (N, M, 4) array of floats

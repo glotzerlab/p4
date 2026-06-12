@@ -47,6 +47,11 @@ class Body:
     adhering to the :ref:`body-schema`. This rule is enforced by
     :py:meth:`~p4.body.Body.validate`.
 
+    .. note::
+        Mass and moment of inertia can be set for the primary type, in the
+        corresponding snapshot, but these quantities do not affect the
+        fields measured with ``System.measure()``.
+
     Parameters
     ----------
     primary_type : str

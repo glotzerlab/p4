@@ -53,19 +53,27 @@ class Interaction:
     Parameters
     ----------
     hoomd_class : hoomd.md.pair.Pair
-        The constructor for the HOOMD class. Must be in the ``hoomd.md.pair``
-        module or one of its submodules.
-    initial_args : dict[str, float | str]
+        A HOOMD-blue MD pairwise potential type. Must be in the
+        ``hoomd.md.pair`` module or one of its submodules. Cannot be one of the
+        following types: :py:class:`~hoomd.md.pair.aniso.AnisotropicPair`,
+        :py:class:`~hoomd.md.pair.aniso.Patchy`,
+        :py:class:`~hoomd.md.pair.friction.FrictionalPair`.
+    initial_args : dict
         All parameters (except for ``nlist``) that are needed for instantiating
         the class from its constructor.
     default_params : dict
         The names and values of parameters that will be set by default for
-        all single and pair types. To determine the params for a given
-        class, consult the `HOOMD-blue documentation
-        <https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/module-pair.html>`__.
+        all particle types and pairs of types. To determine the names and values
+        required for parametrizing the HOOMD-class, consult the
+        `documentation`_.
     typed_params : dict
-        A mapping of single and pair types to parameter names and values. These
-        names and values will override those from ``default_params``.
+        A mapping of particle types and pairs of types to parameter names and
+        values. These names and values will override the default parameters for
+        those particle types. Consult the documentation to determine the
+        allowed parameter names and values.
+
+    
+    .. _documentation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/module-pair.html
 
 
     Example
@@ -95,9 +103,9 @@ class Interaction:
     def __init__(
         self,
         hoomd_class: hoomd.md.pair.Pair,
-        initial_args: dict[str, float | str],
-        default_params: dict[str, float],
-        typed_params: dict[str, float],
+        initial_args: dict,
+        default_params: dict,
+        typed_params: dict,
     ):
         # Validate inputs
         def cls_to_str(cls):

@@ -715,7 +715,7 @@ def get_valid_simulations_and_kwargs():
     rigid.create_bodies(simulation.state)
     simulation.operations.integrator.rigid = rigid
 
-    snapshot = simulation.state.get_snapshot()              # TODO: return here - from_hoomd_simulation is getting wrong moi values
+    snapshot = simulation.state.get_snapshot()
     for i, tid in enumerate(snapshot.particles.typeid):
         if snapshot.particles.types[tid] == "D":
             snapshot.particles.mass[i] = 0

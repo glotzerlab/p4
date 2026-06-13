@@ -136,7 +136,7 @@ autoclasstoc_sections = [
 def setup(app):
     app.add_css_file("custom.css")
     app.add_object_type(
-        'stype', 'stype', objname='Schema type', indextemplate='type: %s (schema common type)'
+        'stype', 'stype', objname='Schema type', indextemplate='%s (schema common type)'
     )
     app.add_object_type(
         'bfield', 'bfield', objname='Body schema field', indextemplate='%s (body schema field)'

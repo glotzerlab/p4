@@ -110,7 +110,7 @@ secondary types.
 
 Orthogonal slices of bodies can also be plotted. This is especially useful when
 overlaying a body's extents on a plot of its field (see 
-:doc:`measuring-fields`).
+:doc:`measuring-fields-body`).
 
 .. code-block:: python
 

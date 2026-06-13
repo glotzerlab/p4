@@ -1,8 +1,8 @@
-.. _measuring-fields:
+.. _measuring-fields-body:
 
-================
-Measuring Fields
-================
+==============================
+Measuring Fields Around a Body
+==============================
 
 Together, particle models and interaction models define a *system* with a unique
 set of energy and force fields. Appropriately, in p4 this combination is

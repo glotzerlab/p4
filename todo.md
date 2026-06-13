@@ -15,6 +15,7 @@ TBD
 - [ ] Add support for VTK
 - [ ] add shape overlap exclusion sampling
 - [ ] add dynamical mesh sampling
+- [ ] fix issue where passing n_processes=-1 with super low resolution causes StopIteration error in table - the fix is to restrict the number of processes allowed based on the resolution
 
 Possible performance improvements:
   - [ ] switch from nested for-loop to single computation over many spaced-out configurations

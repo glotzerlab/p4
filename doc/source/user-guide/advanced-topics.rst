@@ -135,7 +135,7 @@ To place data from one figure into another figure, use Plotly's
 in :doc:`measuring-fields-body`.) Only 3D data can be added to 3D plots and
 only 2D data can be added to 2D plots.
 
-.. _Figure.add_trace(): https://plotly.com/python-api-reference/generated/generated/plotly.graph_objects.Figure.add_traces.html)
+.. _Figure.add_trace(): https://plotly.com/python-api-reference/generated/generated/plotly.graph_objects.Figure.add_traces.html
 
 .. code-block::
 

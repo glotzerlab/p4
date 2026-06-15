@@ -16,6 +16,7 @@ from .types import PositionsLike, OrientationLike, OrientationsLike
 from .body import Body
 from .interaction import Interaction
 from .arrangement import Arrangement
+from .field import Field
 
 class System:
     """A System is defined by a probe, an analyte, and their interactions.
@@ -569,12 +570,12 @@ class System:
         quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
         positions: PositionsLike,
         orientations: OrientationLike | OrientationsLike | Iterable[OrientationsLike],
-        csv_filename: os.PathLike,
+        filename: os.PathLike | None = None,
         n_processes: int = -1,
         save_gsd: bool = False,
         nlist: hoomd.md.nlist.NeighborList | None = None,
-    ):
-        """Measure named quantities for the system.
+    ) -> Field:
+        """Measure named quantities for the system and return them as a field.
 
         This method coordinates the parallelization of the measurement
         simulations and the merging, cleaning, and formatting of the resulting
@@ -624,8 +625,9 @@ class System:
             If the array is 3D, it and ``positions`` must have identically-sized
             first axes (i.e., if ``positions`` has the shape ``(N, 3)``,
             ``orientations`` must have the shape ``(N, M, 4)``).
-        csv_filename : str
-            The name or path for the output CSV file.
+        filename : os.PathLike, optional
+            The name or path for a file containing the measurement data. If not
+            provided, no file is written. Must end in '.csv'.
         n_processes : int, default=-1
             The number of processes to distribute the measure operation between.
             Parallelization is implemented at the Python level, so each process
@@ -671,6 +673,13 @@ class System:
             or probe_orientations.shape[-1] == 4
         ):
             raise ValueError("Could not broadcast orientations onto positions.")
+        
+        # Ensure filename has correct extension
+        if (
+            filename is not None
+            and str(filename).rsplit(".")[-1] not in (".csv", ".CSV")
+        ):
+            raise ValueError("`filename` be None or a string ending in '.csv'.")
         
         # Calculate a simulation box that contains all the particles
         max_distance = probe_positions.max()
@@ -742,7 +751,7 @@ class System:
             with multiprocessing.Pool(processes=n_processes) as pool:
                 if save_gsd:
                     gsd_filenames = [
-                        csv_filename.rsplit(".", 1)[0] + f"_{i}.gsd"
+                        filename.rsplit(".", 1)[0] + f"_{i}.gsd"
                         for i in range(n_processes)
                     ]
                 else:
@@ -765,7 +774,7 @@ class System:
         # If not multiprocessing, don't initialize a pool (easier for debugging)
         else:
             if save_gsd:
-                gsd_filename = csv_filename.rsplit(".", 1)[0] + ".gsd"
+                gsd_filename = filename.rsplit(".", 1)[0] + ".gsd"
             else:
                 gsd_filename = None
             table = util.simulation.measure(
@@ -781,9 +790,30 @@ class System:
 
             table = util.data.clean_header(table)
 
-        with open(csv_filename, "w") as file:
-            table.seek(0)
-            file.write(table.read())
+        # Write file if necessary
+        if filename is not None:
+            with open(filename, "w") as file:
+                table.seek(0)
+                file.write(table.read())
+        
+        # Create Field
+        table.seek(0)
+        columns = table.readline().strip("\n").split(",")
+
+        table.seek(0)
+        return Field(
+            np.rec.array(
+                np.genfromtxt(
+                    table,
+                    names=columns,
+                    skip_header=1,
+                    dtype=None,
+                    delimiter=","
+                )
+            )
+        )
+        
+
 
     # --------------------------------- OTHER ----------------------------------
 

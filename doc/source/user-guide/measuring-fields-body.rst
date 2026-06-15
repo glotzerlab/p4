@@ -57,12 +57,11 @@ isotropic, torque will be zero everywhere.)
         resolution=[30, 30, 30]
     )
 
-    system.measure(
+    field = system.measure(
         quantities=["U", "F"],
         positions=positions,
         orientations=[1, 0, 0, 0], # <-- note: single orientation
-        csv_filename=data_path+"/ac-lj-uf.csv",
-    )
+            )
 
 .. note::
     Recall that the following options may be passed in ``quantities``:
@@ -82,16 +81,9 @@ isotropic, torque will be zero everywhere.)
 
 .. _multiprocessing module: https://docs.python.org/3/library/multiprocessing.html
 
-:py:meth:`~p4.system.System.measure` writes all of the measurements into a CSV
-file. To analyze and view the fields, import that CSV file using the
-:py:class:`Field` class.
-
-.. code-block:: python
-
-    field = p4.Field.from_csv(data_path+"/ac-lj-uf.csv")
-
-Since everything is isotropic, we only conducted measurements over a single probe
-orientation, so the field can be plotted immediately.
+:py:meth:`~p4.system.System.measure` returns the measurement data as a
+:py:class:`Field`. Since everything is isotropic, we only conducted measurements
+over a single probe orientation, and the field can be plotted immediately.
 
 .. code-block:: python
 
@@ -283,14 +275,11 @@ Let's create the system and measure its energy, and force fields.
         box=[5, 5, 5],
         resolution=[20, 20, 20]
     )
-    system.measure(
+field = system.measure(
         quantities=["U", "F", "T"],
         positions=positions,
         orientations=[1, 0, 0, 0],
-        csv_filename=data_path+"/abd-aljg-uft.csv",
-    )
-
-    field = p4.Field.from_csv(data_path+"/abd-aljg-uft.csv")
+            )
     
     fig, tr = field.plot("U", clim=[-0.2, 1], fill_nan_with_inf=True)
     fig.show()
@@ -379,26 +368,32 @@ orientations required for accurate sampling of orientation-space.
         resolution=[15, 15, 15]
     )
     orientations = p4.orientations_from_fibonacci_lattice(n=10, group="O")
-    system2.measure(
+field = system2.measure(
         quantities=["U", "F", "T"],
         positions=positions,
         orientations=orientations,
-        csv_filename=data_path+"/abcd-aljg-uft.csv",
-    )
+            )
 
 .. note::
     We must double the size of the box containing the positions, because the
     effective shape of the repulsive cube (as experienced by another repulsive
-    cube) is double the size of the original cube. This will be evident in a
-    plot below.
+    cube) is double the size of the original cube. This will be evident in the
+    plots below.
 
-As before, we can create a ``Field`` from the output CSV, but this time we
+.. note::
+    Measuring over multiple orientations at each position quickly becomes
+    computationally expensive, so HPC resources are often necessary when
+    measuring anisotropic fields. When running measurement jobs on external
+    systems, consider passing the ``filename`` parameter to continuously save
+    measurement data to disk. This ensures that data is not lost in the case of
+    exceeded walltime, service outages, etc. For more information, see
+    :py:meth:`~p4.system.System.measure`.
+
+As before, ``system2.measure()`` produces a ``Field``, but this time we
 must decide how to handle the multiple orientations. The simplest thing to do
 is to average over them.
 
 .. code-block:: python
-
-    field = p4.Field.from_csv(data_path+"/abcd-aljg-uft.csv")
     
     avg_u = field.aggregate_over_orientations(quantity="U", method="mean")
 

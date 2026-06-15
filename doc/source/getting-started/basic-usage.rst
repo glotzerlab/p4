@@ -90,18 +90,15 @@ field of the system using the code below.
 
 .. code:: python
 
-    data_path = "doc/source/data" # change to your own directory path
-
     positions = p4.positions_on_regular_grid(
         box=[10, 10, 10],
         resolution=[10, 10, 10]
     )
 
-    system.measure(
+    field = system.measure(
         quantities=["U"],
         positions=positions,                    # change to fit your system
         orientations=[1, 0, 0, 0],              # change to fit your system
-        csv_filename=data_path+"/field.csv",    # change to fit your system
     )
 
 .. note::
@@ -115,15 +112,12 @@ field of the system using the code below.
     For more information about these quantities, see the documentation for
     :py:meth:`~p4.system.System.measure`.
 
-This method saves a csv file that records the potential energy at each position
-and orientation under the name "field.csv" in the current directory. You can
-then visualize this field using :py:class:`~p4.Field`.
+This method returns a :py:class:`~p4.field.Field`, which has a plotting method
+for visualizing the measured quantities. The potential energy can be plotted as
+a 3D volume, or as a slice in 2D or 1D---for more information, see
+:py:meth:`~p4.field.Field.plot`.
 
-.. code:: python
-
-    # change path to fit your system
-    field = p4.Field.from_csv(data_path+"/field.csv")  
-
+.. note::
 If you measured the potential energy at multiple orientations, you must
 aggregate the field's quantities over those orientations before plotting.
 

@@ -92,15 +92,12 @@ if __name__ == "__main__":
         resolution=[10, 10, 10]
     )
 
-    system.measure(
+    field = system.measure(
         quantities=["U"],
         positions=positions,                    # change to fit your system
         orientations=[1, 0, 0, 0],              # change to fit your system
-        csv_filename=data_path+"/field.csv",    # change to fit your system
+        n_processes=1
     )
-
-    # --
-    field = p4.Field.from_csv(data_path+"/field.csv")
 
     # --
     average_field = field.aggregate_over_orientations("U", "mean")
@@ -227,15 +224,11 @@ if __name__ == "__main__":
         resolution=[30, 30, 30]
     )
 
-    system.measure(
+    field = system.measure(
         quantities=["U", "F"],
         positions=positions,
         orientations=[1, 0, 0, 0], # <-- note: single orientation
-        csv_filename=data_path+"/ac-lj-uf.csv",
     )
-
-    # --
-    field = p4.Field.from_csv(data_path+"/ac-lj-uf.csv")
 
     # --
     fig, tr = field.plot("U")
@@ -360,14 +353,11 @@ if __name__ == "__main__":
         box=[5, 5, 5],
         resolution=[20, 20, 20]
     )
-    system.measure(
+    field = system.measure(
         quantities=["U", "F", "T"],
         positions=positions,
         orientations=[1, 0, 0, 0],
-        csv_filename=data_path+"/abd-aljg-uft.csv",
     )
-
-    field = p4.Field.from_csv(data_path+"/abd-aljg-uft.csv")
 
     fig, tr = field.plot("U", clim=[-0.2, 1], fill_nan_with_inf=True)
     fig.update_layout(**FIELD_3D_LAYOUT)
@@ -420,16 +410,13 @@ if __name__ == "__main__":
         resolution=[15, 15, 15]
     )
     orientations = p4.orientations_from_fibonacci_lattice(n=10, group="O")
-    system2.measure(
+    field = system2.measure(
         quantities=["U", "F", "T"],
         positions=positions,
         orientations=orientations,
-        csv_filename=data_path+"/abcd-aljg-uft.csv",
     )
 
     # --
-    field = p4.Field.from_csv(data_path+"/abcd-aljg-uft.csv")
-
     avg_u = field.aggregate_over_orientations(quantity="U", method="mean")
 
     fig, tr = avg_u.plot(fill_nan_with_inf=True)

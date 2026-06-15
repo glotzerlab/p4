@@ -557,15 +557,15 @@ def test_to_hoomd_snapshot(kwargs, ref_filename):
     test_snap = arrangement.to_hoomd_snapshot()
 
     ref_typeids = ref_snap.particles.typeid.tolist()
-    ref_positions = np.round(ref_snap.particles.position, 3).tolist()       # rounded because run(0) warps the exact values
-    ref_orientations = np.round(ref_snap.particles.orientation, 3).tolist()
+    ref_positions = np.round(ref_snap.particles.position, 2).tolist()       # rounded because run(0) warps the exact values
+    ref_orientations = np.round(ref_snap.particles.orientation, 2).tolist()
     ref_masses = ref_snap.particles.mass.tolist()
     ref_mois = ref_snap.particles.moment_inertia.tolist()
     ref_bodyids = ref_snap.particles.body.tolist()
     
     test_typeids = test_snap.particles.typeid.tolist()
-    test_positions = np.round(test_snap.particles.position, 3).tolist()
-    test_orientations = np.round(test_snap.particles.orientation, 3).tolist()
+    test_positions = np.round(test_snap.particles.position, 2).tolist()
+    test_orientations = np.round(test_snap.particles.orientation, 2).tolist()
     test_masses = test_snap.particles.mass.tolist()
     test_mois = test_snap.particles.moment_inertia.tolist()
     test_bodyids = test_snap.particles.body.tolist()

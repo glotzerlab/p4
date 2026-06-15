@@ -30,7 +30,7 @@ pytest <path_to_p4>/test
 1. Install documentation requirements:
 
 ```
-pip install <path_to_p4>[docs]
+pip install <path_to_p4>[dev]
 ```
 
 2. Navigate to p4's `doc` directory and run

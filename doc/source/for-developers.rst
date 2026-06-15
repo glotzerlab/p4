@@ -124,7 +124,7 @@ To build the documentation, first install the dependencies.
 
 .. code:: bash
 
-   pip install <path_to_p4>[docs]
+   pip install <path_to_p4>[dev]
 
 Then navigate to the ``doc`` directory and run
 

@@ -1,4 +1,4 @@
-.. _basic usage:
+.. _basic-usage:
 
 ===========
 Basic Usage
@@ -47,18 +47,20 @@ example simulation using the code below.
     example_simulation.operations.integrator.forces.append(lj)
 
 You can directly parse your simulation to extract its rigid constraint as one or
-more :py:class:`~p4.Body`. A ``Body`` is a collection of particle types, with
-one type ("primary") located at the body's center, and the other types
-("secondary") at specified positions around the primary particle.
+more :py:class:`~p4.body.Body` objects. A ``Body`` is a collection of particle
+types, with one "primary" type located at the body's center, and any number of
+other "secondary" types placed at specified positions and orientations around
+the primary type.
 
 .. code:: python
 
     body = p4.Body.from_hoomd_simulation(example_simulation)
 
 Likewise, you can parse your simulation to extract its pairwise forces as one
-or more :py:class:`~p4.Interaction`. An ``Interaction`` is essentially a python
-dictionary containing all the information needed to create and parameterize a
-HOOMD-blue `MD pairwise force`_ for any number of interacting particle types.
+or more :py:class:`~p4.interaction.Interaction`. An ``Interaction`` is
+essentially a python dictionary containing all the information needed to create
+and parameterize a HOOMD-blue `MD pairwise force`_ for any number of
+interacting particle types.
 
 .. _MD pairwise force: https://hoomd-blue.readthedocs.io/en/v7.0.1/hoomd/md/module-pair.html
 
@@ -66,12 +68,8 @@ HOOMD-blue `MD pairwise force`_ for any number of interacting particle types.
 
     interactions = p4.Interaction.from_hoomd_simulation(example_simulation)
 
-These objects can then be printed to show their primary and secondary types
-(in the case of ``body``) and their interacting types (in the case of
-``interactions``).
-
-If you already know the types of your particles of interest, you can parse a
-simulation directly into a :py:class:`~p4.System` using
+If you already know the types of your particles of interest, you can parse your
+simulation directly into a :py:class:`~p4.system.System` using
 
 .. code:: python
 
@@ -81,12 +79,12 @@ simulation directly into a :py:class:`~p4.System` using
         analyte_primary_type="A"    # change to fit your system
     )
 
-A ``System`` is a combination of a probe ``Body``, an analyte ``Body``, and a list
-of ``Interaction`` that define how the particles in the bodies can interact. A
-system has unique energy and force fields, which describe the effective action
-experienced by the probe body as it is moved to various positions and
-orientations around the static analyte. You can measure the potential energy
-field of the system using the code below.
+A ``System`` is a combination of a probe ``Body``, an analyte ``Body``, and a
+list of ``Interaction`` objects that define how the particles in the bodies can
+interact. A system has unique energy and force fields, which describe the
+effective action experienced by the probe body as it is moved to various
+positions and orientations around the static analyte. You can measure the
+potential energy field of the system using the code below.
 
 .. code:: python
 
@@ -118,19 +116,18 @@ a 3D volume, or as a slice in 2D or 1D---for more information, see
 :py:meth:`~p4.field.Field.plot`.
 
 .. note::
-If you measured the potential energy at multiple orientations, you must
-aggregate the field's quantities over those orientations before plotting.
+    If you measured the potential energy at multiple orientations, you must
+    aggregate the field's quantities over those orientations before plotting.
+    For example,
 
-.. code:: python
+    .. code-block::
+        
+        average_field = field.aggregate_over_orientations("U", "mean")
+    
+    The ``"mean"`` option causes the method to average the potential energy at
+    each position over all orientations. Other options are available---for more
+    information, see :py:meth:`~p4.field.Field.aggregate_over_orientations`.
 
-    average_field = field.aggregate_over_orientations("U", "mean")
-
-The ``"mean"`` option causes the method to average the potential energy at each
-position over all orientations. Other options are available---see
-:py:meth:`~p4.Field.aggregate_over_orientations`.
-
-The potential energy can be plotted as a 3D volume, or as a slice in 2D or
-1D---see :py:meth:`~p4.Field.plot`.
 
 .. code:: python
     

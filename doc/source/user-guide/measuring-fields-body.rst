@@ -157,6 +157,7 @@ Individual components of the force can also be plotted as scalars.
 .. raw:: html
     :file: ../data/ac-lj-fx-2d.html
 
+
 Anisotropic Fields
 ------------------
 

@@ -61,7 +61,7 @@ isotropic, torque will be zero everywhere.)
         quantities=["U", "F"],
         positions=positions,
         orientations=[1, 0, 0, 0], # <-- note: single orientation
-            )
+    )
 
 .. note::
     Recall that the following options may be passed in ``quantities``:
@@ -276,11 +276,11 @@ Let's create the system and measure its energy, and force fields.
         box=[5, 5, 5],
         resolution=[20, 20, 20]
     )
-field = system.measure(
+    field = system.measure(
         quantities=["U", "F", "T"],
         positions=positions,
         orientations=[1, 0, 0, 0],
-            )
+    )
     
     fig, tr = field.plot("U", clim=[-0.2, 1], fill_nan_with_inf=True)
     fig.show()
@@ -369,11 +369,11 @@ orientations required for accurate sampling of orientation-space.
         resolution=[15, 15, 15]
     )
     orientations = p4.orientations_from_fibonacci_lattice(n=10, group="O")
-field = system2.measure(
+    field = system2.measure(
         quantities=["U", "F", "T"],
         positions=positions,
         orientations=orientations,
-            )
+    )
 
 .. note::
     We must double the size of the box containing the positions, because the

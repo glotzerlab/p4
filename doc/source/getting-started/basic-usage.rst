@@ -12,7 +12,7 @@ into most of the major classes. If you do not have an existing simulation but
 wish to follow along to this quickstart guide, you can quickly create an
 example simulation using the code below.
 
-.. code:: python
+.. code-block:: python
 
     import p4
     import hoomd
@@ -62,7 +62,7 @@ types, with one "primary" type located at the body's center, and any number of
 other "secondary" types placed at specified positions and orientations around
 the primary type.
 
-.. code:: python
+.. code-block:: python
 
     body = p4.Body.from_hoomd_simulation(example_simulation)
 
@@ -74,14 +74,14 @@ interacting particle types.
 
 .. _MD pairwise force: https://hoomd-blue.readthedocs.io/en/v7.0.1/hoomd/md/module-pair.html
 
-.. code:: python
+.. code-block:: python
 
     interactions = p4.Interaction.from_hoomd_simulation(example_simulation)
 
 If you already know the types of your particles of interest, you can parse your
 simulation directly into a :py:class:`~p4.system.System` using
 
-.. code:: python
+.. code-block:: python
 
     system = p4.System.from_hoomd_simulation(
         example_simulation,
@@ -96,7 +96,7 @@ effective action experienced by the probe body as it is moved to various
 positions and orientations around the static analyte. You can measure the
 potential energy field of the system using the code below.
 
-.. code:: python
+.. code-block:: python
 
     positions = p4.positions_on_regular_grid(
         box=[10, 10, 10],
@@ -139,7 +139,7 @@ a 3D volume, or as a slice in 2D or 1D---for more information, see
     information, see :py:meth:`~p4.field.Field.aggregate_over_orientations`.
 
 
-.. code:: python
+.. code-block:: python
     
     fig, tr = field.plot()
     fig.show()

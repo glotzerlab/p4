@@ -32,6 +32,7 @@ extensions = [
     # "sphinx_autodoc_typehints", # possibly remove for type aliases
     "sphinx_copybutton",
     "autoclasstoc",
+    "sphinx_design",
 ]
 
 # For sphincontrib.bibtex (as of v2.0).

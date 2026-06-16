@@ -51,5 +51,15 @@ dl.py.class dd hr {
 
 /* Scale the section titles down a bit */
 h2 {
+  font-size: xx-large;
+}
+h3 {
   font-size: x-large;
+}
+
+/* Grid headers for 2-column code examples*/
+.rubric.grid-header {
+  margin: 0 auto 0 auto;
+  font-weight: normal;
+  font-style: italic
 }

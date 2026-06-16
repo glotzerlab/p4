@@ -434,3 +434,111 @@ if __name__ == "__main__":
     fig, tr = avg_f.plot(slice=dict(z=0), vectors=True)
     fig.update_layout(**FIELD_PLOT_DIMENSIONS)
     fig.write_html(data_path+"/abcd-aljg-avg-f-vector-2d.html", include_plotlyjs='cdn')
+
+   # ------------------------- User Guide: Arrangements ------------------------
+    arrangement = p4.Arrangement(
+        bodies=[
+            p4.Body(
+                primary_type="A",
+                secondary_types=["B"],
+                positions_by_type=dict(B=[[0, 0, -1], [0, 0, 1]])
+            )
+        ],
+        positions_by_type=dict(
+            A=[
+                [-1, -1, 0],
+                [-1,  1, 0],
+                [ 1, -1, 0],
+                [ 1,  1, 0]
+            ]
+        )
+    )
+
+    fig, _ = arrangement.plot()
+    fig.update_layout(**BODY_3D_LAYOUT)
+    fig.write_html(data_path+"/arrangement-1body.html", include_plotlyjs='cdn')
+
+    # --
+    arrangement2 = p4.Arrangement(
+        bodies=[
+            p4.Body(
+                primary_type="A",
+                secondary_types=["B"],
+                positions_by_type=dict(B=[[0, 0, -1], [0, 0, 1]])
+            ),
+            p4.Body(
+                primary_type="C",
+            )
+        ],
+        positions_by_type=dict(
+            A=[
+                [-1, -1, 0],
+                [ 1,  1, 0]
+            ],
+            C=[
+                [-1,  1, 0],
+                [ 1, -1, 0],
+            ],
+        )
+    )
+
+    fig, _ = arrangement2.plot()
+    fig.update_layout(**BODY_3D_LAYOUT)
+    fig.write_html(data_path+"/arrangement-2bodies.html", include_plotlyjs='cdn')
+
+    # --
+    system = p4.System(
+        probe=p4.Body("C"),
+        analyte=arrangement,
+        interactions=[
+            # A-C repulsion
+            p4.Interaction(
+                hoomd_class=hoomd.md.pair.Gaussian,
+                initial_args={},
+                default_params=dict(
+                    r_cut=0,
+                    params=dict(epsilon=0, sigma=1)
+                ),
+                typed_params={
+                    ("A", "C"): dict(
+                        r_cut=4,
+                        params=dict(epsilon=10, sigma=0.5)
+                    )
+                }
+            ),
+
+            # B-C attraction
+            p4.Interaction(
+                hoomd_class=hoomd.md.pair.Gaussian,
+                initial_args={},
+                default_params=dict(
+                    r_cut=0,
+                    params=dict(epsilon=0, sigma=1)
+                ),
+                typed_params={
+                    ("B", "C"): dict(
+                        r_cut=4,
+                        params=dict(epsilon=-1, sigma=1)
+                    )
+                }
+            ),
+        ]
+    )
+
+    positions = p4.positions_on_regular_grid(
+        box=[6, 6, 6],
+        resolution=[30, 30, 30]
+    )
+
+    field = system.measure(
+        quantities=["U"],
+        positions=positions,
+        orientations=[1, 0, 0, 0],
+        n_processes=2
+    )
+
+    _, tr = arrangement.plot()
+    fig, _ = field.plot(clim=[-1, 1], opacityscale_scalar_3d="extremes")
+    fig.add_traces(tr)
+    fig.update_layout(**FIELD_3D_LAYOUT)
+    fig.write_html(data_path+"/arrangement-abc-u-scalar3d.html", include_plotlyjs='cdn')

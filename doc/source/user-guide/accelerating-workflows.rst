@@ -452,7 +452,7 @@ Next, we populate the Signac project with jobs.
                         .init()
                 )
 
-                # Create arrangement using density
+                # Create arrangement using rho
                 arrangement = p4.Arrangement(
                     bodies=[p4.Body("A")],
                     positions_by_type=dict(A=[...])
@@ -567,7 +567,7 @@ the parameters in the statepoint.
                 rho = job.sp.rho
                 
                 # Make the snapshot
-                # using the density...
+                # using rho...
                 # then return the snapshot
 
             def make_pair(job):

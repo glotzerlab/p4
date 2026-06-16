@@ -826,6 +826,8 @@ class Field:
         marker_size_1d: float = 6,
         line_width_1d: float = 2,
         ylim_1d: list[float] | None = None,
+        opacity_scalar_3d: float = 0.2,
+        opacityscale_scalar_3d: float | str = "uniform",
         **kwargs
     ) -> tuple[plotly.graph_objects.Figure, list]:
         """Interactively plot the field using `Plotly`_.
@@ -882,6 +884,14 @@ class Field:
         ylim_1d : list[float], optional
             In a 1D scalar plot, the limits of the y axis. Defaults to the
             0th and 90th percentile of the plotted quantity.
+        opaopacity_scalar_3dcity : float, default=0.2
+            In a 3D scalar plot, the opacity of the surface. Passed directly to
+            ``plotly.graph_objects.Volume()``.
+        opacityscale_scalar_3d : float | str, default='uniform'
+            In a 3D scalar plot, the mapping between data values and opacity
+            values. Specified as either an array of value pairs or as a string
+            referring to the name of a preset scale. Passed directly to
+            ``plotly.graph_objects.Volume()``.
         **kwargs
             Other keyword arguments are passed to ``p4.plot_layout()``.
             TODO: add link.
@@ -956,6 +966,30 @@ class Field:
             )
         ):
             raise ValueError("`ylim_1d` must be a list of 2 floats.")
+    
+        # Ensure that opacity is correct
+        accepted_presets = ["min", "max", "extremes", "uniform"]
+        if opacity_scalar_3d < 0 or opacity_scalar_3d > 1:
+            raise ValueError("`opacity_scalar_3d` must be between 0 and 1.")
+        if not (
+            (
+                isinstance(opacityscale_scalar_3d, Iterable)
+                and not isinstance(opacityscale_scalar_3d, str)
+                and all(
+                    len(i) == 2 and all(isinstance(j, numbers.Real))
+                    for i in opacity_scalar_3d
+                    for j in i
+                )
+            )
+            or (
+                isinstance(opacityscale_scalar_3d, str)
+                and opacityscale_scalar_3d in accepted_presets
+            )
+        ):
+            raise ValueError(
+                "`opacityscale_scalar_3d` must be an array of length-2 arrays "
+                + "or a valid string. See https://plotly.com/python/reference/volume/#volume-opacityscale."
+            )
         
         # Infer quantity if necessary
         if quantity is None:
@@ -999,6 +1033,8 @@ class Field:
                     cmap=cmap,
                     fill_nan_with_inf=fill_nan_with_inf,
                     show_cbar=show_cbar,
+                    opacity=opacity_scalar_3d,
+                    opacityscale=opacityscale_scalar_3d,
                 )
             elif len(slice) == 1:
                 trace = self._plot_trace_scalar_2d(
@@ -1066,6 +1102,8 @@ class Field:
         clim: list[float] | None,
         contours: int,
         cmap: str,
+        opacity: float,
+        opacityscale: float | str,
         fill_nan_with_inf: bool,
         show_cbar: bool,
     ) -> plotly.graph_objs._volume.Volume:
@@ -1086,6 +1124,14 @@ class Field:
         cmap : str
             The name of the Plotly colormap to use. Only used in 3D and 2D
             scalar plots and 3D vector plots.
+        opacity : float
+            The opacity of the surface. Passed directly to the plotly trace's
+            constructor.
+        opacityscale : float | str
+            The mapping between data values and opacity values. Specified as
+            either an array of value pairs or as a string referring to the name
+            of a preset scale. Passed directly to the plotly trace's
+            constructor.
         fill_nan_with_inf : bool
             Whether to plot NaN values as though they were very large values.
             Only used in 3D and 2D scalar plots.
@@ -1127,7 +1173,8 @@ class Field:
             value=array.flatten(),
             isomin=min(clim),
             isomax=max(clim),
-            opacity=0.1,
+            opacity=opacity,
+            opacityscale=opacityscale,
             surface_count=contours,
             colorscale=cmap,
             showscale=show_cbar,

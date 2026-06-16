@@ -888,7 +888,7 @@ class Interaction:
         for param_dict in self.typed_params.values():
             max_r_cut = max(max_r_cut, param_dict.get("r_cut", 0))
 
-        box_length = 1.1 * 2 * max(max_r_cut, max(r))
+        box_length = 1.1 * 2 * (max(max_r_cut, max(r)) + 2) # +2 from nlist
 
         measure_kwargs = dict(
             quantities="U",

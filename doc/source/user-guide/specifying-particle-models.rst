@@ -15,9 +15,11 @@ secondary types the "constituent" particles.
 
 .. _Rigid Constraint: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/constrain/rigid.html
 
-In p4, the particle model is expressed in the :py:class:`Body` class. Within
-this class, the first/required particle type is called the "primary type", and
-all subsequent types are called "secondary types".
+In p4, the particle model is expressed in the :py:class:`~p4.body.Body` class.
+Within this class, the first/required particle type is called the "primary
+type", and all subsequent types are called "secondary types".
+
+.. _body-orientation-note:
 
 .. note::
     Since secondary type orientations are only used when secondary types

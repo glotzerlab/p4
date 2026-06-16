@@ -537,7 +537,7 @@ the parameters in the statepoint.
                     snapshot
                 )
 
-                # Make and add the potential
+                # Get the potential from state point
                 pair = (
                     p4.Interaction
                         .from_json(sp_path)

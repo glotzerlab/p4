@@ -317,7 +317,7 @@ def plot_state(
             communicator=hoomd.communicator.Communicator()
         )
         arrangement = Arrangement.from_hoomd_snapshot(snapshot, include_singles)
-    
+
     figure, traces = arrangement.plot(
         type_shapes=type_shapes,
         type_styles=type_styles,

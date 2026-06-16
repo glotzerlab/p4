@@ -74,6 +74,11 @@ if __name__ == "__main__":
     example_simulation.operations.integrator.forces.append(lj)
 
     # --
+    fig, tr = p4.plot_state(example_simulation)
+    fig.update_layout(**BODY_3D_LAYOUT)
+    fig.write_html(data_path+"/example-simulation.html", include_plotlyjs='cdn')
+
+    # --
     body = p4.Body.from_hoomd_simulation(example_simulation)
 
     # --

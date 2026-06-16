@@ -46,6 +46,16 @@ example simulation using the code below.
     example_simulation.operations.integrator.rigid = rigid
     example_simulation.operations.integrator.forces.append(lj)
 
+Visualize your simulation's state.
+
+.. code-block:: python
+    
+    fig, tr = p4.plot_state(example_simulation)
+    fig.show()
+
+.. raw:: html
+    :file: ../data/example-simulation.html
+
 You can directly parse your simulation to extract its rigid constraint as one or
 more :py:class:`~p4.body.Body` objects. A ``Body`` is a collection of particle
 types, with one "primary" type located at the body's center, and any number of

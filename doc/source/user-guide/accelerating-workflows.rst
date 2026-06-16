@@ -53,11 +53,11 @@ Let's say both p4 and HOOMD-blue start with the following code.
     cube = coxeter.families.PlatonicFamily.get_shape("Cube")
     octa = coxeter.families.PlatonicFamily.get_shape("Octahedron")
 
-There are three main tasks for creating our simulation.
+There are three main tasks for creating our simulation:
 
 * creating the initial state,
 * creating the rigid constraint, and
-* creating the pair potentials
+* creating the pair potentials.
 
 HOOMD-blue users typically use a rigid constraint to add constituent particles
 to the simulation state, so we start by creating a rigid constraint.

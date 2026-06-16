@@ -430,18 +430,3 @@ center of the cubic body analyte.
 
 The vectors inside the effective shape result from the sum of the attractive
 gaussian potential and the unphysical ALJ potential.
-
-
-Conclusion
-----------
-
-You have reached the end of the User Guide. In the future, another section
-will be added to demonstrate more advanced uses for p4, including parameter
-sweeps with `Signac`_ (``Body``, ``Interaction``, and ``System`` can be stored
-in Signac statepoints) and evaluating larger and more complex systems
-(support will be added for analyzing fields created by an entire simulation
-state, and for exporting bodies, states, and fields to `VTK`_ for more complex
-plotting and slicing).
-
-.. _Signac: https://signac.readthedocs.io/en/latest/index.html
-.. _VTK: https://docs.vtk.org/en/latest/index.html

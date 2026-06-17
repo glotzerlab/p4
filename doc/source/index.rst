@@ -1,6 +1,6 @@
-=========================================
-p4 - Patchy Particle Prototyper in Python
-=========================================
+====================================
+Patchy Particle Prototyper in Python
+====================================
 
 p4 is a package for creating and analyzing models of particles and their
 interactions, based on `HOOMD-blue`_ and `Plotly`_. Users can measure energy,
@@ -17,12 +17,11 @@ p4 has three objectives:
    fields, rather than inferring it from simulation results;
 #. to make it easy to share rigid body models and interaction models without
    requiring specific software; and
-#. to make it easier to learn to use `HOOMD-blue`_ for particle systems
-   research.
+#. to make it easier to use `HOOMD-blue`_ for particle systems research.
 
 p4 accomplishes these objectives through an API that is designed to be
 
-* *declarative*, enabling for easy serialization/deserialization to/from JSON;
+* *declarative*, enabling easy serialization/deserialization to/from JSON;
 * *comprehensive*, accommodating arbitrary combinations of HOOMD-blue pair
   potentials; and
 * *interactive*, providing a rich plotting interface for rigid body models and

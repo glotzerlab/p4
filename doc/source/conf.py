@@ -35,6 +35,8 @@ extensions = [
     "sphinx_design",
 ]
 
+napoleon_use_rtype = False 
+
 # For sphincontrib.bibtex (as of v2.0).
 # bibtex_bibfiles = []
 
@@ -54,6 +56,7 @@ intersphinx_mapping = {
     "gsd": ("https://gsd.readthedocs.io/en/stable/", None),
     "hoomd": ("https://hoomd-blue.readthedocs.io/en/stable/", None),
     "coxeter": ("https://coxeter.readthedocs.io/en/stable/", None),
+    "plotly": ("https://plotly.com/python-api-reference/", None),
 }
 
 autodoc_default_options = {
@@ -75,6 +78,33 @@ html_static_path = ["_static"]
 
 maximum_signature_line_length = 68
 python_display_short_literal_types = True
+
+
+# Fix intersphinx issue with plotly docs
+# `fix_reference` copied from implementation by "Gary", published on
+# StackOverflow (https://stackoverflow.com/a/79441978) under the CC BY-SA 4.0
+# license.
+
+from docutils import nodes
+from sphinx.addnodes import pending_xref
+from sphinx.application import Sphinx
+from sphinx.environment import BuildEnvironment
+from sphinx.ext.intersphinx import missing_reference
+
+def fix_reference(
+    app: Sphinx,
+    env: BuildEnvironment,
+    node: pending_xref,
+    contnode: nodes.TextElement
+) -> nodes.reference | None:
+    """Fix some intersphinx references that are broken."""
+    if node["refdomain"] == "py":
+        # strange imports in plotly require a hardcoded redirect
+        if node["reftarget"] == "plotly.graph_objs._figure.Figure":
+            node["reftarget"] = "plotly.graph_objects.Figure"
+        return missing_reference(app, env, node, contnode)
+
+    return None
 
 
 # Custom sections for autoclasstoc
@@ -134,7 +164,7 @@ autoclasstoc_sections = [
 ]
 
 # Custom CSS and directives
-def setup(app):
+def setup(app: Sphinx):
     app.add_css_file("custom.css")
     app.add_object_type(
         'stype', 'stype', objname='Schema type', indextemplate='%s (schema common type)'
@@ -151,3 +181,4 @@ def setup(app):
     app.add_object_type(
         'sfield', 'sfield', objname='System schema field', indextemplate='%s (system schema field)'
     )
+    app.connect("missing-reference", fix_reference)

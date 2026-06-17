@@ -516,8 +516,8 @@ class Interaction:
             getattr(instance, param_name).default = param_value
         
         # Set typed params
-        for type_name, type_params in self.typed_params.items():
-            for param_name, param_value in type_params.items():
+        for type_name, params in self.typed_params.items():
+            for param_name, param_value in params.items():
                 getattr(instance, param_name)[type_name] = param_value
                 
         return instance

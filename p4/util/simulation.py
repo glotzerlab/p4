@@ -9,10 +9,12 @@ from io import StringIO, TextIOWrapper
 from typing import Literal, Tuple
 import warnings
 from packaging.version import Version
+from functools import partial
 
 import gsd
 import hoomd
 import numpy as np
+from tqdm import tqdm
 
 from ..types import OrientationsLike, PositionsLike
 
@@ -414,6 +416,8 @@ def measure(
     simulation_box: list[float],
     gsd_filename: str | None,
     nlist: hoomd.md.nlist.NeighborList,
+    pbar_number: int,
+    disable_pbar: bool
 ) -> StringIO:
     """Measure named quantities for a system.
 
@@ -441,6 +445,11 @@ def measure(
         saved.
     nlist : hoomd.md.nlist.NeighborList
         The neighbor list to use for the interactions.
+    pbar_position : int
+        The position of the tqdm progress bar. ``0`` is outermost, ``1`` is
+        next, and so on.
+    disable_pbar : bool
+        Whether to disable the progress bar.
 
     Returns
     -------
@@ -483,7 +492,14 @@ def measure(
     )
 
     # Iterate over positions
-    for p, os in zip(positions, orientations):
+    pbar = partial(
+        tqdm,
+        total=positions.shape[0],
+        desc=f"#{pbar_number}",
+        position=pbar_number,
+        disable=disable_pbar,
+    )
+    for p, os in pbar(zip(positions, orientations)):
         for o in os:
             with simulation.state.cpu_local_snapshot as state:
                 # Note: only probe position and orientation need to be

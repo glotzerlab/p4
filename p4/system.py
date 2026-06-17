@@ -10,6 +10,7 @@ import multiprocessing
 
 import hoomd
 import numpy as np
+from tqdm import tqdm
 
 from . import util
 from .types import PositionsLike, OrientationLike, OrientationsLike
@@ -574,6 +575,7 @@ class System:
         n_processes: int = -1,
         save_gsd: bool = False,
         nlist: hoomd.md.nlist.NeighborList | None = None,
+        disable_pbar: bool = False,
     ) -> Field:
         """Measure named quantities for the system and return them as a field.
 
@@ -583,30 +585,19 @@ class System:
         :py:func:`p4.util.simulation.measure`.
 
         .. _multiprocessing module: https://docs.python.org/3/library/multiprocessing.html
-        .. _official documentation: https://docs.python.org/3/library/multiprocessing.html#multiprocessing-safe-main-import
 
         .. _measure-multiprocessing-warning:
         .. warning::
             By default, :py:meth:`~p4.system.System.measure` uses Python's
             `multiprocessing module`_ to distribute the measurement process
             across the maximum number of processes allowed on your computer.
-            There are two caveats to this default behavior:
+            Using the maximum number of processes may not minimize the program
+            execution time due to the added overhead of creating and closing new
+            processes. The smaller the number of positions and orientations, the
+            lower the optimum number of processes. For example, for a 10 x 10 x
+            1 grid of positions and only 1 orientation, a single process is
+            best.
             
-            1. Using the maximum allowed number of processes may not minimize
-               the program execution time due to the added overhead of creating
-               and closing new processes. The smaller the number of positions
-               and orientations, the lower the optimum number of processes. For
-               example, for a 10 x 10 x 1 grid of positions and only 1
-               orientation, a single process is best.
-            
-            2. The default multiprocessing behavior can raise a ``RuntimeError``
-               if ``system.measure()`` is called multiple times in the top-level
-               scope of a script. This is because with some process start
-               methods, the main script is re-imported as a module by each child
-               process, which can cause runaway generation of new child
-               processes. To prevent this, wrap your script content in an
-               ``if __name__ == "__main__"`` block. For more information, see
-               the `official documentation`_.
 
         :meta measure:
 
@@ -646,6 +637,8 @@ class System:
             The neighbor list with which to instantiate the class. If not
             provided, a bounding volume hierarchy-based neighbor list is created
             on the fly. This neighbor list is sufficient in most cases.
+        disable_pbar : bool, default=False
+            Whether to disable the progress bar.
         """
         # Default nlist
         if nlist is None:
@@ -750,7 +743,17 @@ class System:
             ]
         
         if n_processes != 1:
-            with multiprocessing.Pool(processes=n_processes) as pool:
+            # Set up for multiprocessing with tqdm
+            # Ref: https://github.com/tqdm/tqdm#nested-progress-bars
+            tqdm.set_lock(multiprocessing.RLock())
+
+            with (
+                multiprocessing.Pool(
+                    n_processes,
+                    initializer=tqdm.set_lock,
+                    initargs=(tqdm.get_lock(),)
+                ) as pool
+            ):
                 if save_gsd:
                     gsd_filenames = [
                         filename.rsplit(".", 1)[0] + f"_{i}.gsd"
@@ -768,6 +771,8 @@ class System:
                     [simulation_box for _ in range(n_processes)],
                     gsd_filenames,
                     [nlist for _ in range(n_processes)],
+                    list(range(n_processes)),
+                    [disable_pbar for _ in range(n_processes)]
                 )
                 tables = pool.starmap(util.simulation.measure, args)
             
@@ -788,6 +793,8 @@ class System:
                 simulation_box=simulation_box,
                 gsd_filename=gsd_filename,
                 nlist=nlist,
+                pbar_number=0,
+                disable_pbar=disable_pbar,
             )
 
             table = util.data.clean_header(table)

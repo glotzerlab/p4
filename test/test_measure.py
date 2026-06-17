@@ -36,7 +36,8 @@ def test_measure_same_probe_and_analyte():
             quantities=["U", "F", "T"],
             positions=POSITIONS,
             orientations=ORIENTATIONS,
-            n_processes=2
+            n_processes=2,
+            disable_pbar=True,
         )
 
 def test_measure_single_particle_probe_multi_particle_body_analyte():
@@ -63,7 +64,8 @@ def test_measure_single_particle_probe_multi_particle_body_analyte():
             quantities=["U", "F", "T"],
             positions=POSITIONS,
             orientations=ORIENTATIONS,
-            n_processes=2
+            n_processes=2,
+            disable_pbar=True,
         )
 
 def test_measure_multi_particle_probe_single_particle_body_analyte():
@@ -90,7 +92,8 @@ def test_measure_multi_particle_probe_single_particle_body_analyte():
             quantities=["U", "F", "T"],
             positions=POSITIONS,
             orientations=ORIENTATIONS,
-            n_processes=2
+            n_processes=2,
+            disable_pbar=True,
         )
 
 def test_measure_single_particle_probe_single_particle_arrangement_analyte():
@@ -117,7 +120,8 @@ def test_measure_single_particle_probe_single_particle_arrangement_analyte():
             quantities=["U", "F", "T"],
             positions=POSITIONS,
             orientations=ORIENTATIONS,
-            n_processes=2
+            n_processes=2,
+            disable_pbar=True,
         )
 
 def test_measure_single_particle_probe_multi_particle_arrangement_analyte():
@@ -159,5 +163,6 @@ def test_measure_single_particle_probe_multi_particle_arrangement_analyte():
             quantities=["U", "F", "T"],
             positions=POSITIONS,
             orientations=ORIENTATIONS,
-            n_processes=2
+            n_processes=2,
+            disable_pbar=True,
         )

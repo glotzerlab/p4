@@ -9,7 +9,7 @@ interaction models, and how to measure the fields that these models create. This
 is one of the primary goals of p4.
 
 But p4 has another goal: making HOOMD-blue easier to learn and faster to use.
-In :ref:`basic-usage`, we saw that users can create p4 objects directly from
+In :ref:`quickstart`, we saw that users can create p4 objects directly from
 HOOMD-blue objects. The inverse is also possible---creating HOOMD-blue objects
 from p4 objects---and this functionality allows p4 to provide a more concise,
 beginner-friendly interface for portions of HOOMD-blue's API. This, along with

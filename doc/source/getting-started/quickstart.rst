@@ -1,8 +1,8 @@
-.. _basic-usage:
+.. _quickstart:
 
-===========
-Basic Usage
-===========
+==========
+Quickstart
+==========
 
 Starting from a HOOMD simulation
 --------------------------------

@@ -677,9 +677,11 @@ class System:
         # Ensure filename has correct extension
         if (
             filename is not None
-            and str(filename).rsplit(".")[-1] not in (".csv", ".CSV")
+            and str(filename).rsplit(".")[-1] not in ("csv", "CSV")
         ):
-            raise ValueError("`filename` be None or a string ending in '.csv'.")
+            raise ValueError(
+                "`filename` must be None or a string ending in '.csv'."
+            )
         
         # Calculate a simulation box that contains all the particles
         max_distance = probe_positions.max()

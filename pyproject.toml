@@ -23,6 +23,9 @@ dependencies = [
 
     # Plotting
     "plotly>=6.6.0",
+
+    # Other
+    "tqdm>=4.68.3",
 ]
 
 [project.optional-dependencies]

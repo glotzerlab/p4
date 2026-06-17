@@ -382,7 +382,7 @@ class Field:
         
         Returns
         -------
-        field
+        Field
             The new Field.
 
         Raises
@@ -896,13 +896,12 @@ class Field:
             referring to the name of a preset scale. Passed directly to
             ``plotly.graph_objects.Volume()``.
         **kwargs
-            Other keyword arguments are passed to ``p4.plot_layout()``.
-            TODO: add link.
+            Other keyword arguments are passed to :py:func:`p4.plot_layout`.
         
         Returns
         -------
         figure, traces
-            The Plotly figure and associated traces.
+            The Plotly figure and its associated traces.
         """
         # Default slice
         if not slice:

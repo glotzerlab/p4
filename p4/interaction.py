@@ -814,8 +814,7 @@ class Interaction:
         line_width : float, default=2
             The width of the line in pixels.
         **kwargs
-            Other keyword arguments are passed to ``p4.plot_layout()``.
-            TODO: add link.
+            Other keyword arguments are passed to :py:func:`p4.plot_layout`.
         
         Returns
         -------

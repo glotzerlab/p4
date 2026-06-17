@@ -1072,6 +1072,11 @@ class Body:
 
             * :py:func:`p4.plot_layout`
             * :py:func:`p4.snapshot_schematic_slice_trace`
+        
+        Returns
+        -------
+        figure, traces
+            The plotly figure and its associated traces.
         """
         # Set defaults
         if not type_shapes:

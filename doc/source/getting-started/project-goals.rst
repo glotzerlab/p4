@@ -1,4 +1,4 @@
-.. _project goals:
+.. _project-goals:
 
 =============
 Project Goals

@@ -16,6 +16,8 @@ beginner-friendly interface for portions of HOOMD-blue's API. This, along with
 p4's built-in JSON support, enable p4 to accelerate many HOOMD-blue workflows.
 
 
+.. _creating-hoomd-blue-objects-from-p4:
+
 Creating HOOMD-blue objects from p4
 +++++++++++++++++++++++++++++++++++
 

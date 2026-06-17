@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 from typing import Iterable, Literal
 import multiprocessing
+multiprocessing.set_start_method(method="fork")
 
 import hoomd
 import numpy as np

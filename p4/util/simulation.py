@@ -14,7 +14,14 @@ from functools import partial
 import gsd
 import hoomd
 import numpy as np
-from tqdm import tqdm
+
+# Tqdm must be imported differently for python vs ipython
+try:
+    get_ipython()
+except NameError:
+    from tqdm import tqdm
+else:
+    from tqdm.notebook import tqdm
 
 from ..types import OrientationsLike, PositionsLike
 

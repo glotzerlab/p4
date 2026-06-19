@@ -1,10 +1,7 @@
 # To-do
 
 ### Open to public
-- [ ] revise project goals
 - [ ] fix body image wrapping problem
-- [ ] tests for top-level functions
-- [ ] add remaining top-level plotting functions
 
 ### Publication
 TBD
@@ -15,7 +12,7 @@ TBD
 - [ ] Add support for VTK
 - [ ] add shape overlap exclusion sampling
 - [ ] add dynamical mesh sampling
-- [ ] add plotly js to directory and have html files point to it
 
 Possible performance improvements:
   - [ ] switch from nested for-loop to single computation over many spaced-out configurations
+  - [ ] (docs) add plotly js to directory and have html files point to it

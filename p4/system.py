@@ -718,6 +718,11 @@ class System:
         if n_processes == -1:
             n_processes = os.process_cpu_count()
 
+        # Force the number of processes to be smaller than the number of
+        # positions (almost never matters)
+        if n_processes > positions.shape[0]:
+            n_processes = positions.shape[0]
+
         # If multiprocessing, run copies of the probe simulation with chunks
         # of the set of positions across a collection of processes
         def subdivide(array: list, n: int):

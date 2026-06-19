@@ -416,7 +416,7 @@ Let's make a signac project for investigating a Lennard-Jones fluid with
 variable initial density. There are three state point parameters: ``epsilon``,
 ``sigma``, and ``rho``. We first initialize the Signac project.
 
-.. code-block:: python
+.. code-block::
 
     import signac
 

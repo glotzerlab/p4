@@ -64,3 +64,7 @@ h3 {
   font-weight: normal;
   font-style: italic
 }
+
+/* Fix logo sizing issue in footer of page */
+.bottom-of-page > .center-details {width: 1em}
+.bottom-of-page > .right-details {flex-shrink: 0}

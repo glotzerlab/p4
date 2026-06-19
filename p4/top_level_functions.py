@@ -10,7 +10,6 @@ import numpy as np
 import plotly
 import rowan
 import coxeter
-import scipy
 
 from . import util
 from .types import (
@@ -98,39 +97,22 @@ def orientations_about_axis(n: int, axis: AxisLike, k: int = 1) -> np.ndarray:
         angles=np.linspace(0, 2*np.pi/k, n, endpoint=False)
     )
 
-def orientations_from_fibonacci_lattice(
-    n: int,
-    group: str | None = None,
-    ideal_group_index = 0   # TODO: remove
-) -> np.ndarray:
-    """A near-uniform grid of `n` quaternions.
+def orientations_from_fibonacci_lattice(n: int) -> np.ndarray:
+    """A near-uniform grid of quaternions.
 
     This is equivalent to a Fibonacci lattice on the 3-sphere. See
     `this paper <https://ieeexplore.ieee.org/document/9878746>`_ for a
     derivation.
 
-    To sample only a section of the 3-sphere, pass a string representing the
-    symmetry group.
-
     Parameters
     ----------
     n : int
         The number of points in the lattice.
-    group : str, optional
-        The symmetry group. TODO: elaborate
-    
+
     Returns
     -------
     (..., 4) np.ndarray
     """
-    if group is not None:
-        group_quaternions = (
-            scipy.spatial.transform.Rotation
-                .create_group(group)
-                .as_quat(scalar_first=True)
-        )
-        n *= group_quaternions.shape[0]
-
     PSI = 1.533751168755204288118041413  # Solution to ψ**4 = ψ + 4
     s = np.arange(n) + 1 / 2
     t = s / n
@@ -141,30 +123,7 @@ def orientations_from_fibonacci_lattice(
     # Allocate as rows and then transpose, rather than stacking columns
     result = np.empty((4, n))
     result[...] = r0 * np.sin(a), r0 * np.cos(a), r1 * np.sin(b), r1 * np.cos(b)
-    quaternions = result.T
-    
-    # Filter quaternions, only keeping ones which are "closest" to the same
-    # group quaternion. The chosen group quaternion is the first one, and
-    # distance is evaluated as the symmetric intrinsic distance.
-    # TODO: validate this
-    if group is not None:
-        filtered_quaternions = []
-        for q in quaternions:
-            best_group_index = -1
-            best_distance = float("inf")
-            for i, g in enumerate(group_quaternions):
-                d = rowan.geometry.sym_intrinsic_distance(g, q)
-                if d < best_distance:
-                    best_distance = d
-                    best_group_index = i
-            
-            if best_group_index == ideal_group_index:
-                filtered_quaternions.append(q)
-
-        return np.asarray(filtered_quaternions)
-    
-    else:
-        return quaternions
+    return result.T
 
 # def exclude_orientations_with_shape_overlap(
 #     positions,

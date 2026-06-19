@@ -424,7 +424,7 @@ if __name__ == "__main__":
     # --
     avg_u = field.aggregate_over_orientations(quantity="U", method="mean")
 
-    fig, tr = avg_u.plot(fill_nan_with_inf=True)
+    fig, tr = avg_u.plot(fill_nan_with_inf=True, cmap="PuBU_r", clim=[-1e-2, 0])
     fig.update_layout(**FIELD_3D_LAYOUT)
     fig.add_traces(body_tr)
     fig.write_html(data_path+"/abcd-aljg-avg-u-3d-with-body.html", include_plotlyjs='cdn')

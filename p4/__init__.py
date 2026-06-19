@@ -44,7 +44,4 @@ __all__ = [
     "plot_layout",
     "snapshot_schematic_slice_trace",
     "util",
-
 ]
-
-__version__ = "0.0.1"

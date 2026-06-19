@@ -20,6 +20,7 @@ import plotly
 
 from .top_level_functions import plot_layout
 from . import util
+from .version import __version__
 
 REQUIRED_PARENT_CLASS = hoomd.md.pair.pair.Pair
 EXCLUDED_TYPE_STRINGS = [
@@ -692,6 +693,8 @@ class Interaction:
         """
         path = Path(filename)
         data = self._to_json_dict()
+        data["p4_version"] = __version__
+        data["hoomd_version"] = hoomd.version.version
 
         if not path.exists():
             path.touch()

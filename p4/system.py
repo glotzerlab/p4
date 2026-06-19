@@ -14,6 +14,7 @@ import numpy as np
 from tqdm import tqdm
 
 from . import util
+from .version import __version__
 from .types import PositionsLike, OrientationLike, OrientationsLike
 from .body import Body
 from .interaction import Interaction
@@ -456,6 +457,7 @@ class System:
         """
         path = Path(filename)
         data = self._to_json_dict()
+        data["p4_version"] = __version__
 
         if not path.exists():
             path.touch()

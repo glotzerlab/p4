@@ -17,6 +17,7 @@ import rowan
 
 from .top_level_functions import plot_layout, snapshot_schematic_slice_trace
 from . import util
+from .version import __version__
 from .body import Body
 from .types import PositionsLike, OrientationsLike
 
@@ -803,6 +804,7 @@ class Arrangement:
         """
         path = Path(filename)
         data = self._to_json_dict()
+        data["p4_version"] = __version__
 
         if not path.exists():
             path.touch()

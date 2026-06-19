@@ -1,0 +1,50 @@
+[workspace]
+authors = ["Joseph Burkhart <joaburkh@umich.edu>"]
+channels = ["conda-forge"]
+name = "p4"
+platforms = ["linux-64", "osx-arm64"]
+version = "0.0.1"
+
+[tasks]
+
+[dependencies]
+# Glotzer Group
+hoomd = ">=5.0.0"
+coxeter = ">=0.10.0"
+gsd = ">=4.2.0"
+rowan = ">=1.3.2"
+
+# Data
+numpy = ">=2.4.2"
+
+# Plotting
+plotly = ">=6.6.0"
+
+# Other
+tqdm = ">=4.68.3"
+
+# Docs
+sphinx = ">9.0"
+furo = ">2025"
+numpydoc = ">=1.10.0"
+sphinx-copybutton = ">= 0.5.2"
+autoclasstoc = ">=1.7.0"
+sphinx-design = ">=0.7.0"
+
+# Testing
+pytest = ">=9.0.2"
+sybil = ">=10.0.1"
+
+# Build
+setuptools = ">=82.0.1"
+uv = ">=0.11.6"
+bump-my-version = ">=1.3.0"
+
+[pypi-dependencies]
+autoclasstoc = ">=1.7.0"
+
+[feature.py314.dependencies]
+python = "3.14.*"
+
+[environments]
+py314 = ["py314"]

@@ -27,6 +27,7 @@ multiple instances of a single body as follows.
 .. code-block:: python
 
     import p4
+    import hoomd
 
     arrangement = p4.Arrangement(
         bodies=[

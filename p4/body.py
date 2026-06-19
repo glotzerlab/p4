@@ -72,8 +72,7 @@ class Body:
     moi : MoiLike, optional
         The moment of inertia (MoI) of the primary type, expressed as a vector
         containing the diagonal terms of the full MoI tensor. If not provided,
-        the primary type's MoI defaults to ``[1,1,1]`` if there are secondary
-        types and ``[0,0,0]`` if there are not. Following HOOMD-blue
+        the primary type's MoI defaults to ``[1,1,1]``. Following HOOMD-blue
         convention, each secondary type has a MoI of ``[0,0,0]``.
 
 
@@ -120,9 +119,7 @@ class Body:
             orientations_by_type = {}
         if mass is None:
             mass = 1
-        if not secondary_types:
-            moi = [0, 0, 0]
-        elif moi is None:
+        if moi is None:
             moi = [1, 1, 1]
 
         # Ensure things that are supposed to be dicts are in fact dicts before

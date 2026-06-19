@@ -871,11 +871,8 @@ def test_from_hoomd_rigid(
     # When parsing rigid, mass and moi will always be default
     for b in expected_bodies:
         b.mass = 1
-        if b.secondary_types:
-            b.moi = [1, 1, 1]
-        else:
-            b.moi = [0, 0, 0]
-
+        b.moi = [1, 1, 1]
+        
     actual_bodies = p4.Body.from_hoomd_rigid(rigid, include_singles)
 
     assert len(actual_bodies) == len(expected_bodies)

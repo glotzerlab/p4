@@ -28,7 +28,6 @@ sphinx = ">9.0"
 furo = ">2025"
 numpydoc = ">=1.10.0"
 sphinx-copybutton = ">=0.5.2"
-autoclasstoc = ">=1.7.0"
 sphinx-design = ">=0.7.0"
 
 # Testing

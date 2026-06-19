@@ -412,9 +412,9 @@ if __name__ == "__main__":
     )
     positions = p4.positions_on_regular_grid(
         box=[10, 10, 10],
-        resolution=[15, 15, 15]
+        resolution=[20, 20, 20]
     )
-    orientations = p4.orientations_from_fibonacci_lattice(n=10, group="O")
+    orientations = p4.orientations_from_fibonacci_lattice(n=100)
     field = system2.measure(
         quantities=["U", "F", "T"],
         positions=positions,

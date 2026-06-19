@@ -309,7 +309,7 @@ Creating the Pair Potentials
                             sigma_i=0.2, epsilon=1,
                             sigma_j=0.2, alpha=0
                         )
-                    )
+                    ),
                     "A": dict(
                         shape=dict(
                             vertices=cube.vertices,
@@ -366,7 +366,7 @@ Creating the Pair Potentials
             alj.params.default = dict(
                 sigma_i=0.2, epsilon=0,
                 sigma_j=0.2, alpha=0
-            ),
+            )
             alj.shape.default = dict(
                 vertices=[], faces=[]
             )
@@ -431,7 +431,7 @@ Next, we populate the Signac project with jobs.
         .. rubric:: p4 approach
             :class: grid-header
 
-        .. code-block:: python
+        .. code-block::
 
             from pathlib import Path
             import p4
@@ -486,7 +486,7 @@ Next, we populate the Signac project with jobs.
         .. rubric:: Typical approach
             :class: grid-header
 
-        .. code-block:: python
+        .. code-block::
 
             iterator = zip(
                 [0.1, 0.5, 1],
@@ -516,7 +516,7 @@ the parameters in the statepoint.
         .. rubric:: p4 approach
             :class: grid-header
 
-        .. code-block:: python
+        .. code-block::
 
             def make_sim(job):
                 sp_path = (
@@ -561,7 +561,7 @@ the parameters in the statepoint.
         .. rubric:: Typical approach
             :class: grid-header
 
-        .. code-block:: python
+        .. code-block::
 
             import hoomd
 

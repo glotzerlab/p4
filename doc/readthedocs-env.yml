@@ -10,5 +10,6 @@ dependencies:
   - numpydoc==1.10.0
   - sphinx-copybutton==0.5.2
   - sphinx-design==0.7.0
+  - signac==2.4.0
   - pip:
     - autoclasstoc==1.7.0

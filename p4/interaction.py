@@ -895,7 +895,9 @@ class Interaction:
             orientations=orientations,
             simulation_box=[box_length, box_length, box_length, 0, 0, 0],
             included_interactions=[self],
-            gsd_filename=None
+            gsd_filename=None,
+            pbar_number=0,
+            disable_pbar=True
         )
 
         # Build plot traces pair by pair

@@ -96,9 +96,13 @@ if __name__ == "__main__":
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
 
-    ns = np.arange(50, 2000, 50)
+    ns = np.arange(20, 1005, 5)
     sds = []
     rsds = []
+
+    # Fibonacci Lattice distributions
+    fib_sds = []
+    fib_rsds = []
 
     for n in ns:
         qs = p4.orientations_from_fibonacci_lattice(n)
@@ -108,27 +112,85 @@ if __name__ == "__main__":
         sd = np.std(vs, mean=mean)
         rsd = sd / mean
         
-        sds.append(sd)
-        rsds.append(rsd)
-    
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
+        fib_sds.append(sd)
+        fib_rsds.append(rsd)
 
+    # Random sample distributions
+    rand_sds = []
+    rand_rsds = []
+
+    for n in ns:
+        qs = rowan.random.rand(n)
+        sv = scipy.spatial.SphericalVoronoi(qs)
+        vs = calculate_volumes(sv)
+        mean = np.mean(vs)
+        sd = np.std(vs, mean=mean)
+        rsd = sd / mean
+        
+        rand_sds.append(sd)
+        rand_rsds.append(rsd)
+
+    # Make figure
+    fig = make_subplots(rows=1, cols=2, subplot_titles=("SD vs n", "RSD vs n"))
+
+    # SD subfigure
     fig.add_trace(
-        go.Scatter(x=ns, y=rsds, name="RSD"),
-        secondary_y=True
+        go.Scatter(
+            x=ns,
+            y=fib_sds,
+            name="fibonacci",
+            marker=dict(color="cornflowerblue"),
+            legendgroup="fibonacci"
+        ),
+        row=1,
+        col=1
     )
     fig.add_trace(
-        go.Scatter(x=ns, y=sds, name="SD"),
-        secondary_y=False
+        go.Scatter(
+            x=ns,
+            y=rand_sds,
+            name="random",
+            marker=dict(color="gold"),
+            legendgroup="random"
+        ),
+        row=1,
+        col=1
     )
+    fig.update_xaxes(title_text="Number of samples", row=1, col=1)
+    fig.update_yaxes(title_text="Standard Deviation", row=1, col=1)
 
+    # RSD subfigure
+    fig.add_trace(
+        go.Scatter(
+            x=ns,
+            y=fib_rsds,
+            name="fibonacci",
+            marker=dict(color="cornflowerblue"),
+            legendgroup="fibonacci",
+            showlegend=False
+        ),
+        row=1,
+        col=2
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=ns,
+            y=rand_rsds,
+            name="random",
+            marker=dict(color="gold"),
+            legendgroup="random",
+            showlegend=False
+        ),
+        row=1,
+        col=2
+    )
+    fig.update_xaxes(title_text="Number of samples", row=1, col=2)
+    fig.update_yaxes(title_text="Relative Standard Deviation", row=1, col=2)
+
+    # Global settings
     fig.update_layout(
         title_text="Distribution of orientation spacing vs number of samples",
-        xaxis_title_text="Number of samples",
     )
-    fig.update_yaxes(title_text="RSD of hypervolume", secondary_y=True),
-    fig.update_yaxes(title_text="SD of hypervolume", secondary_y=False),
-
     fig.update_layout(template="simple_white")
 
     fig.show()

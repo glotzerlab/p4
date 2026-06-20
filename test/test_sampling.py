@@ -4,6 +4,7 @@
 import pytest
 import numpy as np
 import rowan
+import scipy
 
 import p4
 
@@ -67,5 +68,67 @@ def test_orientations_about_axis(n, axis, k):
         or np.isclose(second_diff, [0 for _ in second_diff]).all()
     )
 
+def calculate_volumes(sv):
+    """Calculate the hypervolumes of the cells of a 4D spherical voronoi."""
+    volumes = []
+    vertices = sv.vertices
+    for indices in sv.regions:
+        volumes.append(scipy.spatial.ConvexHull(vertices[indices]).volume)
+    return volumes
 
-# NOTE: no test for orientations_about_fibonacci_lattice
+def test_orientations_from_fibonacci_lattice_no_group():
+    """Ensure that the fibonacci lattice yields orientations that approximately evenly spaced.
+    
+    This test calculates the spherical vornoi diagram of the quaternions,
+    computes the volume of each vornoi cell, and then checks that the relative
+    standard deviation of those volumes is smaller than some threshold.
+    """
+    n = 100
+    qs = p4.orientations_from_fibonacci_lattice(n)
+    sv = scipy.spatial.SphericalVoronoi(qs)
+    vs = calculate_volumes(sv)
+    mean = np.mean(vs)
+    rsd = np.std(vs, mean=mean) / mean
+    assert rsd < 0.3
+
+if __name__ == "__main__":
+    # Generate plots of hypervolume SD and RSD
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+
+    ns = np.arange(50, 2000, 50)
+    sds = []
+    rsds = []
+
+    for n in ns:
+        qs = p4.orientations_from_fibonacci_lattice(n)
+        sv = scipy.spatial.SphericalVoronoi(qs)
+        vs = calculate_volumes(sv)
+        mean = np.mean(vs)
+        sd = np.std(vs, mean=mean)
+        rsd = sd / mean
+        
+        sds.append(sd)
+        rsds.append(rsd)
+    
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(
+        go.Scatter(x=ns, y=rsds, name="RSD"),
+        secondary_y=True
+    )
+    fig.add_trace(
+        go.Scatter(x=ns, y=sds, name="SD"),
+        secondary_y=False
+    )
+
+    fig.update_layout(
+        title_text="Distribution of orientation spacing vs number of samples",
+        xaxis_title_text="Number of samples",
+    )
+    fig.update_yaxes(title_text="RSD of hypervolume", secondary_y=True),
+    fig.update_yaxes(title_text="SD of hypervolume", secondary_y=False),
+
+    fig.update_layout(template="simple_white")
+
+    fig.show()

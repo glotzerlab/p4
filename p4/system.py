@@ -704,9 +704,9 @@ class System:
                 max_r_cut = max(max_r_cut, param_dict.get("r_cut", 0))
         
         simulation_box = 1.1 * np.array([
-            2 * (max_distance + max_r_cut),
-            2 * (max_distance + max_r_cut),
-            2 * (max_distance + max_r_cut),
+            2 * (max_distance + max_r_cut + max_distance),
+            2 * (max_distance + max_r_cut + max_distance),
+            2 * (max_distance + max_r_cut + max_distance),
             0.0,
             0.0,
             0.0

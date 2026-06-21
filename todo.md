@@ -1,7 +1,6 @@
 # To-do
 
 ### Open to public
-- [ ] fix body image wrapping problem
 
 ### Publication
 TBD
@@ -12,6 +11,8 @@ TBD
 - [ ] Add support for VTK
 - [ ] add shape overlap exclusion sampling
 - [ ] add dynamical mesh sampling
+- [ ] add way to limit orientations from fibonacci lattice based on point group
+- [ ] add validation tests
 
 Possible performance improvements:
   - [ ] switch from nested for-loop to single computation over many spaced-out configurations

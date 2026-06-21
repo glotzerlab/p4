@@ -40,13 +40,14 @@ def positions_on_regular_grid(
     -------
     (..., 3) np.ndarray
     """
-    positions = np.array(list(itertools.product(
-        np.linspace(-box[0]/2, box[0]/2, resolution[0], endpoint=True),
-        np.linspace(-box[1]/2, box[1]/2, resolution[1], endpoint=True),
-        np.linspace(-box[2]/2, box[2]/2, resolution[2], endpoint=True),
-    )))
+    values_by_axis = []
+    for L, n in zip(box, resolution):
+        if n == 1:
+            values_by_axis.append([0])
+        else:
+            values_by_axis.append(np.linspace(-L/2, L/2, n, endpoint=True))
 
-    return positions
+    return np.array(list(itertools.product(*values_by_axis)))
 
 # def exclude_positions_by_shape(
 #     positions: PositionsLike,

@@ -353,9 +353,8 @@ repulsive potential that is only active between the cube particle types "A" and
 Now we can make a new system, and this time we can measure its energy, force,
 *and* torque fields. Since the probe is anisotropic, it is no longer correct
 to measure at a single probe orientation, so we must specify multiple
-orientations for each position.The probe has octahedral symmetry (point group
-"O\ :sub:`h`"), and we can use that symmetry to reduce the number of
-orientations required for accurate sampling of orientation-space.
+orientations for each position. Calculate a near-uniform distribution of
+orientations using :py:func:`p4.orientations_from_fibonacci_lattice`.
 
 .. code-block:: python
 

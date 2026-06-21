@@ -537,8 +537,6 @@ class Body:
         particles.
 
         .. _particles.data: https://gsd.readthedocs.io/en/latest/schema-hoomd.html#chunk-particles-body
-        
-        TODO: wrap to fix image problem
 
         Parameters
         ----------
@@ -548,6 +546,8 @@ class Body:
             Whether to include single-particle bodies when parsing the
             simulation.
         """
+        Lx, Ly, Lz, xy, xz, yz = snapshot.configuration.box
+
         pdata = snapshot.particles
         
         bodies = []
@@ -563,6 +563,15 @@ class Body:
             # Primary particle
             primary_type = pdata.types[pdata.typeid[primary_index]]
             primary_position = pdata.position[primary_index]
+
+            x, y, z = primary_position
+            i_x, i_y, i_z = pdata.image[primary_index]
+            primary_unwrapped_position = np.array([
+                x + (i_x*Lx) + (xy*i_y*Ly) + (xz*i_z*Lz),
+                y + (i_y*Ly) + (yz*i_z*Lz),
+                z + (i_z*Lz)
+            ])
+            
             primary_orientation = pdata.orientation[primary_index]
             primary_mass = float(pdata.mass[primary_index])
             primary_moi = pdata.moment_inertia[primary_index].tolist()
@@ -592,8 +601,21 @@ class Body:
                     if t not in secondary_types:
                         secondary_types.append(t)
                     
+                    secondary_position = pdata.position[i]
+
+                    x, y, z = secondary_position
+                    i_x, i_y, i_z = pdata.image[i]
+                    secondary_unwrapped_position = np.array([
+                        x + (i_x*Lx) + (xy*i_y*Ly) + (xz*i_z*Lz),
+                        y + (i_y*Ly) + (yz*i_z*Lz),
+                        z + (i_z*Lz)
+                    ])
+                    
                     positions_by_type[t].append(
-                        (pdata.position[i] - primary_position).tolist()
+                        (
+                            secondary_unwrapped_position
+                            - primary_unwrapped_position
+                        ).tolist()
                     )
                     orientations_by_type[t].append(
                         rowan.divide(pdata.orientation[i], primary_orientation) # TODO: test order
@@ -609,7 +631,7 @@ class Body:
                     moi=primary_moi
                 ))
             
-        # Particles with bodyid == -1 are all guaranteed to be single-particles.
+        # Particles with bodyid == -1 are all guaranteed to be single particles.
         # For each one, only add it if there isn't already a body with its
         # primary type
         if include_singles:

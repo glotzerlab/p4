@@ -998,6 +998,27 @@ class Field:
                 "`opacityscale_scalar_3d` must be an array of length-2 arrays "
                 + "or a valid string. See https://plotly.com/python/reference/volume/#volume-opacityscale."
             )
+
+        # Ensure that the field has a regular grid
+        positions = self.positions
+        same_intervals = []
+        for i in [0, 1, 2]:
+            unique_values = np.unique(positions[:,i])
+            second_diff = np.diff(unique_values, n=2)
+            same_intervals.append(
+                len(second_diff) == 0
+                or np.isclose(
+                    [0 for _ in second_diff],
+                    second_diff,
+                    atol=1e-6
+                ).all()
+            )
+
+        if not all(same_intervals):
+            raise ValueError(
+                "Field cannot be plotted because the positions do not follow a "
+                + "regular grid."
+            )
         
         # Infer quantity if necessary
         if quantity is None:

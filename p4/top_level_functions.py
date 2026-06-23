@@ -2,7 +2,9 @@
 # This file is from the p4 project, released under the BSD 3-Clause License.
 
 from copy import copy
+import inspect
 import itertools
+from typing import Iterable, Literal
 
 import hoomd
 import gsd

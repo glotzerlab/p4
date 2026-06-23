@@ -347,7 +347,6 @@ def add_integrator(
 
 def get_simulation(
     system: "System",
-    included_interactions: list["Interaction"],
     nlist: hoomd.md.nlist.NeighborList,
     simulation_box: list[float]
 ) -> hoomd.Simulation:
@@ -357,8 +356,6 @@ def get_simulation(
     ----------
     system : System
         The system.
-    interactions_to_include : list[Interaction]
-        The interactions to include in the simulation.
     nlist : hoomd.md.nlist.NeighborList
         The neighbor list to use for the interactions in the simulation.
     simulation_box : list[float]
@@ -405,7 +402,7 @@ def get_simulation(
     simulation = add_integrator(simulation, rigid)
 
     # Add required interactions
-    for interaction in included_interactions:
+    for interaction in system.interactions:
         simulation = add_interaction(
             simulation=simulation,
             nlist=nlist,
@@ -419,7 +416,6 @@ def measure(
     quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
     positions: PositionsLike,
     orientations: list[OrientationsLike],
-    included_interactions: list["Interaction"],
     simulation_box: list[float],
     gsd_filename: str | None,
     nlist: hoomd.md.nlist.NeighborList,
@@ -442,8 +438,6 @@ def measure(
     orientations : list[OrientationsLike]
         The orientations (in quaternion form) to measure at. A separate array
         of orientations must be provided for every position.
-    included_interactions : list[Interactions]
-        The interactions to include in the simulation.
     simulation_box : list[float]
         The simulation's box in HOOMD notation. Must be an array of 6 floats
         representing ``[Lx, Ly, Lz, xy, xz, yz]``.
@@ -473,12 +467,7 @@ def measure(
         )
 
     # Create simulation
-    simulation = get_simulation(
-        system,
-        included_interactions,
-        nlist,
-        simulation_box
-    )
+    simulation = get_simulation(system, nlist, simulation_box)
 
     # Calculate the index of the probe's central particle
     n_probe = system.probe.to_hoomd_snapshot().particles.N
@@ -493,10 +482,11 @@ def measure(
         simulation=simulation,
         csv_file=table,
         quantities=quantities,
-        probe_is_rigid=system.probe._is_rigid(included_interactions),
+        probe_is_rigid=system.probe._is_rigid(system.interactions),
         probe_index=probe_index,
         compute=None if gsd_filename is None else compute,
     )
+    # breakpoint()
 
     # Iterate over positions
     pbar = partial(

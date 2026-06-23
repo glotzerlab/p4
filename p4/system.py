@@ -512,70 +512,6 @@ class System:
 
         return data
 
-    # ------------------------------- PROPERTIES -------------------------------
-
-    @property
-    def active_interactions(self) -> list[Interaction]:
-        """Interactions with typed params for both the probe and the analyte."""
-        probe_types = [self.probe.primary_type] + self.probe.secondary_types
-        if isinstance(self.analyte, Body):
-            analyte_types = (
-                [self.analyte.primary_type] + self.analyte.secondary_types
-            )
-        else:
-            analyte_types = []
-            for b in self.analyte.bodies:
-                analyte_types.extend([b.primary_type] + b.secondary_types)
-        
-        included_interactions = []
-
-        for interaction in self.interactions:
-            # For single types, there must be at least one in probe and one in
-            # analyte
-            if (
-                any(
-                    t in probe_types
-                    for t in interaction._interacting_types("single")
-                )
-                and any(
-                    t in analyte_types
-                    for t in interaction._interacting_types("single")
-                )
-            ):
-                included_interactions.append(interaction)
-
-            # For pair types, there must be at least one pair that contains a
-            # type in the probe and a type (could be the same one) in the
-            # analyte
-            else:
-                straddlers = []
-                for type_pair in interaction._interacting_types("pair"):
-                    if (
-                        any(t in probe_types for t in type_pair)
-                        and any(t in analyte_types for t in type_pair)
-                    ):
-                        straddlers.append(type_pair)
-                if len(straddlers) > 0:
-                    included_interactions.append(interaction)
-
-        return included_interactions
-    
-    @property
-    def all_types(self) -> list[str]:
-        """All unique particle types in the probe and analyte."""
-        all_types = [self.probe.primary_type]
-        all_types.extend(self.probe.secondary_types)
-
-        if isinstance(self.analyte, Body):
-            all_types.append(self.analyte.primary_type)
-            all_types.extend(self.analyte.secondary_types)
-        else:
-            for b in self.analyte.bodies:
-                all_types.append(b.primary_type)
-                all_types.extend(b.secondary_types)
-
-        return list(set(all_types))
-
     # --------------------------------- MEASURE --------------------------------
 
     def measure(
@@ -784,7 +720,6 @@ class System:
                     [quantities for _ in range(n_processes)],
                     subdivide(probe_positions, n_processes),
                     [probe_orientations for _ in range(n_processes)],
-                    [self.active_interactions for _ in range(n_processes)],
                     [simulation_box for _ in range(n_processes)],
                     gsd_filenames,
                     [nlist for _ in range(n_processes)],
@@ -806,7 +741,6 @@ class System:
                 quantities=quantities,
                 positions=probe_positions,
                 orientations=probe_orientations,
-                included_interactions=self.active_interactions,
                 simulation_box=simulation_box,
                 gsd_filename=gsd_filename,
                 nlist=nlist,

@@ -317,6 +317,207 @@ def plot_positions(
 
     return figure, positions_traces
 
+def plot_field_vs_number_of_orientations(
+    system: "System",
+    n_orientations: list[int],
+    positions: PositionsLike,
+    method: Literal["axis", "fibonacci_lattice"],
+    method_options: dict | None = None,
+    cmap: str | list[str] = "Plasma",
+    marker_mode: Literal["lines+markers", "lines", "markers"] = "lines",
+    marker_size: float = 6,
+    line_width: float = 2,
+    show_avg: bool = True,
+    avg_line_color: str = "black",
+    **kwargs
+) -> tuple[plotly.graph_objects.Figure, np.ndarray]:
+    """Visualize changes in field values over different numbers of orientations.
+    
+    Use this function to perform convergence testing on the number of
+    orientations sampled at each position. This testing can help the user
+    determine the number of orientations they should use when calling
+    :py:func:`~p4.orientations_about_axis` or
+    :py:func:`~p4.orientations_from_fibonacci_lattice`.
+
+    Parameters
+    ----------
+    system : System
+        The system creating the field.
+    n_orientations : list[int]
+        The numbers of orientations to test.
+    positions : PositionsLike
+        The positions at which to measure the field values for each number of
+        orientations.
+    method : 'axis' or 'fibonacci_lattic'
+        The method to which each number from ``n_orientations`` will be passed.
+        'axis' corresponds to ``orientations_about_axis()``, and
+        'fibonacci_lattice' corresponds to
+        ``orientations_from_fibonacci_lattice()``.
+    method_options : dict
+        Additional parameters and values to pass to the orientation sampling
+        function, encoded as key-value pairs.  If ``method`` is 'axis', this
+        dictionary must contain the key 'axis', with a value that is
+        :py:type:`~p4.types.AxisLike`. If ``method`` is 'fibonacci_lattice',
+        this argument is ignored.
+    cmap : str | list[str], default='Plasma'
+        Either a string representing the name of a continuous or qualitative
+        Plotly colorscale, or an array of strings specifying valid Plotly
+        colors. These colors are used to distinguish the different positions.
+    marker_mode : 'lines+markers', 'lines', or 'markers', default='lines'
+        Whether to show only lines, only markers, or both.
+    marker_size : float, default=6
+        The size of the marker in pixels.
+    line_width : float, default=2
+        The width of the line in pixels.
+    show_avg : bool, default=True
+        Whether to additionally plot the average field values over positions.
+    avg_line_color : str, default='black'
+        The color of the average line.
+    **kwargs
+        Other keyword arguments are passed to :py:func:`p4.plot_layout`.
+    
+    Returns
+    -------
+    figure, array
+        The Plotly figure and the field values. Field values are returned in a
+        (N, P) array, where N is the number of orientations and P is the
+        number of positions. Each value is the result of averaging over the
+        orientation samples at that position generated from that number of
+        orientations.
+    """
+    if method_options is None:
+        method_options = {}
+
+    if method == "axis":
+        if "axis" not in method_options:
+            raise ValueError(
+                "'axis' must be provided in `method_options` when `method` is "
+                + "'axis'."
+            )
+        if not isinstance(method_options["axis"], AxisLike):
+            raise TypeError("`axis` must be an array of 3 floats.")
+    
+    elif method != "fibonacci_lattice":
+        raise ValueError(
+            "`method` must be 'axis' or 'fibonacci_lattice'."
+        )
+
+    # Ensure there is a working colormap
+    cmap_type = None
+    try:
+        _ = plotly.colors.get_colorscale(cmap)
+        cmap_type = "continuous"
+    except plotly.exceptions.PlotlyError:
+        try:
+            getattr(plotly.colors.qualitative, cmap.capitalize())
+            cmap_type = "qualitative"
+        except AttributeError:
+            raise ValueError(
+                "`cmap` is not a valid name for a continuous or qualitative "
+                + "plotly colorscale."
+            )
+        
+    # 2D array, position increasing across columns, n increasing across rows
+    avg_field_values = []
+    
+    for n in n_orientations:
+        if method == "axis":
+            axis = method_options["axis"]
+            k = method_options.get("k", 1)
+            orientations = orientations_about_axis(n=n, axis=axis, k=k)
+    
+        elif method == "fibonacci_lattice":
+            orientations = orientations_from_fibonacci_lattice(n)
+
+        field = system.measure(
+            quantities=["U"],
+            positions=np.asarray(positions),
+            orientations=orientations,
+            disable_pbar=True
+        )
+    
+        avg_field_values.append(
+            field
+                .aggregate_over_orientations("U", method="mean")
+                .table["U"]
+        )     
+
+    # field values averaged over orientations
+    avg_field_values = np.asarray(avg_field_values)
+
+    # field values averaged over orientations and then positions
+    if show_avg:
+        avg_avg_field_values = np.mean(avg_field_values, axis=1)
+
+    # Calculate colors
+    if cmap_type == "continuous":
+        colors = plotly.express.colors.sample_colorscale(
+            colorscale=cmap,
+            samplepoints=len(positions),
+        )
+    else:
+        # If there are fewer discrete colors than the number of positions,
+        # repeat colors when necessary.
+        color_cycle = itertools.cycle(
+            getattr(plotly.colors.qualitative, cmap.capitalize())
+        )
+        colors = [next(color_cycle) for _ in range(len(positions))]
+
+    # Build the figure
+    figure = plotly.graph_objects.Figure()
+
+    if show_avg:
+        figure.add_trace(
+            plotly.graph_objects.Scatter(
+                x=n_orientations,
+                y=avg_avg_field_values,
+                name="Avg over positions",
+                line=dict(
+                    color=avg_line_color,
+                    width=line_width,
+                    dash="dot"
+                ),
+                mode="lines"
+            )
+        )
+
+    # Add individual positions
+    for i, (p, c) in enumerate(zip(positions, colors)):
+        figure.add_trace(
+            plotly.graph_objects.Scatter(
+                x=n_orientations,
+                y=avg_field_values[:, i],
+                name=f"{p}",
+                mode=marker_mode,
+                marker=dict(size=marker_size),
+                line=dict(color=c, width=line_width),
+            )
+        )
+    
+    # Add styling
+    allowed_kwarg_names = (
+        inspect.signature(plot_layout).parameters.keys()
+    )
+    layout_kwargs = {
+        k: v for k, v in kwargs.items() if k in allowed_kwarg_names
+    }
+    layout = plot_layout(
+        slice=dict(z=0, y=0),
+        **layout_kwargs
+    )
+    figure.update_layout(**layout)
+
+    figure.update_layout(
+        xaxis=dict(title_text="Number of orientations"),
+        yaxis=dict(title_text="Avg U"),
+        title_text="",
+        width=600,
+        height=400,
+        autosize=False
+    )
+
+    return figure, avg_field_values
+
 def plot_state(
     obj: hoomd.Simulation | StateLike,
     type_shapes: dict[str, coxeter.shapes.Polyhedron] | None = None,

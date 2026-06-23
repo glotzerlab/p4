@@ -846,6 +846,10 @@ class Field:
         plot Force and Torque magnitudes as scalar quantities. Set ``vectors``
         to ``True`` to plot Forces or Torques as vectors. Vector plotting is
         only available in 2D and 3D.
+
+        .. note::
+            Plotting is only supported for fields whose positions lie on a
+            regular grid (x, y, and z must increase linearly).
         
         Parameters
         ----------

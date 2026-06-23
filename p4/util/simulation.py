@@ -393,10 +393,11 @@ def get_simulation(
         probe_start + 1 : n_total
     ] = probe_start
 
-    # Create rigid constraint   [TODO: refactor to make this less hacky]
+    # Create rigid constraint
+    # NOTE: probe is added to rigid constraint even if its secondary
+    # particles are not "actively interacting"
     rigid = system.analyte.to_hoomd_rigid()
-    if system.probe._is_rigid(system.interactions):
-        rigid = system.probe.to_hoomd_rigid(rigid)
+    rigid = system.probe.to_hoomd_rigid(rigid)
 
     # Add integrator
     simulation = add_integrator(simulation, rigid)

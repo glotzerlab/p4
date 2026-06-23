@@ -888,7 +888,9 @@ class Interaction:
         for param_dict in self.typed_params.values():
             max_r_cut = max(max_r_cut, param_dict.get("r_cut", 0))
 
-        box_length = 1.1 * 2 * (max(max_r_cut, max(r)) + 2) # +2 from nlist
+        nlist_buffer = 2
+
+        box_length = 1.1 * 2 * (max(max_r_cut, max(r)) + nlist_buffer)
 
         measure_kwargs = dict(
             quantities="U",
@@ -915,7 +917,7 @@ class Interaction:
             
             table = util.simulation.measure(
                 system=system,
-                nlist=hoomd.md.nlist.Tree(2),
+                nlist=hoomd.md.nlist.Tree(nlist_buffer),
                 **measure_kwargs
             )
             table = util.data.clean_header(table)

@@ -142,7 +142,7 @@ def orientations_from_fibonacci_lattice(n: int) -> np.ndarray:
 def plot_positions(
     positions: PositionsLike,
     box: list[float] | None = None,
-    color: str = "cornflowerblue",
+    color: str | list[str] = "cornflowerblue",
     opacity: float = 1.0,
     size: float = 5.0,
     box_color: str = "grey",
@@ -150,7 +150,7 @@ def plot_positions(
     box_line_width: float = 4.0,
     **kwargs
 ) -> tuple[plotly.graph_objs._figure.Figure, list]:
-    """Visualize sampled positions to evaluate coverage around an analyte.
+    """Visualize sampled positions to evaluate coverage.
 
     Parameters
     ----------
@@ -159,8 +159,10 @@ def plot_positions(
     box : (3,) array of floats, optional
         The size of the system box, expressed as a (3,) array of side lengths.
         If not provided, no box is plotted.
-    color : str, default='cornflowerblue'
-        The color of the position markers.
+    color : str or list[str], default='cornflowerblue'
+        Either a single color or the name of a continuous or qualitative
+        colormap, or an array of strings that specify the color for each
+        position.
     opacity : float, default=1.0
         The opacity of the position markers.
     size : float, default=5.0
@@ -174,26 +176,115 @@ def plot_positions(
     **kwargs
         Other keyword arguments are passed to the function
         :py:func:`p4.plot_layout`.
+    
+    Returns
+    -------
+    figure, traces
+        The plot figure and its associated traces.
     """
+    # Ensure that color is one of the allowed options
+    color_type = None
+    allowed_color_types = (
+        "color", "continuous-cmap", "qualitative-cmap", "list-of-colors"
+    )
+    if isinstance(color, str):
+        try:
+            _ = plotly.graph_objects.Scatter(marker=dict(color=color))
+            color_type = "color"
+        except ValueError:
+            pass
+    
+    if color_type not in allowed_color_types:
+        try:
+            _ = plotly.colors.get_colorscale(color)
+            color_type = "continuous-cmap"
+        except plotly.exceptions.PlotlyError:
+            pass
+    
+    if color_type not in allowed_color_types:
+        try:
+            getattr(plotly.colors.qualitative, color.capitalize())
+            color_type = "qualitative-cmap"
+        except AttributeError:
+            pass
+    
+    if color_type not in allowed_color_types:
+        if (
+            not isinstance(color, str)
+            and isinstance(color, Iterable)
+        ):
+            for c in color:
+                try:
+                    _ = plotly.graph_objects.Scatter(marker=dict(color=c))
+                    color_type = "list-of-colors"
+                except ValueError:
+                    break
+    
+    if color_type not in allowed_color_types:
+        raise ValueError(
+            "`color` is not a valid color, or the name of a continuous or "
+            + "qualitative plotly colorscale, or an array of valid colors."
+        )
+        
     positions = np.asarray(positions)
 
     figure = plotly.graph_objects.Figure()
 
-    positions_trace = plotly.graph_objects.Scatter3d(
-        x=positions[:,0],
-        y=positions[:,1],
-        z=positions[:,2],
-        mode="markers",
-        marker=dict(
-            size=size,
-            color=color,
-            opacity=opacity,
-            line=dict(width=2, color="DarkSlateGrey")
-        ),
-        showlegend=False
-    )
+    positions_traces = []
 
-    figure.add_trace(positions_trace)
+    if color_type == "color":
+        positions_traces.append(
+            plotly.graph_objects.Scatter3d(
+                x=positions[:,0],
+                y=positions[:,1],
+                z=positions[:,2],
+                mode="markers",
+                marker=dict(
+                    size=size,
+                    color=color,
+                    opacity=opacity,
+                    line=dict(width=2, color="DarkSlateGrey")
+                ),
+                showlegend=False
+            )
+        )
+
+    else:
+        if color_type == "list-of-colors":
+            color_cycle = itertools.cycle(color)
+            colors = [next(color_cycle) for _ in range(len(positions))]
+        elif color_type == "continuous-cmap":
+            colors = plotly.express.colors.sample_colorscale(
+                colorscale=color,
+                samplepoints=len(positions),
+            )
+        elif color_type == "qualitative-cmap":
+            # If there are fewer discrete colors than the number of positions,
+            # repeat colors when necessary.
+            color_cycle = itertools.cycle(
+                getattr(plotly.colors.qualitative, color.capitalize())
+            )
+            colors = [next(color_cycle) for _ in range(len(positions))]
+
+        for p, c in zip(positions, colors):
+            positions_traces.append(
+                plotly.graph_objects.Scatter3d(
+                    x=[p[0]],
+                    y=[p[1]],
+                    z=[p[2]],
+                    mode="markers",
+                    marker=dict(
+                        size=size,
+                        color=c,
+                        opacity=opacity,
+                        line=dict(width=2, color="DarkSlateGrey")
+                    ),
+                    showlegend=False
+                )
+            )
+
+    for trace in positions_traces:
+        figure.add_trace(trace)
 
     if box is not None:
         cube = coxeter.families.PlatonicFamily.get_shape("Cube")
@@ -201,7 +292,7 @@ def plot_positions(
         vertices = np.asarray(box) * cube.vertices
         edges = cube.edges
     
-        data = []   # TODO: make this numpy
+        data = []
 
         for edge in edges:
             data.append([vertices[edge[0], i] for i in [0, 1, 2]])
@@ -224,7 +315,7 @@ def plot_positions(
     
     figure.update_layout(plot_layout(slice={}, **kwargs))
 
-    return figure, positions_trace
+    return figure, positions_traces
 
 def plot_state(
     obj: hoomd.Simulation | StateLike,

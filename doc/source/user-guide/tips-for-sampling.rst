@@ -29,6 +29,8 @@ To evaluate the coverage of your position sampling, use
     
     import p4
     import coxeter
+    import hoomd
+    import numpy as np
 
     cube = coxeter.families.PlatonicFamily.get_shape("Cube")
 

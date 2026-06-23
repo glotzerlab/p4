@@ -52,6 +52,8 @@ Constants and functions for visualizing samples and HOOMD-blue objects using
 
 .. autofunction:: p4.plot_positions
 
+.. autofunction:: p4.plot_field_vs_number_of_orientations
+
 .. autofunction:: p4.plot_state
 
 .. autofunction:: p4.plot_layout

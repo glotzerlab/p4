@@ -18,6 +18,7 @@ from .top_level_functions import (
     orientations_from_fibonacci_lattice,
     plot_layout,
     plot_positions,
+    plot_field_vs_number_of_orientations,
     plot_state,
     snapshot_schematic_slice_trace,
 
@@ -40,6 +41,7 @@ __all__ = [
     "orientations_about_axis",
     "orientations_from_fibonacci_lattice",
     "plot_positions",
+    "plot_field_vs_number_of_orientations",
     "plot_state",
     "plot_layout",
     "snapshot_schematic_slice_trace",

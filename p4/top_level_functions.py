@@ -10,6 +10,7 @@ import hoomd
 import gsd
 import numpy as np
 import plotly
+import plotly.express
 import rowan
 import coxeter
 

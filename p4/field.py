@@ -893,7 +893,7 @@ class Field:
         ylim_1d : list[float], optional
             In a 1D scalar plot, the limits of the y axis. Defaults to the
             0th and 90th percentile of the plotted quantity.
-        opaopacity_scalar_3dcity : float, default=0.2
+        opacity_scalar_3d : float, default=0.2
             In a 3D scalar plot, the opacity of the surface. Passed directly to
             ``plotly.graph_objects.Volume()``.
         opacityscale_scalar_3d : float | str, default='uniform'

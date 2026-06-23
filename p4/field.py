@@ -184,18 +184,20 @@ class Field:
         return quantities
 
     # def has_regular_grid(self) -> bool:
-        # """Whether this Field's grid has constant intervals along each axis."""
-        # positions = self.positions
-        
-        # x = np.unique(positions[:,0])
-        # y = np.unique(positions[:,1])
-        # z = np.unique(positions[:,2])
-        
-        # regular_x = np.nonzero(np.diff(x, n=2))[0].size == 0
-        # regular_y = np.nonzero(np.diff(y, n=2))[1].size == 0
-        # regular_z = np.nonzero(np.diff(z, n=2))[2].size == 0
+    #     """Whether this Field's grid has constant intervals along each axis."""
+    #     positions = self.positions
 
-        # return (regular_x and regular_y and regular_z)
+    #     same_intervals = []
+    #     for i in [0, 1, 2]:
+    #         unique_values = np.unique(positions[:,i])
+    #         second_diff = np.diff(unique_values, n=2)
+    #         same_intervals.append(
+    #             len(second_diff) == 0
+    #             or np.isclose(second_diff, [0 for _ in second_diff]).all()
+    #         )
+        
+    #     return all(same_intervals)
+
 
     # ------------------------------- OPERATIONS -------------------------------
 

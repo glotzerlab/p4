@@ -542,3 +542,77 @@ if __name__ == "__main__":
     fig.add_traces(tr)
     fig.update_layout(**FIELD_3D_LAYOUT)
     fig.write_html(data_path+"/arrangement-abc-u-scalar3d.html", include_plotlyjs='cdn')
+
+    # --------------------------- User Guide: Sampling -------------------------
+    
+    cube = coxeter.families.PlatonicFamily.get_shape("Cube")
+
+    body = p4.Body(
+        primary_type="A",
+        secondary_types=["B"],
+        positions_by_type=dict(B=cube.vertices)
+    )
+
+    sample_positions = p4.positions_on_regular_grid(
+        box=[2, 2, 2],
+        resolution=[10, 10, 10]
+    )
+
+    _, body_trace = body.plot(type_shapes=dict(A=cube))
+    fig, _ = p4.plot_positions(positions=sample_positions, color="black", size=2)
+    fig.add_traces(body_trace)
+    fig.write_html(data_path+"/sampling-positions.html", include_plotlyjs='cdn')
+
+    # ---
+
+    other_body = p4.Body(
+        primary_type="C",
+        secondary_types=["D"],
+        positions_by_type=dict(D=cube.vertices)
+    )
+
+    alj = p4.Interaction(
+        hoomd_class=hoomd.md.pair.aniso.ALJ,
+        initial_args={},
+        default_params=dict(
+            r_cut=0,
+            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
+            shape=dict(vertices=[], faces=[])
+        ),
+        typed_params={
+            ("C", "A"): dict(
+                r_cut=5,
+                params=dict(epsilon=1, sigma_i=0.1, sigma_j=0.1, alpha=0)
+            ),
+            "A": dict(shape=dict(vertices=cube.vertices, faces=cube.faces)),
+            "C": dict(shape=dict(vertices=cube.vertices, faces=cube.faces))
+        }
+    )
+    gauss = p4.Interaction(
+        hoomd_class=hoomd.md.pair.Gaussian,
+        initial_args={},
+        default_params=dict(
+            r_cut=0,
+            params=dict(epsilon=0, sigma=0.2),
+        ),
+        typed_params={
+            ("D", "B"): dict(
+                r_cut=5,
+                params=dict(epsilon=-1, sigma=0.125)
+            )
+        }
+    )
+
+    system = p4.System(
+        probe=other_body,
+        analyte=body,
+        interactions=[alj, gauss]
+    )
+
+    fig, _ = p4.plot_field_vs_number_of_orientations(
+        system=system,
+        n_orientations=np.arange(100, 600, 25),
+        positions=[[float(i)]*3 for i in np.linspace(1, 1.25, 6)],
+        method="fibonacci_lattice",
+    )
+    fig.write_html(data_path+"/sampling-orientations.html", include_plotlyjs='cdn')

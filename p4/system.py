@@ -623,6 +623,12 @@ class System:
             raise ValueError(
                 "`filename` must be None or a string ending in '.csv'."
             )
+    
+        # Ensure filename is provided if saving to GSD
+        if save_gsd and filename is None:
+            raise ValueError(
+                "`filename` must be provided if `save_gsd` is True."
+            )
         
         # Calculate a simulation box that contains all the particles
         max_distance = probe_positions.max()

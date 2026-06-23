@@ -7,7 +7,16 @@ import os
 from pathlib import Path
 from typing import Iterable, Literal
 import multiprocessing
-multiprocessing.set_start_method(method="fork")
+from warnings import warn
+
+try:
+    multiprocessing.set_start_method(method="fork")
+except RuntimeError:
+    warn(
+        "Could not set multiprocessing start method to 'fork'. To prevent "
+        + "future RuntimeErrors, put all calls to System.measure() in an "
+        + "`if __name__ ==  '__main__'` block."
+    )
 
 import hoomd
 import numpy as np

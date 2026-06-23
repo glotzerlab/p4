@@ -694,7 +694,7 @@ class Interaction:
         path = Path(filename)
         data = self._to_json_dict()
         data["p4_version"] = __version__
-        data["hoomd_version"] = hoomd.version.version
+        data["hoomd_blue_version"] = hoomd.version.version
 
         if not path.exists():
             path.touch()

@@ -848,6 +848,7 @@ def snapshot_schematic_slice_trace(
             showlegend=True
         )
 
+
 # ------------------------------------ OTHER -----------------------------------
 
 

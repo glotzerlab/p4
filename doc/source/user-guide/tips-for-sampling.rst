@@ -1,8 +1,8 @@
-.. _sampling:
+.. _tips-for-sampling:
 
-========
-Sampling
-========
+=================
+Tips for Sampling
+=================
 
 .. p4 measures continuous fields at discrete positions and orientations, so fields
 .. can never be measured with complete accuracy. Nevertheless, there are some steps

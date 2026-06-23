@@ -8,6 +8,6 @@ The following pages provide guidance for more advanced usage of p4.
     :maxdepth: 1
 
     accelerating-workflows
-    sampling
+    tips-for-sampling
     customizing-plots
     publishing-with-p4

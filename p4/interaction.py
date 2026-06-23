@@ -824,8 +824,6 @@ class Interaction:
         figure, traces
             The plot figure and its associated traces.
         """
-        # TODO: check if there's another way to structure package to prevent
-        # imports here
         from .body import Body
         from .field import Field
         from .system import System

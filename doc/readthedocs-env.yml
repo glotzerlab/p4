@@ -2,7 +2,7 @@ name: p4-rtd
 channels:
   - conda-forge
 dependencies:
-  - hoomd==7.0.1
+  - hoomd==7.1.0
   - gsd==5.0.1
   - plotly==6.6.0
   - sphinx==9.1.0

@@ -125,11 +125,19 @@ class Interaction:
             )
         if (
             hoomd_class is hoomd.md.pair.Table
-            and Version(hoomd.version.version) < Version("7.0.2")
+            and Version(hoomd.version.version) < Version("7.1.0")
         ):
             raise TypeError(
                 "`hoomd.md.pair.Table` is not compatible with p4 below "
-                + "HOOMD-blue version 7.0.2."
+                + "HOOMD-blue version 7.1.0."
+            )
+        if (
+            hoomd_class is hoomd.md.pair.aniso.ALJ
+            and Version(hoomd.version.version) < Version("7.1.0")
+        ):
+            raise TypeError(
+                "`hoomd.md.pair.aniso.ALJ` is not compatible with p4 below "
+                + "HOOMD-blue version 7.1.0."
             )
         
         # Set instance attributes

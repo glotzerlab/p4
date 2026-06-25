@@ -22,8 +22,11 @@ from packaging.version import Version
 REQUIRED_PARENT_CLASS = p4.interaction.REQUIRED_PARENT_CLASS
 EXCLUDED_TYPE_STRINGS = p4.interaction.EXCLUDED_TYPE_STRINGS
 
-if Version(hoomd.version.version) < Version("7.0.2"):
-    EXCLUDED_TYPE_STRINGS.append("hoomd.md.pair.pair.Table")
+if Version(hoomd.version.version) < Version("7.1.0"):
+    EXCLUDED_TYPE_STRINGS.extend([
+        "hoomd.md.pair.pair.Table",
+        "hoomd.md.pair.aniso.ALJ"
+    ])
 
 def cls_to_str(cls):
     """Return a string representation of the class' path, including its name."""

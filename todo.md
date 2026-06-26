@@ -12,8 +12,8 @@ TBD
 - [ ] add shape overlap exclusion sampling
 - [ ] add dynamical mesh sampling
 - [ ] add way to limit orientations from fibonacci lattice based on point group
-- [ ] add validation tests
 
 Possible performance improvements:
   - [ ] switch from nested for-loop to single computation over many spaced-out configurations
   - [ ] (docs) add plotly js to directory and have html files point to it
+  - [ ] add way to only scan a subset of positions based on symmetry and then unfold those positions when calling Field.from_csv

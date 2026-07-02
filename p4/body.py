@@ -981,7 +981,7 @@ class Body:
             JSON file. If not provided, there are no newlines.
         """
         path = Path(filename)
-        data = self._to_json_dict()
+        data = self.to_dict()
         data["p4_version"] = __version__
 
         if not path.exists():
@@ -1016,7 +1016,7 @@ class Body:
         with open(path, "w") as f:
             json.dump(existing_data, f, indent=indent)
 
-    def _to_json_dict(self) -> dict:
+    def to_dict(self) -> dict:
         """Return a JSON-compliant dictionary representing this body."""
         return dict(
             primary_type=self.primary_type,

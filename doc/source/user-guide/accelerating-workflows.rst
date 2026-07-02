@@ -435,6 +435,7 @@ Next, we populate the Signac project with jobs.
 
             from pathlib import Path
             import p4
+            import hoomd
 
             iterator = zip(
                 [0.1, 0.5, 1],
@@ -466,20 +467,18 @@ Next, we populate the Signac project with jobs.
                     initial_args={},
                     default_params=dict(
                         r_cut=4,
-                        epsilon=e,
-                        sigma=s
+                        params=dict(
+                            epsilon=e,
+                            sigma=s
+                        )
                     ),
                     typed_params={}
                 )
 
                 # Write arrangement and interaction
                 # into the state point
-                sp_path = (
-                    Path(job.path)
-                    / "signac_statepoint.json"
-                )
-                arrangement.to_json(sp_path)
-                interaction.to_json(sp_path)
+                job.update_statepoint(arrangement.to_dict())
+                job.update_statepoint(interaction.to_dict())
 
     .. grid-item::
 
@@ -532,7 +531,7 @@ the parameters in the statepoint.
                 # Get initial state from state point
                 snapshot = (
                     p4.Arrangement
-                        .from_json(sp_path)
+                        .from_json(sp_path, json_path=".")
                         .to_hoomd_snapshot()
                 )
                 sim.create_state_from_snapshot(
@@ -542,7 +541,7 @@ the parameters in the statepoint.
                 # Get potential from state point
                 pair = (
                     p4.Interaction
-                        .from_json(sp_path)
+                        .from_json(sp_path, json_path=".")
                         .to_hoomd_pair()
                 )
                 integrator = hoomd.md.Integrator(0.1)
@@ -550,7 +549,8 @@ the parameters in the statepoint.
                 sim.operations.integrator = integrator
 
                 # Add loggers, writers, etc...
-                # then return the simulation
+                
+                return sim
 
             for job in project.find_jobs():
                 simulation = make_sim(job)

@@ -465,7 +465,7 @@ class System:
             JSON file. If not provided, there are no newlines.
         """
         path = Path(filename)
-        data = self._to_json_dict()
+        data = self.to_dict()
         data["p4_version"] = __version__
 
         if not path.exists():
@@ -500,14 +500,14 @@ class System:
         with open(path, "w") as f:
             json.dump(existing_data, f, indent=indent)
 
-    def _to_json_dict(self):
-        """Convert the system to a JSON-compliant dictionary."""
+    def to_dict(self):
+        """Return a JSON-compliant dictionary representing this system."""
         data = {}
 
-        data["probe"] = self.probe._to_json_dict()
-        data["analyte"] = self.analyte._to_json_dict()
+        data["probe"] = self.probe.to_dict()
+        data["analyte"] = self.analyte.to_dict()
         data["interactions"] = [
-            i._to_json_dict() for i in self.interactions
+            i.to_dict() for i in self.interactions
         ]
 
         return data

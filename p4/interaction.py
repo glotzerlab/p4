@@ -700,7 +700,7 @@ class Interaction:
             JSON file. If not provided, there are no newlines.
         """
         path = Path(filename)
-        data = self._to_json_dict()
+        data = self.to_dict()
         data["p4_version"] = __version__
         data["hoomd_blue_version"] = hoomd.version.version
 
@@ -736,7 +736,7 @@ class Interaction:
         with open(path, "w") as f:
             json.dump(existing_data, f, indent=indent)
 
-    def _to_json_dict(self) -> dict:
+    def to_dict(self) -> dict:
         """Return a JSON-compliant dictionary representing this interaction."""
         data = dict(
             hoomd_class=self.hoomd_class,

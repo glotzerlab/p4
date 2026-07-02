@@ -803,7 +803,7 @@ class Arrangement:
             JSON file. If not provided, there are no newlines.
         """
         path = Path(filename)
-        data = self._to_json_dict()
+        data = self.to_dict()
         data["p4_version"] = __version__
 
         if not path.exists():
@@ -838,10 +838,10 @@ class Arrangement:
         with open(path, "w") as f:
             json.dump(existing_data, f, indent=indent)
 
-    def _to_json_dict(self) -> dict:
+    def to_dict(self) -> dict:
         """Return a JSON-compliant dictionary representing this arrangement."""
         return dict(
-            bodies=[b._to_json_dict() for b in self.bodies],
+            bodies=[b.to_dict() for b in self.bodies],
             positions_by_type=self.positions_by_type,
             orientations_by_type=self.orientations_by_type
         )

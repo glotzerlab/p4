@@ -106,23 +106,6 @@ We can apply this analysis to our cubic body example from above.
         positions_by_type=dict(D=cube.vertices)
     )
 
-    alj = p4.Interaction(
-        hoomd_class=hoomd.md.pair.aniso.ALJ,
-        initial_args={},
-        default_params=dict(
-            r_cut=0,
-            params=dict(epsilon=0, sigma_i=0.1, sigma_j=0.1, alpha=0),
-            shape=dict(vertices=[], faces=[])
-        ),
-        typed_params={
-            ("C", "A"): dict(
-                r_cut=5,
-                params=dict(epsilon=1, sigma_i=0.1, sigma_j=0.1, alpha=0)
-            ),
-            "A": dict(shape=dict(vertices=cube.vertices, faces=cube.faces)),
-            "C": dict(shape=dict(vertices=cube.vertices, faces=cube.faces))
-        }
-    )
     gauss = p4.Interaction(
         hoomd_class=hoomd.md.pair.Gaussian,
         initial_args={},
@@ -141,7 +124,7 @@ We can apply this analysis to our cubic body example from above.
     system = p4.System(
         probe=other_body,
         analyte=body,
-        interactions=[alj, gauss]
+        interactions=[gauss]
     )
 
     fig, _ = p4.plot_field_vs_number_of_orientations(

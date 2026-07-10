@@ -985,6 +985,7 @@ class Interaction:
         figure.update_layout(**layout)
 
         figure.update_layout(xaxis=dict(title="r", range=[min(r), max(r)]))
+        figure.update_layout(yaxis=dict(title="U"))
         
         if ylim is None:
             overall_min = min(min(s["y"]) for s in figure.data)

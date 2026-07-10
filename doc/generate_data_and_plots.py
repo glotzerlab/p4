@@ -43,9 +43,71 @@ Path(data_path).mkdir(parents=True, exist_ok=True)
 # multiprocessing doesn't cause problems
 if __name__ == "__main__":
 
-    # --------------------------------- Basic Usage ----------------------------
+    # ---------------------------- Quickstart: Section 1 -----------------------
+    cube = coxeter.families.PlatonicFamily.get_shape("Cube")
+
+    body = p4.Body(
+        primary_type="A",
+        secondary_types=["B"],
+        positions_by_type=dict(B=cube.vertices)
+    )
+
+    # --
+    fig, _ = body.plot(type_shapes=dict(A=cube))
+    fig.update_layout(**BODY_3D_LAYOUT)
+    fig.write_html(data_path+"/quickstart-section1-body.html", include_plotlyjs='cdn')
+
+    # --
+    interaction = p4.Interaction(
+        hoomd_class=hoomd.md.pair.LJ,
+        initial_args={},
+        default_params=dict(r_cut=0, params=dict(epsilon=0, sigma=1)),
+        typed_params={
+            ("B", "B"): dict(
+                r_cut=5,
+                params=dict(epsilon=0.3, sigma=1.0)
+            )
+        }
+    )
+
+    # --
+    fig, _ = interaction.plot(r=np.linspace(0, 3, 1000), ylim=[-1, 1], show_legend=True)
+    fig.update_layout(**FIELD_PLOT_DIMENSIONS)
+    fig.write_html(data_path+"/quickstart-section1-interaction.html", include_plotlyjs='cdn')
+
+    # --
+    system = p4.System(
+        probe=body,
+        analyte=body,
+        interactions=[interaction]
+    )
+
+    # --
+    positions = p4.positions_on_regular_grid(
+        box=[5, 5, 5],
+        resolution=[30, 30, 30]
+    )
+
+    orientations = p4.orientations_from_fibonacci_lattice(50)
+
+    field = system.measure(
+        quantities=["U"],
+        positions=positions,
+        orientations=orientations,
+    )
+
+    # --
+    avg = field.aggregate_over_orientations("U", "mean")
+    fig, _ = avg.plot(opacityscale_scalar_3d="max")
+    fig.update_layout(**FIELD_3D_LAYOUT)
+    fig.write_html(data_path+"/quickstart-section1-field.html", include_plotlyjs='cdn')
+
+    # ---------------------------- Quickstart: Section 2 -----------------------
+    cube = coxeter.families.PlatonicFamily.get_shape("Cube")
+    cube.volume = cube.volume / 4
+
     # Make a simulation with two 'A' particles
-    example_simulation = hoomd.util.make_example_simulation(
+    simulation = hoomd.util.make_example_simulation(
         particle_types=["A", "B"]
     )
 
@@ -53,65 +115,42 @@ if __name__ == "__main__":
     # configuration around 'A'.
     rigid = hoomd.md.constrain.Rigid()
     rigid.body["A"] = {
-        "constituent_types": ["B", "B"],
-        "positions": [(0,0,1),(0,0,-1)],
-        "orientations": [(1.0, 0.0, 0.0, 0.0), (1.0, 0.0, 0.0, 0.0)],
+        "constituent_types": ["B" for _ in cube.vertices],
+        "positions": cube.vertices,
+        "orientations": [(1, 0, 0, 0) for _ in cube.vertices],
     }
 
     # Add constituent particles to the simulation state
-    rigid.create_bodies(example_simulation.state)
+    rigid.create_bodies(simulation.state)
 
     # Add an integrator and a simple B-B LJ force
-    example_simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
+    simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
     lj = hoomd.md.pair.LJ(nlist=hoomd.md.nlist.Tree(2), default_r_cut=0)
     lj.r_cut[("B", "B")] = 5
     lj.params[("A", "A")] = {"epsilon": 0.0, "sigma": 1.0}
     lj.params[("A", "B")] = {"epsilon": 0.0, "sigma": 1.0}
-    lj.params[("B", "B")] = {"epsilon": 1.0, "sigma": 1.0}
+    lj.params[("B", "B")] = {"epsilon": 0.3, "sigma": 1.0}
 
     # Attach the force and constraint to the integrator
-    example_simulation.operations.integrator.rigid = rigid
-    example_simulation.operations.integrator.forces.append(lj)
+    simulation.operations.integrator.rigid = rigid
+    simulation.operations.integrator.forces.append(lj)
 
     # --
-    fig, tr = p4.plot_state(example_simulation)
+    fig, tr = p4.plot_state(simulation)
     fig.update_layout(**BODY_3D_LAYOUT)
-    fig.write_html(data_path+"/example-simulation.html", include_plotlyjs='cdn')
+    fig.write_html(data_path+"/quickstart-section2-state.html", include_plotlyjs='cdn')
 
     # --
-    body = p4.Body.from_hoomd_simulation(example_simulation)
+    interactions = p4.Interaction.from_hoomd_simulation(simulation)
+    fig, _ = interactions[0].plot(r=np.linspace(0, 3, 1000), ylim=[-1, 1], show_legend=True)
+    fig.update_layout(**FIELD_PLOT_DIMENSIONS)
+    fig.write_html(data_path+"/quickstart-section2-interaction.html", include_plotlyjs='cdn')
 
     # --
-    interactions = p4.Interaction.from_hoomd_simulation(example_simulation)
-
-    # --
-    system = p4.System.from_hoomd_simulation(
-        example_simulation,
-        probe_primary_type="A",     # change to fit your system
-        analyte_primary_type="A"    # change to fit your system
-    )
-
-    # --
-    positions = p4.positions_on_regular_grid(
-        box=[10, 10, 10],
-        resolution=[10, 10, 10]
-    )
-
-    field = system.measure(
-        quantities=["U"],
-        positions=positions,                    # change to fit your system
-        orientations=[1, 0, 0, 0],              # change to fit your system
-        n_processes=1
-    )
-
-    # --
-    average_field = field.aggregate_over_orientations("U", "mean")
-
-    # --
-    fig, tr = field.plot()
-    fig.update_layout(**FIELD_3D_LAYOUT)
-    fig.write_html(data_path+"/basic-field.html", include_plotlyjs='cdn')
-
+    bodies = p4.Body.from_hoomd_simulation(simulation)
+    fig, _ = bodies[0].plot(type_shapes=dict(A=cube))
+    fig.update_layout(**BODY_3D_LAYOUT)
+    fig.write_html(data_path+"/quickstart-section2-body.html", include_plotlyjs='cdn')
 
     # ------------------------- User Guide: Particle Models --------------------
     body = p4.Body("A")

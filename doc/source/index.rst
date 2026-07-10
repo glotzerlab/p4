@@ -17,7 +17,7 @@ p4 has three objectives:
    fields, rather than inferring it from simulation results;
 2. to make it easy to share rigid body models and interaction models without
    requiring specific software; and
-3. to make it easier to use `HOOMD-blue`_ for particle systems research.
+3. to make it easier to use `HOOMD-blue`_ for patchy particle systems research.
 
 p4 accomplishes these objectives through an API that is designed to be
 

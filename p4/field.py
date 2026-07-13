@@ -604,6 +604,111 @@ class Field:
             writer.writerow(self.table.dtype.names)
             writer.writerows(self.table.tolist())
 
+    def to_vtk(
+        self,
+        filename: os.PathLike,
+        file_format: Literal["xml", "ascii", "binary"]
+    ):
+        """Save this field to a VTK file as an unstructured grid.
+        
+        A field cannot be saved to VTK if measurements have multiple
+        orientations.
+
+        .. note::
+
+            This method requires VTK, which is an optional dependency. For
+            installation instructions, see the `documentation`_.
+        
+        .. _documentation: https://docs.vtk.org/en/latest/index.html
+        
+        Parameters
+        ----------
+        filename : os.PathLike
+            The name or path of the output file.
+        file_format : 'xml', 'ascii', or 'binary'
+            The format of the file. XML and ASCII are generally larger but more
+            portable between different computers.
+        
+        Raises
+        ------
+        ImportError
+            If an existing VTK installation is not found.
+        ValueError
+            If the measurements contain more than one orientation.
+        """
+        try:
+            import vtk
+            import vtk.util.numpy_support as numpy_support
+        except ImportError:
+            raise ImportError("Optional dependency 'vtk' not found.")
+        
+        # Ensure there is no ambiguity around orientations
+        if self.orientations is not None and self.orientations.shape[0] > 1:
+            raise ValueError(
+                "Cannot save field with more than one orientation. "
+                + "Aggregate over orientations."
+            )
+        
+        # Initialize VTK data structure
+        vtk_data = vtk.vtkUnstructuredGrid()
+
+        # Set the points
+        positions_vtk = vtk.vtkPoints()
+        for i, p in enumerate(self.positions):
+            positions_vtk.InsertPoint(i, p.tolist())
+        
+        vtk_data.SetPoints(positions_vtk)
+
+        # Create the writer
+        if file_format == "xml":
+            writer = vtk.vtkXMLUnstructuredGridWriter()
+        elif file_format in ["ascii", "binary"]:
+            writer = vtk.vtkUnstructuredGridWriter()
+            if file_format == "ascii":
+                writer.SetFileTypeToASCII()
+            else:
+                writer.SetFileTypeToBinary()
+        
+        # Add the U data
+        if "U" in self.quantities:
+            u_flat = self.to_gridded_array("U").flatten()
+            u_vtk = numpy_support.numpy_to_vtk(
+                num_array=u_flat,
+                deep=True,
+                array_type=vtk.VTK_FLOAT
+            )
+            u_vtk.SetName("U")
+            vtk_data.GetPointData().AddArray(u_vtk)
+
+        # Add the F and T data (both vectors and magnitudes)
+        for name in ["F", "T"]:
+            if name in self.quantities:
+                gridded_vectors = self.to_gridded_array(name, vectors=True)
+                vectors_flat = gridded_vectors.reshape(-1, 3)
+                vectors_vtk = numpy_support.numpy_to_vtk(
+                    num_array=vectors_flat,
+                    deep=True,
+                    array_type=vtk.VTK_FLOAT
+                )
+                vectors_vtk.SetName(name)
+                vtk_data.GetPointData().AddArray(vectors_vtk)
+
+                gridded_scalars = self.to_gridded_array(name, vectors=False)
+                scalars_flat = gridded_scalars.flatten()
+                scalars_vtk = numpy_support.numpy_to_vtk(
+                    num_array=scalars_flat,
+                    deep=True,
+                    array_type=vtk.VTK_FLOAT
+                )
+                scalars_vtk.SetName(f"{name}_magnitude")
+                vtk_data.GetPointData().AddArray(scalars_vtk)
+        
+        # Write the file
+        writer.SetFileName(filename)
+        writer.SetInputData(vtk_data)
+        writer.Write()
+
+
     def to_gridded_array(
         self,
         quantity: Literal["U", "F", "T", "Fx", "Fy", "Fz", "Tx", "Ty", "Tz"],

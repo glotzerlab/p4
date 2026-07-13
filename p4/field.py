@@ -448,7 +448,10 @@ class Field:
         
         results = np.logical_and.reduce(conditions)
 
-        return self.table[results]
+        if results is np.True_:
+            return self.table
+        else:
+            return self.table[results]
     
     def __sub__(self, other: Field) -> Field:
         """Calculate the difference between two fields' measured quantities.
@@ -759,7 +762,7 @@ class Field:
         """Convert a recarray like a table into a gridded array for plotting.
         
         It is assumed that either the recarray has a 1 measured quantity,
-        or that it has 3 with that correspond to qx, qy, qz, where q is either
+        or that it has 3 with that correspond to Mx, My, Mz, where M is either
         F or T.
         
         If the recarray has a single measured quantity, the gridded array will
@@ -767,12 +770,12 @@ class Field:
         2).
 
         If the recarray has three measured quantities, the gridded array will
-        be 4D (Z along axis 0, Y along axis 1, X along axis 2, q-components
-        along axis 3 in qx, qy, qz order).
+        be 4D (Z along axis 0, Y along axis 1, X along axis 2, M-components
+        along axis 3 in Mx, My, Mz order).
 
         Parameters
         ----------
-        table : np.recarray
+        recarray : np.recarray
             The recarray to convert.
         
         Returns

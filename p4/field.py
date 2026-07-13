@@ -708,7 +708,6 @@ class Field:
         writer.SetInputData(vtk_data)
         writer.Write()
 
-
     def to_gridded_array(
         self,
         quantity: Literal["U", "F", "T", "Fx", "Fy", "Fz", "Tx", "Ty", "Tz"],

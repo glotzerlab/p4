@@ -987,7 +987,7 @@ class Interaction:
         figure.update_layout(xaxis=dict(title="r", range=[min(r), max(r)]))
         figure.update_layout(yaxis=dict(title="U"))
         
-        if ylim is None:
+        if ylim is None and len(figure.data) > 0:
             overall_min = min(min(s["y"]) for s in figure.data)
             overall_max = max(max(s["y"]) for s in figure.data)
             min_too_large = overall_min < -1e2

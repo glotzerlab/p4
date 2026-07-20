@@ -22,6 +22,7 @@ positions and orientations around the primary type. For more information, see
     import p4
     import coxeter
     import hoomd
+    import numpy as np
 
     cube = coxeter.families.PlatonicFamily.get_shape("Cube")
 

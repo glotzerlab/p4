@@ -25,7 +25,7 @@ INTERACTION = p4.Interaction(
 @pytest.mark.parametrize("pair_styles", [{}, {"default": dict(color="black")}])
 @pytest.mark.parametrize("cmap", ["plotly"])
 @pytest.mark.parametrize("ylim", [None, [0, 1]])
-@pytest.mark.parametrize("include_default", [False, True])
+@pytest.mark.parametrize("show_default", [False, True])
 @pytest.mark.parametrize("marker_size", [10])
 @pytest.mark.parametrize("line_width", [4])
 @pytest.mark.parametrize("mode", ["markers+lines"])
@@ -38,7 +38,7 @@ def test_interaction_plot(
     pair_styles,
     cmap,
     ylim,
-    include_default,
+    show_default,
     marker_size,
     line_width,
     mode,
@@ -54,7 +54,7 @@ def test_interaction_plot(
         pair_styles=pair_styles,
         cmap=cmap,
         ylim=ylim,
-        include_default=include_default,
+        show_default=show_default,
         marker_size=marker_size,
         line_width=line_width,
         mode=mode,

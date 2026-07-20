@@ -235,7 +235,7 @@ if __name__ == "__main__":
     )
 
     # --
-    fig, tr = interaction.plot(r=np.linspace(0, 8, 100), include_default=True)
+    fig, tr = interaction.plot(r=np.linspace(0, 8, 100), show_default=True)
     fig.update_layout(**FIELD_PLOT_DIMENSIONS)
     fig.write_html(data_path+"/basic-interaction.html", include_plotlyjs='cdn')
 

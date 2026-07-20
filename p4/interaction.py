@@ -770,7 +770,7 @@ class Interaction:
         pair_styles: dict[tuple, dict] | None = None,
         cmap: str = "Pastel",
         ylim: list[float] | None = None,
-        include_default: bool = False,
+        show_default: bool = False,
         mode: Literal["lines", "lines+markers", "markers"] = "lines",
         marker_size: float = 6,
         line_width: float = 2,
@@ -815,7 +815,7 @@ class Interaction:
         ylim : list of floats, optional
             The lower and upper limits of the y axis. If not provided, limits
             will be calculated that attempt to give a clear view of the data.
-        include_default : bool, default=False
+        show_default : bool, default=False
             Whether to include the curve defined by ``default_params`` in
             the plot.
         marker_mode : 'lines+markers', 'lines', or 'markers', default='lines'
@@ -882,7 +882,7 @@ class Interaction:
         if type_pairs is None:
             type_pairs = list(self.typed_params.keys())
         
-        if include_default:
+        if show_default:
             type_pairs = ["default"] + type_pairs
 
         # Calculate kwargs for the measure function call

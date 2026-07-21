@@ -436,7 +436,7 @@ def get_valid_simulations_and_kwargs():
     simulation.create_state_from_snapshot(snapshot)
     simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
 
-    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2))
+    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2, exclusions=("body",)))
     lj.r_cut[("A", "A")] = 0
     lj.r_cut[("C", "C")] = 0
     lj.r_cut[("A", "C")] = 5
@@ -463,7 +463,7 @@ def get_valid_simulations_and_kwargs():
     simulation.create_state_from_snapshot(snapshot)
     simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
 
-    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2))
+    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2, exclusions=("body",)))
     lj.r_cut[("A", "A")] = 0
     lj.r_cut[("A", "C")] = 0
     lj.r_cut[("C", "C")] = 0
@@ -516,7 +516,7 @@ def get_valid_simulations_and_kwargs():
     simulation.create_state_from_snapshot(snapshot)
     simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
 
-    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2))
+    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2, exclusions=("body",)))
     lj.r_cut[("C", "C")] = 0
     lj.r_cut[("C", "A")] = 0
     lj.r_cut[("A", "A")] = 0
@@ -569,7 +569,7 @@ def get_valid_simulations_and_kwargs():
     simulation.create_state_from_snapshot(snapshot)
     simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
 
-    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2))
+    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2, exclusions=("body",)))
     lj.r_cut[("A", "A")] = 0
     lj.r_cut[("A", "B")] = 0
     lj.r_cut[("A", "C")] = 0

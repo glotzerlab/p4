@@ -159,7 +159,7 @@ class Interaction:
             than a class method that evaluates keyword arguments.
         """
         # Ensure the hoomd class can be instantiated
-        nlist = hoomd.md.nlist.Tree(2)
+        nlist = hoomd.md.nlist.Tree(2, exclusions=("body",))
         try:
             _ = self.hoomd_class(nlist=nlist, **self.initial_args)
         except ValueError as e:
@@ -169,7 +169,7 @@ class Interaction:
             ) from e
         
         # Ensure the hoomd class can be parameterized
-        nlist = hoomd.md.nlist.Tree(2)
+        nlist = hoomd.md.nlist.Tree(2, exclusions=("body",))
         try:
             _ = self.to_hoomd_pair()
         except (AttributeError, KeyError) as e:
@@ -181,7 +181,7 @@ class Interaction:
         
         # Ensure the parameterized hoomd class can be used in a simple example
         # simulation
-        nlist = hoomd.md.nlist.Tree(2)
+        nlist = hoomd.md.nlist.Tree(2, exclusions=("body",))
         test_types = self._interacting_types("all")
         if not test_types:
             test_types = ["A", "B"] # catch case with no typed params
@@ -516,7 +516,7 @@ class Interaction:
             fly.
         """
         if nlist is None:
-            nlist = hoomd.md.nlist.Tree(2)
+            nlist = hoomd.md.nlist.Tree(2, exclusions=("body",))
         
         instance = self.hoomd_class(nlist, **self.initial_args)
 
@@ -608,7 +608,7 @@ class Interaction:
         
         params = {}
         tpd = hoomd_class(
-            nlist=hoomd.md.nlist.Tree(2),
+            nlist=hoomd.md.nlist.Tree(2, exclusions=("body",)),
             **initial_args
         )._typeparam_dict
 

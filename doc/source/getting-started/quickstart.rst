@@ -185,7 +185,7 @@ potential.
 
     # Add an integrator and a simple B-B LJ force
     simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
-    lj = hoomd.md.pair.LJ(nlist=hoomd.md.nlist.Tree(2), default_r_cut=0)
+    lj = hoomd.md.pair.LJ(nlist=hoomd.md.nlist.Tree(2, exclusions=("body",)), default_r_cut=0)
     lj.r_cut[("B", "B")] = 5
     lj.params[("A", "A")] = {"epsilon": 0.0, "sigma": 1.0}
     lj.params[("A", "B")] = {"epsilon": 0.0, "sigma": 1.0}

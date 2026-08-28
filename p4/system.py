@@ -582,15 +582,18 @@ class System:
             the process whose simulation wrote the GSD file. This option is
             available for debugging purposes, but generally should not be used.
         nlist : hoomd.md.nlist.NeighborList, optional
-            The neighbor list with which to instantiate the class. If not
-            provided, a bounding volume hierarchy-based neighbor list is created
-            on the fly. This neighbor list is sufficient in most cases.
+            The neighbor list with which to instantiate the class. Intra-body
+            energies are automatically excluded. If not provided, a bounding
+            volume hierarchy-based neighbor list is created on the fly. This
+            neighbor list is sufficient in most cases.
         disable_pbar : bool, default=False
             Whether to disable the progress bar.
         """
         # Default nlist
         if nlist is None:
-            nlist = hoomd.md.nlist.Tree(2)
+            nlist = hoomd.md.nlist.Tree(2, exclusions=("body",))
+        elif "body" not in nlist.exclusions:
+            nlist.exclusions.append("body")
 
         # Ensure positions and orientations are numpy arrays (TODO: validate)
         probe_positions = np.asarray(positions)

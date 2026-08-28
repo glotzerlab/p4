@@ -161,12 +161,6 @@ def add_gsd_writer(
     tuple[hoomd.Simulation, hoomd.md.compute.ThermodynamicQuantities]
         The modified simulation and its thermodynamic computer.
     """
-    gsd_writer = hoomd.write.GSD(
-        1,
-        filename=gsd_filename,
-        mode="wb"
-    )
-
     if compute is None: 
         compute = hoomd.md.compute.ThermodynamicQuantities(
             filter=hoomd.filter.All()
@@ -175,7 +169,14 @@ def add_gsd_writer(
 
     logger = hoomd.logging.Logger()
     logger.add(compute, quantities=["potential_energy"])
-    
+
+    gsd_writer = hoomd.write.GSD(
+        1,
+        filename=gsd_filename,
+        mode="wb",
+        logger=logger
+    )
+
     simulation.operations.writers.append(gsd_writer)
 
     return simulation, compute

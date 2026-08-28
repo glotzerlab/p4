@@ -106,6 +106,7 @@ Select the section that best applies to you.
     getting-started/installation
     getting-started/quickstart
     getting-started/project-goals
+    getting-started/citing-p4
 
 .. toctree::
     :maxdepth: 2

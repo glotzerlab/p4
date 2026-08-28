@@ -326,7 +326,7 @@ Creating the Pair Potentials
             )
 
             # Convert interactions to hoomd pairs
-            nlist = hoomd.md.nlist.Tree(2)
+            nlist = hoomd.md.nlist.Tree(2, exclusions=("body",))
             gauss = attraction.to_hoomd_pair(nlist)
             alj = repulsion.to_hoomd_pair(nlist)
 
@@ -337,7 +337,7 @@ Creating the Pair Potentials
 
         .. code-block:: python
 
-            nlist=hoomd.md.nlist.Tree(2)
+            nlist=hoomd.md.nlist.Tree(2, exclusions=("body",))
 
             # Create gaussian atttraction
             gauss = hoomd.md.pair.Gaussian(nlist)

@@ -50,3 +50,8 @@ make html
 ```
 
 Once the docs finish building, the homepage can be found at `<path_to_p4>/doc/build/html/index.html`.
+
+
+## Citing p4
+
+If you use p4 in your research, we ask that you acknowledge its use in relevant publications, preprints, talks, and posters by citing this GitHub repository. A manuscript is currently in preparation by Joseph Burkhart and Sharon C. Glotzer. Once the manuscript is accepted, we will ask that you cite both the repository and the publication.

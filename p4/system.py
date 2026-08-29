@@ -467,6 +467,7 @@ class System:
         path = Path(filename)
         data = self.to_dict()
         data["p4_version"] = __version__
+        data["hoomd_blue_version"] = hoomd.version.version
 
         if not path.exists():
             path.touch()

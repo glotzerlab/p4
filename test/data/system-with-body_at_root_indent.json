@@ -323,5 +323,6 @@
       ]
     }
   ],
-  "p4_version": "0.0.1"
+  "p4_version": "0.0.1",
+  "hoomd_blue_version": "7.1.2"
 }

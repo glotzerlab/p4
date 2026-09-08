@@ -496,9 +496,6 @@ class Arrangement:
 
         A Frame does not contain rigid body constraint data, so it is parsed
         into single-particle bodies.
-        
-        TODO: mention that box must be big enough to prevent image problem because images
-        are not present in GSD file - the onus for this is on the user
 
         Parameters
         ----------

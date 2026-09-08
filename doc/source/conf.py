@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath("../../"))
 project = "p4"
 copyright = "2025-2026, The Regents of the University of Michigan"
 author = "Joseph Burkhart"
-release = "0.0.1"
+release = "1.0.0"
 
 # -- General configuration ---------------------------------------------------
 

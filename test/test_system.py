@@ -414,250 +414,11 @@ def test_property_setters_invalid():
     assert system.analyte == kwargs["analyte"]
     assert system.interactions == kwargs["interactions"]
 
-@pytest.mark.parametrize("kwargs,expected", [
-    # one active
-    [   # common single types (probe primary, analyte primary)
-        dict(
-            probe=p4.Body(
-                primary_type="A",
-                secondary_types=["B"],
-                positions_by_type={"B": [[1,0,0]]}
-            ),
-            analyte=p4.Body(
-                primary_type="C",
-                secondary_types=["D"],
-                positions_by_type={"D": [[0,1,0]]},
-            ),
-            interactions=[
-                alj_interaction([], ["A", "C"])
-            ]
-        ),
-        [alj_interaction([], ["A", "C"])]
-    ],
-    [   # common single types (probe primary, analyte secondary)
-        dict(
-            probe=p4.Body(
-                primary_type="A",
-                secondary_types=["B"],
-                positions_by_type={"B": [[1,0,0]]}
-            ),
-            analyte=p4.Body(
-                primary_type="C",
-                secondary_types=["D"],
-                positions_by_type={"D": [[0,1,0]]},
-            ),
-            interactions=[
-                alj_interaction([], ["A", "D"])
-            ]
-        ),
-        [alj_interaction([], ["A", "D"])]
-    ],
-    [   # common single types (probe secondary, analyte primary)
-        dict(
-            probe=p4.Body(
-                primary_type="A",
-                secondary_types=["B"],
-                positions_by_type={"B": [[1,0,0]]}
-            ),
-            analyte=p4.Body(
-                primary_type="C",
-                secondary_types=["D"],
-                positions_by_type={"D": [[0,1,0]]},
-            ),
-            interactions=[
-                alj_interaction([], ["B", "C"])
-            ]
-        ),
-        [alj_interaction([], ["B", "C"])]
-    ],
-    [   # common single types (probe secondary, analyte secondary)
-        dict(
-            probe=p4.Body(
-                primary_type="A",
-                secondary_types=["B"],
-                positions_by_type={"B": [[1,0,0]]}
-            ),
-            analyte=p4.Body(
-                primary_type="C",
-                secondary_types=["D"],
-                positions_by_type={"D": [[0,1,0]]},
-            ),
-            interactions=[
-                alj_interaction([], ["B", "D"])
-            ]
-        ),
-        [alj_interaction([], ["B", "D"])]
-    ],
-    [   # common pair types (one member of pair, same for both probe and analyte)
-        dict(
-            probe=p4.Body(
-                primary_type="A",
-                secondary_types=["B"],
-                positions_by_type={"B": [[1,0,0]]}
-            ),
-            analyte=p4.Body(
-                primary_type="C",
-                secondary_types=["B"],
-                positions_by_type={"B": [[0,1,0]]},
-            ),
-            interactions=[
-                alj_interaction([("B", "E")], [])
-            ]
-        ),
-        [alj_interaction([("B", "E")], [])]
-    ],
-    [   # common pair types (different members for probe and analyte)
-        dict(
-            probe=p4.Body(
-                primary_type="A",
-                secondary_types=["B"],
-                positions_by_type={"B": [[1,0,0]]}
-            ),
-            analyte=p4.Body(
-                primary_type="C",
-                secondary_types=["D"],
-                positions_by_type={"D": [[0,1,0]]},
-            ),
-            interactions=[
-                alj_interaction([("A", "C")], [])
-            ]
-        ),
-        [alj_interaction([("A", "C")], [])]
-    ],
-    # multiple active
-    [
-        dict(
-            probe=p4.Body(
-                primary_type="A",
-                secondary_types=["B"],
-                positions_by_type={"B": [[1,0,0]]}
-            ),
-            analyte=p4.Body(
-                primary_type="C",
-                secondary_types=["D"],
-                positions_by_type={"D": [[0,1,0]]},
-            ),
-            interactions=[
-                alj_interaction([("A", "C")], ["A", "C"]),
-                lj_interaction([("B", "D")])
-            ]
-        ),
-        [
-            alj_interaction([("A", "C")], ["A", "C"]),
-            lj_interaction([("B", "D")])
-        ]
-    ],
-])
-def test_active_interactions(kwargs, expected):
-    """Ensure active_interactions method returns expected results."""
-    system = p4.System(**kwargs)
-    assert system.active_interactions == expected
-
-@pytest.mark.parametrize("kwargs,expected", [
-    # single-particle probe and analyte 
-    [   # one type
-        dict(
-            probe=p4.Body(primary_type="A"),
-            analyte=p4.Body(primary_type="A"),
-            interactions=[lj_interaction([("A", "A")])]
-        ),
-        ["A"]
-    ],
-    [   # multiple types, one interaction
-        dict(
-            probe=p4.Body(primary_type="A"),
-            analyte=p4.Body(primary_type="B"),
-            interactions=[lj_interaction([("A", "B")])]
-        ),
-        ["A", "B"]
-    ],
-    [   # multiple types, multiple interactions
-        dict(
-            probe=p4.Body(primary_type="A"),
-            analyte=p4.Body(primary_type="B"),
-            interactions=[
-                lj_interaction([("A", "B")]),
-                lj_interaction([("A", "B")])
-            ]
-        ),
-        ["A", "B"]
-    ],
-    # single-particle probe and multi-particle analyte 
-    [
-        dict(
-            probe=p4.Body(primary_type="A"),
-            analyte=p4.Body(
-                primary_type="B",
-                secondary_types=["C"],
-                positions_by_type={"C": [[1,0,0]]}
-            ),
-            interactions=[
-                lj_interaction([("A", "C")]),
-                lj_interaction([("A", "B")])
-            ]
-        ),
-        ["A", "B", "C"]
-    ],
-    # multi-particle probe and single-particle analyte 
-    [
-        dict(
-            probe=p4.Body(
-                primary_type="B",
-                secondary_types=["C"],
-                positions_by_type={"C": [[1,0,0]]}
-            ),
-            analyte=p4.Body(primary_type="A"),
-            interactions=[
-                lj_interaction([("A", "C")]),
-                lj_interaction([("A", "B")])
-            ]
-        ),
-        ["A", "B", "C"]
-    ],
-    # multi-particle probe and multi-particle analyte 
-    [
-        dict(
-            probe=p4.Body(
-                primary_type="A",
-                secondary_types=["B"],
-                positions_by_type={"B": [[1,0,0]]}
-            ),
-            analyte=p4.Body(
-                primary_type="C",
-                secondary_types=["D"],
-                positions_by_type={"D": [[0,1,0]]}
-            ),
-            interactions=[
-                lj_interaction([("B", "D")]),
-                lj_interaction([("A", "C")])
-            ]
-        ),
-        ["A", "B", "C", "D"]
-    ]
-])
-def test_all_types(kwargs, expected):
-    """Ensure all_types method returns expected results."""
-    system = p4.System(**kwargs)
-    assert len(system.all_types) == len(expected)
-    assert set(system.all_types) == set(expected)
-
-def make_example_snapshot(primary_types: list[str], other_types: list[str]):
-    """Return a small example snapshot with particles matching primary_types arranged in a line."""
-    frame = gsd.hoomd.Frame()
-
-    frame.configuration.box = [3*len(primary_types), 100, 100, 0, 0, 0]
-    frame.particles.N = len(primary_types)
-    frame.particles.types = primary_types + other_types
-    frame.particles.typeid = list(range(len(primary_types)))
-    frame.particles.position = [[i, 0, 0] for i, _ in enumerate(primary_types)]
-    frame.particles.orientation = [[1, 0, 0, 0] for i, _ in enumerate(primary_types)]
-    
-    snapshot = hoomd.Snapshot.from_gsd_frame(
-        gsd_snap=frame,
-        communicator=hoomd.communicator.Communicator()
+def make_example_snapshot(body1: p4.Body, body2: p4.Body):
+    """Return a small example snapshot with two bodies."""
+    return p4.util.simulation.get_initial_frame(
+        probe=body1, analyte=body2, simulation_box=[100, 100, 100, 0, 0, 0]
     )
-
-    return snapshot
 
 def get_valid_simulations_and_kwargs():
     """Return an array of valid simulations with corresponding kwargs.
@@ -669,11 +430,13 @@ def get_valid_simulations_and_kwargs():
     simulations_and_kwargs = []
 
     # single-particle probe, single-particle analyte
-    snapshot = make_example_snapshot(["A", "C"], [])
+    snapshot = make_example_snapshot(p4.Body("A"), p4.Body("C"))
+
     simulation = hoomd.Simulation(device=hoomd.device.CPU())
     simulation.create_state_from_snapshot(snapshot)
     simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
-    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2))
+
+    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2, exclusions=("body",)))
     lj.r_cut[("A", "A")] = 0
     lj.r_cut[("C", "C")] = 0
     lj.r_cut[("A", "C")] = 5
@@ -681,19 +444,26 @@ def get_valid_simulations_and_kwargs():
     lj.params[("C", "C")] = dict(epsilon=0, sigma=1)
     lj.params[("A", "C")] = dict(epsilon=1, sigma=1)
     simulation.operations.integrator.forces.append(lj)
+
     kwargs = dict(
         probe=p4.Body("A"),
         analyte=p4.Body("C"),
         interactions=[lj_interaction([("A", "C")])]
     )
+
     simulations_and_kwargs.append([simulation, kwargs])
 
     # single-particle probe, multi-particle analyte
-    snapshot = make_example_snapshot(["A", "C"], ["D"])
+    snapshot = make_example_snapshot(
+        p4.Body("A"),
+        p4.Body("C", secondary_types=["D"], positions_by_type=dict(D=[[1,0,0]])),
+    )
+
     simulation = hoomd.Simulation(device=hoomd.device.CPU())
     simulation.create_state_from_snapshot(snapshot)
     simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
-    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2))
+
+    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2, exclusions=("body",)))
     lj.r_cut[("A", "A")] = 0
     lj.r_cut[("A", "C")] = 0
     lj.r_cut[("C", "C")] = 0
@@ -707,14 +477,23 @@ def get_valid_simulations_and_kwargs():
     lj.params[("D", "D")] = dict(epsilon=0, sigma=1)
     lj.params[("A", "D")] = dict(epsilon=1, sigma=1)
     simulation.operations.integrator.forces.append(lj)
+
     rigid = hoomd.md.constrain.Rigid()
     rigid.body["C"] = {
         "constituent_types": ["D"],
         "positions": [(1,0,0)],
         "orientations": [(1, 0, 0, 0)],
     }
+
     rigid.create_bodies(simulation.state)
     simulation.operations.integrator.rigid = rigid
+
+    snapshot = simulation.state.get_snapshot()
+    for i, tid in enumerate(snapshot.particles.typeid):
+        if snapshot.particles.types[tid] == "D":
+            snapshot.particles.mass[i] = 0
+    simulation.state.set_snapshot(snapshot)
+
     kwargs = dict(
         probe=p4.Body("A"),
         analyte=p4.Body(
@@ -724,14 +503,20 @@ def get_valid_simulations_and_kwargs():
         ),
         interactions=[lj_interaction([("A", "D")])]
     )
+
     simulations_and_kwargs.append([simulation, kwargs])
 
     # multi-particle probe, single-particle analyte
-    snapshot = make_example_snapshot(["A", "C"], ["B"])
+    snapshot = make_example_snapshot(
+        p4.Body("A", secondary_types=["B"], positions_by_type=dict(B=[[1,0,0]])),
+        p4.Body("C"),
+    )
+
     simulation = hoomd.Simulation(device=hoomd.device.CPU())
     simulation.create_state_from_snapshot(snapshot)
     simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
-    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2))
+
+    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2, exclusions=("body",)))
     lj.r_cut[("C", "C")] = 0
     lj.r_cut[("C", "A")] = 0
     lj.r_cut[("A", "A")] = 0
@@ -745,14 +530,23 @@ def get_valid_simulations_and_kwargs():
     lj.params[("B", "B")] = dict(epsilon=0, sigma=1)
     lj.params[("C", "B")] = dict(epsilon=1, sigma=1)
     simulation.operations.integrator.forces.append(lj)
+
     rigid = hoomd.md.constrain.Rigid()
     rigid.body["A"] = {
         "constituent_types": ["B"],
         "positions": [(1,0,0)],
         "orientations": [(1, 0, 0, 0)],
     }
+
     rigid.create_bodies(simulation.state)
     simulation.operations.integrator.rigid = rigid
+
+    snapshot = simulation.state.get_snapshot()
+    for i, tid in enumerate(snapshot.particles.typeid):
+        if snapshot.particles.types[tid] == "B":
+            snapshot.particles.mass[i] = 0
+    simulation.state.set_snapshot(snapshot)
+
     kwargs = dict(
         probe=p4.Body(
             primary_type="A",
@@ -762,14 +556,20 @@ def get_valid_simulations_and_kwargs():
         analyte=p4.Body("C"),
         interactions=[lj_interaction([("B", "C")])]
     )
+
     simulations_and_kwargs.append([simulation, kwargs])
 
     # multi-particle probe, multi-particle analyte
-    snapshot = make_example_snapshot(["A", "C"], ["B", "D"])
+    snapshot = make_example_snapshot(
+        p4.Body("A", secondary_types=["B"], positions_by_type=dict(B=[[1,0,0]])),
+        p4.Body("C", secondary_types=["D"], positions_by_type=dict(D=[[1,0,0]])),
+    )
+
     simulation = hoomd.Simulation(device=hoomd.device.CPU())
     simulation.create_state_from_snapshot(snapshot)
     simulation.operations.integrator = hoomd.md.Integrator(dt=0.1)
-    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2))
+
+    lj = hoomd.md.pair.LJ(hoomd.md.nlist.Tree(2, exclusions=("body",)))
     lj.r_cut[("A", "A")] = 0
     lj.r_cut[("A", "B")] = 0
     lj.r_cut[("A", "C")] = 0
@@ -791,6 +591,7 @@ def get_valid_simulations_and_kwargs():
     lj.params[("C", "D")] = dict(epsilon=0, sigma=1)
     lj.params[("D", "D")] = dict(epsilon=0, sigma=1)
     simulation.operations.integrator.forces.append(lj)
+
     rigid = hoomd.md.constrain.Rigid()
     rigid.body["A"] = {
         "constituent_types": ["B"],
@@ -802,8 +603,16 @@ def get_valid_simulations_and_kwargs():
         "positions": [(0,1,0)],
         "orientations": [(1, 0, 0, 0)],
     }
+
     rigid.create_bodies(simulation.state)
     simulation.operations.integrator.rigid = rigid
+
+    snapshot = simulation.state.get_snapshot()
+    for i, tid in enumerate(snapshot.particles.typeid):
+        if snapshot.particles.types[tid] in ("B", "D"):
+            snapshot.particles.mass[i] = 0
+    simulation.state.set_snapshot(snapshot)
+
     kwargs = dict(
         probe=p4.Body(
             primary_type="A",
@@ -817,6 +626,7 @@ def get_valid_simulations_and_kwargs():
         ),
         interactions=[lj_interaction([("B", "D")])]
     )
+
     simulations_and_kwargs.append([simulation, kwargs])
 
     return simulations_and_kwargs

@@ -15,9 +15,11 @@ secondary types the "constituent" particles.
 
 .. _Rigid Constraint: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/constrain/rigid.html
 
-In p4, the particle model is expressed in the :py:class:`Body` class. Within
-this class, the first/required particle type is called the "primary type", and
-all subsequent types are called "secondary types".
+In p4, the particle model is expressed in the :py:class:`~p4.body.Body` class.
+Within this class, the first/required particle type is called the "primary
+type", and all subsequent types are called "secondary types".
+
+.. _body-orientation-note:
 
 .. note::
     Since secondary type orientations are only used when secondary types
@@ -25,7 +27,7 @@ all subsequent types are called "secondary types".
     need to be provided when creating a ``Body`` for which anisotropic forces
     will not be used.
     
-To create a body, simply provide the names of the types and their positions
+To create a body, provide the names of the types and their positions
 to the ``Body`` constructor. For example, you can create a single-particle body
 as follows.
 
@@ -110,7 +112,7 @@ secondary types.
 
 Orthogonal slices of bodies can also be plotted. This is especially useful when
 overlaying a body's extents on a plot of its field (see 
-:doc:`measuring-fields`).
+:doc:`measuring-fields-body`).
 
 .. code-block:: python
 

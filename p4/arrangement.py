@@ -15,7 +15,9 @@ import numpy as np
 import plotly
 import rowan
 
+from .top_level_functions import plot_layout, snapshot_schematic_slice_trace
 from . import util
+from .version import __version__
 from .body import Body
 from .types import PositionsLike, OrientationsLike
 
@@ -494,9 +496,6 @@ class Arrangement:
 
         A Frame does not contain rigid body constraint data, so it is parsed
         into single-particle bodies.
-        
-        TODO: mention that box must be big enough to prevent image problem because images
-        are not present in GSD file - the onus for this is on the user
 
         Parameters
         ----------
@@ -532,7 +531,7 @@ class Arrangement:
 
         .. note::
             The internal data structures for the ``Arrangement`` class have
-            native JSON analogues, so the JSON representation is simply
+            native JSON analogues, so the JSON representation is
             ``Arrangement.__dict__``.
 
         Parameters
@@ -632,18 +631,12 @@ class Arrangement:
             
             # Calculate quantities that do not vary between instances
             body_typeids = [types.index(body.primary_type)]
-            body_masses = [body.mass_by_type.get(body.primary_type, 1)]
-            body_mois = np.array(
-                [body.moi_by_type.get(body.primary_type, [1, 1, 1])],
-                dtype=np.float32
-            )
+            body_masses = [body.mass]
+            body_mois = np.array([body.moi], dtype=np.float32)
             for t, ps in body.positions_by_type.items():
                 body_typeids.extend([types.index(t) for _ in ps])
-                body_masses.extend([body.mass_by_type.get(t, 1) for _ in ps])
-                body_mois = np.vstack((
-                    body_mois,
-                    [body.moi_by_type.get(t, [1, 1, 1]) for _ in ps]
-                ))
+                body_masses.extend([0 for _ in ps])
+                body_mois = np.vstack((body_mois, [[0, 0, 0] for _ in ps]))
 
             # Add quantities that do not vary between instances
             for _ in self.positions_by_type[body.primary_type]:
@@ -790,7 +783,7 @@ class Arrangement:
 
         .. note::
             The internal data structures for the ``Arrangement`` class have
-            native JSON analogues, so the JSON representation is simply
+            native JSON analogues, so the JSON representation is
             ``Arrangement.__dict__``.
                      
         Parameters
@@ -807,7 +800,8 @@ class Arrangement:
             JSON file. If not provided, there are no newlines.
         """
         path = Path(filename)
-        data = self._to_json_dict()
+        data = self.to_dict()
+        data["p4_version"] = __version__
 
         if not path.exists():
             path.touch()
@@ -841,10 +835,10 @@ class Arrangement:
         with open(path, "w") as f:
             json.dump(existing_data, f, indent=indent)
 
-    def _to_json_dict(self) -> dict:
+    def to_dict(self) -> dict:
         """Return a JSON-compliant dictionary representing this arrangement."""
         return dict(
-            bodies=[b._to_json_dict() for b in self.bodies],
+            bodies=[b.to_dict() for b in self.bodies],
             positions_by_type=self.positions_by_type,
             orientations_by_type=self.orientations_by_type
         )
@@ -914,9 +908,13 @@ class Arrangement:
         **kwargs
             Other keyword arguments are passed to the following functions:
 
-            * :py:func:`p4.util.plotting.plot_layout`
-
-            * :py:func:`p4.util.plotting.snapshot_schematic_slice_trace`
+            * :py:func:`p4.plot_layout`
+            * :py:func:`p4.snapshot_schematic_slice_trace`
+        
+        Returns
+        -------
+        figure, traces
+            The plotly figure and its associated traces.
         """
         # Set defaults
         if not type_shapes:
@@ -947,7 +945,7 @@ class Arrangement:
 
             if schematic_slice:
                 allowed_kwarg_names = (
-                    signature(util.plotting.snapshot_schematic_slice_trace)
+                    signature(snapshot_schematic_slice_trace)
                         .parameters
                         .keys()
                 )
@@ -955,7 +953,7 @@ class Arrangement:
                     k: v for k, v in kwargs.items() if k in allowed_kwarg_names
                 }
                 traces.append(
-                    util.plotting.snapshot_schematic_slice_trace(
+                    snapshot_schematic_slice_trace(
                         snapshot=snapshot,
                         type_shapes=type_shapes,
                         slice=slice,
@@ -989,7 +987,7 @@ class Arrangement:
 
         # Style the plot
         allowed_kwarg_names = (
-            signature(util.plotting.plot_layout)
+            signature(plot_layout)
             .parameters
             .keys()
         )
@@ -998,7 +996,7 @@ class Arrangement:
         }
         if "show_grid" not in layout_kwargs:
             layout_kwargs["show_grid"] = True
-        layout = util.plotting.plot_layout(
+        layout = plot_layout(
             slice=slice if not schematic_slice else {},
             **layout_kwargs
         )

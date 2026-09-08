@@ -9,10 +9,19 @@ from io import StringIO, TextIOWrapper
 from typing import Literal, Tuple
 import warnings
 from packaging.version import Version
+from functools import partial
 
 import gsd
 import hoomd
 import numpy as np
+
+# Tqdm must be imported differently for python vs ipython
+try:
+    get_ipython()
+except NameError:
+    from tqdm import tqdm
+else:
+    from tqdm.notebook import tqdm
 
 from ..types import OrientationsLike, PositionsLike
 
@@ -152,12 +161,6 @@ def add_gsd_writer(
     tuple[hoomd.Simulation, hoomd.md.compute.ThermodynamicQuantities]
         The modified simulation and its thermodynamic computer.
     """
-    gsd_writer = hoomd.write.GSD(
-        1,
-        filename=gsd_filename,
-        mode="wb"
-    )
-
     if compute is None: 
         compute = hoomd.md.compute.ThermodynamicQuantities(
             filter=hoomd.filter.All()
@@ -166,7 +169,14 @@ def add_gsd_writer(
 
     logger = hoomd.logging.Logger()
     logger.add(compute, quantities=["potential_energy"])
-    
+
+    gsd_writer = hoomd.write.GSD(
+        1,
+        filename=gsd_filename,
+        mode="wb",
+        logger=logger
+    )
+
     simulation.operations.writers.append(gsd_writer)
 
     return simulation, compute
@@ -338,7 +348,6 @@ def add_integrator(
 
 def get_simulation(
     system: "System",
-    included_interactions: list["Interaction"],
     nlist: hoomd.md.nlist.NeighborList,
     simulation_box: list[float]
 ) -> hoomd.Simulation:
@@ -348,8 +357,6 @@ def get_simulation(
     ----------
     system : System
         The system.
-    interactions_to_include : list[Interaction]
-        The interactions to include in the simulation.
     nlist : hoomd.md.nlist.NeighborList
         The neighbor list to use for the interactions in the simulation.
     simulation_box : list[float]
@@ -387,16 +394,17 @@ def get_simulation(
         probe_start + 1 : n_total
     ] = probe_start
 
-    # Create rigid constraint   [TODO: refactor to make this less hacky]
+    # Create rigid constraint
+    # NOTE: probe is added to rigid constraint even if its secondary
+    # particles are not "actively interacting"
     rigid = system.analyte.to_hoomd_rigid()
-    if system.probe._is_rigid(system.interactions):
-        rigid = system.probe.to_hoomd_rigid(rigid)
+    rigid = system.probe.to_hoomd_rigid(rigid)
 
     # Add integrator
     simulation = add_integrator(simulation, rigid)
 
     # Add required interactions
-    for interaction in included_interactions:
+    for interaction in system.interactions:
         simulation = add_interaction(
             simulation=simulation,
             nlist=nlist,
@@ -410,10 +418,11 @@ def measure(
     quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
     positions: PositionsLike,
     orientations: list[OrientationsLike],
-    included_interactions: list["Interaction"],
     simulation_box: list[float],
     gsd_filename: str | None,
     nlist: hoomd.md.nlist.NeighborList,
+    pbar_number: int,
+    disable_pbar: bool
 ) -> StringIO:
     """Measure named quantities for a system.
 
@@ -431,8 +440,6 @@ def measure(
     orientations : list[OrientationsLike]
         The orientations (in quaternion form) to measure at. A separate array
         of orientations must be provided for every position.
-    included_interactions : list[Interactions]
-        The interactions to include in the simulation.
     simulation_box : list[float]
         The simulation's box in HOOMD notation. Must be an array of 6 floats
         representing ``[Lx, Ly, Lz, xy, xz, yz]``.
@@ -441,6 +448,11 @@ def measure(
         saved.
     nlist : hoomd.md.nlist.NeighborList
         The neighbor list to use for the interactions.
+    pbar_position : int
+        The position of the tqdm progress bar. ``0`` is outermost, ``1`` is
+        next, and so on.
+    disable_pbar : bool
+        Whether to disable the progress bar.
 
     Returns
     -------
@@ -457,12 +469,7 @@ def measure(
         )
 
     # Create simulation
-    simulation = get_simulation(
-        system,
-        included_interactions,
-        nlist,
-        simulation_box
-    )
+    simulation = get_simulation(system, nlist, simulation_box)
 
     # Calculate the index of the probe's central particle
     n_probe = system.probe.to_hoomd_snapshot().particles.N
@@ -477,13 +484,21 @@ def measure(
         simulation=simulation,
         csv_file=table,
         quantities=quantities,
-        probe_is_rigid=system.probe._is_rigid(included_interactions),
+        probe_is_rigid=system.probe._is_rigid(system.interactions),
         probe_index=probe_index,
         compute=None if gsd_filename is None else compute,
     )
+    # breakpoint()
 
     # Iterate over positions
-    for p, os in zip(positions, orientations):
+    pbar = partial(
+        tqdm,
+        total=positions.shape[0],
+        desc=f"#{pbar_number}",
+        position=pbar_number,
+        disable=disable_pbar,
+    )
+    for p, os in pbar(zip(positions, orientations)):
         for o in os:
             with simulation.state.cpu_local_snapshot as state:
                 # Note: only probe position and orientation need to be

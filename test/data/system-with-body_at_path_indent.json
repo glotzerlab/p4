@@ -52,8 +52,12 @@
             ]
           },
           "orientations_by_type": {},
-          "mass_by_type": {},
-          "moi_by_type": {}
+          "mass": 1.0,
+          "moi": [
+            1.0,
+            1.0,
+            1.0
+          ]
         },
         "analyte": {
           "primary_type": "A",
@@ -105,10 +109,12 @@
             ]
           },
           "orientations_by_type": {},
-          "mass_by_type": {
-            "B": 2.0
-          },
-          "moi_by_type": {}
+          "mass": 2.0,
+          "moi": [
+            1.0,
+            1.0,
+            1.0
+          ]
         },
         "interactions": [
           {
@@ -319,7 +325,9 @@
               }
             ]
           }
-        ]
+        ],
+        "p4_version": "1.0.0",
+        "hoomd_blue_version": "7.1.2"
       }
     }
   }

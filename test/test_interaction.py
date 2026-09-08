@@ -22,8 +22,11 @@ from packaging.version import Version
 REQUIRED_PARENT_CLASS = p4.interaction.REQUIRED_PARENT_CLASS
 EXCLUDED_TYPE_STRINGS = p4.interaction.EXCLUDED_TYPE_STRINGS
 
-if Version(hoomd.version.version) < Version("7.0.2"):
-    EXCLUDED_TYPE_STRINGS.append("hoomd.md.pair.pair.Table")
+if Version(hoomd.version.version) < Version("7.1.0"):
+    EXCLUDED_TYPE_STRINGS.extend([
+        "hoomd.md.pair.pair.Table",
+        "hoomd.md.pair.aniso.ALJ"
+    ])
 
 def cls_to_str(cls):
     """Return a string representation of the class' path, including its name."""
@@ -100,7 +103,7 @@ CLASSES_TO_TEST = get_all_classes_to_test()
 #   2. there are no initial arg clashes that we haven't approved
 
 
-NLIST = hoomd.md.nlist.Tree(2)
+NLIST = hoomd.md.nlist.Tree(2, exclusions=("body",))
 INITIAL_ARGS_REQUIRED = dict(
     kT=1
 )
@@ -1077,7 +1080,7 @@ def assert_interactions_are_equivalent(i1, i2):
         optional_params_equivalent = []
         if not same_without_rs:
             instance = i1.hoomd_class(
-                hoomd.md.nlist.Tree(2),
+                hoomd.md.nlist.Tree(2, exclusions=("body",)),
                 **i1.initial_args
             )
             tpd = instance._typeparam_dict
@@ -1257,7 +1260,7 @@ def assert_interactions_are_equivalent(i1, i2):
         optional_params_equivalent = []
         if not same_without_rs:
             instance = i1.hoomd_class(
-                hoomd.md.nlist.Tree(2),
+                hoomd.md.nlist.Tree(2, exclusions=("body",)),
                 **i1.initial_args
             )
             tpd = instance._typeparam_dict
@@ -1912,7 +1915,7 @@ def test_from_hoomd_pair_valid(cls):
     """Ensure every covered hoomd class can be parsed into an Interaction."""
     kwargs = get_kwargs(cls, "all")
     interaction = p4.Interaction(**kwargs)
-    pair = interaction.to_hoomd_pair(nlist=hoomd.md.nlist.Tree(2))
+    pair = interaction.to_hoomd_pair(nlist=hoomd.md.nlist.Tree(2, exclusions=("body",)))
     other = p4.Interaction.from_hoomd_pair(pair)
     assert_interactions_are_equivalent(interaction, other)
 

@@ -1,10 +1,6 @@
 # To-do
 
 ### Open to public
-- [ ] revise project goals
-- [ ] fix body image wrapping problem
-- [ ] tests for top-level functions
-- [ ] add remaining top-level plotting functions
 
 ### Publication
 TBD
@@ -18,3 +14,6 @@ TBD
 
 Possible performance improvements:
   - [ ] switch from nested for-loop to single computation over many spaced-out configurations
+  - [ ] (docs) add plotly js to directory and have html files point to it
+  - [ ] add way to only scan a subset of positions based on symmetry and then unfold those positions when calling Field.from_csv
+  - [ ] add way to limit orientations from fibonacci lattice based on point group

@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 from inspect import signature
+import numbers
 import os
 from types import NoneType
 from typing import Iterable, Literal
@@ -14,6 +15,7 @@ from numpy.lib import recfunctions
 import plotly
 import plotly.figure_factory
 
+from .top_level_functions import plot_layout
 from . import util
 
 
@@ -182,18 +184,20 @@ class Field:
         return quantities
 
     # def has_regular_grid(self) -> bool:
-        # """Whether this Field's grid has constant intervals along each axis."""
-        # positions = self.positions
-        
-        # x = np.unique(positions[:,0])
-        # y = np.unique(positions[:,1])
-        # z = np.unique(positions[:,2])
-        
-        # regular_x = np.nonzero(np.diff(x, n=2))[0].size == 0
-        # regular_y = np.nonzero(np.diff(y, n=2))[1].size == 0
-        # regular_z = np.nonzero(np.diff(z, n=2))[2].size == 0
+    #     """Whether this Field's grid has constant intervals along each axis."""
+    #     positions = self.positions
 
-        # return (regular_x and regular_y and regular_z)
+    #     same_intervals = []
+    #     for i in [0, 1, 2]:
+    #         unique_values = np.unique(positions[:,i])
+    #         second_diff = np.diff(unique_values, n=2)
+    #         same_intervals.append(
+    #             len(second_diff) == 0
+    #             or np.isclose(second_diff, [0 for _ in second_diff]).all()
+    #         )
+        
+    #     return all(same_intervals)
+
 
     # ------------------------------- OPERATIONS -------------------------------
 
@@ -380,7 +384,7 @@ class Field:
         
         Returns
         -------
-        field
+        Field
             The new Field.
 
         Raises
@@ -444,7 +448,10 @@ class Field:
         
         results = np.logical_and.reduce(conditions)
 
-        return self.table[results]
+        if results is np.True_:
+            return self.table
+        else:
+            return self.table[results]
     
     def __sub__(self, other: Field) -> Field:
         """Calculate the difference between two fields' measured quantities.
@@ -693,7 +700,7 @@ class Field:
                 "`quantity` is not one of this field's quantities "
                 f"({self.quantities})."
             )
-        
+
         # Build the recarray
         if q is not None:
             table = self._subset_of_recarray(
@@ -717,7 +724,7 @@ class Field:
             columns_to_drop = [f for f in self.quantities if f != quantity]
         
         table = recfunctions.drop_fields(
-            table, columns_to_drop, asrecarray=True
+            table, columns_to_drop, usemask=False, asrecarray=True
         )
 
         # If vectors is False, convert F and T components into magnitudes
@@ -729,16 +736,16 @@ class Field:
                     f"{quantity}z",
                 ]
                 components = np.column_stack(
-                    [table[f] for f in component_columns]
+                    [table[f].flatten() for f in component_columns]
                 )
                 magnitudes = np.sqrt(np.sum(np.square(components), axis=1))
 
                 columns_to_drop = [f for f in self.quantities if f != quantity]
                 table = recfunctions.drop_fields(
-                    table, columns_to_drop, asrecarray=True
+                    table, columns_to_drop, usemask=False, asrecarray=True
                 )
                 table = recfunctions.append_fields(
-                    table, quantity, magnitudes
+                    table, quantity, magnitudes, usemask=False, asrecarray=True
                 )
         
         # Create a gridded array and orient it to respect the conventions.
@@ -748,11 +755,14 @@ class Field:
 
         return gridded_array
 
-    def _recarray_to_gridded_array(self, recarray: np.rec.recarray) -> np.ndarray:
+    def _recarray_to_gridded_array(
+        self,
+        recarray: np.rec.recarray
+    ) -> np.ndarray:
         """Convert a recarray like a table into a gridded array for plotting.
         
         It is assumed that either the recarray has a 1 measured quantity,
-        or that it has 3 with that correspond to qx, qy, qz, where q is either
+        or that it has 3 with that correspond to Mx, My, Mz, where M is either
         F or T.
         
         If the recarray has a single measured quantity, the gridded array will
@@ -760,12 +770,12 @@ class Field:
         2).
 
         If the recarray has three measured quantities, the gridded array will
-        be 4D (Z along axis 0, Y along axis 1, X along axis 2, q-components
-        along axis 3 in qx, qy, qz order).
+        be 4D (Z along axis 0, Y along axis 1, X along axis 2, M-components
+        along axis 3 in Mx, My, Mz order).
 
         Parameters
         ----------
-        table : np.recarray
+        recarray : np.recarray
             The recarray to convert.
         
         Returns
@@ -823,6 +833,9 @@ class Field:
         marker_color_1d: str = "black",
         marker_size_1d: float = 6,
         line_width_1d: float = 2,
+        ylim_1d: list[float] | None = None,
+        opacity_scalar_3d: float = 0.2,
+        opacityscale_scalar_3d: float | str = "uniform",
         **kwargs
     ) -> tuple[plotly.graph_objects.Figure, list]:
         """Interactively plot the field using `Plotly`_.
@@ -836,6 +849,10 @@ class Field:
         plot Force and Torque magnitudes as scalar quantities. Set ``vectors``
         to ``True`` to plot Forces or Torques as vectors. Vector plotting is
         only available in 2D and 3D.
+
+        .. note::
+            Plotting is only supported for fields whose positions lie on a
+            regular grid (x, y, and z must increase linearly).
         
         Parameters
         ----------
@@ -850,12 +867,12 @@ class Field:
             'y', and 'z'. There can be at most two keys. If the slice contains
             a position that does not exactly match the grid, the nearest grid
             position will be used.
-        clim : list of floats, optional
+        clim : list[float], optional
             The lower and upper limits of the colorscale. If not provided,
-            the lower and upper limits will be set to the 10th and 90th
+            the lower and upper limits will be set to the 0th and 90th
             percentile values, respectively.
         contours : int or None, default=10
-            The number of values to draw contours around. Only uesd in 3D and
+            The number of values to draw contours around. Only used in 3D and
             2D scalar plots. In 2D, pass None to instead use a continuous
             colorscale.
         cmap : str, default='RdYlBu_r'
@@ -876,14 +893,24 @@ class Field:
             In a 1D scalar plot, the size of the marker in pixels.
         line_width_1d : float, default=2
             In a 1D scalar plot, the width of the line in pixels.
+        ylim_1d : list[float], optional
+            In a 1D scalar plot, the limits of the y axis. Defaults to the
+            0th and 90th percentile of the plotted quantity.
+        opacity_scalar_3d : float, default=0.2
+            In a 3D scalar plot, the opacity of the surface. Passed directly to
+            ``plotly.graph_objects.Volume()``.
+        opacityscale_scalar_3d : float | str, default='uniform'
+            In a 3D scalar plot, the mapping between data values and opacity
+            values. Specified as either an array of value pairs or as a string
+            referring to the name of a preset scale. Passed directly to
+            ``plotly.graph_objects.Volume()``.
         **kwargs
-            Other keyword arguments are passed to ``p4.util.plotting.plot_layout()``.
-            TODO: add link.
+            Other keyword arguments are passed to :py:func:`p4.plot_layout`.
         
         Returns
         -------
         figure, traces
-            The Plotly figure and associated traces.
+            The Plotly figure and its associated traces.
         """
         # Default slice
         if not slice:
@@ -940,6 +967,62 @@ class Field:
         if len(slice) == 1 and not isinstance(contours, (int, NoneType)):
             raise ValueError("In 2D, `contours` must be an integer or None.")
         
+        # Ensure that ylim_1d is the correct type
+        if (
+            ylim_1d is not None
+            and (
+                not isinstance(ylim_1d, Iterable)
+                or len(ylim_1d) != 2
+                or not all(isinstance(i, numbers.Number) for i in ylim_1d)
+            )
+        ):
+            raise ValueError("`ylim_1d` must be a list of 2 floats.")
+    
+        # Ensure that opacity is correct
+        accepted_presets = ["min", "max", "extremes", "uniform"]
+        if opacity_scalar_3d < 0 or opacity_scalar_3d > 1:
+            raise ValueError("`opacity_scalar_3d` must be between 0 and 1.")
+        if not (
+            (
+                isinstance(opacityscale_scalar_3d, Iterable)
+                and not isinstance(opacityscale_scalar_3d, str)
+                and all(
+                    len(i) == 2 and all(isinstance(j, numbers.Real))
+                    for i in opacity_scalar_3d
+                    for j in i
+                )
+            )
+            or (
+                isinstance(opacityscale_scalar_3d, str)
+                and opacityscale_scalar_3d in accepted_presets
+            )
+        ):
+            raise ValueError(
+                "`opacityscale_scalar_3d` must be an array of length-2 arrays "
+                + "or a valid string. See https://plotly.com/python/reference/volume/#volume-opacityscale."
+            )
+
+        # Ensure that the field has a regular grid
+        positions = self.positions
+        same_intervals = []
+        for i in [0, 1, 2]:
+            unique_values = np.unique(positions[:,i])
+            second_diff = np.diff(unique_values, n=2)
+            same_intervals.append(
+                len(second_diff) == 0
+                or np.isclose(
+                    [0 for _ in second_diff],
+                    second_diff,
+                    atol=1e-6
+                ).all()
+            )
+
+        if not all(same_intervals):
+            raise ValueError(
+                "Field cannot be plotted because the positions do not follow a "
+                + "regular grid."
+            )
+        
         # Infer quantity if necessary
         if quantity is None:
             if set(self.quantities) == {"U"}:
@@ -982,6 +1065,8 @@ class Field:
                     cmap=cmap,
                     fill_nan_with_inf=fill_nan_with_inf,
                     show_cbar=show_cbar,
+                    opacity=opacity_scalar_3d,
+                    opacityscale=opacityscale_scalar_3d,
                 )
             elif len(slice) == 1:
                 trace = self._plot_trace_scalar_2d(
@@ -1023,18 +1108,23 @@ class Field:
         figure.add_trace(trace)
 
         allowed_kwarg_names = (
-            signature(util.plotting.plot_layout)
+            signature(plot_layout)
                 .parameters
                 .keys()
         )
         layout_kwargs = {
             k: v for k, v in kwargs.items() if k in allowed_kwarg_names
         }
-        layout = util.plotting.plot_layout(slice=slice, **layout_kwargs)
+        layout = plot_layout(slice=slice, **layout_kwargs)
         figure.update_layout(layout)
 
         if len(slice) == 2:
             figure.update_layout(yaxis=dict(title=dict(text=quantity)))
+        
+        if len(slice) == 2:
+            if ylim_1d is None:
+                ylim_1d = [trace.y.min(), np.percentile(trace.y, 90)]   # TODO: return here - find a better approach
+            figure.update_layout(yaxis=dict(range=ylim_1d))
 
         return figure, trace
 
@@ -1044,6 +1134,8 @@ class Field:
         clim: list[float] | None,
         contours: int,
         cmap: str,
+        opacity: float,
+        opacityscale: float | str,
         fill_nan_with_inf: bool,
         show_cbar: bool,
     ) -> plotly.graph_objs._volume.Volume:
@@ -1053,9 +1145,9 @@ class Field:
         ----------
         quantity : 'U', 'F', 'T', 'Fx', 'Fy', 'Fz', 'Tx', 'Ty', or 'Tz'
             The name of the quantity to plot.
-        clim : list of floats
+        clim : list[float]
             The lower and upper limits of the colorscale. If None, then
-            the lower and upper limits will be set to the 10th and 90th
+            the lower and upper limits will be set to the 0th and 90th
             percentile values, respectively.
         contours : int
             The number of values to draw contours around. Only uesd in 3D and
@@ -1064,6 +1156,14 @@ class Field:
         cmap : str
             The name of the Plotly colormap to use. Only used in 3D and 2D
             scalar plots and 3D vector plots.
+        opacity : float
+            The opacity of the surface. Passed directly to the plotly trace's
+            constructor.
+        opacityscale : float | str
+            The mapping between data values and opacity values. Specified as
+            either an array of value pairs or as a string referring to the name
+            of a preset scale. Passed directly to the plotly trace's
+            constructor.
         fill_nan_with_inf : bool
             Whether to plot NaN values as though they were very large values.
             Only used in 3D and 2D scalar plots.
@@ -1096,7 +1196,7 @@ class Field:
         ]
 
         if clim is None:
-            clim = [np.percentile(array, 10), np.percentile(array, 90)]
+            clim = [np.percentile(array, 0), np.percentile(array, 90)]
         
         return plotly.graph_objects.Volume(
             x=x.flatten(),
@@ -1105,7 +1205,8 @@ class Field:
             value=array.flatten(),
             isomin=min(clim),
             isomax=max(clim),
-            opacity=0.1,
+            opacity=opacity,
+            opacityscale=opacityscale,
             surface_count=contours,
             colorscale=cmap,
             showscale=show_cbar,
@@ -1136,9 +1237,9 @@ class Field:
         slice : dict
             Axes and positions along which to slice. Keys are limited to 'x',
             'y', and 'z'. There can be at most two keys.
-        clim : list of floats
+        clim : list[float]
             The lower and upper limits of the colorscale. If None, then
-            the lower and upper limits will be set to the 10th and 90th
+            the lower and upper limits will be set to the 0th and 90th
             percentile values, respectively.
         contours : int or None
             The number of values to draw contours around. Only uesd in 3D and
@@ -1177,7 +1278,7 @@ class Field:
             array = np.nan_to_num(array, nan=1e99)
 
         if clim is None:
-            clim = [np.percentile(array, 10), np.percentile(array, 90)]
+            clim = [np.percentile(array, 0), np.percentile(array, 90)]
         if np.isnan(clim[0]):
             clim[0] = -1e99
         if np.isnan(clim[1]):
@@ -1301,9 +1402,9 @@ class Field:
         ----------
         quantity : 'F' or 'T'
             The name of the quantity to plot.
-        clim : list of floats
+        clim : list[float]
             The lower and upper limits of the colorscale. If None, then
-            the lower and upper limits will be set to the 10th and 90th
+            the lower and upper limits will be set to the 0th and 90th
             percentile of the magnitudes, respectively.
         cmap : str
             The name of the Plotly colormap to use. Only used in 3D and 2D
@@ -1357,7 +1458,7 @@ class Field:
                 scale_factors[i] = s_max / m
 
         if clim is None:
-            clim = [m_10, m_90]
+            clim = [np.percentile(magnitudes, 0), m_90]
 
         customdata = np.column_stack((
             self.table[f"{quantity}x"],

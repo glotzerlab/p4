@@ -7,15 +7,28 @@ import os
 from pathlib import Path
 from typing import Iterable, Literal
 import multiprocessing
+from warnings import warn
+
+try:
+    multiprocessing.set_start_method(method="fork")
+except RuntimeError:
+    warn(
+        "Could not set multiprocessing start method to 'fork'. To prevent "
+        + "future RuntimeErrors, put all calls to System.measure() in an "
+        + "`if __name__ ==  '__main__'` block."
+    )
 
 import hoomd
 import numpy as np
+from tqdm import tqdm
 
 from . import util
+from .version import __version__
 from .types import PositionsLike, OrientationLike, OrientationsLike
 from .body import Body
 from .interaction import Interaction
 from .arrangement import Arrangement
+from .field import Field
 
 class System:
     """A System is defined by a probe, an analyte, and their interactions.
@@ -452,7 +465,9 @@ class System:
             JSON file. If not provided, there are no newlines.
         """
         path = Path(filename)
-        data = self._to_json_dict()
+        data = self.to_dict()
+        data["p4_version"] = __version__
+        data["hoomd_blue_version"] = hoomd.version.version
 
         if not path.exists():
             path.touch()
@@ -486,81 +501,17 @@ class System:
         with open(path, "w") as f:
             json.dump(existing_data, f, indent=indent)
 
-    def _to_json_dict(self):
-        """Convert the system to a JSON-compliant dictionary."""
+    def to_dict(self):
+        """Return a JSON-compliant dictionary representing this system."""
         data = {}
 
-        data["probe"] = self.probe._to_json_dict()
-        data["analyte"] = self.analyte._to_json_dict()
+        data["probe"] = self.probe.to_dict()
+        data["analyte"] = self.analyte.to_dict()
         data["interactions"] = [
-            i._to_json_dict() for i in self.interactions
+            i.to_dict() for i in self.interactions
         ]
 
         return data
-
-    # ------------------------------- PROPERTIES -------------------------------
-
-    @property
-    def active_interactions(self) -> list[Interaction]:
-        """Interactions with typed params for both the probe and the analyte."""
-        probe_types = [self.probe.primary_type] + self.probe.secondary_types
-        if isinstance(self.analyte, Body):
-            analyte_types = (
-                [self.analyte.primary_type] + self.analyte.secondary_types
-            )
-        else:
-            analyte_types = []
-            for b in self.analyte.bodies:
-                analyte_types.extend([b.primary_type] + b.secondary_types)
-        
-        included_interactions = []
-
-        for interaction in self.interactions:
-            # For single types, there must be at least one in probe and one in
-            # analyte
-            if (
-                any(
-                    t in probe_types
-                    for t in interaction._interacting_types("single")
-                )
-                and any(
-                    t in analyte_types
-                    for t in interaction._interacting_types("single")
-                )
-            ):
-                included_interactions.append(interaction)
-
-            # For pair types, there must be at least one pair that contains a
-            # type in the probe and a type (could be the same one) in the
-            # analyte
-            else:
-                straddlers = []
-                for type_pair in interaction._interacting_types("pair"):
-                    if (
-                        any(t in probe_types for t in type_pair)
-                        and any(t in analyte_types for t in type_pair)
-                    ):
-                        straddlers.append(type_pair)
-                if len(straddlers) > 0:
-                    included_interactions.append(interaction)
-
-        return included_interactions
-    
-    @property
-    def all_types(self) -> list[str]:
-        """All unique particle types in the probe and analyte."""
-        all_types = [self.probe.primary_type]
-        all_types.extend(self.probe.secondary_types)
-
-        if isinstance(self.analyte, Body):
-            all_types.append(self.analyte.primary_type)
-            all_types.extend(self.analyte.secondary_types)
-        else:
-            for b in self.analyte.bodies:
-                all_types.append(b.primary_type)
-                all_types.extend(b.secondary_types)
-
-        return list(set(all_types))
 
     # --------------------------------- MEASURE --------------------------------
 
@@ -569,17 +520,33 @@ class System:
         quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
         positions: PositionsLike,
         orientations: OrientationLike | OrientationsLike | Iterable[OrientationsLike],
-        csv_filename: os.PathLike,
-        n_processes: int = 1,
+        filename: os.PathLike | None = None,
+        n_processes: int = -1,
         save_gsd: bool = False,
         nlist: hoomd.md.nlist.NeighborList | None = None,
-    ):
-        """Measure named quantities for the system.
+        disable_pbar: bool = False,
+    ) -> Field:
+        """Measure named quantities for the system and return them as a field.
 
         This method coordinates the parallelization of the measurement
         simulations and the merging, cleaning, and formatting of the resulting
         datasets. For the actual implementation of the simulation loop, see
         :py:func:`p4.util.simulation.measure`.
+
+        .. _multiprocessing module: https://docs.python.org/3/library/multiprocessing.html
+
+        .. _measure-multiprocessing-warning:
+        .. warning::
+            By default, :py:meth:`~p4.system.System.measure` uses Python's
+            `multiprocessing module`_ to distribute the measurement process
+            across the maximum number of processes allowed on your computer.
+            Using the maximum number of processes may not minimize the program
+            execution time due to the added overhead of creating and closing new
+            processes. The smaller the number of positions and orientations, the
+            lower the optimum number of processes. For example, for a 10 x 10 x
+            1 grid of positions and only 1 orientation, a single process is
+            best.
+            
 
         :meta measure:
 
@@ -587,9 +554,9 @@ class System:
         ----------
         quantities : one or more of 'U', 'F', 'T'
             The quantities to measure. 'U' is the potential energy measured for
-            the entire system, and is saved as a single scalar quantity. 'F' and
-            'T' are the net Force and Torque experienced by the probe, and are
-            saved as vector quantities.
+            the entire system, and is saved as a scalar quantity. 'F' and 'T'
+            are the net force and torque experienced by the probe, and are saved
+            as vector quantities.
         positions : (N, 3) array of floats
             The positions at which to measure.
         orientations : (4,), (M, 4), or (N, M, 4) array of floats
@@ -598,16 +565,17 @@ class System:
             If the array is 3D, it and ``positions`` must have identically-sized
             first axes (i.e., if ``positions`` has the shape ``(N, 3)``,
             ``orientations`` must have the shape ``(N, M, 4)``).
-        csv_filename : str
-            The name or path for the output CSV file.
-        n_processes : int, default=1
-            The number of processes to distribute the probe operation between.
+        filename : os.PathLike, optional
+            The name or path for a file containing the measurement data. If not
+            provided, no file is written. Must end in '.csv'.
+        n_processes : int, default=-1
+            The number of processes to distribute the measure operation between.
             Parallelization is implemented at the Python level, so each process
             creates and runs its own simulation and then the table results are
             combined in the output CSV. Note that if ``save_gsd`` is set to
-            True, each simulation will produce a separate GSD file. Set this
-            parameter to ``-1`` to use the maximum allowed number of processes
-            for your machine.
+            True, each simulation will produce a separate GSD file. Defaults to
+            ``-1``, which uses the maximum allowed number of processes on the
+            user's computer.
         save_gsd : bool, default=False
             Whether to save a GSD file alongside the output CSV file. If True,
             the GSD has the same name as the CSV. The name of the GSD file will
@@ -615,13 +583,18 @@ class System:
             the process whose simulation wrote the GSD file. This option is
             available for debugging purposes, but generally should not be used.
         nlist : hoomd.md.nlist.NeighborList, optional
-            The neighbor list with which to instantiate the class. If not
-            provided, a bounding volume hierarchy-based neighbor list is created
-            on the fly. This neighbor list is sufficient in most cases.
+            The neighbor list with which to instantiate the class. Intra-body
+            energies are automatically excluded. If not provided, a bounding
+            volume hierarchy-based neighbor list is created on the fly. This
+            neighbor list is sufficient in most cases.
+        disable_pbar : bool, default=False
+            Whether to disable the progress bar.
         """
         # Default nlist
         if nlist is None:
-            nlist = hoomd.md.nlist.Tree(2)
+            nlist = hoomd.md.nlist.Tree(2, exclusions=("body",))
+        elif "body" not in nlist.exclusions:
+            nlist.exclusions.append("body")
 
         # Ensure positions and orientations are numpy arrays (TODO: validate)
         probe_positions = np.asarray(positions)
@@ -645,6 +618,21 @@ class System:
             or probe_orientations.shape[-1] == 4
         ):
             raise ValueError("Could not broadcast orientations onto positions.")
+        
+        # Ensure filename has correct extension
+        if (
+            filename is not None
+            and str(filename).rsplit(".")[-1] not in ("csv", "CSV")
+        ):
+            raise ValueError(
+                "`filename` must be None or a string ending in '.csv'."
+            )
+    
+        # Ensure filename is provided if saving to GSD
+        if save_gsd and filename is None:
+            raise ValueError(
+                "`filename` must be provided if `save_gsd` is True."
+            )
         
         # Calculate a simulation box that contains all the particles
         max_distance = probe_positions.max()
@@ -671,9 +659,9 @@ class System:
                 max_r_cut = max(max_r_cut, param_dict.get("r_cut", 0))
         
         simulation_box = 1.1 * np.array([
-            2 * (max_distance + max_r_cut),
-            2 * (max_distance + max_r_cut),
-            2 * (max_distance + max_r_cut),
+            1.1 * 2 * ((max_distance + max_r_cut) + nlist.buffer),
+            1.1 * 2 * ((max_distance + max_r_cut) + nlist.buffer),
+            1.1 * 2 * ((max_distance + max_r_cut) + nlist.buffer),
             0.0,
             0.0,
             0.0
@@ -686,6 +674,11 @@ class System:
 
         if n_processes == -1:
             n_processes = os.process_cpu_count()
+
+        # Force the number of processes to be smaller than the number of
+        # positions (almost never matters)
+        if n_processes > positions.shape[0]:
+            n_processes = positions.shape[0]
 
         # If multiprocessing, run copies of the probe simulation with chunks
         # of the set of positions across a collection of processes
@@ -713,10 +706,20 @@ class System:
             ]
         
         if n_processes != 1:
-            with multiprocessing.Pool(processes=n_processes) as pool:
+            # Set up for multiprocessing with tqdm
+            # Ref: https://github.com/tqdm/tqdm#nested-progress-bars
+            tqdm.set_lock(multiprocessing.RLock())
+
+            with (
+                multiprocessing.Pool(
+                    n_processes,
+                    initializer=tqdm.set_lock,
+                    initargs=(tqdm.get_lock(),)
+                ) as pool
+            ):
                 if save_gsd:
                     gsd_filenames = [
-                        csv_filename.rsplit(".", 1)[0] + f"_{i}.gsd"
+                        filename.rsplit(".", 1)[0] + f"_{i}.gsd"
                         for i in range(n_processes)
                     ]
                 else:
@@ -727,10 +730,11 @@ class System:
                     [quantities for _ in range(n_processes)],
                     subdivide(probe_positions, n_processes),
                     [probe_orientations for _ in range(n_processes)],
-                    [self.active_interactions for _ in range(n_processes)],
                     [simulation_box for _ in range(n_processes)],
                     gsd_filenames,
                     [nlist for _ in range(n_processes)],
+                    list(range(n_processes)),
+                    [disable_pbar for _ in range(n_processes)]
                 )
                 tables = pool.starmap(util.simulation.measure, args)
             
@@ -739,7 +743,7 @@ class System:
         # If not multiprocessing, don't initialize a pool (easier for debugging)
         else:
             if save_gsd:
-                gsd_filename = csv_filename.rsplit(".", 1)[0] + ".gsd"
+                gsd_filename = filename.rsplit(".", 1)[0] + ".gsd"
             else:
                 gsd_filename = None
             table = util.simulation.measure(
@@ -747,17 +751,37 @@ class System:
                 quantities=quantities,
                 positions=probe_positions,
                 orientations=probe_orientations,
-                included_interactions=self.active_interactions,
                 simulation_box=simulation_box,
                 gsd_filename=gsd_filename,
                 nlist=nlist,
+                pbar_number=0,
+                disable_pbar=disable_pbar,
             )
 
             table = util.data.clean_header(table)
 
-        with open(csv_filename, "w") as file:
-            table.seek(0)
-            file.write(table.read())
+        # Write file if necessary
+        if filename is not None:
+            with open(filename, "w") as file:
+                table.seek(0)
+                file.write(table.read())
+        
+        # Create Field
+        table.seek(0)
+        columns = table.readline().strip("\n").split(",")
+
+        table.seek(0)
+        return Field(
+            np.rec.array(
+                np.genfromtxt(
+                    table,
+                    names=columns,
+                    skip_header=1,
+                    dtype=None,
+                    delimiter=","
+                )
+            )
+        )
 
     # --------------------------------- OTHER ----------------------------------
 

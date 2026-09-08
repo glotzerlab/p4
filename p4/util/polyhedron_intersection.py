@@ -25,7 +25,6 @@ import itertools
 
 import numpy as np
 import coxeter
-from scipy.spatial import Delaunay
 
 
 type Plane = tuple[float, float, float, float]
@@ -854,41 +853,14 @@ def polygon_to_segments(polygon: PointSet) -> list[Segment]:
     return segments
 
 def point_in_polygon(point: Point, polygon: PointSet) -> bool:
-    """Whether a point is inside a polygon (tangent points count as inside).
-    
-    This implementation follows BottleNick's `implementation`_, published on
-    StackOverflow under the CC BY-SA 4.0 license.
-    
-    .. _`implementation`: https://stackoverflow.com/a/60672266/15426433
-
-    .. note:
-        Because slicing is only allowed along coordinate axes, the polygon is
-        guaranteed to already be in a coordinate plane. Therefore this
-        implementation only needs to detect the degenerate coordinate and remove
-        it - no rotating into a principle axis is required. This function will
-        not work for polygons created by non-orthogonal slicing.
-    """
-    for i in [0, 1, 2]:
-        if all(polygon[j][i] == polygon[j+1][i] for j in range(len(polygon)-1)):
-            coordinate_to_remove = i
-    
-    polygon = np.array(polygon)
-    polygon = polygon[:,[i for i in [0,1,2] if i != coordinate_to_remove]]
-    
-    point = np.array(point).flatten()
-    point = [v for i, v in enumerate(point) if i != coordinate_to_remove]
-
-    return Delaunay(polygon).find_simplex(point) >= 0
+    """Whether a point is inside a polygon (tangent points count as inside)."""
+    polygon = coxeter.shapes.Polygon(polygon)
+    return polygon.is_inside([point])
 
 def point_in_segment(point: Point, segment: Segment) -> bool:
     """Whether a point is on a line segment."""
     u = np.array(segment[1]) - np.array(segment[0])
     v = np.array(point) - np.array(segment[0])
-
-    try:
-        _ = np.dot(u, v)
-    except ValueError:
-        breakpoint()    # TODO
 
     return (
         point in segment

@@ -14,15 +14,14 @@ from .field import Field
 
 from .top_level_functions import (
     positions_on_regular_grid,
-    # exclude_positions_by_shape,
     orientations_about_axis,
     orientations_from_fibonacci_lattice,
-    # exclude_orientations_with_shape_overlap,
+    plot_layout,
     plot_positions,
-    # plot_orientations,
+    plot_field_vs_number_of_orientations,
     plot_state,
-    # plot_bodies,
-    # plot_interactions,
+    snapshot_schematic_slice_trace,
+
 )
 
 from . import util
@@ -39,16 +38,12 @@ __all__ = [
     "field",
     "Field",
     "positions_on_regular_grid",
-    # "exclude_positions_by_shape",
     "orientations_about_axis",
     "orientations_from_fibonacci_lattice",
-    # "exclude_orientations_with_shape_overlap",
     "plot_positions",
-    # "plot_orientations",
+    "plot_field_vs_number_of_orientations",
     "plot_state",
-    # "plot_bodies",
-    # "plot_interactions",
+    "plot_layout",
+    "snapshot_schematic_slice_trace",
     "util",
 ]
-
-__version__ = "0.0.1"

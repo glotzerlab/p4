@@ -56,7 +56,7 @@ type MoiLike = (
     tuple[float, float, float]
     | np.ndarray[tuple[Literal[3]], np.dtype[np.floating]]
 )
-"""Types that represent an array of moments of inertia ("MoI").
+"""Types that represent a moment of inertia ("MoI").
 
 Following the convention in HOOMD-blue, MoIs are expressed as 3-vectors
 containing the diagonal terms of the MoI tensor.

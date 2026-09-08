@@ -48,8 +48,11 @@
     ]
   },
   "orientations_by_type": {},
-  "mass_by_type": {
-    "B": 2.0
-  },
-  "moi_by_type": {}
+  "mass": 2.0,
+  "moi": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "p4_version": "1.0.0"
 }

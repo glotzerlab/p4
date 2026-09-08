@@ -35,8 +35,9 @@ dl.field-list.simple dt {
   margin-bottom: 0 !important;
 }
 
-/* Hide colon after the parameters section title */
+/* Hide colon after the parameters and returns section titles */
 dl.field-list.simple dt.field-odd span.colon {display: none}
+dl.field-list.simple dt.field-even span.colon {display: none}
 
 /*
 Style the horizontal line separating class autoclasstoc from the actual
@@ -51,5 +52,19 @@ dl.py.class dd hr {
 
 /* Scale the section titles down a bit */
 h2 {
+  font-size: xx-large;
+}
+h3 {
   font-size: x-large;
 }
+
+/* Grid headers for 2-column code examples*/
+.rubric.grid-header {
+  margin: 0 auto 0 auto;
+  font-weight: normal;
+  font-style: italic
+}
+
+/* Fix logo sizing issue in footer of page */
+.bottom-of-page > .center-details {width: 1em}
+.bottom-of-page > .right-details {flex-shrink: 0}

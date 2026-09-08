@@ -82,7 +82,7 @@ BODY_KWARGS = dict(
     primary_type="A",
     secondary_types=["B"],
     positions_by_type=dict(B=cube_vertices(2)),
-    mass_by_type=dict(B=np.float32(2))
+    mass=np.float32(2)
 )
 
 ARRANGEMENT_KWARGS = dict(

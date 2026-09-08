@@ -5,7 +5,7 @@ Specifying Interaction Models
 =============================
 
 An interaction model mathematically defines the forces and torques that
-particles exhert on each other.
+particles exert on each other.
 
 In HOOMD-blue, this notion of an interaction model is mostly expressed in the MD
 module's `Pair Force`_, which stores a set of parameters to apply to the
@@ -46,7 +46,7 @@ only for A-C pairs. Just like a ``Body``, and ``Interaction`` can be plotted.
 
     import numpy as np
 
-    fig, tr = interaction.plot(r=np.linspace(0, 8, 100), include_default=True)
+    fig, tr = interaction.plot(r=np.linspace(0, 8, 100), show_default=True)
     fig.show()
 
 .. raw:: html
@@ -65,5 +65,3 @@ or forgetting to specify parameters for a pair of particle types.
 
 .. _anisotropic: https://hoomd-blue.readthedocs.io/en/v7.0.1/hoomd/md/pair/module-aniso.html
 .. _friction: https://hoomd-blue.readthedocs.io/en/v7.0.1/hoomd/md/pair/module-friction.html
-
-.. TODO: add plotting for interaction

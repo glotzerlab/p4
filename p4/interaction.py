@@ -18,7 +18,9 @@ import hoomd
 import numpy as np
 import plotly
 
+from .top_level_functions import plot_layout
 from . import util
+from .version import __version__
 
 REQUIRED_PARENT_CLASS = hoomd.md.pair.pair.Pair
 EXCLUDED_TYPE_STRINGS = [
@@ -52,19 +54,27 @@ class Interaction:
     Parameters
     ----------
     hoomd_class : hoomd.md.pair.Pair
-        The constructor for the HOOMD class. Must be in the ``hoomd.md.pair``
-        module or one of its submodules.
-    initial_args : dict[str, float | str]
+        A HOOMD-blue MD pairwise potential type. Must be in the
+        ``hoomd.md.pair`` module or one of its submodules. Cannot be one of the
+        following types: :py:class:`~hoomd.md.pair.aniso.AnisotropicPair`,
+        :py:class:`~hoomd.md.pair.aniso.Patchy`,
+        :py:class:`~hoomd.md.pair.friction.FrictionalPair`.
+    initial_args : dict
         All parameters (except for ``nlist``) that are needed for instantiating
         the class from its constructor.
     default_params : dict
         The names and values of parameters that will be set by default for
-        all single and pair types. To determine the params for a given
-        class, consult the `HOOMD-blue documentation
-        <https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/module-pair.html>`__.
+        all particle types and pairs of types. To determine the names and values
+        required for parametrizing the HOOMD-class, consult the
+        `documentation`_.
     typed_params : dict
-        A mapping of single and pair types to parameter names and values. These
-        names and values will override those from ``default_params``.
+        A mapping of particle types and pairs of types to parameter names and
+        values. These names and values will override the default parameters for
+        those particle types. Consult the documentation to determine the
+        allowed parameter names and values.
+
+    
+    .. _documentation: https://hoomd-blue.readthedocs.io/en/latest/hoomd/md/module-pair.html
 
 
     Example
@@ -94,9 +104,9 @@ class Interaction:
     def __init__(
         self,
         hoomd_class: hoomd.md.pair.Pair,
-        initial_args: dict[str, float | str],
-        default_params: dict[str, float],
-        typed_params: dict[str, float],
+        initial_args: dict,
+        default_params: dict,
+        typed_params: dict,
     ):
         # Validate inputs
         def cls_to_str(cls):
@@ -115,11 +125,19 @@ class Interaction:
             )
         if (
             hoomd_class is hoomd.md.pair.Table
-            and Version(hoomd.version.version) < Version("7.0.2")
+            and Version(hoomd.version.version) < Version("7.1.0")
         ):
             raise TypeError(
                 "`hoomd.md.pair.Table` is not compatible with p4 below "
-                + "HOOMD-blue version 7.0.2."
+                + "HOOMD-blue version 7.1.0."
+            )
+        if (
+            hoomd_class is hoomd.md.pair.aniso.ALJ
+            and Version(hoomd.version.version) < Version("7.1.0")
+        ):
+            raise TypeError(
+                "`hoomd.md.pair.aniso.ALJ` is not compatible with p4 below "
+                + "HOOMD-blue version 7.1.0."
             )
         
         # Set instance attributes
@@ -141,7 +159,7 @@ class Interaction:
             than a class method that evaluates keyword arguments.
         """
         # Ensure the hoomd class can be instantiated
-        nlist = hoomd.md.nlist.Tree(2)
+        nlist = hoomd.md.nlist.Tree(2, exclusions=("body",))
         try:
             _ = self.hoomd_class(nlist=nlist, **self.initial_args)
         except ValueError as e:
@@ -151,7 +169,7 @@ class Interaction:
             ) from e
         
         # Ensure the hoomd class can be parameterized
-        nlist = hoomd.md.nlist.Tree(2)
+        nlist = hoomd.md.nlist.Tree(2, exclusions=("body",))
         try:
             _ = self.to_hoomd_pair()
         except (AttributeError, KeyError) as e:
@@ -163,7 +181,7 @@ class Interaction:
         
         # Ensure the parameterized hoomd class can be used in a simple example
         # simulation
-        nlist = hoomd.md.nlist.Tree(2)
+        nlist = hoomd.md.nlist.Tree(2, exclusions=("body",))
         test_types = self._interacting_types("all")
         if not test_types:
             test_types = ["A", "B"] # catch case with no typed params
@@ -498,7 +516,7 @@ class Interaction:
             fly.
         """
         if nlist is None:
-            nlist = hoomd.md.nlist.Tree(2)
+            nlist = hoomd.md.nlist.Tree(2, exclusions=("body",))
         
         instance = self.hoomd_class(nlist, **self.initial_args)
 
@@ -507,8 +525,8 @@ class Interaction:
             getattr(instance, param_name).default = param_value
         
         # Set typed params
-        for type_name, type_params in self.typed_params.items():
-            for param_name, param_value in type_params.items():
+        for type_name, params in self.typed_params.items():
+            for param_name, param_value in params.items():
                 getattr(instance, param_name)[type_name] = param_value
                 
         return instance
@@ -590,7 +608,7 @@ class Interaction:
         
         params = {}
         tpd = hoomd_class(
-            nlist=hoomd.md.nlist.Tree(2),
+            nlist=hoomd.md.nlist.Tree(2, exclusions=("body",)),
             **initial_args
         )._typeparam_dict
 
@@ -682,7 +700,9 @@ class Interaction:
             JSON file. If not provided, there are no newlines.
         """
         path = Path(filename)
-        data = self._to_json_dict()
+        data = self.to_dict()
+        data["p4_version"] = __version__
+        data["hoomd_blue_version"] = hoomd.version.version
 
         if not path.exists():
             path.touch()
@@ -716,7 +736,7 @@ class Interaction:
         with open(path, "w") as f:
             json.dump(existing_data, f, indent=indent)
 
-    def _to_json_dict(self) -> dict:
+    def to_dict(self) -> dict:
         """Return a JSON-compliant dictionary representing this interaction."""
         data = dict(
             hoomd_class=self.hoomd_class,
@@ -750,7 +770,7 @@ class Interaction:
         pair_styles: dict[tuple, dict] | None = None,
         cmap: str = "Pastel",
         ylim: list[float] | None = None,
-        include_default: bool = False,
+        show_default: bool = False,
         mode: Literal["lines", "lines+markers", "markers"] = "lines",
         marker_size: float = 6,
         line_width: float = 2,
@@ -795,7 +815,7 @@ class Interaction:
         ylim : list of floats, optional
             The lower and upper limits of the y axis. If not provided, limits
             will be calculated that attempt to give a clear view of the data.
-        include_default : bool, default=False
+        show_default : bool, default=False
             Whether to include the curve defined by ``default_params`` in
             the plot.
         marker_mode : 'lines+markers', 'lines', or 'markers', default='lines'
@@ -805,16 +825,13 @@ class Interaction:
         line_width : float, default=2
             The width of the line in pixels.
         **kwargs
-            Other keyword arguments are passed to ``p4.util.plotting.plot_layout()``.
-            TODO: add link.
+            Other keyword arguments are passed to :py:func:`p4.plot_layout`.
         
         Returns
         -------
         figure, traces
             The plot figure and its associated traces.
         """
-        # TODO: check if there's another way to structure package to prevent
-        # imports here
         from .body import Body
         from .field import Field
         from .system import System
@@ -865,7 +882,7 @@ class Interaction:
         if type_pairs is None:
             type_pairs = list(self.typed_params.keys())
         
-        if include_default:
+        if show_default:
             type_pairs = ["default"] + type_pairs
 
         # Calculate kwargs for the measure function call
@@ -879,15 +896,18 @@ class Interaction:
         for param_dict in self.typed_params.values():
             max_r_cut = max(max_r_cut, param_dict.get("r_cut", 0))
 
-        box_length = 1.1 * 2 * max(max_r_cut, max(r))
+        nlist_buffer = 2
+
+        box_length = 1.1 * 2 * (max(max_r_cut, max(r)) + nlist_buffer)
 
         measure_kwargs = dict(
             quantities="U",
             positions=positions,
             orientations=orientations,
             simulation_box=[box_length, box_length, box_length, 0, 0, 0],
-            included_interactions=[self],
-            gsd_filename=None
+            gsd_filename=None,
+            pbar_number=0,
+            disable_pbar=True
         )
 
         # Build plot traces pair by pair
@@ -905,7 +925,7 @@ class Interaction:
             
             table = util.simulation.measure(
                 system=system,
-                nlist=hoomd.md.nlist.Tree(2),
+                nlist=hoomd.md.nlist.Tree(nlist_buffer),
                 **measure_kwargs
             )
             table = util.data.clean_header(table)
@@ -953,20 +973,21 @@ class Interaction:
         figure.add_traces(traces)
 
         allowed_kwarg_names = (
-            inspect.signature(util.plotting.plot_layout).parameters.keys()
+            inspect.signature(plot_layout).parameters.keys()
         )
         layout_kwargs = {
             k: v for k, v in kwargs.items() if k in allowed_kwarg_names
         }
-        layout = util.plotting.plot_layout(
+        layout = plot_layout(
             slice=dict(z=0, y=0),
             **layout_kwargs
         )
         figure.update_layout(**layout)
 
         figure.update_layout(xaxis=dict(title="r", range=[min(r), max(r)]))
+        figure.update_layout(yaxis=dict(title="U"))
         
-        if ylim is None:
+        if ylim is None and len(figure.data) > 0:
             overall_min = min(min(s["y"]) for s in figure.data)
             overall_max = max(max(s["y"]) for s in figure.data)
             min_too_large = overall_min < -1e2

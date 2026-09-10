@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "p4"
 version = "1.0.0"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 description = "Probe the effective potential landscape around an analyte using HOOMD-blue."
 readme = "readme.md"
 license-files = ["LICENSE"]

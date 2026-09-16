@@ -618,7 +618,7 @@ class Body:
                         ).tolist()
                     )
                     orientations_by_type[t].append(
-                        rowan.divide(pdata.orientation[i], primary_orientation) # TODO: test order
+                        rowan.divide(pdata.orientation[i], primary_orientation)
                             .tolist()
                     )
 

@@ -140,6 +140,14 @@ are correct.
 If your changes require the addition of new pages to the API section, create new
 ``.rst`` files whose names and contents are parallel to existing files.
 
+If your changes impact the plots in the documentation, those plots will have to
+be regenerated. To do so, run
+
+.. code:: bash
+
+   python <path_to_p4>/doc/generate_data_and_plots.py
+
+and commit the resulting HTML files.
 
 Unit tests
 ----------

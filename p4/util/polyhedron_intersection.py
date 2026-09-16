@@ -862,11 +862,6 @@ def point_in_segment(point: Point, segment: Segment) -> bool:
     u = np.array(segment[1]) - np.array(segment[0])
     v = np.array(point) - np.array(segment[0])
 
-    try:
-        _ = np.dot(u, v)
-    except ValueError:
-        breakpoint()    # TODO
-
     return (
         point in segment
         or (

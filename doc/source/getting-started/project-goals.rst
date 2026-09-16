@@ -52,7 +52,7 @@ and is well-suited to web-based tools.
 3. Seeing the Effective Shapes of Patchy Particles
 ++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Designing particle and interaction models to represent patchy particles with
+Designing particle and interaction models to represent `patchy particles`_ with
 specific shapes is often difficult. Small changes in the distribution of
 constituent particles can significantly alter a rigid body's effective
 energy and force fields. There are no publicly available tools for measuring
@@ -60,6 +60,8 @@ these fields within popular particle simulation engines, which means that in
 order to determine the best combination of constituent particle positions and
 interaction potentials, researchers must evaluate the accuracy of their models
 solely on the collective behavior of particles in their simulations.
+
+.. _patchy particles: https://en.wikipedia.org/wiki/Patchy_particles
 
 p4 provides a toolkit for directly measuring and interactively visualizing the
 effective shapes of patchy particles modelled from rigid bodies and pairwise

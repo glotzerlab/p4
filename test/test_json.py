@@ -130,16 +130,39 @@ SYSTEM_WITH_ARRANGEMENT_KWARGS = dict(
     interactions=[p4.Interaction(**INTERACTION_KWARGS)]
 )
 
-def compare_text_files(file_path_1, file_path_2):
+def compare_json_files(file_path_1, file_path_2, object_type):
     """Raise an Error if two text files do not have identical contents.
     
     Ignore different newlines and HOOMD-blue versions.
     """
     with open(file_path_1) as file1, open(file_path_2) as file2:
         file1_contents, file2_contents = file1.readlines(), file2.readlines()
-        for file1_line, file2_line in zip(file1_contents, file2_contents):
-            if "hoomd_blue_version" not in file1_line:
-                assert file1_line == file2_line
+
+        # For single-line files, we can't skip the version info by simply
+        # comparing strings, so instead we need to deserialize and compare
+        # data that way.
+        if (len(file1_contents), len(file2_contents)) == (1, 1):
+            file1.seek(0)
+            file2.seek(0)
+
+            json1, json2 = json.load(file1), json.load(file2)
+            assert sorted(json1.keys()) == sorted(json2.keys())
+
+            # The path-to json files have data that is more deeply nested. Bring
+            # it up to the top level.
+            if list(json1.keys()) == ["path"]:
+                json1 = json1["path"]["to"][object_type]
+                json2 = json2["path"]["to"][object_type]
+                assert sorted(json1.keys()) == sorted(json2.keys())
+
+            for k in json1.keys():
+                if k not in ["hoomd_blue_version", "p4_version"]:
+                    assert json1[k] == json2[k]
+
+        else:
+            for file1_line, file2_line in zip(file1_contents, file2_contents):
+                if ("hoomd_blue_version" not in file1_line) and ("p4_version" not in file1_line):
+                    assert file1_line == file2_line
 
 @pytest.mark.parametrize("object_type", ["interaction", "body", "arrangement", "system-with-body", "system-with-arrangement"])
 @pytest.mark.parametrize("place", ["root", "path"])
@@ -167,7 +190,7 @@ def test_to_json(object_type, place, indent_type):
         
         obj.to_json(test_path, json_path=json_path, indent=indent)
         
-        compare_text_files(ref_path, test_path)
+        compare_json_files(ref_path, test_path, object_type)
 
 @pytest.mark.parametrize("object_type", ["interaction", "body", "arrangement", "system-with-body", "system-with-arrangement"])
 @pytest.mark.parametrize("place", ["root", "path"])

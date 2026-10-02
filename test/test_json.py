@@ -131,10 +131,15 @@ SYSTEM_WITH_ARRANGEMENT_KWARGS = dict(
 )
 
 def compare_text_files(file_path_1, file_path_2):
-    """Raise an Error if two text files do not have identical contents, ignoring different newlines."""
+    """Raise an Error if two text files do not have identical contents.
+    
+    Ignore different newlines and HOOMD-blue versions.
+    """
     with open(file_path_1) as file1, open(file_path_2) as file2:
         file1_contents, file2_contents = file1.readlines(), file2.readlines()
-        assert file1_contents == file2_contents
+        for file1_line, file2_line in zip(file1_contents, file2_contents):
+            if "hoomd_blue_version" not in file1_line:
+                assert file1_line == file2_line
 
 @pytest.mark.parametrize("object_type", ["interaction", "body", "arrangement", "system-with-body", "system-with-arrangement"])
 @pytest.mark.parametrize("place", ["root", "path"])

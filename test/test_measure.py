@@ -16,7 +16,7 @@ POSITIONS = p4.positions_on_regular_grid(box=[20, 20, 20], resolution=[6, 6, 6])
 ORIENTATIONS = p4.orientations_about_axis(n=2, axis=[0, 0, 1])
 
 
-def test_measure_few_positions():
+def test_measure_few_positions_as_ndarray():
     """Ensure System.measure() does not error when there are more positions than available processes."""
     s = p4.System(
         probe=p4.Body("A"),
@@ -36,6 +36,31 @@ def test_measure_few_positions():
         s.measure(
             quantities=["U", "F", "T"],
             positions=p4.positions_on_regular_grid([2, 2, 2], [1, 1, 1]),
+            orientations=ORIENTATIONS,
+            n_processes=2,
+            disable_pbar=True,
+        )
+
+def test_measure_few_positions_as_list():
+    """Ensure System.measure() does not error when positions are provided as a list."""
+    s = p4.System(
+        probe=p4.Body("A"),
+        analyte=p4.Body("A"),
+        interactions=[
+            p4.Interaction(
+                hoomd_class=hoomd.md.pair.LJ,
+                initial_args={},
+                default_params=dict(r_cut=5, params=dict(epsilon=1, sigma=1)),
+                typed_params={}
+            )
+        ]
+    )
+
+    with tempfile.TemporaryDirectory(dir=REFERENCE_FOLDER) as tempdir:
+        test_path = Path(tempdir) / f"test.csv"
+        s.measure(
+            quantities=["U", "F", "T"],
+            positions=[p for p in p4.positions_on_regular_grid([2, 2, 2], [1, 1, 1])],
             orientations=ORIENTATIONS,
             n_processes=2,
             disable_pbar=True,

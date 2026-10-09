@@ -17,6 +17,8 @@ Next release
 
 *Fixed*
 
+- In ``System.measure()``, providing positions as a list no longer causes an error. (#13)
+
 1.0.2 (2026-10-02)
 ^^^^^^^^^^^^^^^^^^
 
@@ -31,9 +33,9 @@ Next release
 
 - Bumped python version from 3.11.x to 3.14.x. (#10)
 - Lowered some minimum required package versions in pixi.toml to match pyproject.toml. (#10)
-    - `numpy 2.4.2 --> 2.3.5`
-    - `setuptools 82.0.1 --> 77.0.0`
-- Removed `bump-my-version` from `pixi.toml` (#10)
+    - ``numpy 2.4.2 --> 2.3.5``
+    - ``setuptools 82.0.1 --> 77.0.0``
+- Removed ``bump-my-version`` from ``pixi.toml`` (#10)
 
 
 1.0.0 (2026-09-09)

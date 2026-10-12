@@ -86,12 +86,6 @@ micromamba activate <your_env_name>
    pip install -e .
    ```
 
-#### Installing developer dependencies
-
-To contribute to p4, you will need to install additional packages for running unit tests and building the documentation.
-
-
-
 ### Run unit tests and build documentation
 
 To run tests and build docs, you must have installed p4 from source.

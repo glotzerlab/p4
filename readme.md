@@ -23,7 +23,9 @@ and its source code is available in this repository. You can install it from
 conda-force using a package manager or from source using [git](https://git-scm.com/)
 and [pip](https://pip.pypa.io/en/stable/). **Since p4 requires HOOMD-blue, it currently cannot be installed on Windows.**
 
-Pixi
+#### Installation from conda-forge
+
+**Pixi**
 
 ```bash
 cd <path_to_your_project>
@@ -31,66 +33,90 @@ pixi init
 pixi add python hoomd p4
 ```
 
-Micromamba
+**Micromamba**
 
 ```bash
 micromamba create -n <your_env_name> python hoomd p4
 micromamba activate <your_env_name>
 ```
 
-Mamba
+**Mamba**
 
 ```bash
 mamba create -n <your_env_name> python hoomd p4
 micromamba activate <your_env_name>
 ```
 
-Installation from source
+#### Installation from source
 
 1. Clone this repository to your local computer.
 
-```bash
-git clone https://github.com/glotzerlab/p4.git
-```
+   ```bash
+   git clone https://github.com/glotzerlab/p4.git
+   ```
 
-2. In your terminal, navigate to p4's root directory and install its
-   dependencies.
+2. In your terminal, install p4 into your environment in editable mode.
 
-```bash
-cd <path_to_p4>
-pip install .
-```
+   **Pixi**
 
-### Run unit tests and build documentation
+   ```bash
+   cd <path_to_your_project>
+   ```
 
-1. Using your package manager, install the dev dependencies
+   Open your `pixi.toml` file and add the following lines.
 
-   Pixi - dev dependencies are already included
+   ```
+   [pypi-dependencies]
+   p4 = { path = "<path_to_p4>", editable = true }
+   ```
 
-   Micromamba
+   **Micromamba**
 
    ```bash
    micromamba activate <your_env_name>
-   micromamba install p4[dev]
+   cd <path_to_p4>
+   pip install -e .
    ```
 
-   Mamba
+   **Mamba**
 
    ```bash
    mamba activate <your_env_name>
-   mamba install p4[dev]
+   cd <path_to_p4>
+   pip install -e .
    ```
 
-   From source
+#### Installing developer dependencies
+
+To contribute to p4, you will need to install additional packages for running unit tests and building the documentation.
+
+
+
+### Run unit tests and build documentation
+
+To run tests and build docs, you must have installed p4 from source.
+
+1. Using your package manager, install the developer dependencies
+
+   **Pixi** - Developer dependencies are already installed.
+
+   **Micromamba**
 
    ```bash
    cd <path_to_p4>
-   pip install .[dev]
+   pip install -e .[dev]
    ```
 
-   2. Run the unit tests with pytest
+   **Mamba**
 
+   ```bash
+   cd <path_to_p4>
+   pip install -e .[dev]
    ```
+
+2. Run the unit tests with pytest
+
+   ```bash
    pytest <path_to_p4>/test
    ```
 

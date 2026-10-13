@@ -59,10 +59,6 @@ micromamba activate <your_env_name>
 
    **Pixi**
 
-   ```bash
-   cd <path_to_your_project>
-   ```
-
    Open your `pixi.toml` file and add the following lines.
 
    ```
@@ -73,7 +69,6 @@ micromamba activate <your_env_name>
    **Micromamba**
 
    ```bash
-   micromamba activate <your_env_name>
    cd <path_to_p4>
    pip install -e .
    ```
@@ -81,7 +76,6 @@ micromamba activate <your_env_name>
    **Mamba**
 
    ```bash
-   mamba activate <your_env_name>
    cd <path_to_p4>
    pip install -e .
    ```
@@ -94,10 +88,6 @@ To run tests and build docs, you must have installed p4 from source.
 
    **Pixi**
    
-   ```bash
-   cd <path_to_your_project>
-   ```
-
    Open your `pixi.toml` file and edit the p4 line to read as follows.
 
    ```

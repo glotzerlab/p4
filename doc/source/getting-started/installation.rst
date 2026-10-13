@@ -139,7 +139,6 @@ unit tests and building the documentation.
 
          .. code-block::
 
-            [pypi-dependencies]
             p4 = { path = "<path_to_p4>", editable = true, extras = ["dev"] }
 
    .. tab-item:: Micromamba

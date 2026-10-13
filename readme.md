@@ -92,7 +92,17 @@ To run tests and build docs, you must have installed p4 from source.
 
 1. Using your package manager, install the developer dependencies
 
-   **Pixi** - Developer dependencies are already installed.
+   **Pixi**
+   
+   ```bash
+   cd <path_to_your_project>
+   ```
+
+   Open your `pixi.toml` file and edit the p4 line to read as follows.
+
+   ```
+   p4 = { path = "<path_to_p4>", editable = true, extras = ["dev"] }
+   ```
 
    **Micromamba**
 

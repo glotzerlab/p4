@@ -74,11 +74,15 @@ Making Contributions
 ====================
 
 Other developers are welcome to contribute new features or bug fixes to p4 by
-making pull requests on the package repository on `Github`_. Contributions
+making pull requests on the package repository on `GitHub`_. Contributions
 should follow the *spirit* of the design priorities described above, and the
 *letter* of the style, docs, and testing rules described below.
 
-.. _github: https://github.com/glotzerlab/p4/pulls
+.. _GitHub: https://github.com/glotzerlab/p4/pulls
+
+Before contributing, please make sure that you have
+:ref:`installed p4 from source <installation-from-source>` and
+:ref:`installed the developer dependencies <installing-dev-dependencies>`.
 
 
 Code Style
@@ -120,13 +124,9 @@ must be written in `reStructuredText`_.
 To ensure that your docstrings are correctly rendered by Sphinx, please build
 the documentation locally before opening a pull request.
 
-To build the documentation, first install the dependencies.
-
-.. code:: bash
-
-   pip install <path_to_p4>[dev]
-
-Then navigate to the ``doc`` directory and run
+To build the documentation, first
+:ref:`install the developer dependencies <installing-dev-dependencies>`. Then
+navigate to the ``doc`` directory and run
 
 .. code:: bash
 
@@ -157,8 +157,14 @@ be written in clearly named and documented files in the ``test`` directory. To
 ensure that changes and additions do not break existing functionality, please
 run all unit tests locally before opening a pull request.
 
-To run unit tests, first install ``pytest`` and then run the command
+To run unit tests, run the command
 
 .. code:: bash
 
    pytest <path_to_p4>/test
+
+To run do tests and unit tests together, instead run the command
+
+.. code:: bash
+
+   pytest <path_to_p4>

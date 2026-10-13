@@ -4,27 +4,142 @@
 Installation
 ============
 
-Currently, installation is only possible from source. Follow these
-steps to install p4.
+p4 is distributed through `conda-forge`_ and its source code is available on
+`GitHub`_. You can install it from conda-forge using a package manager or from
+source using `git`_. **Since p4 requires HOOMD-blue, it currently
+cannot be installed on Windows.**
 
-1. Using your environment manager, activate or create an environment
-   with ``python>=3.11`` and ``hoomd>=5.0.0``. For example, with
-   `mamba <https://mamba.readthedocs.io/en/latest/#>`_ the command would be
+.. _conda-forge: https://anaconda.org/channels/conda-forge/packages/p4/overview
+.. _GitHub: https://github.com/glotzerlab/p4
+.. _git: https://git-scm.com/
 
-.. code-block::
 
-   mamba create -n <your_name> python>=3.11 hoomd>=5.0.0
+Setup
++++++
 
-2. Clone the repository to your local computer. If you are using Git from
-   the terminal, the command would be
+Using your package manager, create an environment with ``python>=3.14`` and
+``hoomd``.
 
-.. code-block::
+.. tab-set::
 
-   git clone https://github.com/glotzerlab/p4.git
+   .. tab-item:: Pixi
 
-3. In your terminal, navigate to p4's root directory and install the python
-   dependencies.
+      .. code-block::
 
-.. code-block::
+         cd <path_to_your_project>
+         pixi init
+         pixi add python hoomd
 
-   pip install <path_to_p4>
+   .. tab-item:: Micromamba
+
+      .. code-block::
+
+         micromamba create -n <your_env_name> python hoomd
+         micromamba activate <your_env_name>
+
+   .. tab-item:: Mamba
+
+      .. code-block::
+
+         mamba create -n <your_env_name> python hoomd
+         mamba activate <your_env_name>
+
+
+Installation from conda-forge
++++++++++++++++++++++++++++++
+
+.. tab-set::
+
+   .. tab-item:: Pixi
+
+      .. code-block::
+
+         pixi add p4
+
+   .. tab-item:: Micromamba
+
+      .. code-block::
+
+         micromamba install p4
+
+   .. tab-item:: Mamba
+
+      .. code-block::
+
+         mamba install p4
+
+
+.. _installation-from-source:
+
+Installation from source
+++++++++++++++++++++++++
+
+1. Clone the repository to your local computer.
+
+   .. code-block::
+      
+      git clone https://github.com/glotzerlab/p4.git
+
+2. In your terminal, install p4 into your environment in editable mode.
+
+   .. tab-set::
+
+      .. tab-item:: Pixi
+
+         .. note::
+            
+            p4 must not be cloned into your project directory.
+         
+         Open your ``pixi.toml`` file and add the following lines.
+
+         .. code-block::
+
+            [pypi-dependencies]
+            p4 = { path = "<path_to_p4>", editable = true }
+
+      .. tab-item:: Micromamba
+
+         .. code-block::
+
+            cd <path_to_p4>
+            pip install -e .
+
+      .. tab-item:: Mamba
+
+         .. code-block::
+
+            cd <path_to_p4>
+            pip install -e .
+
+
+.. _installing-dev-dependencies:
+
+Installing developer dependencies
++++++++++++++++++++++++++++++++++
+
+To contribute to p4, you will need to install additional packages for running
+unit tests and building the documentation.
+
+.. tab-set::
+
+   .. tab-item:: Pixi
+
+         Open your ``pixi.toml`` file and edit the p4 line to read as follows.
+
+         .. code-block::
+
+            p4 = { path = "<path_to_p4>", editable = true, extras = ["dev"] }
+
+   .. tab-item:: Micromamba
+
+      .. code-block::
+
+         cd <path_to_p4>
+         pip install -e .[dev]
+
+   .. tab-item:: Mamba
+
+      .. code-block::
+
+         cd <path_to_p4>
+         pip install -e .[dev]

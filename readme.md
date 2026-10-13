@@ -18,39 +18,110 @@ p4 accomplishes these objectives through an API that is designed to be
 
 ### Install p4
 
-1. Using your environment manager, activate or create an environment with `python>=3.11` and `hoomd>=5.0.0`.
-2. Clone the repository.
-3. Install the other dependencies:
+p4 is distributed through [conda-forge](https://anaconda.org/channels/conda-forge/packages/p4/overview)
+and its source code is available in this repository. You can install it from
+conda-force using a package manager or from source using [git](https://git-scm.com/)
+and [pip](https://pip.pypa.io/en/stable/). **Since p4 requires HOOMD-blue, it currently cannot be installed on Windows.**
 
-```
-pip install <path_to_p4>
-```
+#### Installation from conda-forge
 
-### Run unit tests
+**Pixi**
 
-1. Using your environment manager, install `pytest`.
-2. Run pytest:
-
-```
-pytest <path_to_p4>/test
+```bash
+cd <path_to_your_project>
+pixi init
+pixi add python hoomd p4
 ```
 
-### Build Documentation
+**Micromamba**
 
-1. Install documentation requirements:
-
-```
-pip install <path_to_p4>[dev]
-```
-
-2. Navigate to p4's `doc` directory and run
-
-```
-make html
+```bash
+micromamba create -n <your_env_name> python hoomd p4
+micromamba activate <your_env_name>
 ```
 
-Once the docs finish building, the homepage can be found at `<path_to_p4>/doc/build/html/index.html`.
+**Mamba**
 
+```bash
+mamba create -n <your_env_name> python hoomd p4
+micromamba activate <your_env_name>
+```
+
+#### Installation from source
+
+1. Clone this repository to your local computer.
+
+   ```bash
+   git clone https://github.com/glotzerlab/p4.git
+   ```
+
+2. In your terminal, install p4 into your environment in editable mode.
+
+   **Pixi**
+
+   Open your `pixi.toml` file and add the following lines.
+
+   ```
+   [pypi-dependencies]
+   p4 = { path = "<path_to_p4>", editable = true }
+   ```
+
+   **Micromamba**
+
+   ```bash
+   cd <path_to_p4>
+   pip install -e .
+   ```
+
+   **Mamba**
+
+   ```bash
+   cd <path_to_p4>
+   pip install -e .
+   ```
+
+### Run unit tests and build documentation
+
+To run tests and build docs, you must have installed p4 from source.
+
+1. Using your package manager, install the developer dependencies.
+
+   **Pixi**
+   
+   Open your `pixi.toml` file and edit the p4 line to read as follows.
+
+   ```
+   p4 = { path = "<path_to_p4>", editable = true, extras = ["dev"] }
+   ```
+
+   **Micromamba**
+
+   ```bash
+   cd <path_to_p4>
+   pip install -e .[dev]
+   ```
+
+   **Mamba**
+
+   ```bash
+   cd <path_to_p4>
+   pip install -e .[dev]
+   ```
+
+2. Run the unit tests with pytest
+
+   ```bash
+   pytest <path_to_p4>/test
+   ```
+
+3. build the documentation using the provided build script
+
+   ```bash
+   cd <path_to_p4>/doc
+   make html
+   ```
+
+   Once the docs finish building, the homepage can be found at `<path_to_p4>/doc/build/html/index.html`.
 
 ## Citing p4
 

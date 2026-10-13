@@ -71,5 +71,6 @@ py314 = { features = ["py314"] }
 
 [tool.pixi.feature.py314.dependencies]
 python = "3.14.*"
+uv = ">=0.11.6"
 
 [tool.pixi.tasks]

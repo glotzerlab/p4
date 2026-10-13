@@ -35,12 +35,14 @@ Using your package manager, create an environment with ``python>=3.14`` and
       .. code-block::
 
          micromamba create -n <your_env_name> python hoomd
+         micromamba activate <your_env_name>
 
    .. tab-item:: Mamba
 
       .. code-block::
 
          mamba create -n <your_env_name> python hoomd
+         mamba activate <your_env_name>
 
 
 Installation from conda-forge
@@ -52,21 +54,18 @@ Installation from conda-forge
 
       .. code-block::
 
-         cd <path_to_your_project>
          pixi add p4
 
    .. tab-item:: Micromamba
 
       .. code-block::
 
-         micromamba activate <your_env_name>
          micromamba install p4
 
    .. tab-item:: Mamba
 
       .. code-block::
 
-         mamba activate <your_env_name>
          mamba install p4
 
 
@@ -90,10 +89,6 @@ Installation from source
          .. note::
             
             p4 must not be cloned into your project directory.
-
-         .. code-block::
-
-            cd <path_to_your_project>
          
          Open your ``pixi.toml`` file and add the following lines.
 
@@ -106,7 +101,6 @@ Installation from source
 
          .. code-block::
 
-            micromamba activate <your_env_name>
             cd <path_to_p4>
             pip install -e .
 
@@ -114,7 +108,6 @@ Installation from source
 
          .. code-block::
 
-            mamba activate <your_env_name>
             cd <path_to_p4>
             pip install -e .
 
@@ -131,10 +124,6 @@ unit tests and building the documentation.
 
    .. tab-item:: Pixi
 
-         .. code-block::
-
-            cd <path_to_your_project>
-         
          Open your ``pixi.toml`` file and edit the p4 line to read as follows.
 
          .. code-block::

@@ -11,6 +11,8 @@ Next release
 
 *Changed*
 
+- ``pixi.toml`` is now contained in ``pyproject.toml`` and installation structions are updated accordingly. (#14)
+
 *Deprecated*
 
 *Removed*

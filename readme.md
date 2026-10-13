@@ -90,7 +90,7 @@ micromamba activate <your_env_name>
 
 To run tests and build docs, you must have installed p4 from source.
 
-1. Using your package manager, install the developer dependencies
+1. Using your package manager, install the developer dependencies.
 
    **Pixi**
    

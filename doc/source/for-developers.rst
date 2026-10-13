@@ -157,8 +157,14 @@ be written in clearly named and documented files in the ``test`` directory. To
 ensure that changes and additions do not break existing functionality, please
 run all unit tests locally before opening a pull request.
 
-To run unit tests, first install ``pytest`` and then run the command
+To run unit tests, run the command
 
 .. code:: bash
 
    pytest <path_to_p4>/test
+
+To run do tests and unit tests together, instead run the command
+
+.. code:: bash
+
+   pytest <path_to_p4>

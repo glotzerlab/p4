@@ -67,5 +67,5 @@ p4 = { path = ".", editable = true }
 [tool.pixi.environments]
 default = { solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
-
+py314 = { dependencies = { name = "python", version = "3.14.*" } }
 [tool.pixi.tasks]

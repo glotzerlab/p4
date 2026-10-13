@@ -67,7 +67,7 @@ p4 = { path = ".", editable = true }
 [tool.pixi.environments]
 default = { solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
-py314 = { features = ["py314"] }
+py314 = { features = ["py314", "dev"] }
 
 [tool.pixi.feature.py314.dependencies]
 python = "3.14.*"

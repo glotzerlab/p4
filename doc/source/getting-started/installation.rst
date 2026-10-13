@@ -87,6 +87,10 @@ Installation from source
 
       .. tab-item:: Pixi
 
+         .. note::
+            
+            p4 must not be cloned into your project directory.
+
          .. code-block::
 
             cd <path_to_your_project>
@@ -127,7 +131,16 @@ unit tests and building the documentation.
 
    .. tab-item:: Pixi
 
-      Developer dependencies are already installed.
+         .. code-block::
+
+            cd <path_to_your_project>
+         
+         Open your ``pixi.toml`` file and edit the p4 line to read as follows.
+
+         .. code-block::
+
+            [pypi-dependencies]
+            p4 = { path = "<path_to_p4>", editable = true, extras = ["dev"] }
 
    .. tab-item:: Micromamba
 

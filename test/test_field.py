@@ -214,29 +214,24 @@ def test_properties(quantities):
 
     assert recarrays_are_equal(f.table, copy(recarray))
     assert f.columns == list(recarray.dtype.fields.keys())
-    assert np.array_equal(
-        f.positions,
-        np.unique(
-            np.column_stack((
-                recarray["x"],
-                recarray["y"],
-                recarray["z"]
-            )),
-            axis=0
-        )
-    )
-    assert np.array_equal(
-        f.orientations,
-        np.unique(
-            np.column_stack((
-                recarray["q0"],
-                recarray["q1"],
-                recarray["q2"],
-                recarray["q3"],
-            )),
-            axis=0
-        )
-    )
+
+    reference_positions = np.column_stack((
+        recarray["x"],
+        recarray["y"],
+        recarray["z"]
+    ))
+    correct_positions = reference_positions[np.sort(np.unique(reference_positions, axis=0, return_index=True)[1])]
+    assert np.array_equal(f.positions, correct_positions)
+
+    reference_orientations = np.column_stack((
+        recarray["q0"],
+        recarray["q1"],
+        recarray["q2"],
+        recarray["q3"],
+    ))
+    correct_orientations = reference_orientations[np.sort(np.unique(reference_orientations, axis=0, return_index=True)[1])]
+    assert np.array_equal(f.orientations, correct_orientations)
+
     correct_quantities = [i for i in recarray.dtype.fields.keys() if i not in LOCATION_NAMES]
     if all(n in correct_quantities for n in F_NAMES):
         correct_quantities.append("F")
@@ -262,8 +257,13 @@ def test_table_setter_valid():
     f.table = new_recarray
 
     assert f.columns == LOCATION_NAMES + U_NAMES + F_NAMES + T_NAMES
-    assert np.array_equal(f.positions, np.unique(new_locations[:, :3], axis=0))
-    assert np.array_equal(f.orientations, np.unique(new_locations[:, 3:], axis=0))
+
+    correct_positions = new_locations[:, :3][np.sort(np.unique(new_locations[:, :3], axis=0, return_index=True)[1])]
+    assert np.array_equal(f.positions, correct_positions)
+
+    correct_orientations = new_locations[:, 3:][np.sort(np.unique(new_locations[:, 3:], axis=0, return_index=True)[1])]
+    assert np.array_equal(f.orientations, correct_orientations)
+    
     assert f.quantities == U_NAMES + F_NAMES + T_NAMES + ["F", "T"]
 
 @pytest.mark.parametrize("recarray", INVALID_RECARRAYS)

@@ -18,6 +18,8 @@ Next release
 *Fixed*
 
 - In ``System.measure()``, providing positions as a list no longer causes an error. (#13)
+- ``Field.positions`` no longer sorts unique positions before returning them. (__)
+- ``Field.orientations`` no longer sorts unique orientations before returning them. (__)
 
 1.0.2 (2026-10-02)
 ^^^^^^^^^^^^^^^^^^

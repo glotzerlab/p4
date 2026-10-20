@@ -133,14 +133,17 @@ class Field:
     def positions(self) -> np.ndarray:
         """The unique positions."""
         if self._positions is None:
-            self._positions = np.unique(
-                np.column_stack((
-                    self.table["x"],
-                    self.table["y"],
-                    self.table["z"]
-                )),
-                axis=0
+            positions = np.column_stack((
+                self.table["x"],
+                self.table["y"],
+                self.table["z"]
+            ))
+            _, order = np.unique(
+                positions,
+                axis=0,
+                return_index=True,
             )
+            self._positions = positions[np.sort(order)]
         
         return self._positions
 
@@ -156,15 +159,18 @@ class Field:
             return None
         
         else:
-            return np.unique(
-                np.column_stack((
-                    self.table["q0"],
-                    self.table["q1"],
-                    self.table["q2"],
-                    self.table["q3"]
-                )),
-                axis=0
+            orientations = np.column_stack((
+                self.table["q0"],
+                self.table["q1"],
+                self.table["q2"],
+                self.table["q3"]
+            ))
+            _, order = np.unique(
+                orientations,
+                axis=0,
+                return_index=True,
             )
+            return orientations[np.sort(order)]
     
     @property
     def quantities(self) -> list[str]:

@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 from inspect import signature
+import itertools
 import numbers
 import os
 from types import NoneType
@@ -43,19 +44,26 @@ class Field:
 
     Optionally, the tabular data may also include orientation columns; if
     included, these must be exactly 'q0', 'q1', 'q2', and 'q3', which
-    correspond to the components of a quaternion.
+    correspond to the components of a quaternion
+    :math:`q = (q_0, q_1, q_2, q_3) = q_0 + q_1i + q_2j + q_3k`.
 
     If there are no orientation columns, or if there is only one orientation
     across the dataset, then the measured quantities may be plotted immediately,
     otherwise it is necessary to first call
-    :meth:`~p4.Field.aggregate_over_orientations`.
+    :py:meth:`~p4.field.Field.aggregate_over_orientations`.
 
-    Plotting is done using `Plotly`_, and the :meth:`~p4.Field.plot` method
-    returns both figure and trace so that the trace may be added manually to
-    other figures. Orthogonal slicing in 2D and 1D is supported for scalar
+    Plotting is done using `Plotly`_, and the :py:meth:`~p4.field.Field.plot`
+    method returns both figure and trace so that the trace may be added manually
+    to other figures. Orthogonal slicing in 2D and 1D is supported for scalar
     plots, and in 2D for vector plots.
 
     .. _Plotly: https://plotly.com
+
+    If `VTK`_ is installed, fields can be read from and written to VTK files
+    using :py:meth:`~p4.field.Field.from_vtk` and
+    :py:meth:`~p4.field.Field.to_vtk`.
+
+    .. _VTK: https://docs.vtk.org/en/latest/index.html
 
     Parameters
     ----------
@@ -189,21 +197,68 @@ class Field:
         
         return quantities
 
-    # def has_regular_grid(self) -> bool:
-    #     """Whether this Field's grid has constant intervals along each axis."""
-    #     positions = self.positions
-
-    #     same_intervals = []
-    #     for i in [0, 1, 2]:
-    #         unique_values = np.unique(positions[:,i])
-    #         second_diff = np.diff(unique_values, n=2)
-    #         same_intervals.append(
-    #             len(second_diff) == 0
-    #             or np.isclose(second_diff, [0 for _ in second_diff]).all()
-    #         )
+    @property
+    def grid_type(self) -> Literal["image", "rectilinear", "unstructured"]:
+        """The topology of this field's grid of positions.
         
-    #     return all(same_intervals)
+        The possible grid types are:
 
+        * **image**: the positions lie on an axis-aligned grid with constant
+          spacing in each direction (analagous to an orthorhombic lattice)
+        * **rectilinear**: the positions lie on an axis-aligned grid with
+          variable spacing in each direction
+        * **unstructured**: the positions do not lie on an axis-aligned grid
+
+        .. code-block::
+
+                image       rectilinear   unstructured
+            ·─·─·─·─·─·─·  ·───·─·───·─·  ┌───────────┐ 
+            │ │ │ │ │ │ │  │   │ │   │ │  │           │ 
+            ·─·─·─·─·─·─·  ·───·─·───·─·  │   ·   ·   │ 
+            │ │ │ │ │ │ │  │   │ │   │ │  │           │ 
+            ·─·─·─·─·─·─·  │   │ │   │ │  │           │ 
+            │ │ │ │ │ │ │  │   │ │   │ │  │   ·   ·   │ 
+            ·─·─·─·─·─·─·  ·───·─·───·─·  │    ···    │ 
+            │ │ │ │ │ │ │  │   │ │   │ │  │           │ 
+            ·─·─·─·─·─·─·  ·───·─·───·─·  └───────────┘ 
+        """
+        positions = self.positions
+
+        # Points are on an aligned grid if the cartesian product of the x, y,
+        # and z values is approximately equal to the array of unique positions
+        # Ref: https://stackoverflow.com/q/67602162
+        x_values = np.unique(positions[:, 0])
+        y_values = np.unique(positions[:, 1])
+        z_values = np.unique(positions[:, 2])
+
+        product = np.array(list(itertools.product(x_values, y_values, z_values)))
+
+        on_regular_grid = (
+            np.isclose(product[:, None], positions)
+                .all(axis=2)
+                .any(axis=0)
+                .all()
+        )
+
+        # The grid is uniform if the points are on a reglar grid and the
+        # spacing is constant and identical between axes
+        if on_regular_grid:
+            same_intervals = []
+            for i in [0, 1, 2]:
+                unique_values = np.unique(positions[:,i])
+                second_diff = np.diff(unique_values, n=2)
+                same_intervals.append(
+                    len(second_diff) == 0
+                    or np.isclose(second_diff, [0 for _ in second_diff]).all()
+                )
+            
+            if all(same_intervals):
+                return "image"
+            else:
+                return "rectilinear"
+        
+        else:
+            return "unstructured"
 
     # ------------------------------- OPERATIONS -------------------------------
 
@@ -601,6 +656,145 @@ class Field:
             )
         )
 
+    @classmethod
+    def from_vtk(cls, filename: os.PathLike):
+        """Create a Field from a VTK file.
+
+        VTK files with the following extensions are allowed: vti, pvti, vtr,
+        pvtr, vtu, pvtu, and vtk.
+        
+        .. note::
+        
+            This method requires VTK, which is an optional dependency. For
+            installation instructions, see VTK's `documentation`_.
+        
+        .. _documentation: https://docs.vtk.org/en/latest/index.html
+        
+        Raises
+        ------
+        ImportError
+            If an existing VTK installation is not found.
+        """
+        try:
+            import vtk
+            from vtk.util.numpy_support import vtk_to_numpy
+        except ImportError:
+            raise ImportError("VTK installation not found.")
+        
+        # Match the filename to a reader
+        extension = str(filename).rsplit(".")[-1].lower()
+        legacy_format = None
+        match extension:
+            case "vti":
+                reader = vtk.vtkXMLImageDataReader()
+                vtk_structure = "image"
+            case "pvti":
+                reader = vtk.vtkXMLPImageDataReader()
+                vtk_structure = "image"
+            case "vtr":
+                reader = vtk.vtkXMLRectilinearGridReader()
+                vtk_structure = "rectilinear"
+            case "pvtr":
+                reader = vtk.vtkXMLPRectilinearGridReader()
+                vtk_structure = "rectilinear"
+            case "vtu":
+                reader = vtk.vtkXMLUnstructuredGridReader()
+                vtk_structure = "unstructured"
+            case "pvtu":
+                reader = vtk.vtkXMLPUnstructuredGridReader()
+                vtk_structure = "unstructured"
+            case "vtk":
+                with open(filename, mode="rb") as file:
+                    for i, line in enumerate(file):
+                        if i == 3:
+                            if type(line) == bytes:
+                                legacy_format_line = line.decode("utf-8")
+                            else:
+                                legacy_format_line = line
+                        elif i > 3:
+                            break
+                    
+                    try:
+                        assert (
+                            len(legacy_format_line) > 8
+                            and legacy_format_line[:8] == "DATASET "
+                        )
+
+                    except AssertionError:
+                        raise ValueError("Malformed legacy VTK file.")
+                    
+                    legacy_format = legacy_format_line[8:].strip()
+
+                match legacy_format:
+                    case "RECTILINEAR_GRID":
+                        reader = vtk.vtkRectilinearGridReader()
+                        vtk_structure = "rectilinear"
+                    case "UNSTRUCTURED_GRID":
+                        reader = vtk.vtkUnstructuredGridReader()
+                        vtk_structure = "unstructured"
+                    case _:
+                        raise ValueError(
+                            f"Cannot parse legacy format '{legacy_format}'."
+                        )
+            case _:
+                raise ValueError(f"Extension '{extension}' not recognized.")
+            
+        # Read the data into a vtk data structure
+        reader.SetFileName(str(filename))
+        reader.Update()
+        vtk_data = reader.GetOutput()
+
+        # Get the data's organizing structure
+        match vtk_structure:
+            case "image":
+                nx, ny, nz = vtk_data.GetDimensions()
+                dx, dy, dz = vtk_data.GetSpacing()
+
+                xs = np.linspace(-1 * dx*nx/2, dx*nx/2, nx).tolist()
+                ys = np.linspace(-1 * dy*ny/2, dy*ny/2, ny).tolist()
+                zs = np.linspace(-1 * dz*nz/2, dz*nz/2, nz).tolist()
+
+                positions = np.array(list(itertools.product(xs, ys, zs)))
+
+            case "rectilinear":
+                xs = vtk_to_numpy(vtk_data.GetXCoordinates()).tolist()
+                ys = vtk_to_numpy(vtk_data.GetYCoordinates()).tolist()
+                zs = vtk_to_numpy(vtk_data.GetZCoordinates()).tolist()
+
+                positions = np.array(list(itertools.product(xs, ys, zs)))
+
+            case "unstructured":
+                positions = vtk_to_numpy(vtk_data.GetPoints().GetData())
+        
+        # Get the attribute data
+        table = positions
+        columns = ["x", "y", "z"]
+
+        vtk_point_data = vtk_data.GetPointData()
+
+        for name in ["U", "F", "T"]:
+            if bool(vtk_point_data.HasArray(name)):
+                field_array = vtk_to_numpy(vtk_point_data.GetArray(name))
+
+                if len(field_array.shape) == 1:
+                    columns.append(name)
+                    field_array = field_array[:, np.newaxis]
+                elif len(field_array.shape) > 1 and field_array.shape[1] == 3:
+                    columns.extend([f"{name}{i}" for i in ("x", "y", "z")])
+                else:
+                    raise ValueError(
+                        f"While parsing data for field '{name}', an unexpected "
+                        + f"number of columns ({field_array.shape[1]}) was "
+                        + "encountered. Currently, only fields with 1 or 3 "
+                        + "columns are supported."
+                    )
+
+                table = np.column_stack((table, field_array))
+        
+        # Reformat to a recarray and pass it to the class constructor
+        table = np.rec.fromarrays(table.T, names=columns)
+        return cls(table)
+
     # ----------------------------------- TO -----------------------------------
 
     def to_csv(self, filename: os.PathLike):
@@ -613,72 +807,208 @@ class Field:
     def to_vtk(
         self,
         filename: os.PathLike,
-        file_format: Literal["xml", "ascii", "binary"]
+        legacy_format: Literal["rectilinear", "unstructured"] = "unstructured",
+        legacy_binary: bool = False
     ):
-        """Save this field to a VTK file as an unstructured grid.
+        """Save this field to a VTK file.
         
-        A field cannot be saved to VTK if measurements have multiple
-        orientations.
+        Save large fields to VTK to visualize them and perform computations on
+        them more efficiently. VTK files can be opened in graphical applications
+        such as `Paraview`_ and `TomViz`_, or Python packages such as
+        `Pyvista`_. **VTK files can only store fields with a single
+        orientation.**
+
+        .. _Paraview: https://www.paraview.org/
+        .. _TomViz: https://tomviz.org/
+        .. _Pyvista: https://docs.pyvista.org/
 
         .. note::
 
             This method requires VTK, which is an optional dependency. For
-            installation instructions, see the `documentation`_.
+            installation instructions, see VTK's `documentation`_.
         
         .. _documentation: https://docs.vtk.org/en/latest/index.html
+
+        The extension of the file name determines the file format. Certain file
+        formats may require the field to have a specific
+        :py:attr:`~p4.field.Field.grid_type`.
+        
+        +-----------+--------------------------------------+----------------------------------+
+        | Extension | VTK Structure                        | Allowed grid types               |
+        +===========+======================================+==================================+
+        | vti, pvti | Image Data                           | image                            |
+        +-----------+--------------------------------------+----------------------------------+
+        | vtr, pvtr | Rectilinear Grid                     | rectilinear, image               |
+        +-----------+--------------------------------------+----------------------------------+
+        | vtu, pvtu | Unstructured Grid                    | unstructured, rectilinear, image |
+        +-----------+--------------------------------------+----------------------------------+
+        | vtk       | *Legacy Data (see parameters below)* |                                  |
+        +-----------+--------------------------------------+----------------------------------+
+
         
         Parameters
         ----------
         filename : os.PathLike
-            The name or path of the output file.
-        file_format : 'xml', 'ascii', or 'binary'
-            The format of the file. XML and ASCII are generally larger but more
-            portable between different computers.
+            The name or path of the output file. The extension determines the
+            data and file format.
+        legacy_format : 'rectilinear' or 'unstructured', default = 'unstructured'
+            The structure of the data for legacy files. See the table above for
+            restrictions on the grid type for rectilinear and unstructured
+            files.
+        legacy_binary : bool, default = False
+            Whether to encode legacy files in binary.
         
         Raises
         ------
         ImportError
             If an existing VTK installation is not found.
         ValueError
-            If the measurements contain more than one orientation.
+            If the measurements contain more than one orientation, or if the
+            grid type is not allowed for the given file format.
         """
+        # Ensure VTK is importable
         try:
             import vtk
-            import vtk.util.numpy_support as numpy_support
+            from vtk.util.numpy_support import numpy_to_vtk
         except ImportError:
-            raise ImportError("Optional dependency 'vtk' not found.")
+            raise ImportError("VTK installation not found.")
         
-        # Ensure there is no ambiguity around orientations
+        # Ensure there is only one orientation
         if self.orientations is not None and self.orientations.shape[0] > 1:
             raise ValueError(
-                "Cannot save field with more than one orientation. "
+                "Cannot save field with more than one orientation to VTK. "
                 + "Aggregate over orientations."
             )
         
-        # Initialize VTK data structure
-        vtk_data = vtk.vtkUnstructuredGrid()
+        # Check that the legacy format is recognized
+        if legacy_format not in ["rectilinear", "unstructured"]:
+            raise ValueError("`legacy_format` not recognized. Use 'rectilinear' or 'unstructured'.")
 
-        # Set the points
-        positions_vtk = vtk.vtkPoints()
-        for i, p in enumerate(self.positions):
-            positions_vtk.InsertPoint(i, p.tolist())
-        
-        vtk_data.SetPoints(positions_vtk)
+        # Check that the extension is supported and matches the grid type.
+        extension = str(filename).rsplit(".")[-1].lower()
 
-        # Create the writer
-        if file_format == "xml":
-            writer = vtk.vtkXMLUnstructuredGridWriter()
-        elif file_format in ["ascii", "binary"]:
-            writer = vtk.vtkUnstructuredGridWriter()
-            if file_format == "ascii":
-                writer.SetFileTypeToASCII()
+        match extension:
+            case "vti" | "pvti":
+                vtk_structure = "image"
+                allowed_grid_types = ["image"]
+            case "vtr" | "pvtr":
+                vtk_structure = "rectilinear"
+                allowed_grid_types = ["rectilinear", "image"]
+            case "vtu" | "pvtu":
+                vtk_structure = "unstructured"
+                allowed_grid_types = ["unstructured", "rectilinear", "image"]
+            case "vtk":
+                match legacy_format:
+                    case "unstructured":
+                        vtk_structure = "unstructured"
+                        allowed_grid_types = [
+                            "unstructured", "rectilinear", "image"
+                        ]
+                    case "rectilinear":
+                        vtk_structure = "rectilinear"
+                        allowed_grid_types = ["rectilinear", "image"]
+            case _:
+                raise ValueError(
+                    "File extension not recognized. Use one of the allowed "
+                    + "extensions: .vti, .pvti, .vtr, .pvtr, .vtu, .pvtu, .vtk."
+                )
+
+        if self.grid_type not in allowed_grid_types:
+            if extension == "vtk":
+                raise ValueError(
+                    "`legacy_format` does not match this field's grid, which "
+                    + f"is '{self.grid_type}'."
+                )
             else:
-                writer.SetFileTypeToBinary()
+                raise ValueError(
+                    f".{extension} files require a "
+                    + f"'{"' or '".join(allowed_grid_types)}' grid, "
+                    + f"but this field's grid is '{self.grid_type}'."
+                )
+
+        # Match the filename to a writer
+        match extension:
+            case "vti":
+                writer = vtk.vtkXMLImageDataWriter()
+            case "vtr":
+                writer = vtk.vtkXMLRectilinearGridWriter()
+            case "vtu":
+                writer = vtk.vtkXMLUnstructuredGridWriter()
+            case "pvti":
+                writer = vtk.vtkXMLPImageDataWriter()
+            case "pvtr":
+                writer = vtk.vtkXMLPRectilinearGridWriter()
+            case "pvtu":
+                writer = vtk.vtkXMLPUnstructuredGridWriter()
+            case "vtk":
+                match legacy_format:
+                    case "rectilinear":
+                        writer = vtk.vtkRectilinearGridWriter()
+                    case "unstructured":
+                        writer = vtk.vtkUnstructuredGridWriter()
+                    
+                if legacy_binary:
+                    writer.SetFileTypeToBinary()
+                else:
+                    writer.SetFileTypeToASCII()
         
-        # Add the U data
+        # Initialize VTK data structure
+        if vtk_structure == "image":
+            vtk_data = vtk.vtkImageData()
+        elif vtk_structure == "rectilinear":
+            vtk_data = vtk.vtkRectilinearGrid()
+        elif vtk_structure == "unstructured":
+            vtk_data = vtk.vtkUnstructuredGrid()
+
+        # Set the data's organizing structure
+        positions = self.positions
+        if vtk_structure == "image":
+            xs = np.unique(positions[:, 0])
+            ys = np.unique(positions[:, 1])
+            zs = np.unique(positions[:, 2])
+
+            dx = xs[1] - xs[0]
+            dy = ys[1] - ys[0]
+            dz = zs[1] - zs[0]
+
+            vtk_data.SetDimensions(len(xs), len(ys), len(zs))
+            vtk_data.SetSpacing(dx, dy, dz)
+            vtk_data.SetOrigin([        # TODO: validate
+                -0.25 * len(xs) * dx,
+                -0.25 * len(ys) * dy,
+                -0.25 * len(zs) * dz
+            ])
+            
+        elif vtk_structure == "rectilinear":
+            xs = np.unique(positions[:, 0])
+            ys = np.unique(positions[:, 1])
+            zs = np.unique(positions[:, 2])
+
+            xs_vtk = numpy_to_vtk(xs)
+            ys_vtk = numpy_to_vtk(ys)        
+            zs_vtk = numpy_to_vtk(zs)
+
+            vtk_data.SetDimensions(len(xs), len(ys), len(zs))
+            vtk_data.SetXCoordinates(xs_vtk)
+            vtk_data.SetYCoordinates(ys_vtk)
+            vtk_data.SetZCoordinates(zs_vtk)
+
+        elif vtk_structure == "unstructured":
+            positions_vtk = vtk.vtkPoints()
+            for i, p in enumerate(positions):
+                positions_vtk.InsertPoint(i, p.tolist())
+
+            vtk_data.SetPoints(positions_vtk)
+    
+        # Set the attribute data (U - scalar, F and T - vector)
+        # Note: Unstructured positions have different order than gridded array
         if "U" in self.quantities:
-            u_flat = self.to_gridded_array("U").flatten()
-            u_vtk = numpy_support.numpy_to_vtk(
+            if vtk_structure == "unstructured":
+                u_flat = self.table["U"]
+            else:
+                u_flat = self.to_gridded_array("U").flatten()
+
+            u_vtk = numpy_to_vtk(
                 num_array=u_flat,
                 deep=True,
                 array_type=vtk.VTK_FLOAT
@@ -686,28 +1016,25 @@ class Field:
             u_vtk.SetName("U")
             vtk_data.GetPointData().AddArray(u_vtk)
 
-        # Add the F and T data (both vectors and magnitudes)
         for name in ["F", "T"]:
             if name in self.quantities:
-                gridded_vectors = self.to_gridded_array(name, vectors=True)
-                vectors_flat = gridded_vectors.reshape(-1, 3)
-                vectors_vtk = numpy_support.numpy_to_vtk(
+                if vtk_structure == "unstructured":
+                    vectors_flat = np.column_stack((
+                        self.table[f"{name}x"],
+                        self.table[f"{name}y"],
+                        self.table[f"{name}z"]
+                    ))
+                else:
+                    gridded_vectors = self.to_gridded_array(name, vectors=True)
+                    vectors_flat = gridded_vectors.reshape(-1, 3)
+
+                vectors_vtk = numpy_to_vtk(
                     num_array=vectors_flat,
                     deep=True,
                     array_type=vtk.VTK_FLOAT
                 )
                 vectors_vtk.SetName(name)
                 vtk_data.GetPointData().AddArray(vectors_vtk)
-
-                gridded_scalars = self.to_gridded_array(name, vectors=False)
-                scalars_flat = gridded_scalars.flatten()
-                scalars_vtk = numpy_support.numpy_to_vtk(
-                    num_array=scalars_flat,
-                    deep=True,
-                    array_type=vtk.VTK_FLOAT
-                )
-                scalars_vtk.SetName(f"{name}_magnitude")
-                vtk_data.GetPointData().AddArray(scalars_vtk)
         
         # Write the file
         writer.SetFileName(filename)

@@ -9,6 +9,8 @@ Next release
 
 *Added*
 
+- ``Field.grid_type``, ``Field.from_vtk``, and ``Field.to_vtk``. (__)
+
 *Changed*
 
 *Deprecated*

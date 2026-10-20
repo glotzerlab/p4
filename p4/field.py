@@ -1706,4 +1706,36 @@ class Field:
 
     def __eq__(self, other) -> bool:
         """Whether this field and another are equivalent."""
-        return (self._table == other._table).view(np.ndarray).all()
+        # If two fields have tables with the same columns, then the tables must
+        # be equal
+        if self._table.dtype == other._table.dtype:
+            return (self._table == other._table).view(np.ndarray).all()
+
+        # Otherwise, the only allowable difference is that one table does not
+        # have orientation columns and the other table does. In this case, the
+        # orientation data in the other table must be the same for every row.
+        else:
+            self_names = set(self._table.dtype.names)
+            other_names = set(other._table.dtype.names)
+            q_names = set(["q0", "q1", "q2", "q3"])
+
+            if self_names.symmetric_difference(other_names) == q_names:
+                if "q0" in self._table.dtype.names:
+                    q_data = np.column_stack((
+                        self._table["q0"],
+                        self._table["q1"],
+                        self._table["q2"],
+                        self._table["q3"]
+                    ))
+                else:
+                    q_data = np.column_stack((
+                        other._table["q0"],
+                        other._table["q1"],
+                        other._table["q2"],
+                        other._table["q3"]
+                    ))
+
+                return bool((q_data == q_data[0]).all())
+
+            else:
+                return False

@@ -11,3 +11,5 @@ doc/build/*
 doc/source/data/*.csv
 doc/source/data-old/*
 doc/source/data-temp-rename-5.29.26/*
+
+testdata/*

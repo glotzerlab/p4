@@ -150,14 +150,7 @@ class Interaction:
         self.validate()
 
     def validate(self):
-        """Ensure this interaction adheres to the :ref:`interaction-schema`.
-        
-        .. note:
-            Unlike :py:class:`~p4.Body` and :py:class:`~p4.Arrangement`,
-            interaction validation requires instance methods and so it is an
-            instance method that evaluates the instance's attributes, rather
-            than a class method that evaluates keyword arguments.
-        """
+        """Ensure this interaction adheres to the :ref:`interaction-schema`."""
         # Ensure the hoomd class can be instantiated
         nlist = hoomd.md.nlist.Tree(2, exclusions=("body",))
         try:

@@ -711,7 +711,7 @@ def plot_layout(
 def snapshot_schematic_slice_trace(
     snapshot: hoomd.Snapshot,
     type_shapes: dict[str, coxeter.shapes.Polyhedron],
-    slice: dict[str, int],
+    slice: dict[str, float],
     scale: float = 1,
     color: str = "red",
     opacity: float = 1,

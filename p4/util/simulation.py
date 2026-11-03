@@ -11,7 +11,7 @@ import warnings
 from packaging.version import Version
 from functools import partial
 
-import gsd
+import gsd.hoomd
 import hoomd
 import numpy as np
 

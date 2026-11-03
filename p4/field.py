@@ -12,7 +12,7 @@ import csv
 
 import numpy as np
 from numpy.lib import recfunctions
-import plotly
+import plotly.graph_objects
 import plotly.figure_factory
 
 from .top_level_functions import plot_layout
@@ -608,7 +608,7 @@ class Field:
         self,
         quantity: Literal["U", "F", "T", "Fx", "Fy", "Fz", "Tx", "Ty", "Tz"],
         vectors: bool = False,
-        q: tuple[float] | None = None,
+        q: tuple[float, float, float, float] | None = None,
         x: float | None = None,
         y: float | None = None,
         z: float | None = None,

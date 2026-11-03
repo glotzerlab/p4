@@ -9,10 +9,10 @@ from typing import Iterable
 from pathlib import Path
 
 import coxeter
-import gsd
+import gsd.hoomd
 import hoomd
 import numpy as np
-import plotly
+import plotly.graph_objects
 import rowan
 
 from .top_level_functions import plot_layout, snapshot_schematic_slice_trace
@@ -202,7 +202,7 @@ class Arrangement:
         return self._orientations_by_type
 
     @orientations_by_type.setter
-    def orientations_by_type(self, value: OrientationsLike):
+    def orientations_by_type(self, value: dict[str, OrientationsLike]):
         """Set a mapping from body primary types to orientations."""
         original_value = deepcopy(self._orientations_by_type)
         self._orientations_by_type = util.data.sanitize(value)

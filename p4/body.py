@@ -9,10 +9,10 @@ import numbers
 import os
 from typing import Iterable
 import coxeter
-import gsd
+import gsd.hoomd
 import hoomd
 import numpy as np
-import plotly
+import plotly.graph_objects
 from copy import copy, deepcopy
 from pathlib import Path
 

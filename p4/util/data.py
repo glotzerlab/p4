@@ -86,7 +86,7 @@ def clean_header(table: StringIO) -> StringIO:
 # --------------------------------- VALIDATION ---------------------------------
 
 
-def sanitize(d: dict):
+def sanitize(d: dict) -> dict:
     """Traverse a dictionary, converting numpy types to native python analogues.
     
     Parameters

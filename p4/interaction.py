@@ -22,13 +22,37 @@ from .top_level_functions import plot_layout
 from . import util
 from .version import __version__
 
-REQUIRED_PARENT_CLASS = hoomd.md.pair.pair.Pair
+ALLOWED_PARENT_TYPES = (
+    hoomd.md.pair.pair.Pair,
+    hoomd.hpmc.pair.pair.Pair,
+    hoomd.hpmc.integrate.HPMCIntegrator,
+)
 EXCLUDED_TYPE_STRINGS = [
     "hoomd.md.pair.pair.Pair",
     "hoomd.md.pair.aniso.AnisotropicPair",
     "hoomd.md.pair.aniso.Patchy",
-    "hoomd.md.pair.friction.FrictionalPair"
+    "hoomd.md.pair.friction.FrictionalPair",
+    "hoomd.hpmc.pair.pair.Pair",
+    "hoomd.hpmc.integrate.HPMCIntegrator",
 ]
+NESTABLE_HPMC_TYPE_STRINGS = [
+    "hoomd.hpmc.pair.angular_step.AngularStep",
+    "hoomd.hpmc.pair.union.Union",
+]
+
+def _cls_to_str(cls):
+    """A string representation of the class path, including its name."""
+    return cls.__module__ + "." + cls.__name__
+
+def _param_dict_default_broken(instance, param_name):
+    """Return whether an object has a typeparamdict with a broken default.
+    
+    Prior to HOOMD-blue v7.2.2, OnlyIf breaks the default param setter.
+    """
+    return isinstance(
+        getattr(instance, param_name).param_dict._type_converter,
+        hoomd.data.typeconverter.OnlyIf
+    )
 
 class Interaction:
     """The data for making and parameterizing a `HOOMD-blue MD pair potential`_.
@@ -103,25 +127,21 @@ class Interaction:
     """
     def __init__(
         self,
-        hoomd_class: hoomd.md.pair.Pair,
+        hoomd_class: hoomd.md.pair.Pair | hoomd.hpmc.pair.Pair,
         initial_args: dict,
         default_params: dict,
         typed_params: dict,
     ):
-        # Validate inputs
-        def cls_to_str(cls):
-            """A string representation of the class path, including its name."""
-            return cls.__module__ + "." + cls.__name__
-        
-        if not issubclass(hoomd_class, hoomd.md.pair.Pair):
+        # Validate inputs        
+        if not issubclass(hoomd_class, ALLOWED_PARENT_TYPES):
             raise TypeError(
                 "Incorrect `hoomd_class`: must be a subclass of "
-                + "hoomd.md.pair.Pair"
+                + "hoomd.md.pair.Pair or hoomd.hpmc.pair.Pair."
             )
-        if cls_to_str(hoomd_class) in EXCLUDED_TYPE_STRINGS:
+        if _cls_to_str(hoomd_class) in EXCLUDED_TYPE_STRINGS:
             raise TypeError(
-                "Incorrect `hoomd_class`: must be a subclass of "
-                + f"{cls_to_str(hoomd_class)}"
+                "Incorrect `hoomd_class`: must be one of the following "
+                + f"excluded types: {", ".join(EXCLUDED_TYPE_STRINGS)}."
             )
         if (
             hoomd_class is hoomd.md.pair.Table
@@ -139,7 +159,7 @@ class Interaction:
                 "`hoomd.md.pair.aniso.ALJ` is not compatible with p4 below "
                 + "HOOMD-blue version 7.1.0."
             )
-        
+
         # Set instance attributes
         self._hoomd_class = hoomd_class
         self._initial_args = util.data.sanitize(initial_args)
@@ -152,17 +172,42 @@ class Interaction:
     def validate(self):
         """Ensure this interaction adheres to the :ref:`interaction-schema`."""
         # Ensure the hoomd class can be instantiated
-        nlist = hoomd.md.nlist.Tree(2, exclusions=("body",))
         try:
-            _ = self.hoomd_class(nlist=nlist, **self.initial_args)
+            # HPMC pairs are not instantiated with nlist, and they can be nested
+            if self._is_hpmc:
+                if self._is_nested:
+                    keys = []
+                    values = []
+                    for k, v in self.initial_args.items():
+                        keys.append(k)
+                        if isinstance(v, Interaction):
+                            values.append(v.to_hoomd_pair())
+                        else:
+                            values.append(v)
+                    instance = self.hoomd_class(**{k: v for k, v in zip(keys, values)})
+                else:
+                    instance = self.hoomd_class(**self.initial_args)
+            else:
+                instance = self.hoomd_class(
+                    nlist=hoomd.md.nlist.Tree(2, exclusions=("body",)),
+                    **self.initial_args
+                )
         except ValueError as e:
             raise ValueError(
                 "Incorrect `initial_args`: HOOMD class cannot be instantiated. "
                 + "See traceback for details."
             ) from e
+
+        # Ensure this hoomd class has a working default setter
+        for param_name in self.default_params:
+            if _param_dict_default_broken(instance, param_name):
+                raise TypeError(
+                    f"`{_cls_to_str(self.hoomd_class)}` is not compatible with "
+                    + "p4 below HOOMD-blue version 7.2.2. (See PR #2386 - " # TODO: update version number
+                    + "https://github.com/glotzerlab/hoomd-blue/pull/2386.)"
+                )
         
         # Ensure the hoomd class can be parameterized
-        nlist = hoomd.md.nlist.Tree(2, exclusions=("body",))
         try:
             _ = self.to_hoomd_pair()
         except (AttributeError, KeyError) as e:
@@ -174,40 +219,70 @@ class Interaction:
         
         # Ensure the parameterized hoomd class can be used in a simple example
         # simulation
-        nlist = hoomd.md.nlist.Tree(2, exclusions=("body",))
         test_types = self._interacting_types("all")
         if not test_types:
             test_types = ["A", "B"] # catch case with no typed params
         simulation = hoomd.util.make_example_simulation(
             particle_types=test_types
         )
-        if not any("params" in v for v in self.typed_params.values()):
-            max_r_cut = self.default_params["r_cut"]
-        else:
-            max_r_cut = max([
-                v.get("r_cut", 0) for v in self.typed_params.values()
-            ])
+
+        if self._is_hpmc:
+            nlist = None
+
+            if self._is_hpmc_integrator:
+                max_r_cut = 0
+            else:
+                max_r_cut = self.initial_args.get("default_r_cut", 0)
+
+                if (
+                    "params" in self.default_params
+                    and "r_cut" in self.default_params["params"]
+                ):
+                    max_r_cut = max(
+                        max_r_cut,
+                        self.default_params["params"]["r_cut"]
+                    )
+
+                for v in self.typed_params.values():
+                    if (
+                        "params" in v
+                        and "r_cut" in v["params"]
+                        and v["params"]["r_cut"] is not hoomd.data.typeconverter.RequiredArg
+                    ):
+                        max_r_cut = max(max_r_cut, v["params"]["r_cut"])
+
+            if self._is_hpmc_integrator:
+                simulation = util.simulation.add_hpmc_integrator(
+                    simulation=simulation,
+                    interaction=self,
+                )
+            else:
+                integrator = hoomd.hpmc.integrate.Sphere()
+                for t in simulation.state.get_snapshot().particles.types:
+                    integrator.shape[t] = dict(diameter=1)
+                simulation.operations.integrator = integrator
         
-        simulation = hoomd.util.make_example_simulation(
-            particle_types=test_types
-        )
-        s = 10 * max_r_cut
-        simulation.state.set_box([s, s, s, 0, 0, 0])
-        simulation = util.simulation.add_integrator(simulation)
-        simulation = util.simulation.add_interaction(
-            simulation=simulation,
-            nlist=nlist,
-            interaction=self
-        )
+        else:
+            nlist = hoomd.md.nlist.Tree(2, exclusions=("body",))
+
+            if not any("params" in v for v in self.typed_params.values()):
+                max_r_cut = self.default_params["r_cut"]
+            else:
+                max_r_cut = max([
+                    v.get("r_cut", 0) for v in self.typed_params.values()
+                ])
+
+            simulation = util.simulation.add_md_integrator(simulation)
 
         box_length = 10 * max(max_r_cut, 1.0)
         simulation.state.set_box([box_length, box_length, box_length, 0, 0, 0])
-        simulation = util.simulation.add_integrator(simulation)
-        simulation = util.simulation.add_interaction(
-            simulation=simulation,
-            nlist=nlist,
-            interaction=self
-        )
+
+        if not self._is_hpmc_integrator:
+            simulation = util.simulation.add_interaction(
+                simulation=simulation,
+                nlist=nlist,
+                interaction=self
+            )
 
         try:
            simulation.run(0)
@@ -221,7 +296,7 @@ class Interaction:
     # ------------------------------- PROPERTIES -------------------------------
 
     @property
-    def hoomd_class(self) -> hoomd.md.pair.Pair:
+    def hoomd_class(self) -> hoomd.md.pair.Pair | hoomd.hpmc.pair.Pair:
         """The constructor for the HOOMD-blue class.
         
         To change the constructor, create a new ``Interaction`` instance.
@@ -275,6 +350,24 @@ class Interaction:
         except:
             self._typed_params = original_value
             raise
+
+    @property
+    def _is_hpmc(self) -> bool:
+        """Whether the HOOMD-blue class is in the HPMC module."""
+        return "hpmc" in self.hoomd_class.__module__
+
+    @property
+    def _is_hpmc_integrator(self) -> bool:
+        """Whether the HOOMD-blue class is a subclass of the HPMC integrator."""
+        return issubclass(self.hoomd_class, hoomd.hpmc.integrate.HPMCIntegrator)
+
+    @property
+    def _is_nested(self) -> bool:
+        """Whether the HOOMD-blue class is wrapped around another class.
+        
+        See top-level docstring for details.
+        """
+        return _cls_to_str(self.hoomd_class) in NESTABLE_HPMC_TYPE_STRINGS
 
     # ---------------------------------- FROM ----------------------------------
 
@@ -497,8 +590,8 @@ class Interaction:
     def to_hoomd_pair(
         self,
         nlist: hoomd.md.nlist.NeighborList | None = None,
-    ) -> hoomd.md.pair.Pair:
-        """Return an instance of the HOOMD-blue class.
+    ) -> hoomd.md.pair.Pair | hoomd.hpmc.pair.Pair | hoomd.hpmc.integrate.HPMCIntegrator:
+        """Return a parameterized instance of the HOOMD-blue class.
         
         Parameters
         ----------
@@ -506,12 +599,30 @@ class Interaction:
             The neighbor list with which to instantiate the class. Pass an
             existing neighbor list to add it to the instance. If not provided,
             a bounding volume hierarchy-based neighbor list is created on the
-            fly.
+            fly. Ignored if the HOOMD-blue class is from the HPMC module.
         """
-        if nlist is None:
-            nlist = hoomd.md.nlist.Tree(2, exclusions=("body",))
-        
-        instance = self.hoomd_class(nlist, **self.initial_args)
+        # HPMC pairs are not instantiated with nlist, and they can be nested
+        if self._is_hpmc:
+            if self._is_nested:
+                keys = []
+                values = []
+                for k, v in self.initial_args.items():
+                    keys.append(k)
+                    if isinstance(v, Interaction):
+                        values.append(v.to_hoomd_pair())
+                    else:
+                        values.append(v)
+                instance = self.hoomd_class(
+                    **{k: v for k, v in zip(keys, values)}
+                )
+            else:
+                instance = self.hoomd_class(**self.initial_args)
+
+        # MD instantiation requires nlist
+        else:
+            if nlist is None:
+                nlist = hoomd.md.nlist.Tree(2, exclusions=("body",))
+            instance = self.hoomd_class(nlist=nlist, **self.initial_args)
 
         # Set default params
         for param_name, param_value in self.default_params.items():

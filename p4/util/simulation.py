@@ -139,12 +139,12 @@ def get_initial_frame(
 
     return merged_frame
 
-def add_gsd_writer(
+def add_md_gsd_writer(
     simulation: hoomd.Simulation,
     gsd_filename: str,
     compute: hoomd.md.compute.ThermodynamicQuantities | None = None
 ) -> tuple[hoomd.Simulation, hoomd.md.compute.ThermodynamicQuantities]:
-    """Add a GSD writer that logs potential energy to the simulation.
+    """Add a GSD writer that logs potential energy to an MD simulation.
 
     Parameters
     ----------
@@ -181,7 +181,41 @@ def add_gsd_writer(
 
     return simulation, compute
 
-def add_table_writer(
+def add_hpmc_gsd_writer(
+    simulation: hoomd.Simulation,
+    gsd_filename: str,
+    integrator: hoomd.hpmc.integrate.HPMCIntegrator
+) -> hoomd.Simulation:
+    """Add a GSD writer that logs pair energy to an HPMC simulation.
+
+    Parameters
+    ----------
+    simulation : hoomd.Simulation
+        The simulation to modify.
+    gsd_filename : str
+        The name of the GSD file to write.
+    integrator : hoomd.hpmc.integrate.HPMCIntegrator
+        An HPMC integrator that will calculate the pair energy.
+
+    Returns
+    -------
+    hoomd.Simulation
+        The modified simulation.
+    """
+    logger = hoomd.logging.Logger()
+    logger.add(integrator, quantities=["pair_energy"])
+    gsd_writer = hoomd.write.GSD(
+        1,
+        filename=gsd_filename,
+        mode="wb",
+        logger=logger
+    )
+
+    simulation.operations.writers.append(gsd_writer)
+
+    return simulation
+
+def add_md_table_writer(
     simulation: hoomd.Simulation,
     csv_file: TextIOWrapper,
     quantities: Literal["U", "F", "T"] | list[Literal["U", "F", "T"]],
@@ -189,7 +223,7 @@ def add_table_writer(
     probe_index: int,
     compute: hoomd.md.compute.ThermodynamicQuantities | None = None
 ) -> Tuple[hoomd.Simulation, hoomd.md.compute.ThermodynamicQuantities]:
-    """Add a table writer that logs named quantities to the simulation.
+    """Add a table writer that logs named quantities to an MD simulation.
 
     Parameters
     ----------
@@ -289,9 +323,77 @@ def add_table_writer(
 
     return simulation, compute
 
+def add_hpmc_table_writer(
+    simulation: hoomd.Simulation,
+    csv_file: TextIOWrapper,
+    probe_index: int,
+    integrator: hoomd.hpmc.integrate.HPMCIntegrator
+) -> hoomd.Simulation:
+    """Add a table writer that logs named quantities to an HPMC simulation.
+
+    Parameters
+    ----------
+    simulation : hoomd.Simulation
+        The simulation to modify.
+    csv_file : TextIOWrapper
+        The file object to which the table will be written.
+    probe_index : int
+        The index of the probe's central particle.
+    integrator : hoomd.hpmc.integrate.HPMCIntegrator
+        The integrator that calculates shape overlaps and pair energies.
+
+    Returns
+    -------
+    hoomd.Simulation
+        The modified simulation.
+    """
+    logger = hoomd.logging.Logger(categories=["scalar", "string"])
+
+    def probe_position():
+        with simulation.state.cpu_local_snapshot as snapshot:
+            return np.array(snapshot.particles.position[
+                snapshot.particles.rtag[probe_index]
+            ])
+
+    def probe_orientation():
+        with simulation.state.cpu_local_snapshot as snapshot:
+            return np.array(snapshot.particles.orientation[
+                snapshot.particles.rtag[probe_index]
+            ])
+    
+    def total_energy():
+        if integrator.overlaps > 0:
+            return float("inf")
+        else:
+            return integrator.pair_energy
+
+    logger["x"] = (lambda: probe_position()[0], "scalar")
+    logger["y"] = (lambda: probe_position()[1], "scalar")
+    logger["z"] = (lambda: probe_position()[2], "scalar")
+    logger["q0"] = (lambda: probe_orientation()[0], "scalar")
+    logger["q1"] = (lambda: probe_orientation()[1], "scalar")
+    logger["q2"] = (lambda: probe_orientation()[2], "scalar")
+    logger["q3"] = (lambda: probe_orientation()[3], "scalar")
+    
+    logger.add(integrator, quantities=["pair_energy"])
+
+    logger["U"] = (lambda: total_energy(), "scalar")
+
+    table_writer = hoomd.write.Table(
+        trigger=1,
+        output=csv_file,
+        logger=logger,
+        delimiter=",",
+        pretty=False
+    )
+
+    simulation.operations.writers.append(table_writer)
+
+    return simulation
+
 def add_interaction(
     simulation: hoomd.Simulation,
-    nlist: hoomd.md.nlist.NeighborList,
+    nlist: hoomd.md.nlist.NeighborList | None,
     interaction: "Interaction",
 ) -> hoomd.Simulation:
     """Add an interaction to a simulation.
@@ -301,7 +403,8 @@ def add_interaction(
     simulation : hoomd.Simulation
         The simulation to modify.
     nlist : hoomd.md.nlist.NeighborList
-        The neighbor list to use for the interaction.
+        The neighbor list to use for the interaction. Pass None if the
+        interaction is for HPMC.
     interaction : Interaction
         The interaction to add.
 
@@ -310,11 +413,15 @@ def add_interaction(
     simulation
         The modified simulation.
     """
-    force = interaction.to_hoomd_pair(nlist=nlist)
-    simulation.operations.integrator.forces.append(force)
+    if interaction._is_hpmc:
+        potential = interaction.to_hoomd_pair()
+        simulation.operations.integrator.pair_potentials.append(potential)
+    else:
+        force = interaction.to_hoomd_pair(nlist=nlist)
+        simulation.operations.integrator.forces.append(force)
     return simulation
 
-def add_integrator(
+def add_md_integrator(
     simulation: hoomd.Simulation,
     rigid: hoomd.md.constrain.Rigid | None = None,
 ) -> hoomd.Simulation:
@@ -346,9 +453,30 @@ def add_integrator(
     
     return simulation
 
+def add_hpmc_integrator(
+    simulation: hoomd.Simulation,
+    interaction: "Interaction",
+) -> hoomd.Simulation:
+    """Add an MC integrator stored in an Interaction to a simulation.
+    
+    Parameters
+    ----------
+    simulation : hoomd.Simulation
+        The simulation to modify.
+    interaction : Interaction
+        The interaction containing the MC integrator.
+
+    Returns
+    -------
+    simulation
+        The modified simulation.
+    """
+    simulation.operations.integrator = interaction.to_hoomd_pair()
+    return simulation
+
 def get_simulation(
     system: "System",
-    nlist: hoomd.md.nlist.NeighborList,
+    nlist: hoomd.md.nlist.NeighborList | None,
     simulation_box: list[float]
 ) -> hoomd.Simulation:
     """Return a simulation for a system with specified boxes and interactions.
@@ -358,7 +486,8 @@ def get_simulation(
     system : System
         The system.
     nlist : hoomd.md.nlist.NeighborList
-        The neighbor list to use for the interactions in the simulation.
+        The neighbor list to use for the MD interactions in the simulation. Pass
+        None if the system (and hence the simulation) are HPMC.
     simulation_box : list[float]
         The simulation's box in HOOMD notation. Must be an array of 6 floats
         representing ``[Lx, Ly, Lz, xy, xz, yz]``.
@@ -394,14 +523,33 @@ def get_simulation(
         probe_start + 1 : n_total
     ] = probe_start
 
-    # Create rigid constraint
-    # NOTE: probe is added to rigid constraint even if its secondary
-    # particles are not "actively interacting"
-    rigid = system.analyte.to_hoomd_rigid()
-    rigid = system.probe.to_hoomd_rigid(rigid)
+    # For MD systems...
+    if system._is_hpmc:
+        # Add an integrator to the system, creating a default one if none is
+        # provided
+        if system._mc_integrator is not None:
+            simulation = add_hpmc_integrator(simulation, system._mc_integrator)
+        else:
+            integrator = hoomd.hpmc.integrate.Sphere()
+            types = [system.probe.primary_type, system.analyte.primary_type]
+            types.extend(system.probe.secondary_types)
+            types.extend(system.analyte.secondary_types)
 
-    # Add integrator
-    simulation = add_integrator(simulation, rigid)
+            for t in types:
+                integrator.shape[t] = dict(diameter=0)
+
+            simulation.operations.integrator = integrator
+
+    # For MD systems...
+    else:
+        # Create rigid constraint
+        # NOTE: probe is added to rigid constraint even if its secondary
+        # particles are not "actively interacting"
+        rigid = system.analyte.to_hoomd_rigid()
+        rigid = system.probe.to_hoomd_rigid(rigid)
+
+        # Add integrator
+        simulation = add_md_integrator(simulation, rigid)
 
     # Add required interactions
     for interaction in system.interactions:
@@ -477,18 +625,32 @@ def measure(
 
     # Add file writers
     if gsd_filename is not None:
-        simulation, compute = add_gsd_writer(simulation, gsd_filename)
+        if system._is_hpmc:
+            simulation = add_hpmc_gsd_writer(
+                simulation,
+                gsd_filename,
+                simulation.operations.integrator
+            )
+        else:
+            simulation, compute = add_md_gsd_writer(simulation, gsd_filename)
     
     table = StringIO()
-    simulation, _ = add_table_writer(
-        simulation=simulation,
-        csv_file=table,
-        quantities=quantities,
-        probe_is_rigid=system.probe._is_rigid(system.interactions),
-        probe_index=probe_index,
-        compute=None if gsd_filename is None else compute,
-    )
-    # breakpoint()
+    if system._is_hpmc:
+        simulation = add_hpmc_table_writer(
+            simulation=simulation,
+            csv_file=table,
+            probe_index=probe_index,
+            integrator=simulation.operations.integrator
+        )
+    else:
+        simulation, _ = add_md_table_writer(
+            simulation=simulation,
+            csv_file=table,
+            quantities=quantities,
+            probe_is_rigid=system.probe._is_rigid(system.interactions),
+            probe_index=probe_index,
+            compute=None if gsd_filename is None else compute,
+        )
 
     # Iterate over positions
     pbar = partial(

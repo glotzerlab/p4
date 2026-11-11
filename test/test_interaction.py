@@ -14,12 +14,13 @@ import numpy as np
 import p4
 import pytest
 from packaging.version import Version
+import coxeter
 
 
 # 1. Get all hoomd md pair classes for testing
 
 
-REQUIRED_PARENT_CLASS = p4.interaction.REQUIRED_PARENT_CLASS
+ALLOWED_PARENT_TYPES = p4.interaction.ALLOWED_PARENT_TYPES
 EXCLUDED_TYPE_STRINGS = p4.interaction.EXCLUDED_TYPE_STRINGS
 
 if Version(hoomd.version.version) < Version("7.1.0"):
@@ -70,25 +71,48 @@ def get_all_classes_recursively(module):
     else:
         return get_all_local_classes(module)
 
+CLASSES_WITH_TPD_WRAPPED_IN_ONLYIF = [
+    hoomd.hpmc.pair.Step,
+    hoomd.hpmc.pair.AngularStep,
+    hoomd.hpmc.pair.Union,
+]
+
 def get_all_classes_to_test():
     """Return a list of the types that can be converted into p4 Interactions.
     
     The criteria for inclusion are:
-    1. Must be a member of hoomd.md.pair or any of its submodules (recursively).
+    1. Must be a member of [hoomd.md.pair, hoomd.hpmc.pair,
+       hoomd.hpmc.integrate] or any of their submodules (recursively).
     2. Must be a subclass of hoomd.md.pair.Pair.
     3. Must not be any of the following types:
         - hoomd.md.pair.Pair
         - hoomd.md.pair.aniso.AnisotropicPair
         - hoomd.md.pair.aniso.Patchy
+    4. Must be compatible with the installed version of HOOMD-blue
     
     Note: this list changes depending on what version of hoomd is used.
     """
     all_classes = get_all_classes_recursively(hoomd.md.pair)    #1
+    all_classes.extend(get_all_classes_recursively(hoomd.hpmc.pair))
+    all_classes.extend(get_all_classes_recursively(hoomd.hpmc.integrate))
 
     filtered_classes = []
     for cls in all_classes:
-        if issubclass(cls, REQUIRED_PARENT_CLASS):              #2
+        if issubclass(cls, ALLOWED_PARENT_TYPES):              #2
             if cls_to_str(cls) not in EXCLUDED_TYPE_STRINGS:    #3
+                if Version(hoomd.version.version) < Version("7.1.0"):   #4
+                    if cls in [hoomd.md.pair.Table, hoomd.md.pair.aniso.ALJ]:
+                        continue
+                
+                # elif Version(hoomd.version.version) < Version("7.2.2"): # TODO
+                #     kwargs = get_kwargs(cls, "required")
+                #     if issubclass(cls, hoomd.md.pair.Pair):
+                #         kwargs["initial_args"]["nlist"] = hoomd.md.nlist.Tree(2)
+                #     instance = cls(**kwargs["initial_args"])
+                #     params = list(kwargs["default_params"])
+                #     if any(p4.interaction._param_dict_default_broken(instance, p) for p in params):
+                #         continue
+                
                 filtered_classes.append(cls)
 
     # Ensure there are no duplicates
@@ -105,13 +129,49 @@ CLASSES_TO_TEST = get_all_classes_to_test()
 
 NLIST = hoomd.md.nlist.Tree(2, exclusions=("body",))
 INITIAL_ARGS_REQUIRED = dict(
-    kT=1
+    kT=2,    # required in hoomd.md.pair.DPD, optional in all HPMC integrators
+    isotropic_potential=p4.Interaction(
+        hoomd_class=hoomd.hpmc.pair.LennardJones,
+        initial_args={},
+        default_params=dict(
+            params=dict(
+                epsilon=0,
+                sigma=1,
+                r_cut=2,
+                r_on=1,
+            )
+        ),
+        typed_params={},
+    ),
+    constituent_potential=p4.Interaction(
+        hoomd_class=hoomd.hpmc.pair.LennardJones,
+        initial_args={},
+        default_params=dict(
+            params=dict(
+                epsilon=0,
+                sigma=1,
+                r_cut=2,
+                r_on=1,
+            )
+        ),
+        typed_params={},
+    ),
 )
 INITIAL_ARGS_OPTIONAL = dict(   # all different from API's default values except for `mode`
+    # Pair (MD and HPMC)
     default_r_cut=2,
     default_r_on=1,
     mode="none",               # NOTE: 'none' is the only mode supported by all classes, and it is required for applying the tail_correction
-    tail_correction=True
+    tail_correction=True,
+
+    # HPMC Pair
+    leaf_capacity=1,
+
+    # HPMC Integrator
+    default_d=1,
+    default_a=1,
+    translation_move_probability=0.75,
+    nselect=5,
 )
 
 APPROVED_INITIAL_ARG_CLASHES = [
@@ -201,22 +261,65 @@ class Required:
 def flatten(array):
     """Recursively flatten arbitrarily nested arrays, ignoring strings and bytes."""
     for item in array:
-        if isinstance(item, Iterable) and not isinstance(item, (str, bytes)):
+        if isinstance(item, Iterable) and not isinstance(item, (dict, str, bytes)):
             yield from flatten(item)
         else:
             yield item
 
-def is_required(tp_default_item):
-    """Return True if input is a required arg or 1+ arbitrarily nested arrays thereof."""
-    return (
-        (tp_default_item is hoomd.data.typeconverter.RequiredArg)
-        or (
-            isinstance(tp_default_item, Iterable)
-            and any([
+def is_required(tp_default):
+    """Return True if input is a required arg or 1+ arbitrarily nested arrays thereof.
+    
+    Also returns True if the input is an array of dicts wherein at least one key
+    is mapped to a required arg.
+    """
+    def is_good_iterable(item):
+        """Return True if item is an Iterable and not a bad iterable."""
+        return isinstance(item, Iterable) and not isinstance(item, (str, bytes))
+    
+    def dict_contains_required_arg(d):
+        """Return True if a value of a dict is a required arg or is a nested array thereof."""
+        return any([
+            (
+                value is hoomd.data.typeconverter.RequiredArg
+                or (
+                    is_good_iterable(value)
+                    and not isinstance(value, dict)
+                    and nested_array_contains_required_arg(value)
+                )
+            )
+            for value in d.values()
+        ])
+
+    def nested_array_contains_required_arg(nested_array):
+        """Return True if there is a required arg anywhere in the nested array."""
+        return any([
+            (
                 subitem is hoomd.data.typeconverter.RequiredArg
-                for subitem in flatten(tp_default_item)
-            ])
-        )
+                or (
+                    isinstance(subitem, dict)
+                    and dict_contains_required_arg(subitem)
+                )
+            )
+            for subitem in flatten([i for i in nested_array])
+        ])
+    
+    is_required_arg = tp_default is hoomd.data.typeconverter.RequiredArg
+    
+    required_arg_in_nested_array = (
+        is_good_iterable(tp_default)
+        and not isinstance(tp_default, dict)
+        and nested_array_contains_required_arg(tp_default)
+    )
+
+    required_arg_in_dict = (
+        isinstance(tp_default, dict)
+        and dict_contains_required_arg(tp_default)
+    )
+
+    return (
+        is_required_arg
+        or required_arg_in_nested_array
+        or required_arg_in_dict
     )
 
 def parse_typeparam_default_item_dict(d, required_or_optional):
@@ -256,11 +359,48 @@ def parse_typeparam_default_item_dict(d, required_or_optional):
     return subdict
 
 def parse_params(hoomd_class, single_or_pair, required_or_optional):
-    """Return a param dictionary for a given constructor."""
+    """Return a param dictionary for a given constructor.
+    
+    Note that there is a single class, hoomd.hpmc.pair.Step, that as of v7.0.2
+    has to be parsed differently from all the others. NOTE: parsing for this
+    class is fragile and may break on version updates.
+    """
     params = {}
     required_args = parse_initial_arg_names(hoomd_class, "required")
     initial_args = {arg: INITIAL_ARGS_REQUIRED[arg] for arg in required_args}
-    tpd = hoomd_class(nlist=NLIST, **initial_args)._typeparam_dict
+    
+    if issubclass(hoomd_class, hoomd.md.pair.Pair):
+        tpd = hoomd_class(nlist=NLIST, **initial_args)._typeparam_dict
+    else:
+        if p4.interaction._cls_to_str(hoomd_class) in p4.interaction.NESTABLE_HPMC_TYPE_STRINGS:
+            keys = []
+            values = []
+            for k, v in initial_args.items():
+                keys.append(k)
+                if isinstance(v, p4.Interaction):
+                    values.append(v.to_hoomd_pair())
+                else:
+                    values.append(v)
+            tpd = hoomd_class(
+                **{k: v for k, v in zip(keys, values)}
+            )._typeparam_dict
+        else:
+            tpd = hoomd_class(**initial_args)._typeparam_dict
+
+    if hoomd_class is hoomd.hpmc.pair.Step:
+        corrected_params_subdict = {}
+        params_types = list(hoomd_class().params.param_dict._type_converter.cond.values())
+        for i, key in enumerate(hoomd_class().params.param_dict._type_converter.cond.keys()):
+            corrected_params_subdict[key] = [params_types[i]]
+        
+        tpd.update(params = hoomd.data.typeparam.TypeParameter(
+            "params",
+            "particle_types",
+            hoomd.data.parameterdicts.TypeParameterDict(
+                len_keys=len(corrected_params_subdict),
+                **corrected_params_subdict
+            )
+        ))
 
     for name, typeparam in tpd.items():
         something_to_add = False    # Review: this flag indicates refactoring needed
@@ -301,8 +441,16 @@ def parse_params(hoomd_class, single_or_pair, required_or_optional):
                     f"Encountered an unknown typearam type: '{name}' has "
                     f"{typeparam._indexer.len_key=}, but only 1 and 2 are allowed."
                 )
+        
+    # HPMC union is broken by OnlyIf
+    if hoomd_class is hoomd.hpmc.pair.Union:
+        pass    # TODO
+
     
     return params
+
+# breakpoint()
+# parse_params(hoomd.hpmc.pair.Union, "all", "required")
 
 def get_all_params(classes, single_or_pair, required_or_optional):
     """Return a dictionary of all params for the provided classes."""
@@ -329,26 +477,130 @@ def get_all_params(classes, single_or_pair, required_or_optional):
 
     return merged_params
 
+CUBE = coxeter.shapes.ConvexPolyhedron(
+    vertices=[
+        [-0.5, -0.5, -0.5],
+        [ 0.5, -0.5, -0.5],
+        [ 0.5,  0.5, -0.5],
+        [-0.5,  0.5, -0.5],
+        [-0.5, -0.5,  0.5],
+        [ 0.5, -0.5,  0.5],
+        [ 0.5,  0.5,  0.5],
+        [-0.5,  0.5,  0.5],
+    ]
+)
+
+SQUARE = coxeter.shapes.ConvexPolygon(
+    vertices=[
+        [-0.5, -0.5],
+        [ 0.5, -0.5],
+        [ 0.5,  0.5],
+        [-0.5,  0.5],
+    ]
+)
+
+DEFAULT_PARAMS_HPMC_STEP_EPSILON = [0, 1]
+DEFAULT_PARAMS_HPMC_CSPUNION_SHAPES = [
+    dict(
+        vertices=0.25 * np.array(CUBE.vertices),
+        sweep_radius=0.1
+    ),
+    dict(
+        vertices=0.25 * np.array(CUBE.vertices),
+        sweep_radius=0.2
+    ),
+]
+DEFAULT_PARAMS_HPMC_FEUNION_SHAPES = [
+    dict(
+        normals=CUBE.normals,
+        offsets=[-0.1] * np.array(CUBE.faces).shape[0],
+        a=0.2,
+        b=0.3,
+        c=0.4,
+        vertices=0.25 * np.array(CUBE.vertices),
+        origin=[(0.1, 0.1, 0.1)],
+    ),
+    dict(
+        normals=CUBE.normals,
+        offsets=[-0.1] * np.array(CUBE.faces).shape[0],
+        a=0.4,
+        b=0.3,
+        c=0.2,
+        vertices=0.25 * np.array(CUBE.vertices),
+        origin=[(0.1, 0.1, 0.1)],
+    ),
+]
+DEFAULT_PARAMS_HPMC_SUNION_SHAPES = [
+    dict(diameter=0.5),
+    dict(diameter=0.25),
+]
+
 DEFAULT_PARAMS_REQUIRED = dict(
     # Single-typed
-    shape=dict(
-        vertices=[],
-        faces=[],
+    body=dict(
+        types=["B", "B"],
+        positions=[(0,0,0), (1,0,0)],
+    ),
+    directors=[(1,0,0), (0,1,0), (0,0,1)],
+    mask=dict(
+        directors=[(1,0,0), (0,1,0)],
+        deltas=[1, 2]
     ),
     mu=(1,1,1),
-    directors=[(1,0,0), (0,1,0), (0,0,1)],
+    shape=dict(
+        vertices=CUBE.vertices, # (N,2) array for ConvexPolygon and SimplePolygon, (N,3) for everything else
+        faces=CUBE.faces,
+        shapes=None,            # different between ConvexSpheropolyhedronUnion and FacetedEllipsoidUnion and SphereUnion
+        positions=[(0,0,0), (1,0,0)],
+        a=1,
+        b=2,
+        c=3,
+        normals=CUBE.normals,
+        offsets=[-0.1] * np.array(CUBE.faces).shape[0],
+        diameter=1,
+        diameters=[1, 0.5],
+        centers=[(0,0,0), (1,0,0)],
+    ),
 
     # Pair-typed
-    r_cut=0,
     params=dict(
-        epsilon=0,
-        sigma_i=0.1,
-        sigma_j=0.1,
-        alpha=1,    # int for ALJ, float for Ewald, Morse, TWF, Zetterling
         A=1,
+        a=(1,1,1),
+        a1=1,
+        a2=1,
+        aF=1,
+        alpha=1,    # int for ALJ, float for Ewald, Morse, TWF, Zetterling
+        B=1,
+        b=(1,1,1),
+        beta=1,
+        C=1,
+        C1=1,
+        C2=1,
+        D0=1,
+        delta=1,
+        envelope_params=dict(
+            alpha=1,
+            omega=1
+        ),
+        eps=1,
+        eps_rf=1,
+        epsilon=0,  # list of floats for hoomd.hpmc.pair.Step, float for everything else
+        eta1=1,
+        eta2=1,
+        F=np.array([1,1,1,1]),
+        gamma=1,
+        gamma_f=1,
+        k=1,
         kappa=1,
+        kappa_f=1,
+        kf=1,
+        kT=1,
         lperp=1,
         lpar=1,
+        m=6,        # cannot equal n
+        mu=1,
+        n=12,
+        nu=1,
         pair_params=dict(
             epsilon=1,
             sigma=1,
@@ -357,58 +609,51 @@ DEFAULT_PARAMS_REQUIRED = dict(
             m=6,    # cannot equal n
             n=12
         ),
-        envelope_params=dict(
-            alpha=1,
-            omega=1
-        ),
-        eps=1,
         phi=1,
-        beta=1,
-        rmin=1,
-        twozeta=1,
-        rho=1,
-        C=1,
-        Z=1,
-        a1=1,
-        a2=1,
-        gamma=1,
-        sigma=1,
-        delta=1,
-        m=6,        # cannot equal n
-        n=12,
-        a=(1,1,1),
-        b=(1,1,1),
-        r0=1,
         qi=1,
         qj=2,
-        aF=1,
-        D0=1,
-        C1=1,
-        C2=1,
-        eta1=1,
-        eta2=1,
-        k=1,
-        eps_rf=1,
-        r_min=2,
-        U=np.array([1,1,1,1]),
-        F=np.array([1,1,1,1]),
         R=1,
-        mu=1,
-        nu=1,
-        kf=1,
-        B=1,
-        kT=1,
-        kappa_f=1,
-        gamma_f=1,
-    )
+        r=[1,2],
+        r0=1,
+        r_cut=1,
+        r_min=2,
+        r_on=0.5,
+        rho=1,
+        rmin=1,
+        sigma=1,
+        sigma_i=0.1,
+        sigma_j=0.1,
+        twozeta=1,
+        U=np.array([1,1,1,1]),
+        Z=1,
+    ),
+    r_cut=0,
 )
 DEFAULT_PARAMS_OPTIONAL = dict( # different from API's default values
     # Single-typed
+    a=0.2,
+    body=dict(
+        orientations=[(1,0,0,0), (0,1,0,0)],
+        charges=[1,2],
+    ),
+    d=0.2,
     shape=dict(
-        rounding_radii=(1,1,1)
+        rounding_radii=(1,1,1),
+        ignore_statistics=True,
+        sweep_radius=1,
+
+        vertices=CUBE.vertices, # optional only for HPMC FacetedEllipsoid
+        
+        origin=[0.1, 0.1, 0.1],
+        orientable=True,
+        orientations=[(1,0,0,0), (0,1,0,0)],
+        overlap=[1,0],
+        capacity=3,
+        hull_only=True,
     ),
 
     # Pair-typed
+    interaction_matrix=True,
     r_on=0.5,
     params=dict(
         contact_ratio_i=0.2,
@@ -416,6 +661,7 @@ DEFAULT_PARAMS_OPTIONAL = dict( # different from API's default values
         average_simplices=False,
         alpha=2,
         use_charge=True,
+        r_on=0.5,
     )
 )
 
@@ -462,6 +708,7 @@ def get_types_with_param(classes, param_path, single_or_pair, required_or_option
         for cls in classes:
             levels_searched = 0
             current_level_dict = parse_params(cls, single_or_pair, required_or_optional)
+            
             for level_name in param_path:
                 if level_name in current_level_dict:
                     current_level_dict = current_level_dict[level_name]
@@ -471,27 +718,56 @@ def get_types_with_param(classes, param_path, single_or_pair, required_or_option
         return positive_results
 
 APPROVED_PARAM_CLASHES = dict(
-    r_cut=get_types_with_param(CLASSES_TO_TEST, "r_cut", "all", "all"),         # always positive float
-    r_on=get_types_with_param(CLASSES_TO_TEST, "r_on", "all", "all"),           # always positive float
+    a=get_types_with_param(CLASSES_TO_TEST, "a", "single", "optional"),         # always positive float
+    d=get_types_with_param(CLASSES_TO_TEST, "d", "single", "optional"),         # always positive float
     directors=get_types_with_param(CLASSES_TO_TEST, "directors", "all", "all"), # always N-list of 3-tuples of floats
+    interaction_matrix=get_types_with_param(CLASSES_TO_TEST, "interaction_matrix", "pair", "optional"),         # always same for all HPMC integrators
     mu=[
         "hoomd.md.pair.aniso.Dipole", # 3-tuple of floats
         "hoomd.md.pair.aniso.YLZ",    # 3-tuple of floats
     ],
     params=dict(
-        epsilon=get_types_with_param(CLASSES_TO_TEST, ["params", "epsilon"], "all", "all"), # always float
-        sigma=get_types_with_param(CLASSES_TO_TEST, ["params", "sigma"], "all", "all"),     # always positive non-zero float
-        delta=get_types_with_param(CLASSES_TO_TEST, ["params", "delta"], "all", "all"),     # always positive float
-        alpha=[
-            "hoomd.md.pair.aniso.ALJ",    # int 0-3
-            "hoomd.md.pair.pair.Morse",        # positive non-zero float
-            "hoomd.md.pair.pair.TWF",          # positive non-zero float
-            "hoomd.md.pair.pair.Zetterling",   # positive float
-            "hoomd.md.pair.pair.Ewald",        # positive float
+        A=[
+            "hoomd.md.pair.aniso.Dipole",           # float
+            "hoomd.md.pair.pair.Buckingham",        # float
+            "hoomd.md.pair.pair.DLVO",              # float
+            "hoomd.md.pair.pair.DPD",               # float
+            "hoomd.md.pair.pair.DPDConservative",   # float
+            "hoomd.md.pair.pair.Zetterling",        # float
+            "hoomd.hpmc.pair.zetterling.Zetterling",# float
         ],
+        alpha=[
+            "hoomd.md.pair.aniso.ALJ",              # int 0-3
+            "hoomd.md.pair.pair.Morse",             # positive non-zero float
+            "hoomd.md.pair.pair.TWF",               # positive non-zero float
+            "hoomd.md.pair.pair.Zetterling",        # positive float
+            "hoomd.md.pair.pair.Ewald",             # positive float
+            "hoomd.hpmc.pair.zetterling.Zetterling",# positive float
+        ],
+        aF=get_types_with_param(CLASSES_TO_TEST, ["params", "aF"], "all", "all"),           # always float
+        B=get_types_with_param(CLASSES_TO_TEST, ["params", "B"], "all", "all"),             # always float
+        C1=get_types_with_param(CLASSES_TO_TEST, ["params", "C1"], "all", "all"),           # always float
+        C2=get_types_with_param(CLASSES_TO_TEST, ["params", "C2"], "all", "all"),           # always float
+        delta=get_types_with_param(CLASSES_TO_TEST, ["params", "delta"], "all", "all"),     # always positive float
+        eta1=get_types_with_param(CLASSES_TO_TEST, ["params", "eta1"], "all", "all"),           # always float
+        eta2=get_types_with_param(CLASSES_TO_TEST, ["params", "eta2"], "all", "all"),           # always float
+        epsilon=get_types_with_param(CLASSES_TO_TEST, ["params", "epsilon"], "all", "all"), # always float
+        envelope_params=dict(
+            alpha=get_types_with_param(CLASSES_TO_TEST, ["params", "envelope_params", "alpha"], "pair", "required"),    # inhereted from Patchy, only used in Patchy's subclasses
+            omega=get_types_with_param(CLASSES_TO_TEST, ["params", "envelope_params", "omega"], "pair", "required"),    # inhereted from Patchy, only used in Patchy's subclasses
+        ),
         gamma=[
             "hoomd.md.pair.pair.DPD",  # positive float
             "hoomd.md.pair.pair.DPDLJ",# positive float
+        ],
+        gamma_f=get_types_with_param(CLASSES_TO_TEST, ["params", "gamma_f"], "all", "all"),   # always float
+        k=[
+            "hoomd.md.pair.pair.OPP",     # float
+            "hoomd.hpmc.pair.opp.OPP",    # float
+        ],
+        kf=[
+            "hoomd.md.pair.pair.Zetterling",            # float
+            "hoomd.hpmc.pair.zetterling.Zetterling",    # float
         ],
         kappa=[
             "hoomd.md.pair.aniso.Dipole", # positive non-zero float
@@ -499,40 +775,20 @@ APPROVED_PARAM_CLASHES = dict(
             "hoomd.md.pair.pair.Ewald",   # positive non-zero float
             "hoomd.md.pair.pair.Yukawa",  # float
         ],
-        phi=[
-            "hoomd.md.pair.aniso.YLZ",    # float
-            "hoomd.md.pair.pair.OPP",     # float
-        ],
-        A=[
-            "hoomd.md.pair.aniso.Dipole",     # float
-            "hoomd.md.pair.pair.Buckingham",       # float
-            "hoomd.md.pair.pair.DLVO",             # float
-            "hoomd.md.pair.pair.DPD",              # float
-            "hoomd.md.pair.pair.DPDConservative",  # float
-            "hoomd.md.pair.pair.Zetterling",       # float
-        ],
+        kappa_f=get_types_with_param(CLASSES_TO_TEST, ["params", "kappa_f"], "all", "all"),   # always float
+        kT=get_types_with_param(CLASSES_TO_TEST, ["params", "kT"], "all", "all"),   # always float
         m=[
             "hoomd.md.pair.pair.ExpandedMie",  # float, cannot equal n
             "hoomd.md.pair.pair.Mie",          # float, cannot equal n
         ],
         n=[
-            "hoomd.md.pair.pair.ExpandedMie",  # float, cannot equal m
-            "hoomd.md.pair.pair.Mie",          # float, cannot equal m
-            "hoomd.md.pair.pair.Zetterling",   # float
+            "hoomd.md.pair.pair.ExpandedMie",       # float, cannot equal m
+            "hoomd.md.pair.pair.Mie",               # float, cannot equal m
+            "hoomd.md.pair.pair.Zetterling",        # float
+            "hoomd.hpmc.pair.zetterling.Zetterling",# float
         ],
-        r0=[
-            "hoomd.md.pair.pair.LJGauss", # float
-            "hoomd.md.pair.pair.Morse",   # float
-        ],
-        qi=get_types_with_param(CLASSES_TO_TEST, ["params", "qi"], "all", "all"),   # always float
-        qj=get_types_with_param(CLASSES_TO_TEST, ["params", "qj"], "all", "all"),   # always float
-        aF=get_types_with_param(CLASSES_TO_TEST, ["params", "aF"], "all", "all"),   # always float
-        envelope_params=dict(
-            alpha=get_types_with_param(CLASSES_TO_TEST, ["params", "envelope_params", "alpha"], "pair", "required"),    # inhereted from Patchy, only used in Patchy's subclasses
-            omega=get_types_with_param(CLASSES_TO_TEST, ["params", "envelope_params", "omega"], "pair", "required"),    # inhereted from Patchy, only used in Patchy's subclasses
-        ),
         pair_params=dict(
-            epsilon=get_types_with_param(CLASSES_TO_TEST, ["params", "pair_params", "epsilon"], "pair", "required"),# always float 
+            epsilon=get_types_with_param(CLASSES_TO_TEST, ["params", "pair_params", "epsilon"], "pair", "required"),# always float EXCEPT FOR HPMC Step, which is handled with an additional constant
             sigma=get_types_with_param(CLASSES_TO_TEST, ["params", "pair_params", "sigma"], "pair", "required"),    # always float
             delta=get_types_with_param(CLASSES_TO_TEST, ["params", "pair_params", "delta"], "pair", "required"),    # always float
             m=[
@@ -544,10 +800,47 @@ APPROVED_PARAM_CLASHES = dict(
                 "hoomd.md.pair.aniso.PatchyMie",          # float, cannot equal m
             ],
         ),
-        kappa_f=get_types_with_param(CLASSES_TO_TEST, ["params", "kappa_f"], "all", "all"),   # always float
-        gamma_f=get_types_with_param(CLASSES_TO_TEST, ["params", "gamma_f"], "all", "all"),   # always float
-        kT=get_types_with_param(CLASSES_TO_TEST, ["params", "kT"], "all", "all"),   # always float
-    )
+        phi=[
+            "hoomd.md.pair.aniso.YLZ",    # float
+            "hoomd.md.pair.pair.OPP",     # float
+            "hoomd.hpmc.pair.opp.OPP",    # float
+        ],
+        qi=get_types_with_param(CLASSES_TO_TEST, ["params", "qi"], "all", "all"),           # always float
+        qj=get_types_with_param(CLASSES_TO_TEST, ["params", "qj"], "all", "all"),           # always float
+        r_cut=get_types_with_param(CLASSES_TO_TEST, ["params", "r_cut"], "all", "all"),     # always positive float
+        r_on=get_types_with_param(CLASSES_TO_TEST, ["params", "r_on"], "all", "all"),       # always positive float
+        r0=[
+            "hoomd.md.pair.pair.LJGauss",       # float
+            "hoomd.md.pair.pair.Morse",         # float
+            "hoomd.hpmc.pair.lj_gauss.LJGauss", # float
+        ],
+        sigma=get_types_with_param(CLASSES_TO_TEST, ["params", "sigma"], "all", "all"),     # always positive non-zero float
+    ),
+    r_cut=get_types_with_param(CLASSES_TO_TEST, "r_cut", "all", "all"),         # always positive float
+    r_on=get_types_with_param(CLASSES_TO_TEST, "r_on", "all", "all"),           # always positive float
+    shape=dict(
+        vertices=get_types_with_param(CLASSES_TO_TEST, ["shape", "vertices"], "all", "all"),         # definitions vary, but they should all be accounted for previously
+        faces=get_types_with_param(CLASSES_TO_TEST, ["shape", "faces"], "single", "all"),
+        shapes=get_types_with_param(CLASSES_TO_TEST, ["shape", "shapes"], "single", "all"),
+        positions=get_types_with_param(CLASSES_TO_TEST, ["shape", "positions"], "single", "all"),
+        a=get_types_with_param(CLASSES_TO_TEST, ["shape", "a"], "single", "all"),
+        b=get_types_with_param(CLASSES_TO_TEST, ["shape", "b"], "single", "all"),
+        c=get_types_with_param(CLASSES_TO_TEST, ["shape", "c"], "single", "all"),
+        normals=get_types_with_param(CLASSES_TO_TEST, ["shape", "normals"], "single", "all"),
+        offsets=get_types_with_param(CLASSES_TO_TEST, ["shape", "offsets"], "single", "all"),
+        diameter=get_types_with_param(CLASSES_TO_TEST, ["shape", "diameter"], "single", "all"),
+        diameters=get_types_with_param(CLASSES_TO_TEST, ["shape", "diameters"], "single", "all"),
+        centers=get_types_with_param(CLASSES_TO_TEST, ["shape", "centers"], "single", "all"),
+        rounding_radii=get_types_with_param(CLASSES_TO_TEST, ["shape", "rounding_radii"], "single", "all"),
+        ignore_statistics=get_types_with_param(CLASSES_TO_TEST, ["shape", "ignore_statistics"], "single", "all"),
+        sweep_radius=get_types_with_param(CLASSES_TO_TEST, ["shape", "sweep_radius"], "single", "all"),
+        origin=get_types_with_param(CLASSES_TO_TEST, ["shape", "origin"], "single", "all"),
+        orientable=get_types_with_param(CLASSES_TO_TEST, ["shape", "orientable"], "single", "all"),
+        orientations=get_types_with_param(CLASSES_TO_TEST, ["shape", "orientations"], "single", "all"),
+        overlap=get_types_with_param(CLASSES_TO_TEST, ["shape", "overlap"], "single", "all"),
+        capacity=get_types_with_param(CLASSES_TO_TEST, ["shape", "capacity"], "single", "all"),
+        hull_only=get_types_with_param(CLASSES_TO_TEST, ["shape", "hull_only"], "single", "all"),
+    ),
 )
 
 def test_no_unexpected_param_paths():
@@ -589,7 +882,10 @@ def test_no_unexpected_param_types():
     for cls in CLASSES_TO_TEST:
         required_args = parse_initial_arg_names(cls, "required")
         initial_args = {arg: INITIAL_ARGS_REQUIRED[arg] for arg in required_args}
-        tpd = cls(nlist=NLIST, **initial_args)._typeparam_dict
+        if issubclass(cls, hoomd.md.pair.Pair):
+            tpd = cls(nlist=NLIST, **initial_args)._typeparam_dict
+        else:
+            tpd = cls(**initial_args)._typeparam_dict
 
         for typeparam in tpd.values():
             reason = "All typed params must be assignable to single types or pairs of types."
@@ -666,93 +962,177 @@ def get_cube_faces():
         [1, 5, 7, 3],
     ]
 
+TETRAHEDRON = coxeter.families.PlatonicFamily.get_shape("Tetrahedron")
+
+TRIANGLE = coxeter.shapes.ConvexPolygon(
+    vertices=[
+        [-0.5, -0.5, 0.0],
+        [ 0.5, -0.5, 0.0],
+        [ 0.0,  0.0, 0.5],
+    ]
+)
+
+TYPED_PARAMS_HPMC_STEP_EPSILON = [1, 2]
+TYPED_PARAMS_HPMC_CSPUNION_SHAPES = [
+    dict(
+        vertices=0.25 * np.array(TETRAHEDRON.vertices),
+        sweep_radius=0.1
+    ),
+    dict(
+        vertices=0.25 * np.array(TETRAHEDRON.vertices),
+        sweep_radius=0.2
+    ),
+]
+TYPED_PARAMS_HPMC_FEUNION_SHAPES = [
+    dict(
+        normals=TETRAHEDRON.normals,
+        offsets=[-0.1] * np.array(TETRAHEDRON.faces).shape[0],
+        a=0.2,
+        b=0.3,
+        c=0.4,
+        vertices=0.25 * np.array(TETRAHEDRON.vertices),
+        origin=[(0.1, 0.1, 0.1)],
+    ),
+    dict(
+        normals=TETRAHEDRON.normals,
+        offsets=[-0.1] * np.array(TETRAHEDRON.faces).shape[0],
+        a=0.4,
+        b=0.3,
+        c=0.2,
+        vertices=0.25 * np.array(TETRAHEDRON.vertices),
+        origin=[(0.1, 0.1, 0.1)],
+    ),
+]
+TYPED_PARAMS_HPMC_SUNION_SHAPES = [
+    dict(diameter=0.5),
+    dict(diameter=0.25),
+]
+
 TYPED_PARAMS_REQUIRED = dict(
     # Single-typed
-    shape=dict(
-        vertices=get_cube_vertices(1),
-        faces=get_cube_faces(),
+    body=dict(
+        types=["B", "B"],
+        positions=[(0,0,0), (0,1,0)],
     ),
-    mu=(1,2,3),
-    directors=[(1,1,0), (0,1,1), (1,0,1)],
+    directors=[(0,1,0), (0,0,1), (1,0,0)],
+    mask=dict(
+        directors=[(0,1,0), (0,0,1)],
+        deltas=[2, 3]
+    ),
+    mu=(0,1,0),
+    shape=dict(
+        vertices=TETRAHEDRON.vertices, # (N,2) array for ConvexPolygon and SimplePolygon, (N,3) for everything else
+        faces=TETRAHEDRON.faces,
+        shapes=None,            # different between ConvexSpheropolyhedronUnion and FacetedEllipsoidUnion and SphereUnion
+        positions=[(1,0,0), (0,1,0)],
+        a=2,
+        b=3,
+        c=4,
+        normals=TETRAHEDRON.normals,
+        offsets=[-0.05] * np.array(TETRAHEDRON.faces).shape[0],
+        diameter=2,
+        diameters=[2, 1],
+        centers=[(1,0,0), (0,1,0)],
+    ),
 
     # Pair-typed
-    r_cut=5,
     params=dict(
-        epsilon=1.0,
-        sigma_i=0.2,
-        sigma_j=0.2,
-        alpha=2,    # int for ALJ, float for Ewald, Morse, TWF, Zetterling
         A=2,
+        a=(2,2,2),
+        a1=2,
+        a2=2,
+        aF=2,
+        alpha=2,    # int for ALJ, float for Ewald, Morse, TWF, Zetterling
+        B=2,
+        b=(2,2,2),
+        beta=2,
+        C=2,
+        C1=2,
+        C2=2,
+        D0=2,
+        delta=2,
+        envelope_params=dict(
+            alpha=2,
+            omega=2,
+        ),
+        eps=2,
+        eps_rf=2,
+        epsilon=1,  # list of floats for hoomd.hpmc.pair.Step, float for everything else
+        eta1=2,
+        eta2=2,
+        F=np.array([2,2,2,2]),
+        gamma=2,
+        gamma_f=2,
+        k=2,
         kappa=2,
+        kappa_f=2,
+        kf=2,
+        kT=2,
         lperp=2,
         lpar=2,
+        m=7,        # cannot equal n
+        mu=2,
+        n=13,
+        nu=2,
         pair_params=dict(
             epsilon=2,
             sigma=2,
             delta=2,
             kappa=2,
-            m=8,    # cannot equal n
-            n=10
+            m=7,    # cannot equal n
+            n=13
         ),
-        envelope_params=dict(
-            alpha=2,
-            omega=2
-        ),
-        eps=2,
         phi=2,
-        beta=2,
-        rmin=2,
-        twozeta=2,
-        rho=2,
-        C=2,
-        Z=2,
-        a1=2,
-        a2=2,
-        gamma=2,
-        sigma=2,
-        delta=2,
-        m=8,        # cannot equal n
-        n=10,
-        a=(2,2,2),
-        b=(2,2,2),
-        r0=2,
         qi=2,
         qj=3,
-        aF=2,
-        D0=2,
-        C1=2,
-        C2=2,
-        eta1=2,
-        eta2=2,
-        k=2,
-        eps_rf=2,
-        r_min=3,
-        U=np.array([1,2,3,4]),
-        F=np.array([1,4,6,8]),
         R=2,
-        mu=2,
-        nu=2,
-        kf=2,
-        B=2,
-        kT=2,
-        kappa_f=2,
-        gamma_f=2,
-    )
+        r=[2,3],
+        r0=2,
+        r_cut=2,
+        r_min=2,
+        r_on=1,
+        rho=2,
+        rmin=2,
+        sigma=2,
+        sigma_i=0.21,
+        sigma_j=0.21,
+        twozeta=2,
+        U=np.array([2,2,2,2]),
+        Z=2,
+    ),
+    r_cut=3,
 )
 TYPED_PARAMS_OPTIONAL = dict( # different from API's default values
     # Single-typed
+    a=0.3,
+    body=dict(
+        orientations=[(0,1,0,0), (0,0,1,0)],
+        charges=[2,3],
+    ),
+    d=0.3,
     shape=dict(
-        rounding_radii=(2,2,2)
+        rounding_radii=(2,2,2),
+        ignore_statistics=False,
+        sweep_radius=2,
+        vertices=TETRAHEDRON.vertices, # optional only for HPMC FacetedEllipsoid
+        origin=[0.2, 0.2, 0.2],
+        orientable=False,
+        orientations=[(0,1,0,0), (0,0,1,0)],
+        overlap=[0,1],
+        capacity=2,
+        hull_only=False,
     ),
 
     # Pair-typed
-    r_on=1,
+    interaction_matrix=True,    # TODO: change to something different from default
+    r_on=0.75,
     params=dict(
         contact_ratio_i=0.3,
         contact_ratio_j=0.3,
-        average_simplices=False,
-        alpha=3,
-        use_charge=True,
+        average_simplices=True,
+        alpha=0,
+        use_charge=False,
+        r_on=0.75,
     )
 )
 
@@ -847,6 +1227,36 @@ def get_kwargs(cls, required_or_all):
         "B": get_param_dict(cls, "typed", "single", required_or_all),
         ("A", "B"): get_param_dict(cls, "typed", "pair", required_or_all)
     }
+
+    # Account for clash for `params/epsilon`
+    if cls is hoomd.hpmc.pair.step.Step:
+        default_params["params"]["epsilon"] = DEFAULT_PARAMS_HPMC_STEP_EPSILON
+        typed_params[("A", "B")]["params"]["epsilon"] = TYPED_PARAMS_HPMC_STEP_EPSILON
+    
+    # Account for clash for `shape/vertices`
+    if (
+        cls is hoomd.hpmc.integrate.ConvexPolygon
+        or cls is hoomd.hpmc.integrate.SimplePolygon
+        or cls is hoomd.hpmc.integrate.ConvexSpheropolygon
+    ):
+        default_params["shape"]["vertices"] = SQUARE.vertices[:, :2]
+        typed_params["A"]["shape"]["vertices"] = TRIANGLE.vertices[:, :2]
+        typed_params["B"]["shape"]["vertices"] = TRIANGLE.vertices[:, :2]
+
+    # Account for clash for `shape/shapes`
+    if "shape" in default_params and "shapes" in default_params["shape"]:
+        if cls is hoomd.hpmc.integrate.ConvexSpheropolyhedronUnion:
+            default_params["shape"]["shapes"] = DEFAULT_PARAMS_HPMC_CSPUNION_SHAPES
+            typed_params["A"]["shape"]["shapes"] = TYPED_PARAMS_HPMC_CSPUNION_SHAPES
+            typed_params["B"]["shape"]["shapes"] = TYPED_PARAMS_HPMC_CSPUNION_SHAPES
+        elif cls is hoomd.hpmc.integrate.FacetedEllipsoidUnion:
+            default_params["shape"]["shapes"] = DEFAULT_PARAMS_HPMC_FEUNION_SHAPES
+            typed_params["A"]["shape"]["shapes"] = TYPED_PARAMS_HPMC_FEUNION_SHAPES
+            typed_params["B"]["shape"]["shapes"] = TYPED_PARAMS_HPMC_FEUNION_SHAPES
+        elif cls is hoomd.hpmc.integrate.SphereUnion:
+            default_params["shape"]["shapes"] = DEFAULT_PARAMS_HPMC_SUNION_SHAPES
+            typed_params["A"]["shape"]["shapes"] = TYPED_PARAMS_HPMC_SUNION_SHAPES
+            typed_params["B"]["shape"]["shapes"] = TYPED_PARAMS_HPMC_SUNION_SHAPES
 
     if not typed_params["A"]:
         del typed_params["A"]
@@ -1371,11 +1781,12 @@ def assert_interactions_are_equivalent(i1, i2):
     assert same_default_params or equivalent_default_params
     assert same_typed_params or equivalent_typed_params
 
-@pytest.mark.parametrize("cls", CLASSES_TO_TEST)
+@pytest.mark.parametrize("cls", [hoomd.hpmc.pair.Union, hoomd.hpmc.integrate.ConvexSpheropolyhedronUnion, hoomd.hpmc.integrate.FacetedEllipsoidUnion, hoomd.hpmc.integrate.SphereUnion])#CLASSES_TO_TEST)
 @pytest.mark.parametrize("required_or_all", ["required", "all"])
 def test_instantiation_valid(cls, required_or_all):
     """Ensure every covered hoomd class can be instantiated and exported to hoomd instances with valid parameters."""    
     kwargs = get_kwargs(cls, required_or_all)
+    breakpoint()
     _ = p4.Interaction(**kwargs)
 
 INVALID_KWARGS = [

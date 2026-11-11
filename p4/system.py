@@ -191,6 +191,27 @@ class System:
                     + "types."
                 )
 
+        # Ensure all interactions are either MD or HPMC
+        are_hpmc = [i._is_hpmc for i in self.interactions]
+        if not (all(are_hpmc) or not any(are_hpmc)):
+            raise ValueError(
+                "All interactions must be either HPMC or MD. The two kinds"
+                + "cannot be mixed."
+            )
+
+        # Ensure HPMC systems do not have multiple integrators
+        if all(are_hpmc):
+            integrators = [
+                i
+                for i in self.interactions
+                if issubclass(i, hoomd.hpmc.integrate.HPMCIntegrator)
+            ]
+            if len(integrators) > 1:
+                raise ValueError(
+                    "There cannot be multiple integrators in the list of "
+                    + "interactions."
+                )
+
     # ------------------------------- PROPERTIES -------------------------------
 
     @property
@@ -249,6 +270,28 @@ class System:
         except:
             self._interactions = original_value
             raise
+
+    @property
+    def _is_hpmc(self) -> bool:
+        """Whether the interactions are HPMC or not.
+        
+        It is assumed that all interactions are either HPMC or MD, so only the
+        first interaction is tested.
+        """
+        return self.interactions[0]._is_hpmc
+
+    @property
+    def _mc_integrator(self) -> Interaction | None:
+        """The HPMC integrator in the list of interactions.
+        
+        If the system is HPMC, it is assumed that there is at most one
+        integrator in the list of interactions. If there isn't an integrator,
+        or if the this system is not HPMC, None is returned.
+        """
+        if self._is_hpmc:
+            for i in self.interactions:
+                if issubclass(i, hoomd.hpmc.integrate.HPMCIntegrator):
+                    return i
 
     # ---------------------------------- FROM ----------------------------------
 

@@ -673,7 +673,7 @@ class Field:
         Raises
         ------
         ImportError
-            If an existing VTK installation is not found.
+            If a VTK installation is not found.
         """
         try:
             import vtk
@@ -737,7 +737,10 @@ class Field:
                             f"Cannot parse legacy format '{legacy_format}'."
                         )
             case _:
-                raise ValueError(f"Extension '{extension}' not recognized.")
+                raise ValueError(
+                    "File extension not recognized. The allowed extensions are "
+                    "vti, pvti, vtr, pvtr, vtu, pvtu, and vtk."
+                )
             
         # Read the data into a vtk data structure
         reader.SetFileName(str(filename))
@@ -861,7 +864,7 @@ class Field:
         Raises
         ------
         ImportError
-            If an existing VTK installation is not found.
+            If a VTK installation is not found.
         ValueError
             If the measurements contain more than one orientation, or if the
             grid type is not allowed for the given file format.
@@ -882,7 +885,10 @@ class Field:
         
         # Check that the legacy format is recognized
         if legacy_format not in ["rectilinear", "unstructured"]:
-            raise ValueError("`legacy_format` not recognized. Use 'rectilinear' or 'unstructured'.")
+            raise ValueError(
+                "`legacy_format` not recognized. Use 'rectilinear' or "
+                + "'unstructured'."
+            )
 
         # Check that the extension is supported and matches the grid type.
         extension = str(filename).rsplit(".")[-1].lower()
@@ -909,8 +915,8 @@ class Field:
                         allowed_grid_types = ["rectilinear", "image"]
             case _:
                 raise ValueError(
-                    "File extension not recognized. Use one of the allowed "
-                    + "extensions: .vti, .pvti, .vtr, .pvtr, .vtu, .pvtu, .vtk."
+                    "File extension not recognized. The allowed extensions are "
+                    "vti, pvti, vtr, pvtr, vtu, pvtu, and vtk."
                 )
 
         if self.grid_type not in allowed_grid_types:
@@ -922,8 +928,8 @@ class Field:
             else:
                 raise ValueError(
                     f".{extension} files require a "
-                    + f"'{"' or '".join(allowed_grid_types)}' grid, "
-                    + f"but this field's grid is '{self.grid_type}'."
+                    + f"'{"' or '".join(allowed_grid_types)}' grid, but this "
+                    + f"field's grid is '{self.grid_type}'."
                 )
 
         # Match the filename to a writer

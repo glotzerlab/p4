@@ -138,6 +138,144 @@ def orientations_from_fibonacci_lattice(n: int) -> np.ndarray:
 # ):
 #     pass
 
+def filter_positions_by_shape_overlap(positions, orientations, analyte_shape, probe_shape):
+    """Return positions and orientations which do not cause shape overlap.
+    
+    The returned positions and orientations are a subset of those provided.
+    Overlap is determined based on provided shapes for the analyte and probe.
+    Provided shapes must be from the same coxeter class.
+    """
+    if (
+        type(probe_shape) is not type(analyte_shape)
+        or probe_shape.__module__.rsplit(".")[0] != "coxeter"
+    ):
+        raise TypeError("probe and analyte must have same coxeter shape class.")
+
+    # If necessary, broadcast orientations
+    if (
+        len(np.asarray(orientations).shape) < 3
+        and np.asarray(orientations).shape[-1] == 4
+    ):
+        orientations = np.array(
+            [np.atleast_2d(orientations) for _ in positions]
+        )
+    elif (
+        len(orientations.shape) != 3
+        or np.asarray(orientations).shape[0] != np.asarray(positions).shape[0]
+        or np.asarray(orientations).shape[-1] == 4
+    ):
+        raise ValueError("Could not broadcast orientations onto positions.")
+
+    # Create the simulation state. Analyte index is 0, probe is 1.
+    frame = gsd.hoomd.Frame()
+    frame.particles.N = 2
+    frame.particles.types = ["analyte", "probe"]
+    frame.particles.typeid = [0, 1]
+    frame.particles.position = [(0,0,0), tuple(positions[0])]
+    frame.particles.orientation = [(1,0,0,0), tuple(orientations[0][0])]
+    snapshot = hoomd.Snapshot.from_gsd_frame(
+        gsd_snap=frame,
+        communicator=hoomd.communicator.Communicator(),
+    )
+
+    # Map shape class onto HPMC integrator
+    match type(analyte_shape):
+        case coxeter.shapes.Circle | coxeter.shapes.Sphere:
+            integrator = hoomd.hpmc.integrate.Sphere()
+            integrator.shape["probe"] = dict(diameter=2 * probe_shape.radius)
+            integrator.shape["analyte"] = dict(diameter=2 * analyte_shape.radius)
+
+        case coxeter.shapes.ConvexPolygon:
+            integrator = hoomd.hpmc.integrate.ConvexPolygon()
+            integrator.shape["probe"] = dict(vertices=probe_shape.vertices)
+            integrator.shape["analyte"] = dict(vertices=analyte_shape.vertices)
+
+        case coxeter.shapes.ConvexPolyhedron:
+            integrator = hoomd.hpmc.integrate.ConvexPolyhedron()
+            integrator.shape["probe"] = dict(vertices=probe_shape.vertices)
+            integrator.shape["analyte"] = dict(vertices=analyte_shape.vertices)
+
+        case coxeter.shapes.ConvexSpheropolygon:
+            integrator = hoomd.hpmc.integrate.ConvexSpheropolygon()
+            integrator.shape["probe"] = dict(
+                vertices=probe_shape.vertices,
+                sweep_radius=probe_shape.radius,
+            )
+            integrator.shape["analyte"] = dict(
+                vertices=analyte_shape.vertices,
+                sweep_radius=analyte_shape.radius,
+            )
+
+        case coxeter.shapes.ConvexSpheropolyhedron:
+            integrator = hoomd.hpmc.integrate.ConvexSpheropolyhedron()
+            integrator.shape["probe"] = dict(
+                vertices=probe_shape.vertices,
+                sweep_radius=probe_shape.radius,
+            )
+            integrator.shape["analyte"] = dict(
+                vertices=analyte_shape.vertices,
+                sweep_radius=analyte_shape.radius,
+            )
+
+        case coxeter.shapes.Ellipse:
+            integrator = hoomd.hpmc.integrate.Ellipsoid()
+            integrator.shape["probe"] = dict(
+                a=probe_shape.a,
+                b=probe_shape.b,
+                c=0,
+            )
+            integrator.shape["analyte"] = dict(
+                a=analyte_shape.a,
+                b=analyte_shape.b,
+                c=0,
+            )
+
+        case coxeter.shapes.Ellipsoid:
+            integrator = hoomd.hpmc.integrate.Ellipsoid()
+            integrator.shape["probe"] = dict(
+                a=probe_shape.a,
+                b=probe_shape.b,
+                c=probe_shape.c,
+            )
+            integrator.shape["analyte"] = dict(
+                a=analyte_shape.a,
+                b=analyte_shape.b,
+                c=analyte_shape.c,
+            )
+
+    # Create the simulation
+    simulation = hoomd.Simulation(device=hoomd.device.CPU(), seed=0)
+    simulation.create_state_from_snapshot(snapshot)
+    simulation.operations.integrator = integrator
+
+    # Measurement loop
+    new_positions = []
+    new_orientations = []
+    for i, p in enumerate(positions):
+        current_new_orientations = []
+
+        for o in orientations[i]:
+            # Set probe position and orientation
+            with simulation.state.cpu_local_snapshot as state:
+                state.particles.position[
+                    state.particles.rtag[1]
+                ] = p
+                state.particles.orientation[
+                    state.particles.rtag[1]
+                ] = o
+
+            # Run the overlap calculation
+            simulation.run(0)
+
+            # Log orientation for the current position if there are no overlaps
+            if simulation.operations.integrator.overlaps == 0:
+                current_new_orientations.append(o)
+
+        if len(current_new_orientations) > 0:
+            new_positions.append(p)
+            new_orientations.append(current_new_orientations)
+
+    return new_positions, new_orientations
 
 # ---------------------------------- PLOTTING ----------------------------------
 

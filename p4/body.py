@@ -800,6 +800,10 @@ class Body:
         """
         return json_dict
 
+    @classmethod
+    def from_vtk(cls, filename: os.PathLike) -> Body:
+        pass
+
     # ----------------------------------- TO -----------------------------------
 
     def to_hoomd_rigid(
@@ -1026,6 +1030,67 @@ class Body:
             mass=self.mass,
             moi=self.moi
         )
+
+    def to_vtk(
+        self,
+        filename: os.PathLike,
+        type_shapes: dict[str, coxeter.shapes.Polyhedron]
+    ):
+        """Save this Body to a VTK file.
+        
+        Parameters
+        ----------
+        TODO
+
+        Raises
+        ------
+        ImportError
+            If a VTK installation is not found.
+        """
+        # Ensure VTK is importable
+        try:
+            import vtk
+            from vtk.util.numpy_support import numpy_to_vtk
+        except ImportError:
+            raise ImportError("VTK installation not found.")
+
+        # Ensure a valid extension is provided
+        extension = str(filename).rsplit(".")[-1].lower()
+        if extension not in ["vtp", "vtm"]:
+            raise ValueError(
+                "File extension not recognized. The allowed extensions are vtp "
+                + "and vtm."
+            )
+
+        # Build numpy data arrays
+        type_to_id = {
+            name: i
+            for i, name in enumerate([self.primary_type] + self.secondary_types)
+        }
+
+        positions = [[0, 0, 0]]
+        orientations = [[1, 0, 0, 0]]
+        types = [self.primary_type]
+        typeids = [0]
+
+        for t in self.secondary_types:
+            n_type = len(self.positions_by_type[t])
+            positions.extend(self.positions_by_type[t])
+            orientations.extend(
+                self.orientations_by_type.get(t, [[1, 0, 0, 0]] * n_type)
+            )
+            types.extend([t] * n_type)
+            typeids.extend([type_to_id[t]] * n_type)
+
+        positions = np.asarray(positions, dtype=float)
+        orientations = np.asarray(orientations, dtype=float)
+        typeids = np.asarray(typeids, dtype=int)
+
+        # Move particle data into a VTK object
+        particle_data = vtk.vtkPolyData()
+
+        points = vtk.vtkPoints()
+        position
 
     # -------------------------------- PLOTTING --------------------------------
 

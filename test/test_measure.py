@@ -203,3 +203,76 @@ def test_single_particle_probe_multi_particle_arrangement_analyte():
         n_processes=2,
         disable_pbar=True,
     )
+
+@pytest.mark.parametrize("n_processes", [1, 2])
+@pytest.mark.parametrize("return_field", [False, True])
+@pytest.mark.parametrize("filename", [None, "test.csv"])
+def test_parts_handled_correctly(n_processes, return_field, filename):
+    """Ensure measure() does not error with settings that result in different part handling."""
+    s = p4.System(
+        probe=p4.Body("A"),
+        analyte=p4.Body("A"),
+        interactions=[
+            p4.Interaction(
+                hoomd_class=hoomd.md.pair.LJ,
+                initial_args={},
+                default_params=dict(r_cut=5, params=dict(epsilon=1, sigma=1)),
+                typed_params={}
+            )
+        ]
+    )
+
+    positions = POSITIONS
+    orientations = ORIENTATIONS
+
+    with tempfile.TemporaryDirectory(dir=REFERENCE_FOLDER) as tempdir:
+        test_path = None if filename is None else Path(tempdir) / filename
+        field = s.measure(
+            quantities=["U", "F", "T"],
+            positions=positions,
+            orientations=orientations,
+            n_processes=n_processes,
+            disable_pbar=True,
+            return_field=return_field,
+            filename=test_path,
+        )
+
+        if return_field:
+            assert len(field.table["x"]) == positions.shape[0] * orientations.shape[0]
+
+        if return_field:
+            assert type(field) is p4.Field
+        else:
+            assert field is None
+
+def test_parts_merged_correctly():
+    """Ensure measure() merges part files correctly."""
+    s = p4.System(
+        probe=p4.Body("A"),
+        analyte=p4.Body("A"),
+        interactions=[
+            p4.Interaction(
+                hoomd_class=hoomd.md.pair.LJ,
+                initial_args={},
+                default_params=dict(r_cut=5, params=dict(epsilon=1, sigma=1)),
+                typed_params={}
+            )
+        ]
+    )
+
+    positions = p4.positions_on_regular_grid([2, 2, 2], [20, 20, 20])
+    orientations = p4.orientations_from_fibonacci_lattice(5)
+
+    with tempfile.TemporaryDirectory(dir=REFERENCE_FOLDER) as tempdir:
+        test_path = Path(tempdir) / "test.csv"
+        field = s.measure(
+            quantities=["U", "F", "T"],
+            positions=positions,
+            orientations=orientations,
+            n_processes=3,
+            disable_pbar=True,
+            return_field=True,
+            filename=test_path,
+        )
+
+        assert len(field.table["x"]) == positions.shape[0] * orientations.shape[0]

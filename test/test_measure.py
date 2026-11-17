@@ -16,7 +16,7 @@ POSITIONS = p4.positions_on_regular_grid(box=[20, 20, 20], resolution=[6, 6, 6])
 ORIENTATIONS = p4.orientations_about_axis(n=2, axis=[0, 0, 1])
 
 
-def test_measure_few_positions_as_ndarray():
+def test_few_positions_as_ndarray():
     """Ensure System.measure() does not error when there are more positions than available processes."""
     s = p4.System(
         probe=p4.Body("A"),
@@ -31,17 +31,15 @@ def test_measure_few_positions_as_ndarray():
         ]
     )
 
-    with tempfile.TemporaryDirectory(dir=REFERENCE_FOLDER) as tempdir:
-        test_path = Path(tempdir) / f"test.csv"
-        s.measure(
-            quantities=["U", "F", "T"],
-            positions=p4.positions_on_regular_grid([2, 2, 2], [1, 1, 1]),
-            orientations=ORIENTATIONS,
-            n_processes=2,
-            disable_pbar=True,
-        )
+    s.measure(
+        quantities=["U", "F", "T"],
+        positions=p4.positions_on_regular_grid([2, 2, 2], [1, 1, 1]),
+        orientations=ORIENTATIONS,
+        n_processes=2,
+        disable_pbar=True,
+    )
 
-def test_measure_few_positions_as_list():
+def test_few_positions_as_list():
     """Ensure System.measure() does not error when positions are provided as a list."""
     s = p4.System(
         probe=p4.Body("A"),
@@ -56,17 +54,15 @@ def test_measure_few_positions_as_list():
         ]
     )
 
-    with tempfile.TemporaryDirectory(dir=REFERENCE_FOLDER) as tempdir:
-        test_path = Path(tempdir) / f"test.csv"
-        s.measure(
-            quantities=["U", "F", "T"],
-            positions=[p for p in p4.positions_on_regular_grid([2, 2, 2], [1, 1, 1])],
-            orientations=ORIENTATIONS,
-            n_processes=2,
-            disable_pbar=True,
-        )
+    s.measure(
+        quantities=["U", "F", "T"],
+        positions=[p for p in p4.positions_on_regular_grid([2, 2, 2], [1, 1, 1])],
+        orientations=ORIENTATIONS,
+        n_processes=2,
+        disable_pbar=True,
+    )
 
-def test_measure_same_probe_and_analyte():
+def test_same_probe_and_analyte():
     """Ensure System.measure() does not error when the probe and analyte are identical."""
     s = p4.System(
         probe=p4.Body("A"),
@@ -81,17 +77,15 @@ def test_measure_same_probe_and_analyte():
         ]
     )
 
-    with tempfile.TemporaryDirectory(dir=REFERENCE_FOLDER) as tempdir:
-        test_path = Path(tempdir) / f"test.csv"
-        s.measure(
-            quantities=["U", "F", "T"],
-            positions=POSITIONS,
-            orientations=ORIENTATIONS,
-            n_processes=2,
-            disable_pbar=True,
-        )
+    s.measure(
+        quantities=["U", "F", "T"],
+        positions=POSITIONS,
+        orientations=ORIENTATIONS,
+        n_processes=2,
+        disable_pbar=True,
+    )
 
-def test_measure_single_particle_probe_multi_particle_body_analyte():
+def test_single_particle_probe_multi_particle_body_analyte():
     """Ensure System.measure() does not error when the probe is single-particle and the analyte is multi-particle body."""
     s = p4.System(
         probe=p4.Body("A"),
@@ -109,17 +103,15 @@ def test_measure_single_particle_probe_multi_particle_body_analyte():
         ]
     )
 
-    with tempfile.TemporaryDirectory(dir=REFERENCE_FOLDER) as tempdir:
-        test_path = Path(tempdir) / f"test.csv"
-        s.measure(
-            quantities=["U", "F", "T"],
-            positions=POSITIONS,
-            orientations=ORIENTATIONS,
-            n_processes=2,
-            disable_pbar=True,
-        )
+    s.measure(
+        quantities=["U", "F", "T"],
+        positions=POSITIONS,
+        orientations=ORIENTATIONS,
+        n_processes=2,
+        disable_pbar=True,
+    )
 
-def test_measure_multi_particle_probe_single_particle_body_analyte():
+def test_multi_particle_probe_single_particle_body_analyte():
     """Ensure System.measure() does not error when the probe is multi-particle and the analyte is a single-particle body."""
     s = p4.System(
         probe=p4.Body("B", ["C"], dict(C=[[1, 0, 0]])),
@@ -137,17 +129,15 @@ def test_measure_multi_particle_probe_single_particle_body_analyte():
         ]
     )
 
-    with tempfile.TemporaryDirectory(dir=REFERENCE_FOLDER) as tempdir:
-        test_path = Path(tempdir) / f"test.csv"
-        s.measure(
-            quantities=["U", "F", "T"],
-            positions=POSITIONS,
-            orientations=ORIENTATIONS,
-            n_processes=2,
-            disable_pbar=True,
-        )
+    s.measure(
+        quantities=["U", "F", "T"],
+        positions=POSITIONS,
+        orientations=ORIENTATIONS,
+        n_processes=2,
+        disable_pbar=True,
+    )
 
-def test_measure_single_particle_probe_single_particle_arrangement_analyte():
+def test_single_particle_probe_single_particle_arrangement_analyte():
     """Ensure System.measure() does not error when the probe is multi-particle and the analyte is an arrangement of single-particle bodies."""
     s = p4.System(
         probe=p4.Body("A"),
@@ -165,17 +155,15 @@ def test_measure_single_particle_probe_single_particle_arrangement_analyte():
         ]
     )
 
-    with tempfile.TemporaryDirectory(dir=REFERENCE_FOLDER) as tempdir:
-        test_path = Path(tempdir) / f"test.csv"
-        s.measure(
-            quantities=["U", "F", "T"],
-            positions=POSITIONS,
-            orientations=ORIENTATIONS,
-            n_processes=2,
-            disable_pbar=True,
-        )
+    s.measure(
+        quantities=["U", "F", "T"],
+        positions=POSITIONS,
+        orientations=ORIENTATIONS,
+        n_processes=2,
+        disable_pbar=True,
+    )
 
-def test_measure_single_particle_probe_multi_particle_arrangement_analyte():
+def test_single_particle_probe_multi_particle_arrangement_analyte():
     """Ensure System.measure() does not error when the probe is multi-particle and the analyte is an arrangement of multi-particle bodies."""
     s = p4.System(
         probe=p4.Body("A"),
@@ -208,12 +196,10 @@ def test_measure_single_particle_probe_multi_particle_arrangement_analyte():
         ]
     )
 
-    with tempfile.TemporaryDirectory(dir=REFERENCE_FOLDER) as tempdir:
-        test_path = Path(tempdir) / f"test.csv"
-        s.measure(
-            quantities=["U", "F", "T"],
-            positions=POSITIONS,
-            orientations=ORIENTATIONS,
-            n_processes=2,
-            disable_pbar=True,
-        )
+    s.measure(
+        quantities=["U", "F", "T"],
+        positions=POSITIONS,
+        orientations=ORIENTATIONS,
+        n_processes=2,
+        disable_pbar=True,
+    )

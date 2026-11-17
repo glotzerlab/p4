@@ -488,7 +488,8 @@ def measure(
         probe_index=probe_index,
         compute=None if gsd_filename is None else compute,
     )
-    # breakpoint()
+    # TODO:
+    #   - decide on buffer size for chunks
 
     # Iterate over positions
     pbar = partial(
@@ -498,6 +499,12 @@ def measure(
         position=pbar_number,
         disable=disable_pbar,
     )
+    
+    rows_in_buffer = 1000
+
+    part_file = open(f"measure_part{pbar_number}.csv", "+a")
+    part_file.seek(0)
+    
     for p, os in pbar(zip(positions, orientations)):
         for o in os:
             with simulation.state.cpu_local_snapshot as state:
@@ -514,9 +521,18 @@ def measure(
 
             simulation.run(1)
 
-    # Flush all writers, just to make sure
+            # write rows to disk if buffer is full
+            if simulation.timestep % rows_in_buffer == 0:
+                table.seek(0)
+                part_file.write(table.read())
+                table = StringIO()
+                table.seek(0)
+
+    # Flush all writers and write all remaining table rows to the part file
     for writer in simulation.operations.writers:
         if hasattr(writer, "flush"):
             writer.flush()
 
-    return table
+    table.seek(0)
+    part_file.write(table.read())
+    part_file.close()

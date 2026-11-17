@@ -793,7 +793,7 @@ class System:
                 pool.starmap(util.simulation.measure, args)
 
             # Merge all part files together into a single file with finalized
-            # column names   
+            # column names
             with open("measure_merged.csv", "wb") as merged_file:
                 merged_file.write(
                     bytes(",".join(clean_columns()) + "\n", encoding="utf-8")

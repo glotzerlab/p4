@@ -423,8 +423,12 @@ def measure(
     nlist: hoomd.md.nlist.NeighborList,
     pbar_number: int,
     disable_pbar: bool
-) -> StringIO:
+):
     """Measure named quantities for a system.
+
+    Measurements are written to a file ``measure_part<i>.csv``, where ``<i>`` is
+    ``pbar_number``. This file may have malformed column names and should be
+    processed further before being converted into a Field. 
 
     Parameters
     ----------
@@ -448,17 +452,11 @@ def measure(
         saved.
     nlist : hoomd.md.nlist.NeighborList
         The neighbor list to use for the interactions.
-    pbar_position : int
+    pbar_number : int
         The position of the tqdm progress bar. ``0`` is outermost, ``1`` is
         next, and so on.
     disable_pbar : bool
         Whether to disable the progress bar.
-
-    Returns
-    -------
-    StringIO
-        The tabular results of the measurement simulation, formatted as a CSV
-        and stored in a string buffer.
     """
     # Warn if there is a risk of table writer erroring
     if Version(hoomd.version.version) < Version("6.1.0"):

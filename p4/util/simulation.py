@@ -501,7 +501,6 @@ def measure(
     rows_in_buffer = 1000
 
     part_file = open(f"measure_part{pbar_number}.csv", "+a")
-    part_file.seek(0)
     
     for p, os in pbar(zip(positions, orientations)):
         for o in os:
@@ -521,10 +520,15 @@ def measure(
 
             # write rows to disk if buffer is full
             if simulation.timestep % rows_in_buffer == 0:
+                for writer in simulation.operations.writers:
+                    if hasattr(writer, "flush"):
+                        writer.flush()
+                
                 table.seek(0)
                 part_file.write(table.read())
-                table = StringIO()
+                
                 table.seek(0)
+                table.truncate(0)
 
     # Flush all writers and write all remaining table rows to the part file
     for writer in simulation.operations.writers:

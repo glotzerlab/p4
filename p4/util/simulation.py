@@ -488,6 +488,10 @@ def measure(
     )
     # TODO:
     #   - decide on buffer size for chunks
+    #   - add protection so that temp files are merged and then deleted after
+    #     interruption before exit
+    #   - make temp files get put in either a temp folder or at least the
+    #     destination folder
 
     # Iterate over positions
     pbar = partial(

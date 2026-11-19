@@ -6,12 +6,14 @@
 from __future__ import annotations
 from collections.abc import Iterable
 from io import StringIO, TextIOWrapper
+from pathlib import Path
 from typing import Literal, Tuple
 import warnings
 from packaging.version import Version
 from functools import partial
 
 import gsd
+import gsd.hoomd
 import hoomd
 import numpy as np
 
@@ -422,13 +424,10 @@ def measure(
     gsd_filename: str | None,
     nlist: hoomd.md.nlist.NeighborList,
     pbar_number: int,
-    disable_pbar: bool
+    disable_pbar: bool,
+    table_path: Path,
 ):
     """Measure named quantities for a system.
-
-    Measurements are written to a file ``measure_part<i>.csv``, where ``<i>`` is
-    ``pbar_number``. This file may have malformed column names and should be
-    processed further before being converted into a Field. 
 
     Parameters
     ----------
@@ -457,6 +456,8 @@ def measure(
         next, and so on.
     disable_pbar : bool
         Whether to disable the progress bar.
+    table_path : Path
+        The path to the file that will contain the table of measurements.
     """
     # Warn if there is a risk of table writer erroring
     if Version(hoomd.version.version) < Version("6.1.0"):
@@ -487,11 +488,10 @@ def measure(
         compute=None if gsd_filename is None else compute,
     )
     # TODO:
-    #   - decide on buffer size for chunks
     #   - add protection so that temp files are merged and then deleted after
     #     interruption before exit
-    #   - make temp files get put in either a temp folder or at least the
-    #     destination folder
+    #   - add ability to filter positions and orientations by table file
+    #     so that it is easy to restart an interrupted run
 
     # Iterate over positions
     pbar = partial(
@@ -502,9 +502,9 @@ def measure(
         disable=disable_pbar,
     )
     
-    rows_in_buffer = 1000
+    rows_in_buffer = 30_000     # about 4MB if measuring all quantities
 
-    part_file = open(f"measure_part{pbar_number}.csv", "+a")
+    file = open(table_path, "+a")
     
     for p, os in pbar(zip(positions, orientations)):
         for o in os:
@@ -529,7 +529,7 @@ def measure(
                         writer.flush()
                 
                 table.seek(0)
-                part_file.write(table.read())
+                file.write(table.read())
                 
                 table.seek(0)
                 table.truncate(0)
@@ -540,5 +540,5 @@ def measure(
             writer.flush()
 
     table.seek(0)
-    part_file.write(table.read())
-    part_file.close()
+    file.write(table.read())
+    file.close()

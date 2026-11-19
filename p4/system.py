@@ -758,6 +758,8 @@ class System:
             if "T" in quantities:
                 names.extend(["Tx", "Ty", "Tz"])
             return names
+
+        destination = Path.cwd() if filename is None else Path(filename).parent
     
         if n_processes != 1:
             # Set up for multiprocessing with tqdm
@@ -779,6 +781,11 @@ class System:
                 else:
                     gsd_filenames = [None for _ in range(n_processes)]
 
+                part_file_paths = [
+                    destination
+                    / f"measure_part{i}.csv" for i in range(n_processes)
+                ]
+
                 args = zip(
                     [deepcopy(self) for _ in range(n_processes)],
                     [quantities for _ in range(n_processes)],
@@ -788,19 +795,20 @@ class System:
                     gsd_filenames,
                     [nlist for _ in range(n_processes)],
                     list(range(n_processes)),
-                    [disable_pbar for _ in range(n_processes)]
+                    [disable_pbar for _ in range(n_processes)],
+                    part_file_paths,
                 )
                 pool.starmap(util.simulation.measure, args)
 
             # Merge all part files together into a single file with finalized
             # column names
-            with open("measure_merged.csv", "wb") as merged_file:
+            with open(destination / "measure_merged.csv", "wb") as merged_file:
                 merged_file.write(
                     bytes(",".join(clean_columns()) + "\n", encoding="utf-8")
                 )
 
                 for i in range(n_processes):
-                    part_path = f"measure_part{i}.csv"
+                    part_path = destination / f"measure_part{i}.csv"
                     
                     with open(part_path, "rb") as part_file:
                         _ = part_file.readline()    # skip header row
@@ -824,24 +832,25 @@ class System:
                 nlist=nlist,
                 pbar_number=0,
                 disable_pbar=disable_pbar,
+                table_path=destination / f"measure_part0.csv",
             )
 
             # Move the contents of the single part file into a new file with
             # finalized headers. It's named "merged" so that it can be processed
             # the same as the file from the other branch below.
-            with open("measure_merged.csv", "wb") as merged_file:
+            with open(destination / "measure_merged.csv", "wb") as merged_file:
                 merged_file.write(
                     bytes(",".join(clean_columns()) + "\n", encoding="utf-8")
                 )
-                with open("measure_part0.csv", "rb") as part_file:
+                with open(destination / "measure_part0.csv", "rb") as part_file:
                     _ = part_file.readline()    # skip header row
                     shutil.copyfileobj(part_file, merged_file)
 
-            os.remove("measure_part0.csv")
+            os.remove(destination / "measure_part0.csv")
 
         # If there should be an output file, rename the merged file
         if filename is not None:
-            os.rename("measure_merged.csv", filename)
+            os.rename(destination / "measure_merged.csv", filename)
 
         # If no field needs to be returned, simply return None
         if not return_field:
@@ -852,7 +861,7 @@ class System:
         if filename is not None:
             data_path = filename
         else:
-            data_path = "measure_merged.csv"
+            data_path = destination / "measure_merged.csv"
             
         with open(data_path, "r") as merged_file:
             merged_file.seek(0)

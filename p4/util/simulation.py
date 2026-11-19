@@ -6,12 +6,14 @@
 from __future__ import annotations
 from collections.abc import Iterable
 from io import StringIO, TextIOWrapper
+from pathlib import Path
 from typing import Literal, Tuple
 import warnings
 from packaging.version import Version
 from functools import partial
 
 import gsd
+import gsd.hoomd
 import hoomd
 import numpy as np
 
@@ -422,8 +424,9 @@ def measure(
     gsd_filename: str | None,
     nlist: hoomd.md.nlist.NeighborList,
     pbar_number: int,
-    disable_pbar: bool
-) -> StringIO:
+    disable_pbar: bool,
+    table_path: Path,
+):
     """Measure named quantities for a system.
 
     Parameters
@@ -448,17 +451,13 @@ def measure(
         saved.
     nlist : hoomd.md.nlist.NeighborList
         The neighbor list to use for the interactions.
-    pbar_position : int
+    pbar_number : int
         The position of the tqdm progress bar. ``0`` is outermost, ``1`` is
         next, and so on.
     disable_pbar : bool
         Whether to disable the progress bar.
-
-    Returns
-    -------
-    StringIO
-        The tabular results of the measurement simulation, formatted as a CSV
-        and stored in a string buffer.
+    table_path : Path
+        The path to the file that will contain the table of measurements.
     """
     # Warn if there is a risk of table writer erroring
     if Version(hoomd.version.version) < Version("6.1.0"):
@@ -488,7 +487,12 @@ def measure(
         probe_index=probe_index,
         compute=None if gsd_filename is None else compute,
     )
-    # breakpoint()
+
+    # Set the size of the buffer for the table, which is in working memory.
+    # Target size is somewhat arbitrarily chosen to be 4MB. If the table is
+    # a string buffer and all quantities are measured, this comes out to
+    # around 30,000 rows.
+    rows_in_buffer = 30_000
 
     # Iterate over positions
     pbar = partial(
@@ -498,6 +502,9 @@ def measure(
         position=pbar_number,
         disable=disable_pbar,
     )
+
+    file = open(table_path, "+a")
+    
     for p, os in pbar(zip(positions, orientations)):
         for o in os:
             with simulation.state.cpu_local_snapshot as state:
@@ -514,9 +521,23 @@ def measure(
 
             simulation.run(1)
 
-    # Flush all writers, just to make sure
+            # write rows to disk if buffer is full
+            if simulation.timestep % rows_in_buffer == 0:
+                for writer in simulation.operations.writers:
+                    if hasattr(writer, "flush"):
+                        writer.flush()
+                
+                table.seek(0)
+                file.write(table.read())
+                
+                table.seek(0)
+                table.truncate(0)
+
+    # Flush all writers and write all remaining table rows to the part file
     for writer in simulation.operations.writers:
         if hasattr(writer, "flush"):
             writer.flush()
 
-    return table
+    table.seek(0)
+    file.write(table.read())
+    file.close()

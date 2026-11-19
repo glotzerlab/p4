@@ -2,9 +2,11 @@
 # This file is from the p4 project, released under the BSD 3-Clause License.
 
 from copy import copy, deepcopy
+from io import StringIO
 import json
 import os
 from pathlib import Path
+import shutil
 from typing import Iterable, Literal
 import multiprocessing
 from warnings import warn
@@ -525,7 +527,8 @@ class System:
         save_gsd: bool = False,
         nlist: hoomd.md.nlist.NeighborList | None = None,
         disable_pbar: bool = False,
-    ) -> Field:
+        return_field: bool = True,
+    ) -> Field | None:
         """Measure named quantities for the system and return them as a field.
 
         This method coordinates the parallelization of the measurement
@@ -589,6 +592,9 @@ class System:
             neighbor list is sufficient in most cases.
         disable_pbar : bool, default=False
             Whether to disable the progress bar.
+        return_field : bool, default=True
+            Whether to return an instance of the measured field. Set this option
+            to False for large fields that could occupy too much memory.
         """
         # Default nlist
         if nlist is None:
@@ -633,6 +639,43 @@ class System:
             raise ValueError(
                 "`filename` must be provided if `save_gsd` is True."
             )
+
+        # Ensure files can be written, read, and removed from current directory
+        test_path = Path("./test_path")
+        try:
+            file = open(test_path, "w")
+            file.write("test")
+            file.close()
+        except Exception as e:
+            raise Exception("Cannot write to the current directory.") from e
+
+        try:
+            file = open(test_path, "r")
+            _ = file.read()
+        except Exception as e:
+            raise Exception("Cannot read from the current directory.") from e
+
+        try:
+            test_path.unlink()
+            assert not test_path.exists()
+        except Exception as e:
+            raise Exception(
+                "Cannot delete temp files from the current directory."
+            ) from e
+        
+        # If there should be an output file, ensure it can be written in the
+        # specified location
+        if filename is not None:
+            test_path = Path(filename).parent / "test_path"
+            try:
+                file = open(test_path, "w")
+                file.write("test")
+                file.close()
+                test_path.unlink()
+            except Exception as e:
+                raise Exception(
+                    "Cannot write to the destination directory."
+                ) from e
         
         # Calculate a simulation box that contains all the particles
         max_distance = probe_positions.max()
@@ -682,7 +725,7 @@ class System:
 
         # If multiprocessing, run copies of the probe simulation with chunks
         # of the set of positions across a collection of processes
-        def subdivide(array: list, n: int):
+        def subdivide(array: list | np.ndarray, n: int):
             """Subdivide an array into n chunks of consecutive items.
 
             Disclaimer: the body of this function was written by ChatGPT.
@@ -704,7 +747,20 @@ class System:
                 array[i*k + min(i, m):(i+1)*k + min(i+1, m)]
                 for i in range(n)
             ]
-        
+
+        def clean_columns():
+            """Return an array containing the clean/finalized column names."""
+            names = ["x", "y", "z", "q0", "q1", "q2", "q3"]
+            if "U" in quantities:
+                names.append("U")
+            if "F" in quantities:
+                names.extend(["Fx", "Fy", "Fz"])
+            if "T" in quantities:
+                names.extend(["Tx", "Ty", "Tz"])
+            return names
+
+        destination = Path.cwd() if filename is None else Path(filename).parent
+    
         if n_processes != 1:
             # Set up for multiprocessing with tqdm
             # Ref: https://github.com/tqdm/tqdm#nested-progress-bars
@@ -725,6 +781,11 @@ class System:
                 else:
                     gsd_filenames = [None for _ in range(n_processes)]
 
+                part_file_paths = [
+                    destination
+                    / f"measure_part{i}.csv" for i in range(n_processes)
+                ]
+
                 args = zip(
                     [deepcopy(self) for _ in range(n_processes)],
                     [quantities for _ in range(n_processes)],
@@ -734,11 +795,26 @@ class System:
                     gsd_filenames,
                     [nlist for _ in range(n_processes)],
                     list(range(n_processes)),
-                    [disable_pbar for _ in range(n_processes)]
+                    [disable_pbar for _ in range(n_processes)],
+                    part_file_paths,
                 )
-                tables = pool.starmap(util.simulation.measure, args)
-            
-            table = util.data.clean_header(util.data.merge_tables(tables))
+                pool.starmap(util.simulation.measure, args)
+
+            # Merge all part files together into a single file with finalized
+            # column names
+            with open(destination / "measure_merged.csv", "wb") as merged_file:
+                merged_file.write(
+                    bytes(",".join(clean_columns()) + "\n", encoding="utf-8")
+                )
+
+                for i in range(n_processes):
+                    part_path = destination / f"measure_part{i}.csv"
+                    
+                    with open(part_path, "rb") as part_file:
+                        _ = part_file.readline()    # skip header row
+                        shutil.copyfileobj(part_file, merged_file)
+                    
+                    os.remove(part_path)
         
         # If not multiprocessing, don't initialize a pool (easier for debugging)
         else:
@@ -746,37 +822,61 @@ class System:
                 gsd_filename = filename.rsplit(".", 1)[0] + ".gsd"
             else:
                 gsd_filename = None
-            table = util.simulation.measure(
+            util.simulation.measure(
                 system=self,
                 quantities=quantities,
                 positions=probe_positions,
-                orientations=probe_orientations,
-                simulation_box=simulation_box,
+                orientations=probe_orientations.tolist(),
+                simulation_box=simulation_box.tolist(),
                 gsd_filename=gsd_filename,
                 nlist=nlist,
                 pbar_number=0,
                 disable_pbar=disable_pbar,
+                table_path=destination / f"measure_part0.csv",
             )
 
-            table = util.data.clean_header(table)
+            # Move the contents of the single part file into a new file with
+            # finalized headers. It's named "merged" so that it can be processed
+            # the same as the file from the other branch below.
+            with open(destination / "measure_merged.csv", "wb") as merged_file:
+                merged_file.write(
+                    bytes(",".join(clean_columns()) + "\n", encoding="utf-8")
+                )
+                with open(destination / "measure_part0.csv", "rb") as part_file:
+                    _ = part_file.readline()    # skip header row
+                    shutil.copyfileobj(part_file, merged_file)
 
-        # Write file if necessary
+            os.remove(destination / "measure_part0.csv")
+
+        # If there should be an output file, rename the merged file
         if filename is not None:
-            with open(filename, "w") as file:
-                table.seek(0)
-                file.write(table.read())
-        
-        # Create Field
-        table.seek(0)
-        columns = table.readline().strip("\n").split(",")
+            os.rename(destination / "measure_merged.csv", filename)
 
-        table.seek(0)
+        # If no field needs to be returned, simply return None
+        if not return_field:
+            return
+
+        # If returning a field, get the data from the saved file, then delete it
+        # if no CSV file is supposed to be saved
+        if filename is not None:
+            data_path = filename
+        else:
+            data_path = destination / "measure_merged.csv"
+            
+        with open(data_path, "r") as merged_file:
+            merged_file.seek(0)
+            columns = merged_file.readline().strip("\n").split(",")
+            data = StringIO(merged_file.read())
+
+        if filename is None:
+            os.remove(data_path)
+
+        # Return the resulting field
         return Field(
             np.rec.array(
                 np.genfromtxt(
-                    table,
+                    data,
                     names=columns,
-                    skip_header=1,
                     dtype=None,
                     delimiter=","
                 )

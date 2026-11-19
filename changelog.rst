@@ -9,8 +9,11 @@ Next release
 
 *Added*
 
+- ``System.measure()`` now allows users to prevent the function from reading the data file into memory and returning it as a Field. (#15)
+
 *Changed*
 
+- ``System.measure()`` now writes data to disk rather than keeping it in memory. Several smaller changes accompanied this in ``util/simulation.py``. (#15)
 - ``pixi.toml`` is now contained in ``pyproject.toml`` and installation structions are updated accordingly. (#14)
 
 *Deprecated*

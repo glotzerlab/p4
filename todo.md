@@ -11,6 +11,7 @@ TBD
 - [ ] Add support for VTK
 - [ ] add shape overlap exclusion sampling
 - [ ] add dynamical mesh sampling
+- [ ] add ability to filter positions and orientations by an existing table file
 
 Possible performance improvements:
   - [ ] switch from nested for-loop to single computation over many spaced-out configurations

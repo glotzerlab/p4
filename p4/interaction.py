@@ -103,7 +103,7 @@ class Interaction:
     """
     def __init__(
         self,
-        hoomd_class: hoomd.md.pair.Pair,
+        hoomd_class: type[hoomd.md.pair.Pair],
         initial_args: dict,
         default_params: dict,
         typed_params: dict,

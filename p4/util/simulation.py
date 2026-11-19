@@ -487,11 +487,12 @@ def measure(
         probe_index=probe_index,
         compute=None if gsd_filename is None else compute,
     )
-    # TODO:
-    #   - add protection so that temp files are merged and then deleted after
-    #     interruption before exit
-    #   - add ability to filter positions and orientations by table file
-    #     so that it is easy to restart an interrupted run
+
+    # Set the size of the buffer for the table, which is in working memory.
+    # Target size is somewhat arbitrarily chosen to be 4MB. If the table is
+    # a string buffer and all quantities are measured, this comes out to
+    # around 30,000 rows.
+    rows_in_buffer = 30_000
 
     # Iterate over positions
     pbar = partial(
@@ -501,8 +502,6 @@ def measure(
         position=pbar_number,
         disable=disable_pbar,
     )
-    
-    rows_in_buffer = 30_000     # about 4MB if measuring all quantities
 
     file = open(table_path, "+a")
     
